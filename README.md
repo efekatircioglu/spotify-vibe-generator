@@ -82,8 +82,6 @@ spotify-vibe-generator/
 └── .gitignore
 ```
 
-## License
-[MIT](LICENSE)
 
 ---
 
