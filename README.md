@@ -13,10 +13,6 @@ A modern web app that analyzes your Spotify listening habits, generates custom p
 - No sensitive data committed (see `.gitignore`)
 - **Upcoming:** Spotify Wrapped-style yearly summary and insights
 
-## Screenshots
-
-![Login Page](docs/login.png)
-![Profile & Analysis](docs/profile.png)
 
 ## Getting Started
 
