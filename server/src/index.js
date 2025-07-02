@@ -297,6 +297,73 @@ app.get('/playlist-artists/:id', async (req, res) => {
   }
 });
 
+app.get('/top-tracks', async (req, res) => {
+  const { time_range = 'short_term', limit } = req.query;
+  try {
+    const { body } = await spotifyApi.getMyTopTracks({ time_range, limit: limit ? Number(limit) : 50 });
+    res.json(body.items);
+  } catch (err) {
+    console.error('Error fetching top tracks:', err);
+    res.status(500).json({ error: 'Failed to fetch top tracks' });
+  }
+});
+
+app.get('/top-artists', async (req, res) => {
+  const { time_range = 'short_term', limit } = req.query;
+  try {
+    const { body } = await spotifyApi.getMyTopArtists({ time_range, limit: limit ? Number(limit) : 50 });
+    res.json(body.items);
+  } catch (err) {
+    console.error('Error fetching top artists:', err);
+    res.status(500).json({ error: 'Failed to fetch top artists' });
+  }
+});
+
+// Helper to get top data for a given time range
+async function getTopData(time_range) {
+  const [tracksRes, artistsRes] = await Promise.all([
+    spotifyApi.getMyTopTracks({ time_range, limit: 50 }),
+    spotifyApi.getMyTopArtists({ time_range, limit: 50 })
+  ]);
+  const tracks = tracksRes.body.items;
+  const artists = artistsRes.body.items;
+  // Collect genres from top artists
+  let genreCounts = {};
+  (artists || []).forEach(artist => {
+    (artist.genres || []).forEach(genre => {
+      genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+    });
+  });
+  return { tracks, artists, genres: genreCounts };
+}
+
+app.get('/last-4-weeks', async (req, res) => {
+  try {
+    const data = await getTopData('short_term');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch last 4 weeks data' });
+  }
+});
+
+app.get('/last-6-months', async (req, res) => {
+  try {
+    const data = await getTopData('medium_term');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch last 6 months data' });
+  }
+});
+
+app.get('/last-12-months', async (req, res) => {
+  try {
+    const data = await getTopData('long_term');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch last 12 months data' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
