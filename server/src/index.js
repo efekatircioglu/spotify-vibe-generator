@@ -34,6 +34,8 @@ const spotifyService = require('./services/spotifyService');
 // Pass the spotifyApi object to the service
 spotifyService.setSpotifyApi(spotifyApi);
 
+const ticketmasterService = require('./services/ticketmasterService');
+
 // The LOGIN route
 // This is where we will redirect the user to Spotify to log in
 app.get('/login', (req, res) => {
@@ -232,6 +234,66 @@ app.get('/artist-genre/:id', async (req, res) => {
   } catch (err) {
     console.error('Error fetching artist genre:', err);
     res.status(500).json({ error: 'Failed to fetch artist genre' });
+  }
+});
+
+// Search for artist by name (Ticketmaster)
+app.get('/concerts/artist-search', async (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: 'Missing artist name' });
+  try {
+    const data = await ticketmasterService.searchArtist(name);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to search artist' });
+  }
+});
+
+// Get events by artist ID (Ticketmaster)
+app.get('/concerts/events', async (req, res) => {
+  const { artistId } = req.query;
+  if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+  try {
+    const data = await ticketmasterService.getEventsByArtistId(artistId);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to get events' });
+  }
+});
+
+app.get('/playlist-artists/:id', async (req, res) => {
+  try {
+    const playlistId = req.params.id;
+    if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
+    // Fetch all tracks in the playlist (handle >100 tracks if needed)
+    let allTracks = [];
+    let offset = 0;
+    let total = 1;
+    let first = true;
+    while (first || allTracks.length < total) {
+      const { body: tracksBody } = await spotifyApi.getPlaylistTracks(playlistId, { offset, limit: 100 });
+      if (first) {
+        total = tracksBody.total;
+        first = false;
+      }
+      allTracks = allTracks.concat(tracksBody.items);
+      offset += 100;
+    }
+    // Count songs per artist (all artists per track)
+    let artists = {};
+    allTracks.forEach(item => {
+      if (item.track && item.track.artists) {
+        item.track.artists.forEach(artist => {
+          if (artist && artist.name) {
+            artists[artist.name] = (artists[artist.name] || 0) + 1;
+          }
+        });
+      }
+    });
+    res.json({ artists });
+  } catch (err) {
+    console.error('Error analyzing playlist artists:', err);
+    res.status(500).json({ error: 'Failed to analyze playlist artists' });
   }
 });
 

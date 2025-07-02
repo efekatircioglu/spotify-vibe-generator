@@ -1,5 +1,8 @@
 # Spotify Vibe Generator
 
+## About
+Spotify Vibe Generator is a web application designed for Spotify users who want deeper insights into their listening habits and playlists. The app provides analytics on your last 50 played songs, lets you explore your playlists, and offers interactive genre analysis. It is ideal for music enthusiasts, data lovers, and anyone curious about their Spotify trends. A "Spotify Wrapped"-style yearly summary is planned as an upcoming feature.
+
 A modern web app that analyzes your Spotify listening habits, generates custom playlists, and will soon provide a "Spotify Wrapped"-style experience (upcoming feature). Built with a React/Next.js frontend and a Node.js/Express backend, using Spotify OAuth and the Spotify Web API.
 
 ## Features
