@@ -1,0 +1,543 @@
+body, .main {
+  background: #181818;
+  min-height: 100vh;
+}
+
+.loginContainer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 12vh;
+  padding: 48px 32px 40px 32px;
+  border-radius: 32px;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  background: linear-gradient(145deg, #0f0f0f, #1c1c1c);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.loginContainer::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, #00ffff, #ff00ff, #00ffff);
+  animation: rotate 4s linear infinite;
+  z-index: -2;
+}
+
+.loginContainer::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: #0a0a0a;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+.loginContainer:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loginContainer h1 {
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 18px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.loginContainer p {
+  font-size: 1.35rem;
+  color: #e0ffe0;
+  margin-bottom: 10px;
+  line-height: 1.6;
+  text-align: center;
+  font-weight: 500;
+}
+
+.loginContainer .highlight {
+  display: block;
+  font-size: 2.1rem;
+  font-weight: 900;
+  color: #1db954;
+  margin-top: 10px;
+  margin-bottom: 18px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  text-transform: uppercase;
+}
+
+.spotifyButton {
+  display: flex;
+  align-items: center;
+  background: #1db954;
+  color: white;
+  font-weight: bold;
+  padding: 16px 32px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-size: 1.2rem;
+  margin-top: 2.5rem;
+  transition: background 0.2s, box-shadow 0.2s;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(30,185,84,0.18);
+}
+
+.spotifyButton:hover {
+  background: #1ed760;
+  box-shadow: 0 6px 24px rgba(30,185,84,0.28);
+}
+
+.spotifyLogo {
+  width: 40px;
+  height: 40px;
+  margin-right: 16px;
+}
+
+@media (max-width: 600px) {
+  .loginContainer {
+    padding: 24px 8px 24px 8px;
+    max-width: 98vw;
+  }
+  .loginContainer h1 {
+    font-size: 2rem;
+  }
+  .loginContainer .highlight {
+    font-size: 1.3rem;
+  }
+  .spotifyLogo {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.profileContainer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 8vh;
+  padding: 48px 32px 64px 32px;
+  border-radius: 32px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  background: linear-gradient(145deg, #181818 60%, #232323 100%);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  box-shadow: 0 0 24px rgba(0, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.profileContainer::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, #00ffff, #ff00ff, #00ffff);
+  animation: rotate 4s linear infinite;
+  z-index: -2;
+}
+
+.profileContainer::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: #181818;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.profileTitle {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 18px;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-top: 0;
+}
+
+.logoCircleWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.logoCircleOuter {}
+.logoCircleInner {}
+.profileLogo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid #1db954;
+  object-fit: cover;
+  box-shadow: none;
+}
+.prettyName {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1db954;
+  margin-bottom: 32px;
+  margin-top: 8px;
+  letter-spacing: 1px;
+  text-align: center;
+  text-shadow: 0 2px 8px #1db95422;
+}
+.vibeSubtitle {
+  font-size: 1.3rem;
+  color: #fff;
+  margin-bottom: 28px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.actionButtons {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  margin-bottom: 32px;
+  justify-content: center;
+}
+.vibeButton {
+  background: linear-gradient(90deg, #1db954 60%, #00ffff 100%);
+  color: #181818;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 18px 32px;
+  border-radius: 32px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 16px #1db95433;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.vibeButton:hover {
+  background: linear-gradient(90deg, #00ffff 60%, #1db954 100%);
+  color: #181818;
+  transform: scale(1.05);
+  box-shadow: 0 4px 24px #00ffff44;
+}
+
+.logoutButton {
+  display: flex;
+  align-items: center;
+  background: #1db954;
+  color: white;
+  font-weight: bold;
+  padding: 12px 28px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  transition: background 0.2s, box-shadow 0.2s;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(30,185,84,0.18);
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 10;
+}
+.logoutButton:hover {
+  background: #1ed760;
+  box-shadow: 0 6px 24px rgba(30,185,84,0.28);
+}
+
+@media (max-width: 600px) {
+  .profileContainer {
+    padding: 24px 8px 24px 8px;
+    max-width: 98vw;
+  }
+  .profileLogo {
+    width: 76px;
+    height: 76px;
+  }
+  .prettyName {
+    font-size: 1.2rem;
+  }
+  .actionButtons {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .vibeButton {
+    width: 100%;
+    font-size: 1rem;
+    padding: 14px 0;
+  }
+}
+
+.svgTrail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 10000;
+}
+
+/* .spotlightOverlay { ... } (keep for reference, but not used) */
+
+.hoverUnderline {
+  font-size: 2rem;
+  color: #ffffff;
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.hoverUnderline::after,
+.hoverUnderline::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, #ff0000, #00ffff);
+  bottom: -5px;
+  left: 0;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s ease-out;
+}
+
+.hoverUnderline::before {
+  top: -5px;
+  transform-origin: left;
+}
+
+.hoverUnderline:hover::after,
+.hoverUnderline:hover::before {
+  transform: scaleX(1);
+}
+
+.songsTableWrapper {
+  margin: 48px auto 32px auto;
+  padding: 32px 24px;
+  background: linear-gradient(135deg, #232323 80%, #181818 100%);
+  border-radius: 24px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+  max-width: 80vw;
+  width: 80vw;
+  min-width: 320px;
+  border: 1.5px solid #1db95444;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  max-height: 70vh;
+}
+
+/* Custom scrollbar for table wrapper */
+.songsTableWrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.songsTableWrapper::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 6px;
+}
+.songsTableWrapper::-webkit-scrollbar-track {
+  background: #232323;
+  border-radius: 6px;
+}
+/* For Firefox */
+.songsTableWrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #444 #232323;
+}
+
+.songsTableTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1db954;
+  margin-bottom: 18px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+.songsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+  min-width: 600px;
+}
+.songsTable th, .songsTable td {
+  padding: 12px 16px;
+  text-align: left;
+  color: #fff;
+  font-size: 1.08rem;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.songsTable th {
+  background: #1db95422;
+  color: #1db954;
+  font-weight: 700;
+  border-bottom: 2px solid #1db95444;
+}
+.songsTable tr:nth-child(even) {
+  background: #23232388;
+}
+.songsTable tr:nth-child(odd) {
+  background: #18181888;
+}
+.songsTable td {
+  border-bottom: 1px solid #1db95422;
+  word-break: break-all;
+}
+
+.metricsModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 10, 10, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.metricsModal {
+  background: #232323;
+  border: 2.5px solid #ff3b3b;
+  border-radius: 18px;
+  padding: 40px 36px 32px 36px;
+  box-shadow: 0 8px 48px #000a, 0 0 0 4px #ff3b3b44;
+  color: #fff;
+  min-width: 320px;
+  max-width: 90vw;
+  text-align: center;
+  animation: popIn 0.2s cubic-bezier(.68,-0.55,.27,1.55);
+}
+.metricsModal h2 {
+  color: #ff3b3b;
+  font-size: 1.5rem;
+  margin-bottom: 18px;
+}
+.metricsModal ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px 0;
+}
+.metricsModal li {
+  font-size: 1.13rem;
+  margin-bottom: 8px;
+  text-align: left;
+}
+.closeModalButton {
+  background: #ff3b3b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 28px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 12px #ff3b3b33;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.closeModalButton:hover {
+  background: #ff5b5b;
+  box-shadow: 0 4px 24px #ff3b3b55;
+}
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.analyzeGenreButton {
+  background: linear-gradient(90deg, #1db954 60%, #00ffff 100%);
+  color: #181818;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 10px 22px;
+  border-radius: 24px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 12px #1db95433;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+  outline: none;
+  margin: 0 0 0 0;
+}
+.analyzeGenreButton:hover {
+  background: linear-gradient(90deg, #00ffff 60%, #1db954 100%);
+  color: #181818;
+  transform: scale(1.05);
+  box-shadow: 0 4px 18px #00ffff44;
+}
+
+.chartScrollContainer {
+  width: 80vw;
+  max-width: 80vw;
+  min-width: 320px;
+  overflow-x: auto;
+  margin: 0 auto 24px auto;
+  display: flex;
+  justify-content: center;
+}
+
+.chartNavButton {
+  background: #232323;
+  color: #1db954;
+  border: 2px solid #1db954;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+  box-shadow: 0 2px 8px #1db95422;
+}
+.chartNavButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #444;
+  color: #444;
+}
+.chartNavButton:hover:not(:disabled) {
+  background: #1db954;
+  color: #232323;
+  border-color: #1db954;
+}
