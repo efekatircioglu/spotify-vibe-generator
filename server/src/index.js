@@ -3,6 +3,8 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const cors = require('cors'); 
 const express = require('express');
 const SpotifyWebApi = require('spotify-web-api-node');
+const { Pool } = require('pg');
+const pool = new Pool(); // Uses .env variables automatically
 
 const app = express();
 const PORT = 8000;
@@ -363,6 +365,39 @@ app.get('/last-12-months', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch last 12 months data' });
   }
 });
+
+app.post('/api/feedback', express.json(), async (req, res) => {
+  const { username, emoji, text } = req.body;
+  if (!username || !emoji) {
+    return res.status(400).json({ error: 'username and emoji are required' });
+  }
+  try {
+    await pool.query(
+      'INSERT INTO feedback (username, emoji, text) VALUES ($1, $2, $3)',
+      [username, emoji, text || null]
+    );
+    res.json({ message: 'Feedback received' });
+  } catch (err) {
+    console.error('Error saving feedback:', err);
+    res.status(500).json({ error: 'Failed to save feedback' });
+  }
+});
+
+app.get('/api/admin/feedbacks', express.json(), async (req, res) => {
+  // Expect the frontend to send the Spotify user id in a header
+  const userId = req.headers['x-spotify-user-id'];
+  if (userId !== process.env.ADMIN_SPOTIFY_USER_ID) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const result = await pool.query('SELECT * FROM feedback ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch feedbacks' });
+  }
+});
+
+module.exports = pool;
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
