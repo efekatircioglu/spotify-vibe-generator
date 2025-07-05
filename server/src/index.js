@@ -366,6 +366,43 @@ app.get('/last-12-months', async (req, res) => {
   }
 });
 
+// Create playlist endpoint
+app.post('/create-playlist', express.json(), async (req, res) => {
+  try {
+    const { name, trackUris, timeRange } = req.body;
+    
+    if (!name || !trackUris || !Array.isArray(trackUris)) {
+      return res.status(400).json({ error: 'Missing required fields: name and trackUris array' });
+    }
+
+    // Get current user
+    const { body: user } = await spotifyApi.getMe();
+    
+    // Create the playlist
+    const { body: playlist } = await spotifyApi.createPlaylist(user.id, {
+      name: name,
+      description: `Created from Spotify Vibe Generator - ${timeRange || 'Custom'}`
+    });
+
+    // Add tracks to the playlist (Spotify API limit is 100 tracks per request)
+    const batchSize = 100;
+    for (let i = 0; i < trackUris.length; i += batchSize) {
+      const batch = trackUris.slice(i, i + batchSize);
+      await spotifyApi.addTracksToPlaylist(playlist.id, batch);
+    }
+
+    res.json({ 
+      success: true, 
+      playlistId: playlist.id,
+      playlistUrl: playlist.external_urls.spotify,
+      trackCount: trackUris.length
+    });
+  } catch (err) {
+    console.error('Error creating playlist:', err);
+    res.status(500).json({ error: 'Failed to create playlist' });
+  }
+});
+
 app.post('/api/feedback', express.json(), async (req, res) => {
   const { username, emoji, text } = req.body;
   if (!username || !emoji) {
