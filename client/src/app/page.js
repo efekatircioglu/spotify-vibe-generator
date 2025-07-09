@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './page.module.css';
 import { Line } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,12 +12,13 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ArcElement
 } from 'chart.js';
 import React from 'react';
 import { useRouter } from 'next/navigation';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement);
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -72,6 +74,15 @@ export default function Home() {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlistCreationStatus, setPlaylistCreationStatus] = useState('');
   const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState('');
+  const [selectedSongInfo, setSelectedSongInfo] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [songISRC, setSongISRC] = useState('');
+  const [isISRCLoading, setIsISRCLoading] = useState(false);
+  const [songMBID, setSongMBID] = useState('');
+  const [isMBIDLoading, setIsMBIDLoading] = useState(false);
+  const [acousticMetrics, setAcousticMetrics] = useState(null);
+  const [isAcousticLoading, setIsAcousticLoading] = useState(false);
+  const [genreError, setGenreError] = useState(false);
 
   // This is the URL to our backend's login route
   const LOGIN_URL = 'http://127.0.0.1:8000/login';
@@ -477,6 +488,60 @@ export default function Home() {
     }
   };
 
+  const fetchAcousticMetrics = async (mbid) => {
+    setIsAcousticLoading(true);
+    setAcousticMetrics(null);
+    try {
+      const res = await fetch(`https://acousticbrainz.org/${mbid}/high-level`);
+      if (res.ok) {
+        const data = await res.json();
+        setAcousticMetrics(data);
+      } else {
+        setAcousticMetrics('Not Found');
+      }
+    } catch {
+      setAcousticMetrics('Not Found');
+    } finally {
+      setIsAcousticLoading(false);
+    }
+  };
+
+  const handleCloseInfoModal = () => {
+    setShowInfoModal(false);
+    setAcousticMetrics(null);
+    setIsAcousticLoading(false);
+  };
+
+  // Helper to render a fuel gauge bar
+  function FuelGauge({ left, right, value, color = '#8B5CF6' }) {
+    return (
+      <div style={{ margin: '18px 0', transition: 'box-shadow 0.2s', boxShadow: '0 1px 6px #8B5CF611' }}
+        onMouseOver={e => e.currentTarget.style.boxShadow = '0 4px 16px #8B5CF633'}
+        onMouseOut={e => e.currentTarget.style.boxShadow = '0 1px 6px #8B5CF611'}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>
+          <span>{left}</span>
+          <span>{right}</span>
+        </div>
+        <div style={{ position: 'relative', height: 22, background: '#e5e7eb', borderRadius: 11, overflow: 'hidden' }}>
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: '100%',
+            width: `${value}%`,
+            background: color,
+            borderRadius: 11,
+            transition: 'width 0.4s',
+          }} />
+          <div style={{ position: 'absolute', left: `${value}%`, top: 0, height: '100%', width: 2, background: '#fff', opacity: 0.7 }} />
+          <div style={{ position: 'absolute', left: `${value - 6}%`, top: 0, height: '100%', width: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', fontWeight: 800, fontSize: 16 }}>
+            {value.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <main className={styles.main}>
@@ -522,6 +587,24 @@ export default function Home() {
     localStorage.removeItem('last50songs_playlist_url');
     window.location.reload();
   };
+
+  const genreColors = {
+    Trance: '#4B0082',
+    Ambient: '#00CED1',
+    House: '#FFD700',
+    Techno: '#FF6347',
+    Dnb: '#9ACD32',
+  };
+  const defaultColors = [
+    '#1db954', '#6ee7b7', '#a5b4fc', '#fbbf24', '#f87171', '#f472b6', '#60a5fa', '#facc15', '#34d399', '#818cf8'
+  ];
+
+  // Add a keyframes style for the shine animation at the top of the component (inside the Home function, before return):
+  const shineKeyframes = `
+@keyframes shine {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}`;
 
   return (
     <main className={styles.main}>
@@ -702,7 +785,77 @@ export default function Home() {
                   <td>{song.album}</td>
                   <td>{song.release_year}</td>
                   <td>{song.duration_ms ? `${Math.floor(song.duration_ms / 60000)}:${String(Math.floor((song.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
-                  <td>{song.genre && song.genre !== 'Unknown' ? song.genre : <span style={{ color: '#888' }}>Unknown</span>}</td>
+                  <td>
+                    <button
+                      style={{ background: 'none', border: 'none', color: '#1db954', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontWeight: 600, fontSize: '1rem', letterSpacing: 0.5 }}
+                      title="Show genre breakdown"
+                      onClick={async () => {
+                        setSelectedSongInfo(song);
+                        setShowInfoModal(true);
+                        setSongISRC('');
+                        setIsISRCLoading(true);
+                        setSongMBID('');
+                        setIsMBIDLoading(false);
+                        setAcousticMetrics(null);
+                        setIsAcousticLoading(false);
+                        setGenreError(false);
+                        try {
+                          const res = await fetch(`http://127.0.0.1:8000/track-isrc/${song.id}`);
+                          if (res.ok) {
+                            const data = await res.json();
+                            setSongISRC(data.isrc || 'Not found');
+                            if (data.isrc) {
+                              setIsMBIDLoading(true);
+                              try {
+                                const mbidRes = await fetch(`https://musicbrainz.org/ws/2/recording?query=isrc:${data.isrc}&fmt=json`, {
+                                  headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+                                });
+                                if (mbidRes.ok) {
+                                  const mbidData = await mbidRes.json();
+                                  const mbid = mbidData.recordings && mbidData.recordings.length > 0 ? mbidData.recordings[0].id : null;
+                                  setSongMBID(mbid || 'Not Found');
+                                  if (mbid) {
+                                    fetchAcousticMetrics(mbid);
+                                  } else {
+                                    setAcousticMetrics(null);
+                                    setGenreError(true);
+                                  }
+                                } else {
+                                  setSongMBID('Not Found');
+                                  setAcousticMetrics(null);
+                                  setGenreError(true);
+                                }
+                              } catch {
+                                setSongMBID('Not Found');
+                                setAcousticMetrics(null);
+                                setGenreError(true);
+                              } finally {
+                                setIsMBIDLoading(false);
+                              }
+                            } else {
+                              setSongMBID('');
+                              setAcousticMetrics(null);
+                              setGenreError(true);
+                            }
+                          } else {
+                            setSongISRC('Not found');
+                            setSongMBID('');
+                            setAcousticMetrics(null);
+                            setGenreError(true);
+                          }
+                        } catch {
+                          setSongISRC('Not found');
+                          setSongMBID('');
+                          setAcousticMetrics(null);
+                          setGenreError(true);
+                        } finally {
+                          setIsISRCLoading(false);
+                        }
+                      }}
+                    >
+                      Explore Genres
+                    </button>
+                  </td>
                   <td>
                     {song.id && (
                       <a href={`https://open.spotify.com/track/${song.id}`} target="_blank" rel="noopener noreferrer">
@@ -942,7 +1095,7 @@ export default function Home() {
           <div className={styles.metricsModal} onClick={e => e.stopPropagation()} style={{ minWidth: 320, maxWidth: 400 }}>
             <h2 style={{ textAlign: 'center', marginBottom: 16 }}>How do you feel about the app?</h2>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 32, marginBottom: 16 }}>
-              {['😡','🙁','😐','🙂','😍'].map((emoji, idx) => (
+              {['😡','🙁','😐','��','😍'].map((emoji, idx) => (
                 <span
                   key={emoji}
                   style={{
@@ -1044,6 +1197,191 @@ export default function Home() {
                 {playlistCreationStatus}
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {showInfoModal && selectedSongInfo && (
+        <div className={styles.metricsModalOverlay} onClick={handleCloseInfoModal}>
+          <div className={styles.metricsModal} onClick={e => e.stopPropagation()} style={{ maxHeight: 650, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#ff3b3b #232323', padding: '56px 48px 40px 48px' }}>
+            <style>{`
+              /* Chrome, Edge, Safari */
+              .${styles.metricsModal}::-webkit-scrollbar {
+                width: 8px;
+                background: #232323;
+                border-radius: 8px;
+              }
+              .${styles.metricsModal}::-webkit-scrollbar-thumb {
+                background: #ff3b3b;
+                border-radius: 8px;
+              }
+            `}</style>
+            <h2>Genre Breakdown</h2>
+            <table style={{ width: '100%', marginBottom: 16 }}>
+              <tbody>
+                {genreError ? (
+                  <tr><td colSpan={2}>No genre data available for this song.</td></tr>
+                ) : isAcousticLoading || acousticMetrics === null ? (
+                  <tr><td colSpan={2}>Loading...</td></tr>
+                ) : acousticMetrics && acousticMetrics.highlevel && acousticMetrics.highlevel.genre_dortmund && acousticMetrics.highlevel.genre_dortmund.all ? (
+                  (() => {
+                    if (!(acousticMetrics && acousticMetrics.highlevel && acousticMetrics.highlevel.genre_dortmund && acousticMetrics.highlevel.genre_dortmund.all)) return null;
+                    const dortmund = acousticMetrics.highlevel.genre_dortmund.all;
+                    const mainGenreEntry = Object.entries(dortmund).reduce((a, b) => a[1] > b[1] ? a : b);
+                    const mainGenre = mainGenreEntry[0];
+                    const mainGenreProb = mainGenreEntry[1];
+                    const subGenreModel = acousticMetrics.highlevel[`genre_${mainGenre}`];
+                    const subGenres = subGenreModel && subGenreModel.all ? subGenreModel.all : null;
+                    const subGenreEntries = subGenres ? Object.entries(subGenres).sort((a, b) => b[1] - a[1]) : [];
+                    const chartData = {
+                      labels: subGenreEntries.map(([sub]) => sub.charAt(0).toUpperCase() + sub.slice(1)),
+                      datasets: [
+                        {
+                          data: subGenreEntries.map(([, prob]) => (prob * 100).toFixed(1)),
+                          backgroundColor: subGenreEntries.map(([sub], idx) => {
+                            const name = sub.charAt(0).toUpperCase() + sub.slice(1);
+                            return genreColors[name] || defaultColors[idx % defaultColors.length];
+                          }),
+                          borderWidth: 2,
+                        },
+                      ],
+                    };
+                    return (
+                      <>
+                        <tr>
+                          <td colSpan={2} style={{ textAlign: 'center', padding: '24px 0 12px 0' }}>
+                            <style>{shineKeyframes}</style>
+                            <div style={{
+                              display: 'inline-block',
+                              position: 'relative',
+                              background: 'linear-gradient(90deg, #8B5CF6 0%, #A78BFA 50%, #8B5CF6 100%)',
+                              color: '#fff',
+                              fontWeight: 800,
+                              fontSize: '1.25rem',
+                              borderRadius: 999,
+                              padding: '12px 36px',
+                              boxShadow: '0 2px 12px #8B5CF633',
+                              letterSpacing: 1,
+                              marginBottom: 6,
+                              textShadow: '0 2px 8px #0002',
+                              overflow: 'hidden',
+                              minWidth: 120,
+                              minHeight: 40,
+                              transition: 'transform 0.15s',
+                              cursor: 'pointer',
+                              backgroundSize: '200% 100%',
+                              animation: 'shine 2.5s linear infinite',
+                            }}>
+                              {mainGenre.charAt(0).toUpperCase() + mainGenre.slice(1)}
+                            </div>
+                            <div style={{ fontSize: '1.1rem', color: '#6D28D9', fontWeight: 700, marginTop: 6 }}>
+                              {(mainGenreProb * 100).toFixed(1)}%
+                            </div>
+                          </td>
+                        </tr>
+                        {subGenreEntries.length > 0 && (
+                          <tr>
+                            <td colSpan={2} style={{ textAlign: 'center', padding: 16 }}>
+                              <div style={{ width: 220, height: 220, margin: '0 auto' }}>
+                                <Doughnut data={chartData} options={{ plugins: { legend: { display: false } } }} />
+                              </div>
+                              <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 12 }}>
+                                {subGenreEntries.map(([sub, prob], idx) => {
+                                  const name = sub.charAt(0).toUpperCase() + sub.slice(1);
+                                  const color = genreColors[name] || chartData.datasets[0].backgroundColor[idx % chartData.datasets[0].backgroundColor.length];
+                                  return (
+                                    <div key={sub} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15 }}>
+                                      <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', background: color, marginRight: 6 }}></span>
+                                      <span>{name}: {(prob * 100).toFixed(1)}%</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {/* Summary section below the donut chart */}
+                              <div style={{
+                                marginTop: 32,
+                                textAlign: 'left',
+                                maxWidth: 320, // reduced from 400
+                                margin: '32px auto 0 auto',
+                                background: 'linear-gradient(135deg, #f8fafc 80%, #ede9fe 100%)',
+                                borderRadius: 22,
+                                boxShadow: '0 4px 24px #8B5CF611',
+                                padding: '18px 16px 14px 16px', // reduced padding
+                                fontSize: 16,
+                                color: '#222',
+                                lineHeight: 1.8,
+                                fontFamily: 'Inter, sans-serif',
+                                position: 'relative',
+                                // Remove maxHeight/overflowY from here
+                              }}>
+                                <style>{`
+                                  /* Chrome, Edge, Safari */
+                                  div[style*='overflow-y: auto']::-webkit-scrollbar {
+                                    width: 8px;
+                                    background: #ede9fe;
+                                    border-radius: 8px;
+                                  }
+                                  div[style*='overflow-y: auto']::-webkit-scrollbar-thumb {
+                                    background: #a78bfa;
+                                    border-radius: 8px;
+                                  }
+                                `}</style>
+                                <div style={{ fontWeight: 800, fontSize: 22, marginBottom: 18, letterSpacing: 1, color: '#6D28D9', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <span style={{ display: 'inline-block', width: 6, height: 28, borderRadius: 4, background: 'linear-gradient(180deg, #8B5CF6 0%, #A78BFA 100%)', marginRight: 8 }}></span>
+                                  Song Analysis
+                                </div>
+                                {/* Happiness: Sad/Happy */}
+                                {acousticMetrics.highlevel.mood_happy && (
+                                  <FuelGauge left="Sad" right="Happy" value={acousticMetrics.highlevel.mood_happy.value === 'happy' ? acousticMetrics.highlevel.mood_happy.probability * 100 : 100 - acousticMetrics.highlevel.mood_happy.probability * 100} color="#fbbf24" />
+                                )}
+                                {/* Relaxiness: Aggressive/Relaxed */}
+                                {acousticMetrics.highlevel.mood_relaxed && (
+                                  <FuelGauge left="Aggressive" right="Relaxed" value={acousticMetrics.highlevel.mood_relaxed.value === 'relaxed' ? acousticMetrics.highlevel.mood_relaxed.probability * 100 : 100 - acousticMetrics.highlevel.mood_relaxed.probability * 100} color="#34d399" />
+                                )}
+                                {/* Partiness: Not party/Party */}
+                                {acousticMetrics.highlevel.mood_party && (
+                                  <FuelGauge left="Not party" right="Party" value={acousticMetrics.highlevel.mood_party.value === 'party' ? acousticMetrics.highlevel.mood_party.probability * 100 : 100 - acousticMetrics.highlevel.mood_party.probability * 100} color="#a5b4fc" />
+                                )}
+                                {/* Acousticness: Not acoustic/Acoustic */}
+                                {acousticMetrics.highlevel.mood_acoustic && (
+                                  <FuelGauge left="Not acoustic" right="Acoustic" value={acousticMetrics.highlevel.mood_acoustic.value === 'acoustic' ? acousticMetrics.highlevel.mood_acoustic.probability * 100 : 100 - acousticMetrics.highlevel.mood_acoustic.probability * 100} color="#f87171" />
+                                )}
+                                {/* Electronicness: Not electronic/Electronic */}
+                                {acousticMetrics.highlevel.mood_electronic && (
+                                  <FuelGauge left="Not electronic" right="Electronic" value={acousticMetrics.highlevel.mood_electronic.value === 'electronic' ? acousticMetrics.highlevel.mood_electronic.probability * 100 : 100 - acousticMetrics.highlevel.mood_electronic.probability * 100} color="#60a5fa" />
+                                )}
+                                {/* Timbre: Bright/Dark */}
+                                {acousticMetrics.highlevel.timbre && (
+                                  <FuelGauge left="Bright" right="Dark" value={acousticMetrics.highlevel.timbre.value === 'dark' ? acousticMetrics.highlevel.timbre.probability * 100 : 100 - acousticMetrics.highlevel.timbre.probability * 100} color="#818cf8" />
+                                )}
+                                {/* Tonality: Atonal/Tonal */}
+                                {acousticMetrics.highlevel.tonal_atonal && (
+                                  <FuelGauge left="Atonal" right="Tonal" value={acousticMetrics.highlevel.tonal_atonal.value === 'tonal' ? acousticMetrics.highlevel.tonal_atonal.probability * 100 : 100 - acousticMetrics.highlevel.tonal_atonal.probability * 100} color="#8B5CF6" />
+                                )}
+                                {/* Voice/Instrumental: Instrumental/Voice */}
+                                {acousticMetrics.highlevel.voice_instrumental && (
+                                  <FuelGauge left="Instrumental" right="Voice" value={acousticMetrics.highlevel.voice_instrumental.value === 'voice' ? acousticMetrics.highlevel.voice_instrumental.probability * 100 : 100 - acousticMetrics.highlevel.voice_instrumental.probability * 100} color="#f472b6" />
+                                )}
+                                {/* Danceability: Not danceable/Danceable */}
+                                {acousticMetrics.highlevel.danceability && (
+                                  <FuelGauge left="Not danceable" right="Danceable" value={acousticMetrics.highlevel.danceability.value === 'danceable' ? acousticMetrics.highlevel.danceability.probability * 100 : 100 - acousticMetrics.highlevel.danceability.probability * 100} color="#facc15" />
+                                )}
+                                {/* Genre summary */}
+                                <div style={{ marginTop: 18, fontWeight: 600, color: '#6D28D9', fontSize: 16, textAlign: 'center' }}>
+                                  <span style={{ fontWeight: 800 }}>Genre:</span> Primarily {mainGenre.charAt(0).toUpperCase() + mainGenre.slice(1)}{subGenreEntries.length > 0 ? ` and ${subGenreEntries[0][0].charAt(0).toUpperCase() + subGenreEntries[0][0].slice(1)}` : ''}.
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })()
+                ) : (
+                  <tr><td colSpan={2}>No genre data available for this song.</td></tr>
+                )}
+              </tbody>
+            </table>
+            <button className={styles.closeModalButton} onClick={handleCloseInfoModal}>Close</button>
           </div>
         </div>
       )}

@@ -5,6 +5,7 @@ const express = require('express');
 const SpotifyWebApi = require('spotify-web-api-node');
 const { Pool } = require('pg');
 const pool = new Pool(); // Uses .env variables automatically
+const axios = require('axios');
 
 const app = express();
 const PORT = 8000;
@@ -431,6 +432,34 @@ app.get('/api/admin/feedbacks', express.json(), async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch feedbacks' });
+  }
+});
+
+app.get('/track-isrc/:id', async (req, res) => {
+  const trackId = req.params.id;
+  if (!trackId) return res.status(400).json({ error: 'Missing track ID' });
+  try {
+    const { body } = await spotifyApi.getTrack(trackId);
+    const isrc = body && body.external_ids && body.external_ids.isrc ? body.external_ids.isrc : null;
+    res.json({ isrc });
+  } catch (err) {
+    console.error('Error fetching ISRC for track:', err);
+    res.status(500).json({ error: 'Failed to fetch ISRC' });
+  }
+});
+
+app.get('/isrc-mbid/:isrc', async (req, res) => {
+  const isrc = req.params.isrc;
+  if (!isrc) return res.status(400).json({ error: 'Missing ISRC' });
+  try {
+    const url = `https://musicbrainz.org/ws/2/recording?query=isrc:${isrc}&fmt=json`;
+    const response = await axios.get(url, { headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' } });
+    const recordings = response.data.recordings;
+    const mbid = recordings && recordings.length > 0 ? recordings[0].id : null;
+    res.json({ mbid });
+  } catch (err) {
+    console.error('Error fetching MBID for ISRC:', err);
+    res.status(500).json({ error: 'Failed to fetch MBID' });
   }
 });
 
