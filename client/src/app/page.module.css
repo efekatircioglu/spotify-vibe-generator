@@ -447,10 +447,10 @@ body, .main {
 }
 .metricsModal {
   background: #232323;
-  border: 2.5px solid #ff3b3b;
+  border: 2.5px solid #1db954;
   border-radius: 18px;
   padding: 40px 36px 32px 36px;
-  box-shadow: 0 8px 48px #000a, 0 0 0 4px #ff3b3b44;
+  box-shadow: 0 8px 48px #000a, 0 0 0 4px #1db95444;
   color: #fff;
   min-width: 320px;
   max-width: 90vw;

@@ -13,6 +13,8 @@ import {
   Legend
 } from 'chart.js';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+import { Doughnut } from 'react-chartjs-2';
+import SongAnalysisModal from '../../components/SongAnalysisModal';
 
 export default function Last4WeeksPage() {
   const [data, setData] = useState(null);
@@ -24,6 +26,20 @@ export default function Last4WeeksPage() {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlistCreationStatus, setPlaylistCreationStatus] = useState('');
   const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState('');
+  // Add state for info modal
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [selectedSongInfo, setSelectedSongInfo] = useState(null);
+  const handleExploreGenre = (track) => {
+    setSelectedSongInfo({
+      ...track,
+      artist: track.artists.map(a => a.name).join(', ')
+    });
+    setShowInfoModal(true);
+  };
+  const handleCloseInfoModal = () => {
+    setShowInfoModal(false);
+    setSelectedSongInfo(null);
+  };
 
   useEffect(() => {
     fetch("http://127.0.0.1:8000/last-4-weeks")
@@ -152,6 +168,7 @@ export default function Last4WeeksPage() {
                   <th>Album</th>
                   <th>Year</th>
                   <th>Duration</th>
+                  <th>Genre</th>
                   <th>Play</th>
                 </tr>
               </thead>
@@ -165,6 +182,28 @@ export default function Last4WeeksPage() {
                     <td>{track.album?.name}</td>
                     <td>{track.album?.release_date ? track.album.release_date.split('-')[0] : ''}</td>
                     <td>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
+                    <td>
+                      <span
+                        className={styles.analyzeGenreButton}
+                        style={{
+                          background: 'none',
+                          color: '#1db954',
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                          border: 'none',
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                          padding: 0,
+                          boxShadow: 'none',
+                          borderRadius: 0,
+                          transition: 'color 0.2s',
+                          display: 'inline-block',
+                        }}
+                        onClick={() => handleExploreGenre(track)}
+                      >
+                        Explore Genres
+                      </span>
+                    </td>
                     <td>
                       <a href={`https://open.spotify.com/track/${track.id}`} target="_blank" rel="noopener noreferrer">
                         <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
@@ -315,6 +354,10 @@ export default function Last4WeeksPage() {
             )}
           </div>
         </div>
+      )}
+      {/* Info Modal */}
+      {showInfoModal && selectedSongInfo && (
+        <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
       )}
     </main>
   );

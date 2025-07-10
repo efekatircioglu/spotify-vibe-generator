@@ -463,6 +463,32 @@ app.get('/isrc-mbid/:isrc', async (req, res) => {
   }
 });
 
+// Low-level AcousticBrainz endpoint (Corrected)
+app.get('/:mbid/low-level', async (req, res) => {
+  const mbid = req.params.mbid;
+  if (!mbid) {
+    return res.status(400).json({ error: 'Missing MBID' });
+  }
+
+  try {
+    const url = `https://acousticbrainz.org/${mbid}/low-level`;
+    const response = await axios.get(url, {
+      headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+    });
+
+    // --- THIS IS THE FIX ---
+    // Always send the full data object. This ensures the frontend receives
+    // the 'rhythm' and 'tonal' objects at the top level.
+    res.json(response.data);
+
+  } catch (err) {
+    console.error('Error fetching low-level data for MBID:', mbid, err.message);
+    // Forward the status code from the error if available
+    const statusCode = err.response ? err.response.status : 500;
+    res.status(statusCode).json({ error: 'Failed to fetch low-level data' });
+  }
+});
+
 module.exports = pool;
 
 app.listen(PORT, () => {
