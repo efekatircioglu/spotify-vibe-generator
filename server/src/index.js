@@ -345,6 +345,7 @@ app.get('/last-4-weeks', async (req, res) => {
     const data = await getTopData('short_term');
     res.json(data);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to fetch last 4 weeks data' });
   }
 });
@@ -354,6 +355,7 @@ app.get('/last-6-months', async (req, res) => {
     const data = await getTopData('medium_term');
     res.json(data);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to fetch last 6 months data' });
   }
 });
@@ -363,8 +365,40 @@ app.get('/last-12-months', async (req, res) => {
     const data = await getTopData('long_term');
     res.json(data);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to fetch last 12 months data' });
   }
+});
+
+// --- In-memory cache for playlist URLs per access token and table type ---
+const playlistCache = {};
+// Structure: { [accessToken]: { expiry: timestamp, playlists: { [tableType]: playlistUrl } } }
+
+function cachePlaylistUrl(accessToken, tableType, playlistUrl, expiresIn = 3600) {
+  if (!accessToken) return;
+  const expiry = Date.now() + expiresIn * 1000;
+  if (!playlistCache[accessToken]) {
+    playlistCache[accessToken] = { expiry, playlists: {} };
+    // Set up expiry cleanup
+    setTimeout(() => { delete playlistCache[accessToken]; }, expiresIn * 1000);
+  }
+  playlistCache[accessToken].playlists[tableType] = playlistUrl;
+  playlistCache[accessToken].expiry = expiry;
+}
+
+function getCachedPlaylistUrl(accessToken, tableType) {
+  const entry = playlistCache[accessToken];
+  if (!entry || Date.now() > entry.expiry) return null;
+  return entry.playlists[tableType] || null;
+}
+
+// --- Endpoint to get cached playlist URL for current token and table type ---
+app.get('/cached-playlist-url', (req, res) => {
+  const accessToken = spotifyApi.getAccessToken();
+  const tableType = req.query.tableType;
+  if (!accessToken || !tableType) return res.json({ playlistUrl: null });
+  const url = getCachedPlaylistUrl(accessToken, tableType);
+  res.json({ playlistUrl: url });
 });
 
 // Create playlist endpoint
@@ -390,6 +424,12 @@ app.post('/create-playlist', express.json(), async (req, res) => {
     for (let i = 0; i < trackUris.length; i += batchSize) {
       const batch = trackUris.slice(i, i + batchSize);
       await spotifyApi.addTracksToPlaylist(playlist.id, batch);
+    }
+
+    // Cache the playlist URL for this access token and table type
+    const accessToken = spotifyApi.getAccessToken();
+    if (accessToken && timeRange) {
+      cachePlaylistUrl(accessToken, timeRange, playlist.external_urls.spotify, 3600); // 1 hour expiry
     }
 
     res.json({ 
@@ -431,6 +471,7 @@ app.get('/api/admin/feedbacks', express.json(), async (req, res) => {
     const result = await pool.query('SELECT * FROM feedback ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to fetch feedbacks' });
   }
 });

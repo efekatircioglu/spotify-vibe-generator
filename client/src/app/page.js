@@ -19,6 +19,8 @@ import {
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import SongAnalysisModal from '../components/SongAnalysisModal';
+import TrackTable from '../components/TrackTable';
+import UserProfile from '../components/UserProfile';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement);
 
@@ -49,7 +51,7 @@ export default function Home() {
   const [artistSuggestions, setArtistSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef(null);
-  const [showSongsTable, setShowSongsTable] = useState(true);
+  const [showSongsTable, setShowSongsTable] = useState(false);
   const [showPlaylistsTable, setShowPlaylistsTable] = useState(true);
   const [highlightedSuggestion, setHighlightedSuggestion] = useState(-1);
   const [artistAnalysis, setArtistAnalysis] = useState(null);
@@ -104,6 +106,12 @@ export default function Home() {
       setCreatedPlaylistUrl(savedPlaylistUrl);
     }
   }, []);
+
+  useEffect(() => {
+    if (showSongsTable && songs.length > 0 && tableRef.current) {
+      tableRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [showSongsTable, songs.length]);
 
   const handleGenerateFromRecents = async () => {
     setIsAnalyzingRecents(true);
@@ -654,32 +662,7 @@ export default function Home() {
         )}
       </form>
       <hr style={{ width: '100%', border: 0, borderTop: '2px solid #333', margin: '48px 0 32px 0' }} />
-      <div className={styles.profileContainer}>
-        <button
-          onClick={handleLogout}
-          className={styles.logoutButton}
-        >
-          Log out
-        </button>
-        <h2 className={styles.profileTitle}>
-          <span className={styles.hoverUnderline}>Your Profile</span>
-        </h2>
-        {/* Only a single bordered profile image, no extra circles */}
-        {user.images?.[0]?.url && (
-          <img
-            src={user.images[0].url}
-            alt="Spotify Profile"
-            width={120}
-            height={120}
-            className={styles.profileLogo}
-          />
-        )}
-        <div className={styles.prettyName}>
-          <span className={styles.hoverUnderline} style={{ color: '#1db954' }}>{user.display_name}</span>
-        </div>
-        <div className={styles.vibeSubtitle}>
-          <span className={styles.hoverUnderline}>Let's create a vibe!</span>
-        </div>
+      <UserProfile user={user} onLogout={handleLogout} clickableTitle={true} showSubtitle={true}>
         <div className={styles.actionButtons}>
           <button onClick={handleGenerateFromRecents} className={styles.vibeButton} disabled={isAnalyzingRecents}>
             {isAnalyzingRecents ? 'Analyzing...' : 'Analyze your last 50 songs'}
@@ -704,86 +687,18 @@ export default function Home() {
             Feedback
           </button>
         </div>
-      </div>
+      </UserProfile>
       {/* Table section for last 50 songs */}
-      {showSongsTable && songs.length > 0 && (
-        <div ref={tableRef} className={styles.songsTableWrapper} style={{ position: 'relative' }}>
-          <span
-            style={{ position: 'absolute', top: 8, right: 12, cursor: 'pointer', fontSize: 20, color: '#888', zIndex: 2 }}
-            title="Hide table"
-            onClick={handleHideSongsTable}
-          >
-            ×
-          </span>
-          <div className={styles.songsTableTitle}>Your Last 50 Songs</div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16, justifyContent: 'flex-end' }}>
-            <button 
-              onClick={createdPlaylistUrl ? handleViewPlaylist : () => handleCreatePlaylist('Last 50 Songs', songs)} 
-              className={styles.vibeButton}
-              style={{ 
-                fontSize: '14px', 
-                padding: '8px 16px',
-                background: createdPlaylistUrl ? '#8B5CF6' : undefined,
-                borderColor: createdPlaylistUrl ? '#8B5CF6' : undefined
-              }}
-            >
-              {createdPlaylistUrl ? 'View Playlist' : 'Create Playlist'}
-            </button>
-          </div>
-          <table className={styles.songsTable}>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Cover</th>
-                <th>Name</th>
-                <th>Artist</th>
-                <th>Album</th>
-                <th>Year</th>
-                <th>Duration</th>
-                <th>Genre</th>
-                <th>Play</th>
-              </tr>
-            </thead>
-            <tbody>
-              {songs.map((song, idx) => (
-                <tr key={idx}>
-                  <td>{idx + 1}</td>
-                  <td>{song.album_image ? <img src={song.album_image} alt={song.album} style={{ width: 48, height: 48, borderRadius: 8 }} /> : ''}</td>
-                  <td>{song.name}</td>
-                  <td>
-                    {song.artist.split(',').map((artist, i) => (
-                      <span
-                        key={artist.trim()}
-                        style={{ color: '#1db954', cursor: 'pointer', textDecoration: 'underline', marginRight: 4 }}
-                        onClick={() => handleArtistClick(artist.trim())}
-                      >
-                        {artist.trim()}
-                      </span>
-                    ))}
-                  </td>
-                  <td>{song.album}</td>
-                  <td>{song.release_year}</td>
-                  <td>{song.duration_ms ? `${Math.floor(song.duration_ms / 60000)}:${String(Math.floor((song.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
-                  <td>
-                    <button
-                      style={{ background: 'none', border: 'none', color: '#1db954', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontWeight: 600, fontSize: '1rem', letterSpacing: 0.5 }}
-                      title="Show genre breakdown"
-                      onClick={() => handleExploreGenre(song)}
-                    >
-                      Explore Genres
-                    </button>
-                  </td>
-                  <td>
-                    {song.id && (
-                      <a href={`https://open.spotify.com/track/${song.id}`} target="_blank" rel="noopener noreferrer">
-                        <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {showSongsTable && (
+        <div ref={tableRef}>
+          <TrackTable
+            tracks={songs}
+            title="Your Last 50 Songs"
+            playlistKey="last50"
+            loading={isAnalyzingRecents}
+            error={null}
+            onExploreGenre={handleExploreGenre}
+          />
         </div>
       )}
       {/* Table section for playlists */}

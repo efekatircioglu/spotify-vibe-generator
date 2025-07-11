@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Doughnut, Pie } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Legend
-} from 'chart.js';
+import { Chart as ChartJS, ArcElement, Legend } from 'chart.js';
 import PropTypes from 'prop-types';
 import ReactDOM from 'react-dom';
 
@@ -81,38 +77,6 @@ function ProgressBar({ value, max = 1, color = '#8B5CF6', label, style = {} }) {
       </div>
     </div>
   );
-}
-
-// Helper for mapping values to labels
-function getGrooveLabel(onsetRate) {
-  if (onsetRate < 2) return 'Simple Groove';
-  if (onsetRate < 4) return 'Moderate Rhythm';
-  return 'Busy Rhythm';
-}
-function getBrightnessLabel(centroid) {
-  if (centroid < 1000) return 'Dark Sound';
-  if (centroid < 2500) return 'Balanced';
-  return 'Bright Sound';
-}
-function getTextureLabel(contrast) {
-  if (contrast > 30) return 'Punchy & Clear';
-  if (contrast > 20) return 'Balanced';
-  return 'Smooth & Blended';
-}
-function getLayeringLabel(complexity) {
-  if (complexity < 8) return 'Simple & Clean';
-  if (complexity < 16) return 'Balanced';
-  return 'Rich & Layered';
-}
-function getDynamicLabel(dynamic) {
-  if (dynamic < 2) return 'Steady Volume';
-  if (dynamic < 4) return 'Moderate Range';
-  return 'Very Dynamic';
-}
-function getSilenceLabel(silence) {
-  if (silence < 0.05) return 'Almost no silence';
-  if (silence < 0.2) return 'Some breaks';
-  return 'Frequent pauses';
 }
 
 // Tooltip component
@@ -346,7 +310,7 @@ export default function SongAnalysisModal({
     if (beats < 700) return 'High';
     return 'Very High';
   }
-  // Helper for Groove label
+  // Helper for Groove label UX
   function getGrooveLabelUX(onsetRate) {
     if (typeof onsetRate !== 'number') return '';
     if (onsetRate < 2) return 'Simple';
@@ -368,6 +332,22 @@ export default function SongAnalysisModal({
     if (val < 0.3) return 'Smooth & Resolved';
     if (val < 0.6) return 'Balanced Tension';
     return 'Tense & Edgy';
+  }
+
+  // Helper for Texture label
+  function getTextureLabel(val) {
+    if (typeof val !== 'number' || isNaN(val)) return '';
+    if (val < 2) return 'Smooth';
+    if (val < 4) return 'Balanced';
+    return 'Textured';
+  }
+
+  // Helper for Brightness label
+  function getBrightnessLabel(val) {
+    if (typeof val !== 'number' || isNaN(val)) return '';
+    if (val < 1500) return 'Warm';
+    if (val < 3000) return 'Balanced';
+    return 'Bright';
   }
 
   return (

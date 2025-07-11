@@ -199,8 +199,6 @@ body, .main {
   justify-content: center;
   margin-bottom: 18px;
 }
-.logoCircleOuter {}
-.logoCircleInner {}
 .profileLogo {
   width: 120px;
   height: 120px;
@@ -314,47 +312,6 @@ body, .main {
 
 /* .spotlightOverlay { ... } (keep for reference, but not used) */
 
-.hoverUnderline {
-  font-size: 2rem;
-  color: #ffffff;
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-}
-
-.hoverUnderline::after,
-.hoverUnderline::before {
-  content: '';
-  position: absolute;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(to right, #ff0000, #00ffff);
-  bottom: -5px;
-  left: 0;
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 0.4s ease-out;
-}
-
-.hoverUnderline::before {
-  top: -5px;
-  transform-origin: left;
-}
-
-.hoverUnderline:hover::after,
-.hoverUnderline:hover::before {
-  transform: scaleX(1);
-}
-
-@media (max-width: 600px) {
-  .hoverUnderline {
-    font-size: 1.1rem !important;
-    margin: 0 !important;
-    text-align: center !important;
-    display: block !important;
-  }
-}
-
 .songsTableWrapper {
   margin: 48px auto 32px auto;
   padding: 32px 24px;
@@ -386,11 +343,7 @@ body, .main {
   background: #232323;
   border-radius: 6px;
 }
-/* For Firefox */
-.songsTableWrapper {
-  scrollbar-width: thin;
-  scrollbar-color: #444 #232323;
-}
+
 
 .songsTableTitle {
   font-size: 1.5rem;
@@ -593,9 +546,7 @@ body, .main {
   }
 }
 
-.playlistsTableWrapper {
-  /* Default styles for playlists table wrapper */
-}
+
 
 @media (max-width: 599px) {
   .playlistsTableWrapper {
@@ -613,4 +564,74 @@ body, .main {
   .playlistsTableWrapper {
     padding-left: 120px !important;
   }
+}
+
+.hoverUnderline {
+  font-size: 2rem;
+  color: #ffffff;
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.hoverUnderline::after,
+.hoverUnderline::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, #ff0000, #00ffff);
+  left: 0;
+  transform: scaleX(0);
+  transition: transform 0.4s ease-out;
+}
+
+.hoverUnderline::after {
+  bottom: -5px;
+  transform-origin: right;
+}
+
+.hoverUnderline::before {
+  top: -5px;
+  transform-origin: left;
+}
+
+.hoverUnderline:hover::after,
+.hoverUnderline:hover::before {
+  transform: scaleX(1);
+}
+
+@media (max-width: 600px) {
+  .hoverUnderline {
+    font-size: 1.1rem !important;
+    margin: 0 !important;
+    text-align: center !important;
+    display: block !important;
+  }
+}
+
+.profileButtonTitle {
+  display: inline-block;
+  background: linear-gradient(90deg, #1db954 60%, #00ffff 100%);
+  color: #181818;
+  font-size: 1.25rem;
+  font-weight: 800;
+  padding: 12px 36px;
+  border-radius: 32px;
+  box-shadow: 0 2px 12px #1db95433;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 8px #0002;
+  overflow: hidden;
+  min-width: 120px;
+  min-height: 40px;
+  transition: background 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
+  cursor: pointer;
+  border: none;
+}
+.profileButtonTitle:hover, .profileButtonTitle:focus {
+  background: linear-gradient(90deg, #00ffff 60%, #1db954 100%);
+  color: #181818;
+  transform: scale(1.05);
+  box-shadow: 0 4px 24px #00ffff44;
 }
