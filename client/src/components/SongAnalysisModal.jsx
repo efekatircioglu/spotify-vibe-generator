@@ -3,6 +3,12 @@ import { Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Legend } from 'chart.js';
 import PropTypes from 'prop-types';
 import ReactDOM from 'react-dom';
+import {
+  getTrackISRC,
+  setTrackISRC,
+  getTrackMBID,
+  setTrackMBID
+} from '../utils/trackAnalysisCache';
 
 ChartJS.register(ArcElement, Legend);
 
@@ -210,8 +216,33 @@ export default function SongAnalysisModal({
     '#1db954', '#6ee7b7', '#a5b4fc', '#fbbf24', '#f87171', '#f472b6', '#60a5fa', '#facc15', '#34d399', '#818cf8'
   ];
 
+  // Helper to fetch both high and low-level metrics
+  async function fetchAcousticData(mbid, setAcousticMetrics, setLowLevelMetrics, setIsAcousticLoading, setIsLowLevelLoading, setGenreError, setLowLevelError) {
+    console.log('[fetchAcousticData] Called with MBID:', mbid);
+    if (!mbid || mbid === 'Not Found') return;
+    setIsAcousticLoading(true);
+    setIsLowLevelLoading(true);
+    try {
+      const [highLevel, lowLevel] = await Promise.all([
+        fetch(`https://acousticbrainz.org/${mbid}/high-level`).then(res => res.ok ? res.json() : Promise.reject()),
+        fetch(`http://127.0.0.1:8000/${mbid}/low-level`).then(res => res.ok ? res.json() : Promise.reject())
+      ]);
+      setAcousticMetrics(highLevel);
+      setLowLevelMetrics(lowLevel);
+    } catch (e) {
+      setAcousticMetrics('Not Found');
+      setGenreError(true);
+      setLowLevelError(true);
+      setLowLevelMetrics(null);
+    } finally {
+      setIsAcousticLoading(false);
+      setIsLowLevelLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!open || !songInfo) return;
+    let cancelled = false;
     setSongISRC('');
     setIsISRCLoading(true);
     setSongMBID('');
@@ -222,79 +253,82 @@ export default function SongAnalysisModal({
     setLowLevelMetrics(null);
     setIsLowLevelLoading(false);
     setLowLevelError(false);
-    // Fetch ISRC
-    fetch(`http://127.0.0.1:8000/track-isrc/${songInfo.id}`)
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(data => {
-        setSongISRC(data.isrc || 'Not found');
-        if (data.isrc) {
-          setIsMBIDLoading(true);
-          // Fetch MBID
-          fetch(`https://musicbrainz.org/ws/2/recording?query=isrc:${data.isrc}&fmt=json`, {
-            headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
-          })
-            .then(res => res.ok ? res.json() : Promise.reject())
-            .then(mbidData => {
-              const mbid = mbidData.recordings && mbidData.recordings.length > 0 ? mbidData.recordings[0].id : null;
-              setSongMBID(mbid || 'Not Found');
-              if (mbid) {
-                setIsAcousticLoading(true);
-                // Fetch AcousticBrainz high-level
-                fetch(`https://acousticbrainz.org/${mbid}/high-level`)
-                  .then(res => res.ok ? res.json() : Promise.reject())
-                  .then(data => {
-                    setAcousticMetrics(data);
-                  })
-                  .catch(() => {
-                    setAcousticMetrics('Not Found');
-                    setGenreError(true);
-                  })
-                  .finally(() => setIsAcousticLoading(false));
-                // Fetch low-level from backend
-                // --- API CALL: /low-level/{mbid} ---
-                setIsLowLevelLoading(true);
-                fetch(`http://127.0.0.1:8000/${mbid}/low-level`)
-                  .then(res => res.ok ? res.json() : Promise.reject())
-                  .then(data => {
-                    setLowLevelMetrics(data);
-                  })
-                  .catch(() => {
-                    setLowLevelError(true);
-                    setLowLevelMetrics(null);
-                  })
-                  .finally(() => setIsLowLevelLoading(false));
-              } else {
-                setAcousticMetrics(null);
-                setGenreError(true);
-                setLowLevelMetrics(null);
-                setIsAcousticLoading(false);
-              }
-            })
-            .catch(() => {
-              setSongMBID('Not Found');
-              setAcousticMetrics(null);
-              setGenreError(true);
-              setLowLevelMetrics(null);
-              setIsAcousticLoading(false);
-            })
-            .finally(() => setIsMBIDLoading(false));
-        } else {
-          setSongMBID('');
-          setAcousticMetrics(null);
-          setGenreError(true);
-          setLowLevelMetrics(null);
-          setIsAcousticLoading(false);
+
+    const spotifyId = songInfo.id;
+    const cachedISRC = getTrackISRC(spotifyId);
+    const cachedMBID = getTrackMBID(spotifyId);
+
+    async function analyze() {
+      let isrc = cachedISRC;
+      let mbid = cachedMBID;
+      if (isrc) {
+        setSongISRC(isrc);
+      }
+      if (mbid) {
+        setSongMBID(mbid);
+        if (!cancelled && mbid && mbid !== 'Not Found') {
+          await fetchAcousticData(mbid, setAcousticMetrics, setLowLevelMetrics, setIsAcousticLoading, setIsLowLevelLoading, setGenreError, setLowLevelError);
         }
-      })
-      .catch(() => {
+        setIsISRCLoading(false);
+        setIsMBIDLoading(false);
+        return;
+      }
+      // Fetch ISRC if not cached
+      try {
+        const isrcRes = await fetch(`http://127.0.0.1:8000/track-isrc/${spotifyId}`);
+        if (!isrcRes.ok) throw new Error();
+        const isrcData = await isrcRes.json();
+        isrc = isrcData.isrc || 'Not found';
+        setSongISRC(isrc);
+        setTrackISRC(spotifyId, isrc);
+      } catch {
         setSongISRC('Not found');
+        setIsISRCLoading(false);
+        return;
+      }
+      if (!isrc || isrc === 'Not found') {
         setSongMBID('');
         setAcousticMetrics(null);
         setGenreError(true);
         setLowLevelMetrics(null);
         setIsAcousticLoading(false);
-      })
-      .finally(() => setIsISRCLoading(false));
+        setIsLowLevelLoading(false);
+        return;
+      }
+      // Fetch MBID if not cached
+      try {
+        setIsMBIDLoading(true);
+        const mbidRes = await fetch(`https://musicbrainz.org/ws/2/recording?query=isrc:${isrc}&fmt=json`, {
+          headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+        });
+        if (!mbidRes.ok) throw new Error();
+        const mbidData = await mbidRes.json();
+        mbid = mbidData.recordings && mbidData.recordings.length > 0 ? mbidData.recordings[0].id : null;
+        setSongMBID(mbid || 'Not Found');
+        setTrackMBID(spotifyId, mbid || 'Not Found');
+        if (!cancelled && mbid) {
+          await fetchAcousticData(mbid, setAcousticMetrics, setLowLevelMetrics, setIsAcousticLoading, setIsLowLevelLoading, setGenreError, setLowLevelError);
+        } else {
+          setAcousticMetrics(null);
+          setGenreError(true);
+          setLowLevelMetrics(null);
+          setIsAcousticLoading(false);
+          setIsLowLevelLoading(false);
+        }
+      } catch {
+        setSongMBID('Not Found');
+        setTrackMBID(spotifyId, 'Not Found');
+        setAcousticMetrics(null);
+        setGenreError(true);
+        setLowLevelMetrics(null);
+        setIsAcousticLoading(false);
+        setIsLowLevelLoading(false);
+      } finally {
+        setIsMBIDLoading(false);
+      }
+    }
+    analyze();
+    return () => { cancelled = true; };
   }, [open, songInfo]);
 
   if (!open || !songInfo) return null;

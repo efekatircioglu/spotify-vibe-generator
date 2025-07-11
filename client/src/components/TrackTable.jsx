@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PlaylistActions from './PlaylistActions';
 import styles from '../app/page.module.css';
+import WrappedAnalysisModal from './WrappedAnalysisModal';
 
 export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, loading, error }) {
+  const [showWrapped, setShowWrapped] = useState(false);
+
   return (
     <div className={styles.songsTableWrapper}>
       <div className={styles.songsTableTitle}>{title}</div>
-      <PlaylistActions tracks={tracks} playlistKey={playlistKey} playlistNameLabel={title} />
+      <PlaylistActions tracks={tracks} playlistKey={playlistKey} playlistNameLabel={title} onWrapped={() => setShowWrapped(true)} />
+      <WrappedAnalysisModal open={showWrapped} onClose={() => setShowWrapped(false)} tracks={tracks} />
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {!loading && !error && tracks && tracks.length > 0 && (

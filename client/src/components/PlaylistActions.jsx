@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../app/page.module.css';
 
-export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist' }) {
+export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped }) {
   const [showModal, setShowModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -25,8 +25,6 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
   const handleViewPlaylist = () => {
     if (createdPlaylistUrl) {
       window.open(createdPlaylistUrl, '_blank');
-    } else {
-      // setShowNoPlaylistModal(true); // This state was removed, so this line is removed.
     }
   };
 
@@ -102,11 +100,18 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           minWidth: 0,
           transition: 'background 0.3s',
         }}
-        
         onClick={handleViewPlaylist}
         disabled={!createdPlaylistUrl}
       >
         View Last Created Playlist
+      </button>
+      <button
+        className={styles.vibeButton}
+        style={{ marginLeft: 12, background: 'linear-gradient(90deg, #1db954 60%, #00ffff 100%)', color: '#181818', height: 48, minWidth: 0, fontWeight: 700, fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}
+        onClick={() => onWrapped && onWrapped()}
+        disabled={!tracks || tracks.length === 0}
+      >
+        Create Your Custom Wrapped
       </button>
       {showModal && (
         <div className={styles.metricsModalOverlay} onClick={() => setShowModal(false)}>
