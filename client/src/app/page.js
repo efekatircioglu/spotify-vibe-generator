@@ -50,10 +50,11 @@ export default function Home() {
   const [searchArtist, setSearchArtist] = useState('');
   const [artistSuggestions, setArtistSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const highlightedSuggestion = useState(-1)[0];
+  const [recentSearches, setRecentSearches] = useState([]);
   const suggestionsRef = useRef(null);
   const [showSongsTable, setShowSongsTable] = useState(false);
   const [showPlaylistsTable, setShowPlaylistsTable] = useState(true);
-  const [highlightedSuggestion, setHighlightedSuggestion] = useState(-1);
   const [artistAnalysis, setArtistAnalysis] = useState(null);
   const [showArtistModal, setShowArtistModal] = useState(false);
   const [artistChartStart, setArtistChartStart] = useState(0);
@@ -105,6 +106,10 @@ export default function Home() {
     if (savedPlaylistUrl) {
       setCreatedPlaylistUrl(savedPlaylistUrl);
     }
+  }, []);
+
+  useEffect(() => {
+    setRecentSearches(getRecentSearches());
   }, []);
 
   useEffect(() => {
@@ -273,37 +278,104 @@ export default function Home() {
     router.push(`/artist?name=${encodeURIComponent(artistName)}`);
   };
 
-  // Fetch artist suggestions as user types
-  const handleArtistInput = async (e) => {
+  // Utility functions for artist ID cache and recent searches
+  const ARTIST_ID_MAP_KEY = 'artist_id_map';
+  const RECENT_SEARCHES_KEY = 'recent_artist_searches';
+  function getArtistIdMap() {
+    try {
+      return JSON.parse(localStorage.getItem(ARTIST_ID_MAP_KEY)) || {};
+    } catch {
+      return {};
+    }
+  }
+  function saveArtistIdMap(map) {
+    localStorage.setItem(ARTIST_ID_MAP_KEY, JSON.stringify(map));
+  }
+  function cacheArtistInfo(artistName, info) {
+    const map = getArtistIdMap();
+    map[artistName] = info;
+    saveArtistIdMap(map);
+  }
+  function getRecentSearches() {
+    try {
+      return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+  function saveRecentSearch(artistName) {
+    let searches = getRecentSearches();
+    searches = [artistName, ...searches.filter(n => n !== artistName)];
+    searches = searches.slice(0, 7);
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
+  }
+
+  useEffect(() => {
+    setRecentSearches(getRecentSearches());
+  }, []);
+
+  const handleSearchInputFocus = () => {
+    if (!searchArtist.trim()) {
+      setArtistSuggestions(recentSearches.map(name => {
+        const cached = getArtistIdMap()[name] || {};
+        return {
+          name,
+          id: cached.ticketmasterId || null,
+          image: cached.image || null,
+          genres: cached.genres || [],
+        };
+      }));
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleArtistInput = (e) => {
     const value = e.target.value;
     setSearchArtist(value);
     setHighlightedSuggestion(-1);
-    if (value.trim().length === 0) {
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (value.trim().length < 3) {
       setArtistSuggestions([]);
       setShowSuggestions(false);
       return;
     }
-    try {
-      const res = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
-      if (!res.ok) throw new Error('Failed to fetch suggestions');
-      const data = await res.json();
-      const suggestions = data._embedded?.attractions
-        ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
-        .filter(a => {
-          const input = value.trim().toLowerCase();
-          const name = a.name.toLowerCase();
-          return name === input || name.startsWith(input);
-        })
-        .map(a => ({ name: a.name, id: a.id })) || [];
-      setArtistSuggestions(suggestions);
-      setShowSuggestions(true);
-    } catch {
-      setArtistSuggestions([]);
-      setShowSuggestions(false);
-    }
+
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
+        if (!res.ok) throw new Error('Failed to fetch suggestions');
+        const data = await res.json();
+        const suggestions = data._embedded?.attractions
+          ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
+          .map(a => {
+            // Try to get Spotify ID from externalLinks
+            let spotifyId = null;
+            const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
+            if (spotifyLink) {
+              const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
+              if (match) spotifyId = match[1];
+            }
+            return {
+              name: a.name,
+              id: a.id || null,
+              image: a.images?.[0]?.url || null,
+              genres: a.genres || [],
+              spotifyId,
+            };
+          }) || [];
+        setArtistSuggestions(suggestions);
+        setShowSuggestions(true);
+      } catch {
+        setArtistSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
   };
 
-  // Keyboard navigation for suggestions
   const handleArtistKeyDown = (e) => {
     if (!showSuggestions || artistSuggestions.length === 0) return;
     if (e.key === 'ArrowDown') {
@@ -327,31 +399,56 @@ export default function Home() {
     }
   };
 
-  // Update input value as user navigates
-  useEffect(() => {
-    if (highlightedSuggestion >= 0 && highlightedSuggestion < artistSuggestions.length) {
-      setSearchArtist(artistSuggestions[highlightedSuggestion].name);
+  const handleSuggestionClick = async (artist) => {
+    // Enhanced: Try cache, else fetch Spotify info if needed
+    let spotifyId = artist.spotifyId || null;
+    let image = artist.image || null;
+    let genres = artist.genres || [];
+    if (!spotifyId) {
+      // Fallback: search Spotify
+      try {
+        const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artist.name)}`);
+        if (spRes.ok) {
+          const spData = await spRes.json();
+          const spArtist = spData.artists?.[0];
+          if (spArtist) {
+            spotifyId = spArtist.id;
+            image = image || spArtist.image || null;
+            genres = spArtist.genres || [];
+          }
+        }
+      } catch {}
     }
-    // eslint-disable-next-line
-  }, [highlightedSuggestion]);
-
-  // Handle suggestion click
-  const handleSuggestionClick = (artist) => {
+    cacheArtistInfo(artist.name, {
+      spotifyId: spotifyId || null,
+      ticketmasterId: artist.id || null,
+      image,
+      genres,
+    });
+    saveRecentSearch(artist.name);
+    setRecentSearches(getRecentSearches());
     setSearchArtist(artist.name);
     setShowSuggestions(false);
-    router.push(`/artist?name=${encodeURIComponent(artist.name)}&id=${artist.id}`);
+    router.push(`/artist?name=${encodeURIComponent(artist.name)}`);
   };
 
   // Handle search submit
-  const handleProfileSearch = (e) => {
+  const handleProfileSearch = async (e) => {
     e.preventDefault();
-    if (artistSuggestions.length > 0) {
-      const artist = artistSuggestions[0];
-      router.push(`/artist?name=${encodeURIComponent(artist.name)}&id=${artist.id}`);
-    } else if (searchArtist.trim()) {
-      router.push(`/artist?name=${encodeURIComponent(searchArtist.trim())}`);
-    }
-    setShowSuggestions(false);
+    if (!searchArtist.trim()) return;
+
+    // 1. Call Ticketmaster
+    const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(searchArtist)}`);
+    const tmData = await tmRes.json();
+    // Optionally extract ticketmasterId, spotifyId from tmData
+
+    // 2. Call Spotify
+    const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(searchArtist)}`);
+    const spData = await spRes.json();
+    // Optionally extract spotifyId from spData
+
+    // 3. Navigate to /artist?name=... (optionally pass IDs as well)
+    router.push(`/artist?name=${encodeURIComponent(searchArtist)}`);
   };
 
   // When hiding tables, reset analyzing state so 'Analyzing...' is only shown once per click
@@ -601,7 +698,7 @@ export default function Home() {
           type="text"
           value={searchArtist}
           onChange={handleArtistInput}
-          onFocus={() => setShowSuggestions(artistSuggestions.length > 0)}
+          onFocus={handleSearchInputFocus}
           onKeyDown={handleArtistKeyDown}
           placeholder="Search for an artist's concerts..."
           style={{ padding: 8, fontSize: 16, borderRadius: 4, border: '1px solid #444', marginRight: 8, width: 300 }}

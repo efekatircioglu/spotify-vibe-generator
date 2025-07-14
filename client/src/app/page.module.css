@@ -635,3 +635,54 @@ body, .main {
   transform: scale(1.05);
   box-shadow: 0 4px 24px #00ffff44;
 }
+
+/* AlbumSelector styles moved from AlbumSelector.module.css */
+.albumSelectorContainer {
+  display: flex;
+  gap: 24px;
+  padding: 24px 0;
+  overflow-x: auto;
+}
+
+.albumNode {
+  width: 160px;
+  height: 220px;
+  background: #181818;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #0003;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border 0.2s;
+  border: 2px solid transparent;
+  padding: 12px;
+}
+
+.selectedAlbumNode {
+  border: 2px solid #1db954;
+  box-shadow: 0 4px 16px #1db95444;
+}
+
+.albumCover {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.albumName {
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 4px;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.albumYear {
+  color: #aaa;
+  font-size: 0.9rem;
+  text-align: center;
+}

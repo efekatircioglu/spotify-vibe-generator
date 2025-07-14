@@ -530,6 +530,71 @@ app.get('/:mbid/low-level', async (req, res) => {
   }
 });
 
+// Get albums by artist ID (Spotify)
+app.get('/artist-albums/:artistId', async (req, res) => {
+  const artistId = req.params.artistId;
+  if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+  try {
+    const { body } = await spotifyApi.getArtistAlbums(artistId, { limit: 50 });
+    // Simplify album data for frontend
+    const albums = (body.items || []).map(album => ({
+      id: album.id,
+      name: album.name,
+      image: album.images && album.images.length > 0 ? album.images[0].url : '',
+      releaseYear: album.release_date ? album.release_date.split('-')[0] : '',
+    }));
+    res.json({ albums });
+  } catch (err) {
+    console.error('Error fetching artist albums:', err);
+    res.status(500).json({ error: 'Failed to fetch artist albums' });
+  }
+});
+
+// Search for artist by name (Spotify)
+app.get('/spotify/artist-search', async (req, res) => {
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: 'Missing artist name' });
+  try {
+    const { body } = await spotifyApi.searchArtists(name, { limit: 10 });
+    // Simplify artist data for frontend
+    const artists = (body.artists?.items || []).map(artist => ({
+      id: artist.id,
+      name: artist.name,
+      image: artist.images && artist.images.length > 0 ? artist.images[0].url : '',
+      genres: artist.genres || [],
+      popularity: artist.popularity || 0,
+    }));
+    res.json({ artists });
+  } catch (err) {
+    console.error('Error searching artists:', err);
+    res.status(500).json({ error: 'Failed to search artists' });
+  }
+});
+
+// Get tracks by album ID (Spotify)
+app.get('/album-tracks/:albumId', async (req, res) => {
+  const albumId = req.params.albumId;
+  if (!albumId) return res.status(400).json({ error: 'Missing album ID' });
+  try {
+    const { body } = await spotifyApi.getAlbumTracks(albumId, { limit: 50 });
+    // Simplify track data for frontend
+    const tracks = (body.items || []).map(track => ({
+      id: track.id,
+      name: track.name,
+      artist: track.artists.map(a => a.name).join(', '),
+      album: track.album?.name || '',
+      release_year: track.album?.release_date ? track.album.release_date.split('-')[0] : '',
+      album_image: track.album?.images?.[0]?.url || '',
+      duration_ms: track.duration_ms,
+      genre: 'Unknown', // Would need to fetch artist genres separately
+    }));
+    res.json({ tracks });
+  } catch (err) {
+    console.error('Error fetching album tracks:', err);
+    res.status(500).json({ error: 'Failed to fetch album tracks' });
+  }
+});
+
 module.exports = pool;
 
 app.listen(PORT, () => {
