@@ -88,17 +88,19 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
         className={styles.vibeButton}
         style={{
           marginLeft: 12,
-          background: createdPlaylistUrl
-            ? 'linear-gradient(90deg, #a78bfa 60%, #7c3aed 100%)'
-            : 'linear-gradient(90deg, #888 0%, #e5e7eb 100%)',
-          color: '#111',
+          background: '#e5e7eb',
+          color: '#23272f',
           cursor: createdPlaylistUrl ? 'pointer' : 'not-allowed',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           height: 48,
           minWidth: 0,
-          transition: 'background 0.3s',
+          fontWeight: 700,
+          fontSize: '1.08rem',
+          border: 'none',
+          boxShadow: 'none',
+          transition: 'background 0.18s, color 0.18s',
         }}
         onClick={handleViewPlaylist}
         disabled={!createdPlaylistUrl}
@@ -107,7 +109,22 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
       </button>
       <button
         className={styles.vibeButton}
-        style={{ marginLeft: 12, background: 'linear-gradient(90deg, #1db954 60%, #00ffff 100%)', color: '#181818', height: 48, minWidth: 0, fontWeight: 700, fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}
+        style={{
+          marginLeft: 12,
+          background: '#e5e7eb',
+          color: '#23272f',
+          height: 48,
+          minWidth: 0,
+          fontWeight: 700,
+          fontSize: '1.08rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          border: 'none',
+          boxShadow: 'none',
+          transition: 'background 0.18s, color 0.18s',
+        }}
         onClick={() => onWrapped && onWrapped()}
         disabled={!tracks || tracks.length === 0}
       >

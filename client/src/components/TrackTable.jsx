@@ -24,7 +24,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
               <th>Album</th>
               <th>Year</th>
               <th>Duration</th>
-              <th>Genre</th>
+              <th>Analyze</th>
               <th>Play</th>
             </tr>
           </thead>
@@ -32,33 +32,33 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
             {tracks.map((track, idx) => (
               <tr key={track.id ? `${track.id}-${idx}` : idx}>
                 <td>{idx + 1}</td>
-                <td>{track.album_image || track.album?.images?.[0]?.url ? <img src={track.album_image || track.album?.images?.[0]?.url} alt={track.album?.name || track.album} style={{ width: 48, height: 48, borderRadius: 8 }} /> : ''}</td>
+                <td>{track.album_image || track.album?.images?.[0]?.url ? <img src={track.album_image || track.album?.images?.[0]?.url} alt={track.album?.name || track.album} style={{ width: 64, height: 64, borderRadius: 8 }} /> : ''}</td>
                 <td>{track.name}</td>
                 <td>{track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '')}</td>
                 <td>{track.album?.name || track.album}</td>
                 <td>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')}</td>
                 <td>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
                 <td>
-                  <span
-                    className={styles.analyzeGenreButton}
+                  <button
+                    className={styles.analyzePillButton}
                     style={{
-                      background: 'none',
-                      color: '#1db954',
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                      border: 'none',
+                      background: '#e0e7ff',
+                      color: '#2563eb',
+                      borderRadius: 9999,
                       fontWeight: 700,
+                      padding: '6px 18px',
                       fontSize: '1rem',
-                      padding: 0,
+                      margin: '0 4px',
+                      cursor: 'pointer',
                       boxShadow: 'none',
-                      borderRadius: 0,
-                      transition: 'color 0.2s',
+                      border: 'none',
+                      outline: 'none',
                       display: 'inline-block',
                     }}
                     onClick={() => onExploreGenre && onExploreGenre(track)}
                   >
-                    Explore Genre
-                  </span>
+                    Genre
+                  </button>
                 </td>
                 <td>
                   {track.id && (

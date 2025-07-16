@@ -1,6 +1,17 @@
 body, .main {
-  background: #181818;
+  background: #101114;
   min-height: 100vh;
+}
+
+.main {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
 }
 
 .loginContainer {
@@ -138,10 +149,13 @@ body, .main {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 8vh;
-  padding: 48px 32px 64px 32px;
-  border-radius: 32px;
-  max-width: 520px;
+  margin-top: 64px;
+  margin-bottom: 128px;
+  padding: 48px 64px 40px 64px;
+  border-radius: 18px;
+  max-width: 900px;
+  min-width: 600px;
+  width: 80vw;
   margin-left: auto;
   margin-right: auto;
   background: linear-gradient(145deg, #181818 60%, #232323 100%);
@@ -255,26 +269,27 @@ body, .main {
 .logoutButton {
   display: flex;
   align-items: center;
-  background: #1db954;
-  color: white;
-  font-weight: bold;
-  padding: 12px 28px;
-  border-radius: 50px;
-  text-decoration: none;
-  font-size: 1.1rem;
-  margin-top: 0.5rem;
-  transition: background 0.2s, box-shadow 0.2s;
-  border: none;
+  background: none !important;
+  color: #1db954 !important;
+  font-weight: 700;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  font-size: 1.08rem;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(30,185,84,0.18);
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  z-index: 10;
+  box-shadow: none !important;
+  outline: none;
+  min-width: unset;
+  min-height: unset;
+  display: inline;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: color 0.18s, text-decoration 0.18s;
 }
 .logoutButton:hover {
-  background: #1ed760;
-  box-shadow: 0 6px 24px rgba(30,185,84,0.28);
+  color: #169943 !important;
+  text-decoration: underline;
 }
 
 @media (max-width: 600px) {
@@ -313,77 +328,81 @@ body, .main {
 /* .spotlightOverlay { ... } (keep for reference, but not used) */
 
 .songsTableWrapper {
-  margin: 48px auto 32px auto;
-  padding: 32px 24px;
-  background: linear-gradient(135deg, #232323 80%, #181818 100%);
-  border-radius: 24px;
-  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
-  max-width: 80vw;
-  width: 80vw;
-  padding-left: 50px !important;
+  margin: 32px auto 32px auto;
+  padding: 0;
+  background: #fff;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 4px 24px #0002, 0 1.5px 8px #0001;
+  max-width: 95%;
+  width: 90%;
   min-width: 320px;
-  border: 1.5px solid #1db95444;
+  border: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  overflow: auto;
-  max-height: 70vh;
+  align-items: stretch;
+  overflow: visible;
+  max-height: 1000px;
+  overflow-y: auto;
 }
-
-/* Custom scrollbar for table wrapper */
-.songsTableWrapper::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.songsTableWrapper::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 6px;
-}
-.songsTableWrapper::-webkit-scrollbar-track {
-  background: #232323;
-  border-radius: 6px;
-}
-
 
 .songsTableTitle {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #1db954;
-  margin-bottom: 18px;
+  color: #181818;
+  margin-bottom: 10px;
   letter-spacing: 1px;
-  text-align: center;
+  text-align: left;
+  padding-left: 12px;
 }
+
 .songsTable {
   width: 100%;
-  border-collapse: collapse;
-  background: transparent;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 16px #0001;
   min-width: 600px;
+  overflow: hidden;
 }
 .songsTable th, .songsTable td {
-  padding: 12px 16px;
+  padding: 22px 18px;
   text-align: left;
-  color: #fff;
-  font-size: 1.08rem;
+  color: #222;
+  font-size: 1.22rem;
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 700;
+  height: 64px;
+  vertical-align: middle;
 }
 .songsTable th {
-  background: #1db95422;
+  background: #f0f0f0;
   color: #1db954;
-  font-weight: 700;
-  border-bottom: 2px solid #1db95444;
-}
-.songsTable tr:nth-child(even) {
-  background: #23232388;
+  font-weight: 800;
+  border-bottom: 2px solid #dcdcdc;
+  font-size: 1.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 .songsTable tr:nth-child(odd) {
-  background: #18181888;
+  background: #ffffff;
+}
+.songsTable tr:nth-child(even) {
+  background: #f8f9fa;
+}
+.songsTable tr:hover {
+  background: #ebebeb;
 }
 .songsTable td {
-  border-bottom: 1px solid #1db95422;
+  border-bottom: 1px solid #ececec;
   word-break: break-all;
+}
+.songsTable tr:last-child td {
+  border-bottom: none;
 }
 
 .metricsModalOverlay {
@@ -685,4 +704,341 @@ body, .main {
   color: #aaa;
   font-size: 0.9rem;
   text-align: center;
+}
+
+.dashboardBackground {
+  min-height: 100vh;
+  width: 100vw;
+  background: #121212;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.dashboardContainer {
+  width: 100vw;
+  max-width: 100vw;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.dashboardContentArea {
+  background: #f6f6f6;
+  width: 100vw;
+  max-width: 100vw;
+  position: relative;
+  left: 0;
+  right: 0;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: 0 4px 32px #0001;
+  padding: 0 0 48px 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.resultsCard {
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 2px 16px #0001;
+  padding: 36px 32px 32px 32px;
+  margin-top: auto;
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: 0;
+  margin-right: 0;
+  min-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+@media (max-width: 1000px) {
+  .dashboardContainer, .resultsCard {
+    max-width: 98vw;
+    padding-left: 4vw;
+    padding-right: 4vw;
+  }
+}
+
+.topBar {
+  width: calc(100vw - 48px);
+  max-width: 100vw;
+  margin: 40px 24px 32px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 18px;
+  box-shadow: 0 2px 16px #0002;
+  padding: 0;
+  gap: 18px;
+  background: #121212;
+}
+
+.searchInput {
+  flex: 1;
+  background: #1f2937;
+  color: #fff;
+  border: none;
+  border-radius: 24px;
+  padding: 14px 24px;
+  font-size: 1.15rem;
+  outline: none;
+  box-shadow: none;
+  transition: background 0.2s, box-shadow 0.2s;
+  margin-right: 18px;
+  min-width: 0;
+}
+.searchInput:focus {
+  background: #23272f;
+  box-shadow: 0 0 0 2px #1db95455;
+}
+
+.concertsButton {
+  background: #1f2937;
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 24px;
+  padding: 12px 28px;
+  font-size: 1.08rem;
+  margin-left: 0;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px #0001;
+  flex-shrink: 0;
+}
+.concertsButton:hover {
+  background: #1db954;
+  color: #181818;
+}
+
+@media (max-width: 700px) {
+  .topBar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 8px;
+  }
+  .searchInput {
+    width: 100%;
+    min-width: 0;
+  }
+  .concertsButton {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+.reportTitle {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 10px;
+  margin-top: 0;
+}
+
+.reportSubtitle {
+  font-size: 1.1rem;
+  color: #b3b3b3;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.timeRangeRow {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.timeRangeButton {
+  background: linear-gradient(90deg, #1db954 60%, #00ffae 100%);
+  color: #181818;
+  font-size: 1.08rem;
+  font-weight: 700;
+  padding: 14px 28px;
+  border-radius: 24px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 12px #1db95422;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.timeRangeButton:hover {
+  background: linear-gradient(90deg, #00ffae 60%, #1db954 100%);
+  color: #181818;
+  box-shadow: 0 4px 18px #00ffae33;
+}
+
+.quickAnalysisLabel {
+  font-size: 1.05rem;
+  color: #b3b3b3;
+  text-align: center;
+  margin: 18px 0 12px 0;
+  font-weight: 600;
+}
+
+.analyzeButton {
+  background: #23272f;
+  color: #fff;
+  font-size: 1.08rem;
+  font-weight: 700;
+  padding: 14px 28px;
+  border-radius: 24px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0001;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.analyzeButton:hover {
+  background: #1db954;
+  color: #181818;
+}
+
+.emptyResultsBox {
+  background: #ededed;
+  border-radius: 0;
+  padding: 48px 0;
+  width: 100vw;
+  max-width: 100vw;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.orDivider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 18px 0 12px 0;
+}
+.orDivider::before,
+.orDivider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1.5px solid #b3b3b3;
+  opacity: 0.7;
+}
+.orDivider span {
+  color: #b3b3b3;
+  font-weight: 700;
+  margin: 0 18px;
+  font-size: 1.08rem;
+  letter-spacing: 1px;
+}
+
+.timeRangeButton,
+.analyzeButton,
+.concertsButton,
+.spotifyButton,
+.vibeButton,
+.songsTableWrapper button {
+  background: #1db954;
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 28px;
+  font-size: 1.08rem;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s;
+  outline: none;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  min-width: 120px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.timeRangeButton:hover,
+.analyzeButton:hover,
+.concertsButton:hover,
+.spotifyButton:hover,
+.vibeButton:hover,
+.songsTableWrapper button:hover {
+  background: #169943;
+  color: #fff;
+}
+
+/* Secondary button style for dark/gray buttons */
+.analyzeButton,
+.concertsButton {
+  background: #23272f;
+  color: #fff;
+}
+.analyzeButton:hover,
+.concertsButton:hover {
+  background: #353b45;
+  color: #fff;
+}
+
+/* Special style for Create Playlist, View, Wrapped, etc. */
+.songsTableWrapper button {
+  background: #1db954;
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 1.08rem;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s;
+  outline: none;
+  margin-right: 8px;
+}
+.songsTableWrapper button:hover {
+  background: #169943;
+  color: #fff;
+}
+
+.analyzePillButton {
+  background: #e0e7ff;
+  color: #2563eb;
+  font-weight: 700;
+  border: none;
+  border-radius: 9999px;
+  padding: 6px 18px;
+  font-size: 1rem;
+  margin: 0 4px;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s;
+  outline: none;
+  display: inline-block;
+}
+.analyzePillButton:hover {
+  background: #c7d2fe;
+  color: #1d4ed8;
+}
+
+.analyzePillButtonArtist {
+  background: #f9a8d4;
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 9999px;
+  padding: 6px 18px;
+  font-size: 1rem;
+  margin: 0 4px;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s;
+  outline: none;
+  display: inline-block;
+}
+.analyzePillButtonArtist:hover {
+  background: #f472b6;
+  color: #fff;
 }
