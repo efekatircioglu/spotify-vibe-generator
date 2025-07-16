@@ -4,7 +4,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import AlbumSelector from '../../components/AlbumSelector';
 import TrackTable from '../../components/TrackTable';
-import ArtistSearch from '../../components/ArtistSearch';
 
 export default function ArtistConcertsPage() {
   const searchParams = useSearchParams();
@@ -39,13 +38,6 @@ export default function ArtistConcertsPage() {
     const monthIndex = parseInt(month, 10) - 1;
     return `${parseInt(day, 10)} ${monthNames[monthIndex]} ${year}`;
   }
-
-  // Handle artist selection from search
-  const handleArtistSelect = (artist) => {
-    setSelectedArtist(artist);
-    // Update URL with artist info
-    router.push(`/artist?name=${encodeURIComponent(artist.name)}&id=${artist.id}`);
-  };
 
   // Fetch albums when artist is selected
   useEffect(() => {
@@ -157,15 +149,6 @@ export default function ArtistConcertsPage() {
         Profile
       </button>
       
-      {/* Artist Search */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ marginBottom: 16 }}>Artist Search</h1>
-        <ArtistSearch
-          onArtistSelect={handleArtistSelect}
-          placeholder="Search for an artist (e.g., Travis Scott)..."
-        />
-      </div>
-
       {/* Artist Info and Albums */}
       {selectedArtist && (
         <>

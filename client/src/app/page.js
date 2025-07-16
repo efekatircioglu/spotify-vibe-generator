@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import SongAnalysisModal from '../components/SongAnalysisModal';
 import TrackTable from '../components/TrackTable';
 import UserProfile from '../components/UserProfile';
+import ArtistSearch from '../components/ArtistSearch';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement);
 
@@ -690,23 +691,22 @@ export default function Home() {
   100% { background-position: 200px 0; }
 }`;
 
+  const handleArtistSelect = (artist) => {
+    router.push(`/artist?name=${encodeURIComponent(artist.name)}&id=${artist.id}`);
+  };
+
   return (
     <main className={styles.main}>
+      <div style={{ margin: '32px 0', width: '100%', maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+        <ArtistSearch
+          onArtistSelect={handleArtistSelect}
+          placeholder="Search for an artist (e.g., Travis Scott)..."
+        />
+      </div>
       {/* Search bar at the top */}
       <form onSubmit={handleProfileSearch} style={{ display: 'flex', alignItems: 'center', marginBottom: 32, position: 'relative', marginLeft: 32, marginTop: 24 }} autoComplete="off">
-        <input
-          type="text"
-          value={searchArtist}
-          onChange={handleArtistInput}
-          onFocus={handleSearchInputFocus}
-          onKeyDown={handleArtistKeyDown}
-          placeholder="Search for an artist's concerts..."
-          style={{ padding: 8, fontSize: 16, borderRadius: 4, border: '1px solid #444', marginRight: 8, width: 300 }}
-          autoComplete="off"
-        />
-        <button type="submit" className={styles.logoutButton} style={{ position: 'static', marginRight: 16, marginTop: 0 }}>
-          Search
-        </button>
+        <button onClick={() => router.push('/artist')} className={styles.vibeButton} style={{ marginRight: 16 }}>Artist</button>
+        <button onClick={() => router.push('/concerts')} className={styles.vibeButton} style={{ marginRight: 16 }}>Concerts</button>
         <span className={styles.hoverUnderline} style={{ fontFamily: '"Dancing Script", cursive', fontWeight: 700, color: '#fff', marginRight: 32, fontSize: 2.2 + 'rem', letterSpacing: 1, marginLeft: 16, textShadow: '0 2px 8px #0006' }}>
           How far back do you want to go?
         </span>
@@ -1132,6 +1132,26 @@ export default function Home() {
       {showInfoModal && selectedSongInfo && (
         <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
       )}
+      <button
+        onClick={() => router.push('/artist/xpage')}
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          background: '#1db954',
+          color: '#fff',
+          fontWeight: 700,
+          padding: '16px 32px',
+          borderRadius: 32,
+          border: 'none',
+          boxShadow: '0 2px 16px #1db95433',
+          cursor: 'pointer',
+        }}
+      >
+        Try XPage
+      </button>
     </main>
   );
 }
