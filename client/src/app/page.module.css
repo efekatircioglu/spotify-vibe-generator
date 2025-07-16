@@ -336,7 +336,8 @@ body, .main {
   max-width: 95%;
   width: 90%;
   min-width: 320px;
-  border: none;
+  border: 5px solid #f7f7f7;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -346,13 +347,20 @@ body, .main {
 }
 
 .songsTableTitle {
-  font-size: 1.25rem;
+  font-size: 1.45rem;
   font-weight: 700;
   color: #181818;
-  margin-bottom: 10px;
-  letter-spacing: 1px;
+  margin-bottom: 8px;
+  margin-left: 12px;
+  letter-spacing: 0.5px;
   text-align: left;
-  padding-left: 12px;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-left: 4px solid #fff;
+  padding-left: 16px;
 }
 
 .songsTable {
@@ -380,7 +388,7 @@ body, .main {
 }
 .songsTable th {
   background: #f0f0f0;
-  color: #1db954;
+  color: #080229;
   font-weight: 800;
   border-bottom: 2px solid #dcdcdc;
   font-size: 1.25rem;
@@ -769,7 +777,6 @@ body, .main {
 }
 
 .topBar {
-  width: calc(100vw - 48px);
   max-width: 100vw;
   margin: 40px 24px 32px 24px;
   display: flex;
@@ -780,6 +787,9 @@ body, .main {
   padding: 0;
   gap: 18px;
   background: #121212;
+  width: 100%;
+  padding-left: 32px;
+  padding-right: 32px;
 }
 
 .searchInput {

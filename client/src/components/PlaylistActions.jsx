@@ -70,7 +70,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
   };
 
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, justifyContent: 'flex-end' }}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', height: '64px', minHeight: '64px', justifyContent: 'flex-end' }}>
       <button
         onClick={handleCreatePlaylist}
         className={styles.vibeButton}

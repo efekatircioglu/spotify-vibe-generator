@@ -8,8 +8,16 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
 
   return (
     <div className={styles.songsTableWrapper}>
-      <div className={styles.songsTableTitle}>{title}</div>
-      <PlaylistActions tracks={tracks} playlistKey={playlistKey} playlistNameLabel={title} onWrapped={() => setShowWrapped(true)} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 72, padding: '0 24px 0 12px', marginBottom: 8 }}>
+        <div className={styles.songsTableTitle} style={{ margin: 0 }}>{title}</div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          {tracks && tracks.length > 0 ? (
+            <PlaylistActions tracks={tracks} playlistKey={playlistKey} playlistNameLabel={title} onWrapped={() => setShowWrapped(true)} />
+          ) : (
+            <div style={{ minWidth: 220, minHeight: 48 }} />
+          )}
+        </div>
+      </div>
       <WrappedAnalysisModal open={showWrapped} onClose={() => setShowWrapped(false)} tracks={tracks} />
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}

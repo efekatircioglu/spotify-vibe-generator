@@ -51,9 +51,10 @@ export default function Home() {
   const [searchArtist, setSearchArtist] = useState('');
   const [artistSuggestions, setArtistSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const highlightedSuggestion = useState(-1)[0];
+  const [highlightedSuggestion, setHighlightedSuggestion] = useState(-1);
   const [recentSearches, setRecentSearches] = useState([]);
   const suggestionsRef = useRef(null);
+  const searchInputRef = useRef(null);
   const [showSongsTable, setShowSongsTable] = useState(false);
   const [showPlaylistsTable, setShowPlaylistsTable] = useState(true);
   const [artistAnalysis, setArtistAnalysis] = useState(null);
@@ -82,6 +83,7 @@ export default function Home() {
   const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState('');
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedSongInfo, setSelectedSongInfo] = useState(null);
+  const debounceTimerRef = useRef(null);
 
   // This is the URL to our backend's login route
   const LOGIN_URL = 'http://127.0.0.1:8000/login';
@@ -297,6 +299,7 @@ export default function Home() {
     map[artistName] = info;
     saveArtistIdMap(map);
   }
+  // Update getRecentSearches and saveRecentSearch to use objects
   function getRecentSearches() {
     try {
       return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || [];
@@ -304,9 +307,13 @@ export default function Home() {
       return [];
     }
   }
-  function saveRecentSearch(artistName) {
+  function saveRecentSearch(artistObj) {
     let searches = getRecentSearches();
-    searches = [artistName, ...searches.filter(n => n !== artistName)];
+    // Remove any previous entry with the same name or spotifyId
+    searches = searches.filter(
+      s => s.name !== artistObj.name && s.spotifyId !== artistObj.spotifyId
+    );
+    searches = [artistObj, ...searches];
     searches = searches.slice(0, 7);
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
   }
@@ -317,15 +324,7 @@ export default function Home() {
 
   const handleSearchInputFocus = () => {
     if (!searchArtist.trim()) {
-      setArtistSuggestions(recentSearches.map(name => {
-        const cached = getArtistIdMap()[name] || {};
-        return {
-          name,
-          id: cached.ticketmasterId || null,
-          image: cached.image || null,
-          genres: cached.genres || [],
-        };
-      }));
+      setArtistSuggestions(recentSearches);
       setShowSuggestions(true);
     }
   };
@@ -347,28 +346,59 @@ export default function Home() {
 
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
-        if (!res.ok) throw new Error('Failed to fetch suggestions');
-        const data = await res.json();
-        const suggestions = data._embedded?.attractions
+        // Spotify
+        const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(value)}`);
+        const spData = spRes.ok ? await spRes.json() : {};
+        const spSuggestions = spData.artists?.map(a => ({
+          name: a.name,
+          spotifyId: a.id,
+          ticketmasterId: null,
+          image: a.image || null,
+          genres: a.genres || [],
+          source: 'spotify'
+        })) || [];
+        // Ticketmaster
+        const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
+        const tmData = tmRes.ok ? await tmRes.json() : {};
+        const tmSuggestions = tmData._embedded?.attractions
           ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
           .map(a => {
-            // Try to get Spotify ID from externalLinks
-            let spotifyId = null;
-            const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
-            if (spotifyLink) {
-              const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
-              if (match) spotifyId = match[1];
-            }
+            let spotifyId = (() => {
+              const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
+              if (spotifyLink) {
+                const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
+                if (match) return match[1];
+              }
+              return null;
+            })();
             return {
               name: a.name,
-              id: a.id || null,
+              spotifyId,
+              ticketmasterId: a.id || null,
               image: a.images?.[0]?.url || null,
               genres: a.genres || [],
-              spotifyId,
+              source: 'ticketmaster'
             };
           }) || [];
-        setArtistSuggestions(suggestions);
+        // Merge by name: if both exist, merge ticketmasterId into spotify suggestion
+        const merged = [];
+        const usedNames = new Set();
+        spSuggestions.forEach(sp => {
+          const tm = tmSuggestions.find(t => t.name === sp.name);
+          if (tm) {
+            merged.push({ ...sp, ticketmasterId: tm.ticketmasterId });
+            usedNames.add(sp.name);
+          } else {
+            merged.push(sp);
+            usedNames.add(sp.name);
+          }
+        });
+        tmSuggestions.forEach(tm => {
+          if (!usedNames.has(tm.name)) {
+            merged.push(tm);
+          }
+        });
+        setArtistSuggestions(merged);
         setShowSuggestions(true);
       } catch {
         setArtistSuggestions([]);
@@ -401,8 +431,9 @@ export default function Home() {
   };
 
   const handleSuggestionClick = async (artist) => {
-    // Enhanced: Try cache, else fetch Spotify info if needed
+    // Always prefer spotifyId if available
     let spotifyId = artist.spotifyId || null;
+    let ticketmasterId = artist.ticketmasterId || null;
     let image = artist.image || null;
     let genres = artist.genres || [];
     if (!spotifyId) {
@@ -420,17 +451,21 @@ export default function Home() {
         }
       } catch {}
     }
-    cacheArtistInfo(artist.name, {
-      spotifyId: spotifyId || null,
-      ticketmasterId: artist.id || null,
-      image,
-      genres,
-    });
-    saveRecentSearch(artist.name);
+    // Save full object to recents
+    saveRecentSearch({ name: artist.name, spotifyId, ticketmasterId, image });
     setRecentSearches(getRecentSearches());
     setSearchArtist(artist.name);
     setShowSuggestions(false);
-    router.push(`/artist?name=${encodeURIComponent(artist.name)}`);
+    // Always include spotifyId if possible, ticketmasterId ONLY if it exists
+    const paramsArr = [
+      `name=${encodeURIComponent(artist.name)}`
+    ];
+    if (spotifyId) paramsArr.push(`spotifyId=${spotifyId}`);
+    if (ticketmasterId && typeof ticketmasterId === 'string' && ticketmasterId.trim() !== '') {
+      paramsArr.push(`ticketmasterId=${ticketmasterId}`);
+    }
+    const params = paramsArr.join('&');
+    router.push(`/artist?${params}`);
   };
 
   // Handle search submit
@@ -627,6 +662,23 @@ export default function Home() {
     );
   }
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className={styles.dashboardBackground}>
@@ -707,23 +759,83 @@ export default function Home() {
     <div className={styles.dashboardBackground}>
       <div className={styles.dashboardContainer}>
         {/* Top Bar: search + concerts button */}
-        <div className={styles.topBar}>
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Search for an artist..."
-            value={searchArtist}
-            onChange={handleArtistInput}
-            onFocus={handleSearchInputFocus}
-            onKeyDown={handleArtistKeyDown}
-            autoComplete="off"
-          />
-          <button
-            className={styles.concertsButton}
-            onClick={() => router.push('/concerts')}
-          >
-            Concerts
-          </button>
+        <div style={{ position: 'relative', width: '100%' }}>
+          <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '100%' }}>
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Search for an artist..."
+              value={searchArtist}
+              onChange={handleArtistInput}
+              onFocus={handleSearchInputFocus}
+              onKeyDown={handleArtistKeyDown}
+              autoComplete="off"
+              ref={searchInputRef}
+            />
+            <button
+              className={styles.concertsButton}
+              onClick={() => router.push('/concerts')}
+              type="button"
+            >
+              Concerts
+            </button>
+          </form>
+          {showSuggestions && artistSuggestions.length > 0 && (
+            <div
+              ref={suggestionsRef}
+              style={{
+                position: 'absolute',
+                top: '100%', // directly below the search bar
+                left: 0,
+                right: 0,
+                background: '#232323',
+                border: '1px solid #444',
+                borderRadius: '8px',
+                marginTop: '4px',
+                maxHeight: '320px',
+                overflowY: 'auto',
+                zIndex: 1000,
+                width: '100%',
+                minWidth: 0,
+                boxSizing: 'border-box',
+              }}
+            >
+              {artistSuggestions.map((artist, index) => (
+                <div
+                  key={`${artist.spotifyId || ''}_${artist.ticketmasterId || ''}_${artist.name || ''}_${index}`}
+                  onClick={() => handleSuggestionClick(artist)}
+                  style={{
+                    padding: '12px 18px',
+                    background: highlightedSuggestion === index ? '#181818' : 'transparent',
+                    color: highlightedSuggestion === index ? '#fff' : '#e5e7eb',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '1.08rem',
+                    borderBottom: '1px solid #232323',
+                    transition: 'background 0.18s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                  }}
+                  onMouseEnter={() => setHighlightedSuggestion(index)}
+                >
+                  {artist.image && (
+                    <img
+                      src={artist.image}
+                      alt={artist.name}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  )}
+                  <span>{artist.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <main className={styles.main}>
           <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false}>
@@ -737,10 +849,10 @@ export default function Home() {
             <div className={styles.orDivider}><span>OR</span></div>
             <div className={styles.actionButtons}>
               <button onClick={handleGenerateFromRecents} className={styles.analyzeButton} disabled={isAnalyzingRecents}>
-                {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Last 50 Songs'}
+                {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Your Last 50 Songs'}
               </button>
               <button onClick={handleGenerateFromPlaylist} className={styles.analyzeButton} disabled={isAnalyzingPlaylists}>
-                {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Playlists'}
+                {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
               </button>
             </div>
           </UserProfile>

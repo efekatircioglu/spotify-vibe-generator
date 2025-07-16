@@ -9,7 +9,8 @@ export default function ArtistConcertsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const artistName = searchParams.get('name') || '';
-  const artistId = searchParams.get('id') || '';
+  const spotifyId = searchParams.get('spotifyId') || '';
+  const ticketmasterId = searchParams.get('ticketmasterId') || '';
   
   const [concerts, setConcerts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,7 @@ export default function ArtistConcertsPage() {
   const [albumError, setAlbumError] = useState('');
   const [tracksError, setTracksError] = useState('');
   const [selectedArtist, setSelectedArtist] = useState(null);
+  const [artistImage, setArtistImage] = useState(null);
 
   // Helper to format date as '20 April 2025'
   function formatDate(dateStr) {
@@ -88,34 +90,36 @@ export default function ArtistConcertsPage() {
 
   // Initialize artist from URL params
   useEffect(() => {
-    if (artistName && artistId) {
+    if (artistName && spotifyId) {
       setSelectedArtist({
-        id: artistId,
+        id: spotifyId,
         name: artistName,
       });
     }
-  }, [artistName, artistId]);
+  }, [artistName, spotifyId]);
+
+  // Fetch artist image from Spotify
+  useEffect(() => {
+    if (!spotifyId) return;
+    fetch(`http://127.0.0.1:8000/spotify/artist-details/${spotifyId}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data.images && data.images.length > 0) {
+          setArtistImage(data.images[0].url);
+        }
+      });
+  }, [spotifyId]);
 
   // Fetch concerts (existing logic, but after albums)
   useEffect(() => {
-    if (!selectedArtist?.name) return;
+    if (!ticketmasterId) return;
     setLoading(true);
     setError('');
     setConcerts([]);
-    fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(selectedArtist.name)}`)
+    fetch(`http://127.0.0.1:8000/concerts/events?artistId=${ticketmasterId}`)
       .then(res => {
-        if (!res.ok) throw new Error('Failed to search artist');
+        if (!res.ok) throw new Error('Failed to get events');
         return res.json();
-      })
-      .then(data1 => {
-        const attractions = data1._embedded?.attractions || [];
-        if (attractions.length === 0) throw new Error('No artist found');
-        const ticketmasterArtistId = attractions[0].id;
-        return fetch(`http://127.0.0.1:8000/concerts/events?artistId=${ticketmasterArtistId}`);
-      })
-      .then(res2 => {
-        if (!res2.ok) throw new Error('Failed to get events');
-        return res2.json();
       })
       .then(data2 => {
         let events = data2._embedded?.events || [];
@@ -137,7 +141,7 @@ export default function ArtistConcertsPage() {
         setError(err.message || 'Concert search failed');
       })
       .finally(() => setLoading(false));
-  }, [selectedArtist]);
+  }, [ticketmasterId]);
 
   return (
     <main style={{ padding: 32 }}>
@@ -152,9 +156,14 @@ export default function ArtistConcertsPage() {
       {/* Artist Info and Albums */}
       {selectedArtist && (
         <>
-          <h1 style={{ marginBottom: 24 }}>
-            Artist: <span style={{ color: '#1db954' }}>{selectedArtist.name}</span>
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
+            {artistImage && (
+              <img src={artistImage} alt={selectedArtist.name} style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginRight: 24 }} />
+            )}
+            <h1>
+              Artist: <span style={{ color: '#1db954' }}>{selectedArtist.name}</span>
+            </h1>
+          </div>
           
           {/* Album Selector */}
           <div style={{ marginBottom: 32 }}>

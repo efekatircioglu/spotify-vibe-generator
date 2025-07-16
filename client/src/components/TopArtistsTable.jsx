@@ -4,7 +4,7 @@ import styles from '../app/page.module.css';
 export default function TopArtistsTable({ artists, title }) {
   return (
     <div className={styles.songsTableWrapper}>
-      <div className={styles.songsTableTitle}>{title}</div>
+      <div className={styles.songsTableTitle} style={{ marginTop: 32 }}>{title}</div>
       <table className={styles.songsTable}>
         <thead>
           <tr>
