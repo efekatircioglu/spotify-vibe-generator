@@ -540,19 +540,23 @@ app.get('/artist-albums/:artistId', async (req, res) => {
   }
 
   try {
-    // Add the include_groups parameter to only fetch items of type 'album'
-    const { body } = await spotifyApi.getArtistAlbums(artistId, { 
-      limit: 50, 
-      include_groups: 'album',
-      album_type: 'album'
+    // Use the group query parameter to fetch the correct type
+    const group = req.query.group || 'album';
+    // Validate group
+    const validGroups = ['album', 'single', 'compilation', 'appears_on'];
+    const groupParam = validGroups.includes(group) ? group : 'album';
+    const { body } = await spotifyApi.getArtistAlbums(artistId, {
+      limit: 50,
+      include_groups: groupParam,
+      album_type: groupParam
     });
 
     // Simplify album data for the frontend
     const albums = (body.items || []).map(album => ({
       id: album.id,
       name: album.name,
-      image: album.images?.[0]?.url || '', // A more concise way to get the image
-      releaseYear: album.release_date?.split('-')[0] || '', // Optional chaining for safety
+      image: album.images?.[0]?.url || '',
+      releaseYear: album.release_date?.split('-')[0] || '',
     }));
 
     res.json({ albums });

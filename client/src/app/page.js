@@ -307,7 +307,7 @@ export default function Home() {
   }, []);
 
   const handleSearchInputFocus = () => {
-    if (!searchArtist.trim()) {
+    if (!(searchArtist || '').trim()) {
       // Only show the last 5 recent searches in the dropdown
       setArtistSuggestions(recentSearches.slice(0, 5));
       setShowSuggestions(true);
@@ -440,41 +440,37 @@ export default function Home() {
   };
 
   const handleSuggestionClick = async (artist) => {
-    // Always prefer spotifyId if available
+    // Use the exact name from Spotify to search Ticketmaster
     let spotifyId = artist.spotifyId || null;
-    let ticketmasterId = artist.ticketmasterId || null;
     let image = artist.image || null;
     let genres = artist.genres || [];
-    if (!spotifyId) {
-      // Fallback: search Spotify
-      try {
-        const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artist.name)}`);
-        if (spRes.ok) {
-          const spData = await spRes.json();
-          const spArtist = spData.artists?.[0];
-          if (spArtist) {
-            spotifyId = spArtist.id;
-            image = image || spArtist.image || null;
-            genres = spArtist.genres || [];
-          }
+    let ticketmasterId = null;
+    // Always use the Spotify name for Ticketmaster search
+    try {
+      const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(artist.name)}`);
+      if (tmRes.ok) {
+        const tmData = await tmRes.json();
+        const attractions = tmData._embedded?.attractions || [];
+        // Find an exact name match (case-insensitive)
+        const exact = attractions.find(a => a.name.toLowerCase() === artist.name.toLowerCase());
+        if (exact && exact.id) {
+          ticketmasterId = exact.id;
         }
-      } catch {}
-    }
+      }
+    } catch {}
     // Save full object to recents
     saveRecentSearch({ name: artist.name, spotifyId, ticketmasterId, image });
     setRecentSearches(getRecentSearches());
     setSearchArtist(artist.name);
     setShowSuggestions(false);
-    // Always include spotifyId if possible, ticketmasterId ONLY if it exists
-    const paramsArr = [
+    // Only include name, spotifyId, and ticketmasterId in the URL
+    const urlParamsArr = [
       `name=${encodeURIComponent(artist.name)}`
     ];
-    if (spotifyId) paramsArr.push(`spotifyId=${spotifyId}`);
-    if (ticketmasterId && typeof ticketmasterId === 'string' && ticketmasterId.trim() !== '') {
-      paramsArr.push(`ticketmasterId=${ticketmasterId}`);
-    }
-    const params = paramsArr.join('&');
-    router.push(`/artist?${params}`);
+    if (spotifyId) urlParamsArr.push(`spotifyId=${spotifyId}`);
+    if (ticketmasterId) urlParamsArr.push(`ticketmasterId=${ticketmasterId}`);
+    const urlParams = urlParamsArr.join('&');
+    router.push(`/artist?${urlParams}`);
   };
 
   // Handle search submit
@@ -774,7 +770,7 @@ export default function Home() {
               type="text"
               className={styles.searchInput}
               placeholder="Search for an artist..."
-              value={searchArtist}
+              value={searchArtist || ""}
               onChange={handleArtistInput}
               onFocus={handleSearchInputFocus}
               onKeyDown={handleArtistKeyDown}

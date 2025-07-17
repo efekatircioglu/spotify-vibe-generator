@@ -33,6 +33,15 @@ export default function ArtistConcertsPage() {
   const [isFollowing, setIsFollowing] = useState(null);
   const [followLoading, setFollowLoading] = useState(false);
 
+  // Album group filter state
+  const [albumGroup, setAlbumGroup] = useState('album');
+  const albumGroups = [
+    { label: 'Albums', value: 'album' },
+    { label: 'Singles', value: 'single' },
+    { label: 'Compilations', value: 'compilation' },
+    { label: 'Appears On', value: 'appears_on' },
+  ];
+
   // Helper to format date as '20 April 2025'
   function formatDate(dateStr) {
     if (!dateStr) return '';
@@ -45,15 +54,14 @@ export default function ArtistConcertsPage() {
     return `${parseInt(day, 10)} ${monthNames[monthIndex]} ${year}`;
   }
 
-  // Fetch albums when artist is selected
+  // Fetch albums when artist or group changes
   useEffect(() => {
     if (!selectedArtist?.id) return;
     setLoadingAlbums(true);
     setAlbumError('');
     setAlbums([]);
     setSelectedAlbumId(null);
-    
-    fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}`)
+    fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}?group=${albumGroup}`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch albums');
         return res.json();
@@ -68,7 +76,7 @@ export default function ArtistConcertsPage() {
         setAlbumError(err.message || 'Failed to fetch albums');
       })
       .finally(() => setLoadingAlbums(false));
-  }, [selectedArtist]);
+  }, [selectedArtist, albumGroup]);
 
   // Fetch tracks for selected album
   useEffect(() => {
@@ -317,7 +325,28 @@ export default function ArtistConcertsPage() {
           
           {/* Album Selector */}
           <div style={{ marginBottom: 64, marginTop: 48 }}>
-            <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '2.1rem', margin: '0 0 18px 0', letterSpacing: 1, marginLeft: 50 }}>Albums</h2>
+            <div style={{ display: 'flex', gap: 12, marginLeft: 50, marginBottom: 18 }}>
+              {albumGroups.map(group => (
+                <button
+                  key={group.value}
+                  onClick={() => setAlbumGroup(group.value)}
+                  style={{
+                    background: albumGroup === group.value ? '#1db954' : '#232323',
+                    color: albumGroup === group.value ? '#181818' : '#fff',
+                    fontWeight: 700,
+                    border: 'none',
+                    borderRadius: 18,
+                    padding: '8px 18px',
+                    fontSize: '1.02rem',
+                    cursor: 'pointer',
+                    boxShadow: albumGroup === group.value ? '0 2px 8px #1db95433' : 'none',
+                    transition: 'background 0.18s, color 0.18s',
+                  }}
+                >
+                  {group.label}
+                </button>
+              ))}
+            </div>
             <AlbumSelector
               albums={albums}
               selectedAlbumId={selectedAlbumId}
