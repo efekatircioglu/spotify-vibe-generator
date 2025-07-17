@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../app/page.module.css';
 
-export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped }) {
+export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped, showCreatePlaylist = true, showViewPlaylist = true }) {
   const [showModal, setShowModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -71,42 +71,46 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
 
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', height: '64px', minHeight: '64px', justifyContent: 'flex-end' }}>
-      <button
-        onClick={handleCreatePlaylist}
-        className={styles.vibeButton}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: 48,
-          minWidth: 0,
-        }}
-      >
-        Create Playlist
-      </button>
-      <button
-        className={styles.vibeButton}
-        style={{
-          marginLeft: 12,
-          background: '#e5e7eb',
-          color: '#23272f',
-          cursor: createdPlaylistUrl ? 'pointer' : 'not-allowed',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: 48,
-          minWidth: 0,
-          fontWeight: 700,
-          fontSize: '1.08rem',
-          border: 'none',
-          boxShadow: 'none',
-          transition: 'background 0.18s, color 0.18s',
-        }}
-        onClick={handleViewPlaylist}
-        disabled={!createdPlaylistUrl}
-      >
-        View Last Created Playlist
-      </button>
+      {showCreatePlaylist && (
+        <button
+          onClick={handleCreatePlaylist}
+          className={styles.vibeButton}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 48,
+            minWidth: 0,
+          }}
+        >
+          Create Playlist
+        </button>
+      )}
+      {showViewPlaylist && (
+        <button
+          className={styles.vibeButton}
+          style={{
+            marginLeft: 12,
+            background: '#e5e7eb',
+            color: '#23272f',
+            cursor: createdPlaylistUrl ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 48,
+            minWidth: 0,
+            fontWeight: 700,
+            fontSize: '1.08rem',
+            border: 'none',
+            boxShadow: 'none',
+            transition: 'background 0.18s, color 0.18s',
+          }}
+          onClick={handleViewPlaylist}
+          disabled={!createdPlaylistUrl}
+        >
+          View Last Created Playlist
+        </button>
+      )}
       <button
         className={styles.vibeButton}
         style={{

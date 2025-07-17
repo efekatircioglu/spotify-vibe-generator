@@ -6,7 +6,6 @@ import { Doughnut } from 'react-chartjs-2';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
 import TrackTable from '../../components/TrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
-import GenreDistributionChart from '../../components/GenreDistributionChart';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -87,8 +86,7 @@ export default function Last4WeeksPage() {
       {data && data.artists && (
         <TopArtistsTable artists={data.artists} title="Top Artists" />
       )}
-      {/* Genre Chart */}
-      {data && data.genres && <GenreDistributionChart genres={data.genres} />}
+      
       {/* Info Modal */}
       {showInfoModal && selectedSongInfo && (
         <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />

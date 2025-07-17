@@ -22,6 +22,7 @@ import SongAnalysisModal from '../components/SongAnalysisModal';
 import TrackTable from '../components/TrackTable';
 import UserProfile from '../components/UserProfile';
 import ArtistSearch from '../components/ArtistSearch';
+import ConcertsList from '../components/ConcertsList';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement);
 
@@ -282,24 +283,7 @@ export default function Home() {
   };
 
   // Utility functions for artist ID cache and recent searches
-  const ARTIST_ID_MAP_KEY = 'artist_id_map';
   const RECENT_SEARCHES_KEY = 'recent_artist_searches';
-  function getArtistIdMap() {
-    try {
-      return JSON.parse(localStorage.getItem(ARTIST_ID_MAP_KEY)) || {};
-    } catch {
-      return {};
-    }
-  }
-  function saveArtistIdMap(map) {
-    localStorage.setItem(ARTIST_ID_MAP_KEY, JSON.stringify(map));
-  }
-  function cacheArtistInfo(artistName, info) {
-    const map = getArtistIdMap();
-    map[artistName] = info;
-    saveArtistIdMap(map);
-  }
-  // Update getRecentSearches and saveRecentSearch to use objects
   function getRecentSearches() {
     try {
       return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || [];
@@ -314,7 +298,7 @@ export default function Home() {
       s => s.name !== artistObj.name && s.spotifyId !== artistObj.spotifyId
     );
     searches = [artistObj, ...searches];
-    searches = searches.slice(0, 7);
+    // Remove the .slice(0, 7) to keep all searches
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
   }
 
@@ -324,7 +308,8 @@ export default function Home() {
 
   const handleSearchInputFocus = () => {
     if (!searchArtist.trim()) {
-      setArtistSuggestions(recentSearches);
+      // Only show the last 5 recent searches in the dropdown
+      setArtistSuggestions(recentSearches.slice(0, 5));
       setShowSuggestions(true);
     }
   };
@@ -346,40 +331,64 @@ export default function Home() {
 
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        // Spotify
-        const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(value)}`);
-        const spData = spRes.ok ? await spRes.json() : {};
-        const spSuggestions = spData.artists?.map(a => ({
-          name: a.name,
-          spotifyId: a.id,
-          ticketmasterId: null,
-          image: a.image || null,
-          genres: a.genres || [],
-          source: 'spotify'
-        })) || [];
-        // Ticketmaster
-        const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
-        const tmData = tmRes.ok ? await tmRes.json() : {};
-        const tmSuggestions = tmData._embedded?.attractions
-          ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
-          .map(a => {
-            let spotifyId = (() => {
-              const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
-              if (spotifyLink) {
-                const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
-                if (match) return match[1];
-              }
-              return null;
-            })();
-            return {
-              name: a.name,
-              spotifyId,
-              ticketmasterId: a.id || null,
-              image: a.images?.[0]?.url || null,
-              genres: a.genres || [],
-              source: 'ticketmaster'
-            };
-          }) || [];
+        // Check recent_artist_searches for ticketmasterId before making API calls
+        const recent = getRecentSearches().find(a => a.name.toLowerCase() === value.trim().toLowerCase());
+        let spSuggestions = [];
+        let tmSuggestions = [];
+        if (recent) {
+          // Use the cached ticketmasterId and spotifyId if available
+          spSuggestions = recent.spotifyId ? [{
+            name: recent.name,
+            spotifyId: recent.spotifyId,
+            ticketmasterId: recent.ticketmasterId || null,
+            image: recent.image || null,
+            genres: recent.genres || [],
+            source: 'spotify'
+          }] : [];
+          tmSuggestions = recent.ticketmasterId ? [{
+            name: recent.name,
+            spotifyId: recent.spotifyId || null,
+            ticketmasterId: recent.ticketmasterId,
+            image: recent.image || null,
+            genres: recent.genres || [],
+            source: 'ticketmaster'
+          }] : [];
+        } else {
+          // Spotify
+          const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(value)}`);
+          const spData = spRes.ok ? await spRes.json() : {};
+          spSuggestions = spData.artists?.map(a => ({
+            name: a.name,
+            spotifyId: a.id,
+            ticketmasterId: null,
+            image: a.image || null,
+            genres: a.genres || [],
+            source: 'spotify'
+          })) || [];
+          // Ticketmaster
+          const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
+          const tmData = tmRes.ok ? await tmRes.json() : {};
+          tmSuggestions = tmData._embedded?.attractions
+            ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
+            .map(a => {
+              let spotifyId = (() => {
+                const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
+                if (spotifyLink) {
+                  const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
+                  if (match) return match[1];
+                }
+                return null;
+              })();
+              return {
+                name: a.name,
+                spotifyId,
+                ticketmasterId: a.id || null,
+                image: a.images?.[0]?.url || null,
+                genres: a.genres || [],
+                source: 'ticketmaster'
+              };
+            }) || [];
+        }
         // Merge by name: if both exist, merge ticketmasterId into spotify suggestion
         const merged = [];
         const usedNames = new Set();
@@ -838,7 +847,7 @@ export default function Home() {
           )}
         </div>
         <main className={styles.main}>
-          <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false}>
+          <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false} onFeedback={() => setShowFeedbackModal(true)}>
             <h2 className={styles.reportTitle}>Create Your Listening Report</h2>
             <div className={styles.reportSubtitle}>Select a time range to see your top artists and tracks.</div>
             <div className={styles.timeRangeRow}>
@@ -1251,26 +1260,6 @@ export default function Home() {
             {showInfoModal && selectedSongInfo && (
               <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
             )}
-            <button
-              onClick={() => router.push('/artist/xpage')}
-              style={{
-                position: 'fixed',
-                bottom: 24,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 1000,
-                background: '#1db954',
-                color: '#fff',
-                fontWeight: 700,
-                padding: '16px 32px',
-                borderRadius: 32,
-                border: 'none',
-                boxShadow: '0 2px 16px #1db95433',
-                cursor: 'pointer',
-              }}
-            >
-              Try XPage
-            </button>
         </main>
       </div>
     </div>

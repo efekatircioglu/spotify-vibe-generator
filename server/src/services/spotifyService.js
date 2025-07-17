@@ -125,9 +125,40 @@ async function analyzePlaylist(playlistId) {
   return analysisResult;
 }
 
+/**
+ * Checks if the current user is following the given artist.
+ * @param {string} artistId - The Spotify artist ID.
+ * @returns {Promise<boolean>} - True if following, false otherwise.
+ */
+async function isFollowingArtist(artistId) {
+  const { body } = await spotifyApi.isFollowingArtists([artistId]);
+  return body[0];
+}
+
+/**
+ * Follows the given artist for the current user.
+ * @param {string} artistId - The Spotify artist ID.
+ * @returns {Promise<void>}
+ */
+async function followArtist(artistId) {
+  await spotifyApi.followArtists([artistId]);
+}
+
+/**
+ * Unfollows the given artist for the current user.
+ * @param {string} artistId - The Spotify artist ID.
+ * @returns {Promise<void>}
+ */
+async function unfollowArtist(artistId) {
+  await spotifyApi.unfollowArtists([artistId]);
+}
+
 // We export the functions we want other files to be able to use.
 module.exports = {
   setSpotifyApi,
   analyzeRecentTracks,
   analyzePlaylist,
+  isFollowingArtist,
+  followArtist,
+  unfollowArtist,
 };

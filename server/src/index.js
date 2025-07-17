@@ -23,6 +23,8 @@ const scopes = [
   'playlist-modify-public',
   'playlist-modify-private',
   'user-library-read',
+  'user-follow-read',
+  'user-follow-modify',
 ];
 
 // Create a new instance of the SpotifyWebApi client
@@ -533,16 +535,26 @@ app.get('/:mbid/low-level', async (req, res) => {
 // Get albums by artist ID (Spotify)
 app.get('/artist-albums/:artistId', async (req, res) => {
   const artistId = req.params.artistId;
-  if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+  if (!artistId) {
+    return res.status(400).json({ error: 'Missing artist ID' });
+  }
+
   try {
-    const { body } = await spotifyApi.getArtistAlbums(artistId, { limit: 50 });
-    // Simplify album data for frontend
+    // Add the include_groups parameter to only fetch items of type 'album'
+    const { body } = await spotifyApi.getArtistAlbums(artistId, { 
+      limit: 50, 
+      include_groups: 'album',
+      album_type: 'album'
+    });
+
+    // Simplify album data for the frontend
     const albums = (body.items || []).map(album => ({
       id: album.id,
       name: album.name,
-      image: album.images && album.images.length > 0 ? album.images[0].url : '',
-      releaseYear: album.release_date ? album.release_date.split('-')[0] : '',
+      image: album.images?.[0]?.url || '', // A more concise way to get the image
+      releaseYear: album.release_date?.split('-')[0] || '', // Optional chaining for safety
     }));
+
     res.json({ albums });
   } catch (err) {
     console.error('Error fetching artist albums:', err);
@@ -571,6 +583,19 @@ app.get('/spotify/artist-search', async (req, res) => {
   }
 });
 
+// Get artist details by Spotify artist ID
+app.get('/spotify/artist-details/:id', async (req, res) => {
+  const artistId = req.params.id;
+  if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+  try {
+    const { body } = await spotifyApi.getArtist(artistId);
+    res.json(body);
+  } catch (err) {
+    console.error('Error fetching artist details:', err);
+    res.status(500).json({ error: 'Failed to fetch artist details' });
+  }
+});
+
 // Get tracks by album ID (Spotify)
 app.get('/album-tracks/:albumId', async (req, res) => {
   const albumId = req.params.albumId;
@@ -592,6 +617,43 @@ app.get('/album-tracks/:albumId', async (req, res) => {
   } catch (err) {
     console.error('Error fetching album tracks:', err);
     res.status(500).json({ error: 'Failed to fetch album tracks' });
+  }
+});
+
+// --- Spotify Follow/Unfollow/Check Endpoints ---
+app.get('/me/following/artist/:id', async (req, res) => {
+  try {
+    const artistId = req.params.id;
+    if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+    const isFollowing = await spotifyService.isFollowingArtist(artistId);
+    res.json({ isFollowing });
+  } catch (err) {
+    console.error('Error checking follow status:', err);
+    res.status(500).json({ error: 'Failed to check follow status' });
+  }
+});
+
+app.put('/me/following/artist/:id', async (req, res) => {
+  try {
+    const artistId = req.params.id;
+    if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+    await spotifyService.followArtist(artistId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error following artist:', err);
+    res.status(500).json({ error: 'Failed to follow artist' });
+  }
+});
+
+app.delete('/me/following/artist/:id', async (req, res) => {
+  try {
+    const artistId = req.params.id;
+    if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+    await spotifyService.unfollowArtist(artistId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error unfollowing artist:', err);
+    res.status(500).json({ error: 'Failed to unfollow artist' });
   }
 });
 

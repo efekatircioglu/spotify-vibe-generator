@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
-import GenreDistributionChart from '../../components/GenreDistributionChart';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
 import TrackTable from '../../components/TrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
@@ -74,9 +73,7 @@ export default function Last6MonthsPage() {
       {data && data.artists && (
         <TopArtistsTable artists={data.artists} title="Top Artists" />
       )}
-      {data && !loading && !error && (
-        <GenreDistributionChart genres={data.genres} />
-      )}
+      
       {/* Info Modal */}
       {showInfoModal && selectedSongInfo && (
         <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
