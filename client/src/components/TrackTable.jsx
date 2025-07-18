@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PlaylistActions from './PlaylistActions';
 import styles from '../app/page.module.css';
 import WrappedAnalysisModal from './WrappedAnalysisModal';
+import DropdownPortal from './DropdownPortal';
 
-export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, loading, error, showCreatePlaylist = true, showViewPlaylist = true }) {
+export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true }) {
   const [showWrapped, setShowWrapped] = useState(false);
   const [tableKey, setTableKey] = useState(0);
+  const [dropdownOpen, setDropdownOpen] = useState(null); // row index for open dropdown
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const buttonRefs = useRef({});
 
   // When tracks change, increment tableKey to trigger animation
   useEffect(() => {
@@ -90,27 +94,120 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                 <td>{track.album?.name || track.album}</td>
                 <td>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')}</td>
                 <td>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
-                <td>
-                  <button
-                    className={styles.analyzePillButton}
-                    style={{
-                      background: '#e0e7ff',
-                      color: '#2563eb',
-                      borderRadius: 9999,
-                      fontWeight: 700,
-                      padding: '6px 18px',
-                      fontSize: '1rem',
-                      margin: '0 4px',
-                      cursor: 'pointer',
-                      boxShadow: 'none',
-                      border: 'none',
-                      outline: 'none',
-                      display: 'inline-block',
-                    }}
-                    onClick={() => onExploreGenre && onExploreGenre(track)}
-                  >
-                    Genre
-                  </button>
+                <td className={styles.analyzeCol}>
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <button
+                      ref={el => { if (el) buttonRefs.current[idx] = el; }}
+                      style={{
+                        background: '#2b2b2b',
+                        color: '#fff',
+                        borderRadius: 10,
+                        fontWeight: 700,
+                        padding: '8px 22px',
+                        fontSize: '1rem',
+                        margin: '0 4px',
+                        cursor: 'pointer',
+                        boxShadow: 'none',
+                        border: 'none',
+                        outline: 'none',
+                        display: 'inline-block',
+                        transition: 'background 0.18s, color 0.18s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#404040';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = '#2b2b2b';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onClick={e => {
+                        if (dropdownOpen === idx) {
+                          setDropdownOpen(null);
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setDropdownPosition({
+                            top: rect.bottom + window.scrollY,
+                            left: rect.left + window.scrollX,
+                          });
+                          setDropdownOpen(idx);
+                        }
+                      }}
+                    >
+                      Breakdown By
+                    </button>
+                    {dropdownOpen === idx && (
+                      <DropdownPortal>
+                        <div style={{
+                          position: 'absolute',
+                          top: dropdownPosition.top,
+                          left: dropdownPosition.left,
+                          background: '#232323',
+                          borderRadius: 10,
+                          boxShadow: '0 2px 16px #0003',
+                          zIndex: 99999,
+                          minWidth: 140,
+                          padding: 6,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4,
+                        }}>
+                          <button
+                            style={{
+                              background: 'none',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 6,
+                              fontWeight: 700,
+                              fontSize: '0.92rem',
+                              padding: '4px 10px',
+                              lineHeight: 1.1,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              transition: 'background 0.18s, color 0.18s',
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = '#404040';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'none';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onClick={() => { setDropdownOpen(null); onExploreGenre && onExploreGenre(track); }}
+                          >
+                            Genre
+                          </button>
+                          <button
+                            style={{
+                              background: 'none',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 6,
+                              fontWeight: 700,
+                              fontSize: '0.92rem',
+                              padding: '4px 10px',
+                              lineHeight: 1.1,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              transition: 'background 0.18s, color 0.18s',
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = '#404040';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'none';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onClick={() => { setDropdownOpen(null); onExploreContributions && onExploreContributions(track); }}
+                          >
+                            Contributions
+                          </button>
+                        </div>
+                      </DropdownPortal>
+                    )}
+                  </div>
                 </td>
                 <td>
                   {track.id && (

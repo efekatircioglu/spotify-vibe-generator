@@ -1,0 +1,97 @@
+/*
+ * CSS for a custom, dark-themed calendar.
+ * This is designed to integrate with a UI similar to Spotify's artist pages.
+ */
+
+.calendar-container {
+    background-color: #181818;
+    padding: clamp(1rem, 3vw, 2.5rem);
+    border-radius: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-header h3 {
+    margin: 0;
+    font-size: clamp(1rem, 2vw, 2rem);
+    font-weight: 700;
+}
+
+.calendar-nav button {
+    background: none;
+    border: 1px solid #444;
+    color: #fff;
+    cursor: pointer;
+    width: clamp(28px, 4vw, 48px);
+    height: clamp(28px, 4vw, 48px);
+    border-radius: 50%;
+    font-size: clamp(1rem, 2vw, 2rem);
+    transition: background-color 0.2s;
+}
+
+.calendar-nav button:hover {
+    background-color: #2a2a2a;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: clamp(0.3rem, 1vw, 1.2rem);
+}
+
+.calendar-day-name, .calendar-day {
+    text-align: center;
+    padding: clamp(0.3rem, 0.8vw, 1rem);
+}
+
+.calendar-day-name {
+    font-weight: 700;
+    font-size: clamp(0.7rem, 1vw, 1.1rem);
+    color: #b3b3b3;
+}
+
+.calendar-day {
+    cursor: default;
+    border-radius: 50%;
+    position: relative;
+    width: clamp(28px, 5vw, 64px);
+    height: clamp(28px, 5vw, 64px);
+    font-size: clamp(1rem, 2vw, 2rem);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.calendar-day.other-month {
+    color: #444;
+}
+
+.calendar-day.is-today {
+    background-color: #444; /* Grey circle for today */
+    color: #fff;
+    font-weight: 700;
+}
+
+.calendar-day.has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    background-color: #1DB954;
+    border-radius: 50%;
+}
+
+.calendar-day.is-today.has-event::after {
+     background-color: #121212;
+} 

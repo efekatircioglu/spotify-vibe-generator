@@ -169,6 +169,16 @@ export default function ArtistConcertsPage() {
       .finally(() => setLoading(false));
   }, [ticketmasterId]);
 
+  // Compute selected album object
+  const selectedAlbum = albums.find(a => a.id === selectedAlbumId);
+  // Inject album name and year into each track
+  const tracksWithAlbumInfo = (albumTracks || []).map(track => ({
+    ...track,
+    album: selectedAlbum?.name || '',
+    release_year: selectedAlbum?.releaseYear || '',
+    album_image: selectedAlbum?.image || '',
+  }));
+
   return (
     <main style={{ padding: 0, margin: 0 }}>
       {/* Artist Info and Albums */}
@@ -352,7 +362,7 @@ export default function ArtistConcertsPage() {
               selectedAlbumId={selectedAlbumId}
               onAlbumSelect={album => setSelectedAlbumId(album.id)}
             />
-            {loadingAlbums && <div>Loading albums...</div>}
+            {loadingAlbums && <div>Loading...</div>}
             {albumError && <div style={{ color: 'red' }}>{albumError}</div>}
           </div>
 
@@ -360,8 +370,8 @@ export default function ArtistConcertsPage() {
           {selectedAlbumId && albumTracks.length > 0 && (
             <div style={{ marginBottom: 48 }}>
               <TrackTable
-                tracks={albumTracks}
-                title={albums.find(a => a.id === selectedAlbumId)?.name || 'Album Tracks'}
+                tracks={tracksWithAlbumInfo}
+                title={selectedAlbum?.name || 'Album Tracks'}
                 playlistKey={selectedAlbumId}
                 loading={loadingTracks}
                 error={tracksError}

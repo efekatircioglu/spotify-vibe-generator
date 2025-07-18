@@ -666,16 +666,17 @@ body, .main {
 /* AlbumSelector styles moved from AlbumSelector.module.css */
 .albumSelectorContainer {
   display: flex;
-  gap: 24px;
-  padding: 24px 0;
-  justify-content: flex-start;
-  overflow-x: auto;
   flex-wrap: nowrap;
+  gap: 28px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 100%;
+  padding: 12px 0 24px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
   white-space: nowrap;
   scrollbar-width: thin;
   scrollbar-color: #888 #e5e7eb;
-  max-width: 90%;
-  margin: 0 auto;
 }
 /* Custom scrollbar for Chrome, Safari, Edge */
 .albumSelectorContainer::-webkit-scrollbar {
@@ -692,8 +693,8 @@ body, .main {
 }
 
 .albumNode {
-  width: 160px;
-  height: 220px;
+  width: 190px;
+  height: 260px;
   background: #181818;
   border-radius: 12px;
   box-shadow: 0 2px 8px #0003;
@@ -703,7 +704,14 @@ body, .main {
   cursor: pointer;
   transition: box-shadow 0.2s, border 0.2s;
   border: 2px solid transparent;
-  padding: 12px;
+  padding: 8px 0;
+  overflow: hidden;
+  flex: 0 0 auto;
+  min-width: 190px;
+  min-height: 260px;
+  max-width: 190px;
+  max-height: 260px;
+  position: relative;
 }
 
 .selectedAlbumNode {
@@ -712,11 +720,11 @@ body, .main {
 }
 
 .albumCover {
-  width: 120px;
-  height: 120px;
+  width: 145px;
+  height: 145px;
   object-fit: cover;
   border-radius: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .albumName {
@@ -728,14 +736,32 @@ body, .main {
   line-height: 1.2;
   word-break: break-word;
   white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
+  max-height: calc(100% - 180px); /* leave space for cover and year */
+  overflow-y: auto;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+  scrollbar-width: none;
+}
+.albumName::-webkit-scrollbar {
+  display: none;
 }
 
 .albumYear {
   color: #aaa;
   font-size: 0.9rem;
   text-align: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  margin: 0 auto;
+  max-height: 1.2em;
+  overflow-y: auto;
+  padding: 0 2px;
+  scrollbar-width: none;
+}
+.albumYear::-webkit-scrollbar {
+  display: none;
 }
 
 .dashboardBackground {
@@ -1075,4 +1101,9 @@ body, .main {
 .analyzePillButtonArtist:hover {
   background: #f472b6;
   color: #fff;
+}
+
+.analyzeCol {
+  overflow: visible !important;
+  position: relative;
 }
