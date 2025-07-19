@@ -786,7 +786,7 @@ body, .main {
 }
 
 .dashboardContentArea {
-  background: #f6f6f6;
+  background: #e9e9e9;
   width: 100vw;
   max-width: 100vw;
   position: relative;
@@ -803,7 +803,7 @@ body, .main {
 }
 
 .resultsCard {
-  background: #fff;
+  background: #e9e9e9;
   border-radius: 0;
   box-shadow: 0 2px 16px #0001;
   padding: 36px 32px 32px 32px;
@@ -963,7 +963,7 @@ body, .main {
 }
 
 .emptyResultsBox {
-  background: #ededed;
+  background: #e9e9e9;
   border-radius: 0;
   padding: 48px 0;
   width: 100vw;

@@ -3,6 +3,8 @@ import PlaylistActions from './PlaylistActions';
 import styles from '../app/page.module.css';
 import WrappedAnalysisModal from './WrappedAnalysisModal';
 import DropdownPortal from './DropdownPortal';
+import ContributorFinder from './ContributorFinder';
+import { lookupTrackMBID } from '../utils/trackAnalysisCache';
 
 export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true }) {
   const [showWrapped, setShowWrapped] = useState(false);
@@ -10,11 +12,38 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const [dropdownOpen, setDropdownOpen] = useState(null); // row index for open dropdown
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const buttonRefs = useRef({});
+  const dropdownRef = useRef(null);
+  const [contributorModalOpen, setContributorModalOpen] = useState(false);
+  const [selectedTrackMBID, setSelectedTrackMBID] = useState(null);
+  const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
 
   // When tracks change, increment tableKey to trigger animation
   useEffect(() => {
     setTableKey(k => k + 1);
   }, [tracks]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (dropdownOpen === null) return;
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+          (!buttonRefs.current[dropdownOpen] || !buttonRefs.current[dropdownOpen].contains(e.target))) {
+        setDropdownOpen(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [dropdownOpen]);
+
+  // Handle contributions button click
+  const handleContributionsClick = async (track) => {
+    setSelectedTrackInfo(track);
+    setContributorModalOpen(true);
+    
+    // Lookup MBID for the track
+    const mbid = await lookupTrackMBID(track.id);
+    setSelectedTrackMBID(mbid);
+  };
 
   // Estimate row height for minHeight reservation
   const rowHeight = 72; // px, adjust as needed
@@ -138,20 +167,23 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                     </button>
                     {dropdownOpen === idx && (
                       <DropdownPortal>
-                        <div style={{
-                          position: 'absolute',
-                          top: dropdownPosition.top,
-                          left: dropdownPosition.left,
-                          background: '#232323',
-                          borderRadius: 10,
-                          boxShadow: '0 2px 16px #0003',
-                          zIndex: 99999,
-                          minWidth: 140,
-                          padding: 6,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 4,
-                        }}>
+                        <div
+                         ref={dropdownRef}
+                          style={{
+                            position: 'absolute',
+                            top: dropdownPosition.top,
+                            left: dropdownPosition.left,
+                            background: '#232323',
+                            borderRadius: 10,
+                            boxShadow: '0 2px 16px #0003',
+                            zIndex: 99999,
+                            minWidth: 140,
+                            padding: 6,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4,
+                          }}
+                        >
                           <button
                             style={{
                               background: 'none',
@@ -200,7 +232,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                               e.currentTarget.style.background = 'none';
                               e.currentTarget.style.color = '#fff';
                             }}
-                            onClick={() => { setDropdownOpen(null); onExploreContributions && onExploreContributions(track); }}
+                            onClick={() => { setDropdownOpen(null); handleContributionsClick(track); }}
                           >
                             Contributions
                           </button>
@@ -221,6 +253,65 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
           </tbody>
         </table>
       )}
+      
+      {/* Contributor Modal */}
+      {contributorModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+        }} onClick={() => setContributorModalOpen(false)}>
+          <div style={{
+            background: '#232323',
+            borderRadius: 18,
+            padding: '40px',
+            maxWidth: '600px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            color: '#fff',
+            border: '2px solid #1db954',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>
+                Contributors for {selectedTrackInfo?.name}
+              </h2>
+              <button
+                onClick={() => setContributorModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginTop: -40,
+                  marginRight: -60,
+                  transition: 'color 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#1db954'}
+                onMouseLeave={e => e.currentTarget.style.color = '#fff'}
+              >
+                ×
+              </button>
+            </div>
+            {selectedTrackMBID ? (
+              <ContributorFinder mbid={selectedTrackMBID} />
+            ) : (
+              <p style={{ textAlign: 'center', color: '#f87171' }}>
+                Contributor information is not available for this track.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+      
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(24px);}

@@ -2,20 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import styles from './page.module.css';
-import { Line } from 'react-chartjs-2';
-import { Doughnut } from 'react-chartjs-2';
-import { Pie } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-} from 'chart.js';
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import SongAnalysisModal from '../components/SongAnalysisModal';
@@ -23,8 +9,12 @@ import TrackTable from '../components/TrackTable';
 import UserProfile from '../components/UserProfile';
 import ArtistSearch from '../components/ArtistSearch';
 import ConcertsList from '../components/ConcertsList';
+import DropdownPortal from '../components/DropdownPortal';
+import { StyledModal, StyledAnalysisChart } from '../components/Charts';
+import ContributorFinder from '../components/ContributorFinder';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement);
+
+
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -40,7 +30,7 @@ export default function Home() {
   const [genreAnalysis, setGenreAnalysis] = useState(null);
   const [showGenreModal, setShowGenreModal] = useState(false);
   const [genreChartStart, setGenreChartStart] = useState(0);
-  const GENRES_PER_PAGE = 20;
+  const GENRES_PER_PAGE = 7;
   const [analyzingPlaylistId, setAnalyzingPlaylistId] = useState(null);
   const [isAnalyzingRecents, setIsAnalyzingRecents] = useState(false);
   const [isAnalyzingPlaylists, setIsAnalyzingPlaylists] = useState(false);
@@ -61,16 +51,16 @@ export default function Home() {
   const [artistAnalysis, setArtistAnalysis] = useState(null);
   const [showArtistModal, setShowArtistModal] = useState(false);
   const [artistChartStart, setArtistChartStart] = useState(0);
-  const ARTISTS_PER_PAGE = 20;
+  const ARTISTS_PER_PAGE = 7;
   const [analyzingArtistPlaylistId, setAnalyzingArtistPlaylistId] = useState(null);
   const [topData, setTopData] = useState(null);
   const [showTopModal, setShowTopModal] = useState(false);
   const [topLoading, setTopLoading] = useState(false);
-  const timeRanges = [
-    { label: 'Last 4 Weeks', value: 'short_term' },
-    { label: 'Last 6 Months', value: 'medium_term' },
-    { label: 'Last 12 Months', value: 'long_term' },
-  ];
+  // const timeRanges = [
+  //   { label: 'Last 4 Weeks', value: 'short_term' },
+  //   { label: 'Last 6 Months', value: 'medium_term' },
+  //   { label: 'Last 12 Months', value: 'long_term' },
+  // ];
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackEmoji, setFeedbackEmoji] = useState(null);
   const [feedbackText, setFeedbackText] = useState('');
@@ -85,6 +75,87 @@ export default function Home() {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedSongInfo, setSelectedSongInfo] = useState(null);
   const debounceTimerRef = useRef(null);
+
+  // Add at the top of the Home component, after useState declarations
+  const [dropdownOpen, setDropdownOpen] = useState(null); // row index for open dropdown
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const buttonRefs = useRef({});
+  const dropdownRef = useRef(null);
+
+  const [showNewArtistModal, setShowNewArtistModal] = useState(false);
+  const [newArtistAnalysis, setNewArtistAnalysis] = useState(null);
+  const [showNewGenreModal, setShowNewGenreModal] = useState(false);
+  const [newGenreAnalysis, setNewGenreAnalysis] = useState(null);
+
+  const [selectedTrackForContributors, setSelectedTrackForContributors] = useState(null);
+  const [showContributorModal, setShowContributorModal] = useState(false);
+
+  const handleAnalyzeNewGenres = async (playlist) => {
+    try {
+        setAnalyzingPlaylistId(playlist.id);
+        const res = await fetch(`http://127.0.0.1:8000/playlist-genres/${playlist.id}`);
+        if (!res.ok) throw new Error('Failed to analyze playlist genres');
+        const data = await res.json();
+        const formattedData = Object.entries(data.genres).map(([name, count]) => ({
+            name: name,
+            'Number of Songs': count,
+        }));
+        setNewGenreAnalysis({ name: playlist.name, genres: formattedData });
+        setShowNewGenreModal(true);
+    } catch (error) {
+        alert('Could not analyze playlist genres. Please try again.');
+    } finally {
+        setAnalyzingPlaylistId(null);
+    }
+};
+
+const handleAnalyzeNewArtists = async (playlist) => {
+    try {
+        setAnalyzingArtistPlaylistId(playlist.id);
+        const res = await fetch(`http://127.0.0.1:8000/playlist-artists/${playlist.id}`);
+        if (!res.ok) throw new Error('Failed to analyze playlist artists');
+        const data = await res.json();
+        const formattedData = Object.entries(data.artists).map(([name, count]) => ({
+            name: name,
+            'Number of Songs': count,
+        }));
+        setNewArtistAnalysis({ name: playlist.name, artists: formattedData });
+        setShowNewArtistModal(true);
+    } catch (error) {
+        alert('Could not analyze playlist artists. Please try again.');
+    } finally {
+        setAnalyzingArtistPlaylistId(null);
+    }
+};
+
+const handleExploreContributions = async (track) => {
+  if (!track || !track.id) return;
+
+  setFetchingMbidForTrackId(track.id);
+  const mbid = await getMbidForTrack(track);
+  setFetchingMbidForTrackId(null);
+
+  if (mbid) {
+      // Store the entire track object, ensuring it has the found mbid
+      setSelectedTrackForContributors({ ...track, mbid });
+      setShowContributorModal(true);
+  } else {
+      alert("Could not find contributor information for this track. The ISRC or MusicBrainz ID could not be located.");
+  }
+};
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (dropdownOpen === null) return;
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+          (!buttonRefs.current[dropdownOpen] || !buttonRefs.current[dropdownOpen].contains(e.target))) {
+        setDropdownOpen(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [dropdownOpen]);
 
   // This is the URL to our backend's login route
   const LOGIN_URL = 'http://127.0.0.1:8000/login';
@@ -130,7 +201,17 @@ export default function Home() {
       const res = await fetch('http://127.0.0.1:8000/recent-tracks');
       if (!res.ok) throw new Error('Failed to fetch recent tracks');
       const data = await res.json();
-      setSongs(data.tracks || []);
+      
+      // Filter out consecutive duplicates
+      const tracks = data.tracks || [];
+      const filteredTracks = tracks.filter((track, index) => {
+        // Keep the first track
+        if (index === 0) return true;
+        // Remove if this track has the same ID as the previous track
+        return track.id !== tracks[index - 1].id;
+      });
+      
+      setSongs(filteredTracks);
       setTimeout(() => {
         if (tableRef.current) {
           tableRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -369,7 +450,7 @@ export default function Home() {
           const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
           const tmData = tmRes.ok ? await tmRes.json() : {};
           tmSuggestions = tmData._embedded?.attractions
-            ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
+        ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
             .map(a => {
               let spotifyId = (() => {
                 const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
@@ -408,11 +489,11 @@ export default function Home() {
           }
         });
         setArtistSuggestions(merged);
-        setShowSuggestions(true);
-      } catch {
-        setArtistSuggestions([]);
-        setShowSuggestions(false);
-      }
+      setShowSuggestions(true);
+    } catch {
+      setArtistSuggestions([]);
+      setShowSuggestions(false);
+    }
     }, 300);
   };
 
@@ -688,9 +769,9 @@ export default function Home() {
     return (
       <div className={styles.dashboardBackground}>
         <div className={styles.dashboardContainer}>
-          <main className={styles.main}>
-            <h1>Loading...</h1>
-          </main>
+      <main className={styles.main}>
+        <h1>Loading...</h1>
+      </main>
         </div>
       </div>
     );
@@ -700,26 +781,26 @@ export default function Home() {
     return (
       <div className={styles.dashboardBackground}>
         <div className={styles.dashboardContainer}>
-          <main className={styles.main}>
-            <div className={styles.loginContainer}>
-              <h1>Can't wait for Spotify Wrapped?</h1>
-              <p>
-                Analyze your recent songs and your playlist and get your
-                <span className={styles.highlight + ' ' + styles.hoverUnderline}>custom wrapped for free!</span>
-              </p>
-              <a
-                href={LOGIN_URL}
-                className={styles.spotifyButton}
-              >
-                <img
-                  src="/spotify-logo.svg"
-                  alt="Spotify Logo"
-                  className={styles.spotifyLogo}
-                />
-                Login with Spotify
-              </a>
-            </div>
-          </main>
+      <main className={styles.main}>
+        <div className={styles.loginContainer}>
+          <h1>Can't wait for Spotify Wrapped?</h1>
+          <p>
+            Analyze your recent songs and your playlist and get your
+            <span className={styles.highlight + ' ' + styles.hoverUnderline}>custom wrapped for free!</span>
+          </p>
+          <a
+            href={LOGIN_URL}
+            className={styles.spotifyButton}
+          >
+            <img
+              src="/spotify-logo.svg"
+              alt="Spotify Logo"
+              className={styles.spotifyLogo}
+            />
+            Login with Spotify
+          </a>
+        </div>
+      </main>
         </div>
       </div>
     );
@@ -766,15 +847,15 @@ export default function Home() {
         {/* Top Bar: search + concerts button */}
         <div style={{ position: 'relative', width: '100%' }}>
           <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '100%' }}>
-            <input
-              type="text"
+        <input
+          type="text"
               className={styles.searchInput}
               placeholder="Search for an artist..."
               value={searchArtist || ""}
-              onChange={handleArtistInput}
+          onChange={handleArtistInput}
               onFocus={handleSearchInputFocus}
-              onKeyDown={handleArtistKeyDown}
-              autoComplete="off"
+          onKeyDown={handleArtistKeyDown}
+          autoComplete="off"
               ref={searchInputRef}
             />
             <button
@@ -783,22 +864,22 @@ export default function Home() {
               type="button"
             >
               Concerts
-            </button>
+        </button>
           </form>
-          {showSuggestions && artistSuggestions.length > 0 && (
+        {showSuggestions && artistSuggestions.length > 0 && (
             <div
               ref={suggestionsRef}
               style={{
-                position: 'absolute',
+            position: 'absolute',
                 top: '100%', // directly below the search bar
-                left: 0,
+            left: 0,
                 right: 0,
                 background: '#232323',
-                border: '1px solid #444',
+            border: '1px solid #444',
                 borderRadius: '8px',
                 marginTop: '4px',
                 maxHeight: '320px',
-                overflowY: 'auto',
+            overflowY: 'auto',
                 zIndex: 1000,
                 width: '100%',
                 minWidth: 0,
@@ -808,12 +889,12 @@ export default function Home() {
               {artistSuggestions.map((artist, index) => (
                 <div
                   key={`${artist.spotifyId || ''}_${artist.ticketmasterId || ''}_${artist.name || ''}_${index}`}
-                  onClick={() => handleSuggestionClick(artist)}
-                  style={{
+                onClick={() => handleSuggestionClick(artist)}
+                style={{
                     padding: '12px 18px',
                     background: highlightedSuggestion === index ? '#181818' : 'transparent',
                     color: highlightedSuggestion === index ? '#fff' : '#e5e7eb',
-                    cursor: 'pointer',
+                  cursor: 'pointer',
                     fontWeight: 600,
                     fontSize: '1.08rem',
                     borderBottom: '1px solid #232323',
@@ -852,411 +933,530 @@ export default function Home() {
               <button className={styles.timeRangeButton} onClick={() => handleTimeRangeNav('/last-12-months')}>Last 12 Months</button>
             </div>
             <div className={styles.orDivider}><span>OR</span></div>
-            <div className={styles.actionButtons}>
+        <div className={styles.actionButtons}>
               <button onClick={handleGenerateFromRecents} className={styles.analyzeButton} disabled={isAnalyzingRecents}>
                 {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Your Last 50 Songs'}
-              </button>
+          </button>
               <button onClick={handleGenerateFromPlaylist} className={styles.analyzeButton} disabled={isAnalyzingPlaylists}>
                 {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
-              </button>
-            </div>
+          </button>
+        </div>
           </UserProfile>
           {!(showSongsTable || (showPlaylistsTable && playlists.length > 0)) && (
             <div className={styles.emptyResultsBox}>
               <img src="/spotify-logo.svg" alt="Spotify Logo" style={{ width: 56, height: 56, opacity: 0.18, marginBottom: 18 }} />
               <div style={{ fontSize: '1.45rem', fontWeight: 700, color: '#222', marginBottom: 8, textAlign: 'center' }}>Your results will appear here</div>
               <div style={{ color: '#888', fontSize: '1.08rem', textAlign: 'center' }}>Select an analysis option above to get started.</div>
-            </div>
-          )}
+          </div>
+        )}
           <div className={styles.dashboardContentArea}>
             <div className={styles.resultsCard}>
-              {/* Table section for last 50 songs */}
-              {showSongsTable && (
-                <div ref={tableRef}>
-                  <TrackTable
-                    tracks={songs}
-                    title="Your Last 50 Songs"
-                    playlistKey="last50"
-                    loading={isAnalyzingRecents}
-                    error={null}
-                    onExploreGenre={handleExploreGenre}
-                  />
-                </div>
-              )}
-              {/* Table section for playlists */}
-              {showPlaylistsTable && playlists.length > 0 && (
-                <div ref={playlistsTableRef} className={styles.songsTableWrapper} style={{ position: 'relative', marginTop: 40 }}>
-                  <span
-                    style={{ position: 'absolute', top: 8, right: 12, cursor: 'pointer', fontSize: 20, color: '#888', zIndex: 2 }}
-                    title="Hide table"
-                    onClick={handleHidePlaylistsTable}
-                  >
-                    ×
-                  </span>
-                  <div className={styles.songsTableTitle}>Your Playlists</div>
-                  <table className={styles.songsTable}>
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Cover</th>
-                        <th>Name</th>
-                        <th>Number of Songs</th>
-                        <th>Total Duration</th>
+      {/* Table section for last 50 songs */}
+      {showSongsTable && (
+        <div ref={tableRef}>
+          <TrackTable
+            tracks={songs}
+            title="Your Last 50 Songs"
+            playlistKey="last50"
+            loading={isAnalyzingRecents}
+            error={null}
+            onExploreGenre={handleExploreGenre}
+                // Add the new prop on the next line
+                onExploreContributions={handleExploreContributions}
+          />
+        </div>
+      )}
+      {/* Table section for playlists */}
+      {showPlaylistsTable && playlists.length > 0 && (
+        <div ref={playlistsTableRef} className={styles.songsTableWrapper} style={{ position: 'relative', marginTop: 40 }}>
+          <span
+            style={{ position: 'absolute', top: 8, right: 12, cursor: 'pointer', fontSize: 20, color: '#888', zIndex: 2 }}
+            title="Hide table"
+            onClick={handleHidePlaylistsTable}
+          >
+            ×
+          </span>
+          <div className={styles.songsTableTitle}>Your Playlists</div>
+          <table className={styles.songsTable}>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Cover</th>
+                <th>Name</th>
+                <th>Number of Songs</th>
+                <th>Total Duration</th>
                         <th>Analyze</th>
-                        <th>Play</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {playlists.map((playlist, idx) => (
-                        <tr key={idx}>
-                          <td>{idx + 1}</td>
-                          <td>{playlist.images && playlist.images.length > 0 ? <img src={playlist.images[0].url} alt={playlist.name} style={{ width: 48, height: 48, borderRadius: 8 }} /> : ''}</td>
-                          <td>{playlist.name}</td>
-                          <td>{playlist.trackCount}</td>
-                          <td>{playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</td>
+                <th>Play</th>
+              </tr>
+            </thead>
+            <tbody>
+              {playlists.map((playlist, idx) => (
+                <tr key={idx}>
+                  <td>{idx + 1}</td>
+                  <td>{playlist.images && playlist.images.length > 0 ? <img src={playlist.images[0].url} alt={playlist.name} style={{ width: 48, height: 48, borderRadius: 8 }} /> : ''}</td>
+                  <td>{playlist.name}</td>
+                  <td>{playlist.trackCount}</td>
+                  <td>{playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</td>
                           <td>
-                            <button
-                              className={styles.analyzePillButton}
-                              onClick={() => handleAnalyzeGenres(playlist)}
-                              disabled={analyzingPlaylistId === playlist.id}
-                              style={{
-                                background: '#e0e7ff',
-                                color: '#2563eb',
-                                borderRadius: 9999,
-                                fontWeight: 700,
-                                padding: '6px 18px',
-                                fontSize: '1rem',
-                                margin: '0 4px 0 0',
-                                cursor: 'pointer',
-                                boxShadow: 'none',
-                                border: 'none',
-                                outline: 'none',
-                                display: 'inline-block',
-                              }}
-                            >
-                              {analyzingPlaylistId === playlist.id ? 'Analyzing...' : 'Genres'}
-                            </button>
-                            <button
-                              className={styles.analyzePillButtonArtist}
-                              onClick={() => handleAnalyzeArtists(playlist)}
-                              disabled={analyzingArtistPlaylistId === playlist.id}
-                              style={{
-                                background: '#f9a8d4',
-                                color: '#fff',
-                                borderRadius: 9999,
-                                fontWeight: 700,
-                                padding: '6px 18px',
-                                fontSize: '1rem',
-                                margin: '0 4px',
-                                cursor: 'pointer',
-                                boxShadow: 'none',
-                                border: 'none',
-                                outline: 'none',
-                                display: 'inline-block',
-                              }}
-                            >
-                              {analyzingArtistPlaylistId === playlist.id ? 'Analyzing...' : 'Artists'}
-                            </button>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                style={{
+                                  background: '#2b2b2b',
+                                  color: '#fff',
+                                  borderRadius: 10,
+                                  fontWeight: 700,
+                                  padding: '8px 22px',
+                                  fontSize: '1rem',
+                                  margin: '0 4px',
+                                  cursor: 'pointer',
+                                  boxShadow: 'none',
+                                  border: 'none',
+                                  outline: 'none',
+                                  display: 'inline-block',
+                                  transition: 'background 0.18s, color 0.18s',
+                                }}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.background = '#404040';
+                                  e.currentTarget.style.color = '#fff';
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.background = '#2b2b2b';
+                                  e.currentTarget.style.color = '#fff';
+                                }}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setDropdownOpen(idx === dropdownOpen ? null : idx);
+                                  if (idx !== dropdownOpen) {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setDropdownPosition({
+                                      top: rect.bottom + window.scrollY,
+                                      left: rect.left + window.scrollX,
+                                    });
+                                  }
+                                }}
+                                ref={el => { if (el) buttonRefs.current[idx] = el; }}
+                                disabled={analyzingPlaylistId === playlist.id || analyzingArtistPlaylistId === playlist.id}
+                              >
+                                Breakdown By
+                              </button>
+                              {dropdownOpen === idx && (
+                                <DropdownPortal>
+                                  <div
+                                    ref={dropdownRef}
+                                    style={{
+                                      position: 'absolute',
+                                      top: dropdownPosition.top,
+                                      left: dropdownPosition.left,
+                                      background: '#232323',
+                                      borderRadius: 10,
+                                      boxShadow: '0 2px 16px #0003',
+                                      zIndex: 99999,
+                                      minWidth: 140,
+                                      padding: 6,
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 4,
+                                    }}
+                                  >
+                                    <button
+                                      style={{
+                                        background: 'none',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: 6,
+                                        fontWeight: 700,
+                                        fontSize: '0.92rem',
+                                        padding: '4px 10px',
+                                        lineHeight: 1.1,
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        transition: 'background 0.18s, color 0.18s',
+                                      }}
+                                      onMouseEnter={e => {
+                                        e.currentTarget.style.background = '#404040';
+                                        e.currentTarget.style.color = '#fff';
+                                      }}
+                                      onMouseLeave={e => {
+                                        e.currentTarget.style.background = 'none';
+                                        e.currentTarget.style.color = '#fff';
+                                      }}
+                                      onClick={() => { setDropdownOpen(null); handleAnalyzeNewGenres(playlist); }}
+                                      disabled={analyzingPlaylistId === playlist.id}
+                                    >
+                                       Genre Count
+                                    </button>
+                                    <button
+                                      style={{
+                                        background: 'none',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: 6,
+                                        fontWeight: 700,
+                                        fontSize: '0.92rem',
+                                        padding: '4px 10px',
+                                        lineHeight: 1.1,
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        transition: 'background 0.18s, color 0.18s',
+                                      }}
+                                      onMouseEnter={e => {
+                                        e.currentTarget.style.background = '#404040';
+                                        e.currentTarget.style.color = '#fff';
+                                      }}
+                                      onMouseLeave={e => {
+                                        e.currentTarget.style.background = 'none';
+                                        e.currentTarget.style.color = '#fff';
+                                      }}
+                                      onClick={() => { setDropdownOpen(null); handleAnalyzeNewArtists(playlist); }}
+                                      disabled={analyzingArtistPlaylistId === playlist.id}
+                                    >
+                                      Artist Count
+                                    </button>
+                                  </div>
+                                </DropdownPortal>
+                              )}
+                            </div>
                           </td>
-                          <td>
-                            {playlist.id && (
-                              <a href={`https://open.spotify.com/playlist/${playlist.id}`} target="_blank" rel="noopener noreferrer">
-                                <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
-                              </a>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                  <td>
+                    {playlist.id && (
+                      <a href={`https://open.spotify.com/playlist/${playlist.id}`} target="_blank" rel="noopener noreferrer">
+                        <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
             </div>
           </div>
-          {/* Metrics Modal Overlay */}
-          {showMetricsModal && selectedSongMetrics && (
-            <div className={styles.metricsModalOverlay} onClick={() => setShowMetricsModal(false)}>
-              <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
-                <h2>{selectedSongMetrics.name} <span style={{fontWeight:400}}>- {selectedSongMetrics.artist}</span></h2>
-                <ul>
-                  <li><strong>Danceability:</strong> {selectedSongMetrics.danceability}</li>
-                  <li><strong>Energy:</strong> {selectedSongMetrics.energy}</li>
-                  <li><strong>Valence:</strong> {selectedSongMetrics.valence}</li>
-                  <li><strong>Acousticness:</strong> {selectedSongMetrics.acousticness}</li>
-                  <li><strong>Instrumentalness:</strong> {selectedSongMetrics.instrumentalness}</li>
-                  <li><strong>Speechiness:</strong> {selectedSongMetrics.speechiness}</li>
-                  <li><strong>Liveness:</strong> {selectedSongMetrics.liveness}</li>
-                  <li><strong>Tempo:</strong> {selectedSongMetrics.tempo}</li>
-                </ul>
-                <button className={styles.closeModalButton} onClick={() => setShowMetricsModal(false)}>Close</button>
+      {/* Metrics Modal Overlay */}
+      {showMetricsModal && selectedSongMetrics && (
+        <div className={styles.metricsModalOverlay} onClick={() => setShowMetricsModal(false)}>
+          <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
+            <h2>{selectedSongMetrics.name} <span style={{fontWeight:400}}>- {selectedSongMetrics.artist}</span></h2>
+            <ul>
+              <li><strong>Danceability:</strong> {selectedSongMetrics.danceability}</li>
+              <li><strong>Energy:</strong> {selectedSongMetrics.energy}</li>
+              <li><strong>Valence:</strong> {selectedSongMetrics.valence}</li>
+              <li><strong>Acousticness:</strong> {selectedSongMetrics.acousticness}</li>
+              <li><strong>Instrumentalness:</strong> {selectedSongMetrics.instrumentalness}</li>
+              <li><strong>Speechiness:</strong> {selectedSongMetrics.speechiness}</li>
+              <li><strong>Liveness:</strong> {selectedSongMetrics.liveness}</li>
+              <li><strong>Tempo:</strong> {selectedSongMetrics.tempo}</li>
+            </ul>
+            <button className={styles.closeModalButton} onClick={() => setShowMetricsModal(false)}>Close</button>
+          </div>
+        </div>
+      )}
+      {/* Genre Analysis Modal Overlay */}
+      {showGenreModal && genreAnalysis && (
+        <div className={styles.metricsModalOverlay} onClick={() => setShowGenreModal(false)}>
+          <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
+            <h2>Genre Analysis for <span style={{color:'#1db954'}}>{genreAnalysis.name}</span></h2>
+            <div className={styles.chartScrollContainer}>
+              <button
+                className={styles.chartNavButton}
+                onClick={() => setGenreChartStart(Math.max(0, genreChartStart - GENRES_PER_PAGE))}
+                disabled={genreChartStart === 0}
+                style={{ marginRight: 16 }}
+              >
+                &#8592;
+              </button>
+              <div style={{ flex: 1, minWidth: 600 }}>
+                <Line
+                  data={{
+                    labels: getPaginatedGenres().labels,
+                    datasets: [
+                      {
+                        label: 'Number of Songs',
+                        data: getPaginatedGenres().data,
+                        borderColor: '#1db954',
+                        backgroundColor: 'rgba(30,185,84,0.2)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#1db954',
+                        pointBorderColor: '#fff',
+                        pointRadius: 5,
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { display: false },
+                      title: { display: false },
+                    },
+                    scales: {
+                      x: {
+                        title: { display: true, text: 'Genre' },
+                        ticks: { maxRotation: 0, minRotation: 0, autoSkip: false, padding: 10 },
+                        grid: { display: false },
+                      },
+                      y: { title: { display: true, text: 'Number of Songs' }, beginAtZero: true, precision: 0 }
+                    }
+                  }}
+                />
               </div>
+              <button
+                className={styles.chartNavButton}
+                onClick={() => setGenreChartStart(Math.min(getPaginatedGenres().total - GENRES_PER_PAGE, genreChartStart + GENRES_PER_PAGE))}
+                disabled={genreChartStart + GENRES_PER_PAGE >= getPaginatedGenres().total}
+                style={{ marginLeft: 16 }}
+              >
+                &#8594;
+              </button>
             </div>
-          )}
-          {/* Genre Analysis Modal Overlay */}
-          {showGenreModal && genreAnalysis && (
-            <div className={styles.metricsModalOverlay} onClick={() => setShowGenreModal(false)}>
-              <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
-                <h2>Genre Analysis for <span style={{color:'#1db954'}}>{genreAnalysis.name}</span></h2>
-                <div className={styles.chartScrollContainer}>
-                  <button
-                    className={styles.chartNavButton}
-                    onClick={() => setGenreChartStart(Math.max(0, genreChartStart - GENRES_PER_PAGE))}
-                    disabled={genreChartStart === 0}
-                    style={{ marginRight: 16 }}
-                  >
-                    &#8592;
-                  </button>
-                  <div style={{ flex: 1, minWidth: 600 }}>
-                    <Line
-                      data={{
-                        labels: getPaginatedGenres().labels,
-                        datasets: [
-                          {
-                            label: 'Number of Songs',
-                            data: getPaginatedGenres().data,
-                            borderColor: '#1db954',
-                            backgroundColor: 'rgba(30,185,84,0.2)',
-                            tension: 0.3,
-                            fill: true,
-                            pointBackgroundColor: '#1db954',
-                            pointBorderColor: '#fff',
-                            pointRadius: 5,
-                          }
-                        ]
-                      }}
-                      options={{
-                        responsive: true,
-                        plugins: {
-                          legend: { display: false },
-                          title: { display: false },
-                        },
-                        scales: {
-                          x: {
-                            title: { display: true, text: 'Genre' },
-                            ticks: { maxRotation: 45, minRotation: 45, autoSkip: false, padding: 10 },
-                            grid: { display: false },
-                          },
-                          y: { title: { display: true, text: 'Number of Songs' }, beginAtZero: true, precision: 0 }
-                        }
-                      }}
-                    />
-                  </div>
-                  <button
-                    className={styles.chartNavButton}
-                    onClick={() => setGenreChartStart(Math.min(getPaginatedGenres().total - GENRES_PER_PAGE, genreChartStart + GENRES_PER_PAGE))}
-                    disabled={genreChartStart + GENRES_PER_PAGE >= getPaginatedGenres().total}
-                    style={{ marginLeft: 16 }}
-                  >
-                    &#8594;
-                  </button>
-                </div>
-                <button className={styles.closeModalButton} onClick={() => setShowGenreModal(false)}>Close</button>
+            <button className={styles.closeModalButton} onClick={() => setShowGenreModal(false)}>Close</button>
+          </div>
+        </div>
+      )}
+      {/* Artist Analysis Modal Overlay */}
+      {showArtistModal && artistAnalysis && (
+        <div className={styles.metricsModalOverlay} onClick={() => setShowArtistModal(false)}>
+          <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
+            <h2>Artist Analysis for <span style={{color:'#1db954'}}>{artistAnalysis.name}</span></h2>
+            <div className={styles.chartScrollContainer}>
+              <button
+                className={styles.chartNavButton}
+                onClick={() => setArtistChartStart(Math.max(0, artistChartStart - ARTISTS_PER_PAGE))}
+                disabled={artistChartStart === 0}
+                style={{ marginRight: 16 }}
+              >
+                &#8592;
+              </button>
+              <div style={{ flex: 1, minWidth: 600 }}>
+                <Line
+                  data={{
+                    labels: getPaginatedArtists().labels,
+                    datasets: [
+                      {
+                        label: 'Number of Songs',
+                        data: getPaginatedArtists().data,
+                        borderColor: '#1db954',
+                        backgroundColor: 'rgba(30,185,84,0.2)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#1db954',
+                        pointBorderColor: '#fff',
+                        pointRadius: 5,
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { display: false },
+                      title: { display: false },
+                    },
+                    scales: {
+                      x: {
+                        title: { display: true, text: 'Artist' },
+                        ticks: { maxRotation: 0, minRotation: 0, autoSkip: false, padding: 10 },
+                        grid: { display: false },
+                      },
+                      y: { title: { display: true, text: 'Number of Songs' }, beginAtZero: true, precision: 0 }
+                    }
+                  }}
+                />
               </div>
+              <button
+                className={styles.chartNavButton}
+                onClick={() => setArtistChartStart(Math.min(getPaginatedArtists().total - ARTISTS_PER_PAGE, artistChartStart + ARTISTS_PER_PAGE))}
+                disabled={artistChartStart + ARTISTS_PER_PAGE >= getPaginatedArtists().total}
+                style={{ marginLeft: 16 }}
+              >
+                &#8594;
+              </button>
             </div>
-          )}
-          {/* Artist Analysis Modal Overlay */}
-          {showArtistModal && artistAnalysis && (
-            <div className={styles.metricsModalOverlay} onClick={() => setShowArtistModal(false)}>
-              <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
-                <h2>Artist Analysis for <span style={{color:'#1db954'}}>{artistAnalysis.name}</span></h2>
-                <div className={styles.chartScrollContainer}>
-                  <button
-                    className={styles.chartNavButton}
-                    onClick={() => setArtistChartStart(Math.max(0, artistChartStart - ARTISTS_PER_PAGE))}
-                    disabled={artistChartStart === 0}
-                    style={{ marginRight: 16 }}
-                  >
-                    &#8592;
-                  </button>
-                  <div style={{ flex: 1, minWidth: 600 }}>
-                    <Line
-                      data={{
-                        labels: getPaginatedArtists().labels,
-                        datasets: [
-                          {
-                            label: 'Number of Songs',
-                            data: getPaginatedArtists().data,
-                            borderColor: '#1db954',
-                            backgroundColor: 'rgba(30,185,84,0.2)',
-                            tension: 0.3,
-                            fill: true,
-                            pointBackgroundColor: '#1db954',
-                            pointBorderColor: '#fff',
-                            pointRadius: 5,
-                          }
-                        ]
-                      }}
-                      options={{
-                        responsive: true,
-                        plugins: {
-                          legend: { display: false },
-                          title: { display: false },
-                        },
-                        scales: {
-                          x: {
-                            title: { display: true, text: 'Artist' },
-                            ticks: { maxRotation: 45, minRotation: 45, autoSkip: false, padding: 10 },
-                            grid: { display: false },
-                          },
-                          y: { title: { display: true, text: 'Number of Songs' }, beginAtZero: true, precision: 0 }
-                        }
-                      }}
-                    />
-                  </div>
-                  <button
-                    className={styles.chartNavButton}
-                    onClick={() => setArtistChartStart(Math.min(getPaginatedArtists().total - ARTISTS_PER_PAGE, artistChartStart + ARTISTS_PER_PAGE))}
-                    disabled={artistChartStart + ARTISTS_PER_PAGE >= getPaginatedArtists().total}
-                    style={{ marginLeft: 16 }}
-                  >
-                    &#8594;
-                  </button>
-                </div>
-                <button className={styles.closeModalButton} onClick={() => setShowArtistModal(false)}>Close</button>
-              </div>
-            </div>
-          )}
-          {/* Top Data Modal */}
-          {showTopModal && (
-            <div className={styles.metricsModalOverlay} onClick={() => setShowTopModal(false)}>
-              <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
-                <h2>Top Data</h2>
-                {topLoading && <div>Loading...</div>}
-                {topData && !topLoading && !topData.error && (
-                  <div style={{ maxHeight: 400, overflowY: 'auto', textAlign: 'left' }}>
-                    <h3>Top Tracks</h3>
-                    <ol>
-                      {(topData.tracks || []).map(t => <li key={t.id}>{t.name} <span style={{ color: '#888' }}>({t.artists?.map(a => a.name).join(', ')})</span></li>)}
-                    </ol>
-                    <h3>Top Artists</h3>
-                    <ol>
-                      {(topData.artists || []).map(a => <li key={a.id}>{a.name}</li>)}
-                    </ol>
-                    <h3>Top Genres</h3>
-                    <ol>
-                      {Object.entries(topData.genres || {}).sort((a, b) => b[1] - a[1]).map(([genre, count]) => <li key={genre}>{genre} <span style={{ color: '#888' }}>({count})</span></li>)}
-                    </ol>
-                  </div>
-                )}
-                {topData && topData.error && <div style={{ color: 'red' }}>{topData.error}</div>}
-                <button className={styles.closeModalButton} onClick={() => setShowTopModal(false)}>Close</button>
-              </div>
-            </div>
-            )}
-            {showFeedbackModal && (
-              <div className={styles.metricsModalOverlay} onClick={() => setShowFeedbackModal(false)}>
-                <div className={styles.metricsModal} onClick={e => e.stopPropagation()} style={{ minWidth: 320, maxWidth: 400 }}>
-                  <h2 style={{ textAlign: 'center', marginBottom: 16 }}>How do you feel about the app?</h2>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 32, marginBottom: 16 }}>
-                    {['😡','🙁','😐','😊','😍'].map((emoji, idx) => (
-                      <span
-                        key={emoji}
-                        style={{
-                          cursor: 'pointer',
-                          filter: feedbackEmoji === emoji ? 'drop-shadow(0 0 12px #1db954) brightness(1.2)' : 'none',
-                          transform: feedbackEmoji === emoji ? 'scale(1.2)' : 'scale(1)',
-                          transition: 'filter 0.2s, transform 0.2s',
-                          borderRadius: '50%',
-                          background: feedbackEmoji === emoji ? 'rgba(29,185,84,0.15)' : 'transparent',
-                          padding: feedbackEmoji === emoji ? '4px' : '0',
-                        }}
-                        onClick={() => setFeedbackEmoji(emoji)}
-                        title={['Extremely Unhappy','Unhappy','Neutral','Happy','Extremely Happy'][idx]}
-                      >
-                        {emoji}
-                      </span>
-                    ))}
-                  </div>
-                  <textarea
-                    placeholder="Optional: Tell us more..."
-                    value={feedbackText}
-                    onChange={e => setFeedbackText(e.target.value)}
-                    style={{ width: '100%', minHeight: 60, borderRadius: 8, border: '1px solid #444', padding: 8, marginBottom: 12, resize: 'vertical', background: '#222', color: '#fff' }}
-                  />
-                  <button
-                    onClick={handleSendFeedback}
-                    className={styles.vibeButton}
-                    style={{ width: '100%', marginBottom: 8 }}
-                  >
-                    Send
-                  </button>
-                  {feedbackStatus && <div style={{ textAlign: 'center', color: feedbackStatus.startsWith('Thank') ? '#1db954' : 'red', marginTop: 8 }}>{feedbackStatus}</div>}
-                  <button className={styles.closeModalButton} onClick={() => setShowFeedbackModal(false)} style={{ marginTop: 8 }}>Close</button>
-                </div>
+            <button className={styles.closeModalButton} onClick={() => setShowArtistModal(false)}>Close</button>
+          </div>
+        </div>
+      )}
+      {/* Top Data Modal */}
+      {showTopModal && (
+        <div className={styles.metricsModalOverlay} onClick={() => setShowTopModal(false)}>
+          <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
+            <h2>Top Data</h2>
+            {topLoading && <div>Loading...</div>}
+            {topData && !topLoading && !topData.error && (
+              <div style={{ maxHeight: 400, overflowY: 'auto', textAlign: 'left' }}>
+                <h3>Top Tracks</h3>
+                <ol>
+                  {(topData.tracks || []).map(t => <li key={t.id}>{t.name} <span style={{ color: '#888' }}>({t.artists?.map(a => a.name).join(', ')})</span></li>)}
+                </ol>
+                <h3>Top Artists</h3>
+                <ol>
+                  {(topData.artists || []).map(a => <li key={a.id}>{a.name}</li>)}
+                </ol>
+                <h3>Top Genres</h3>
+                <ol>
+                  {Object.entries(topData.genres || {}).sort((a, b) => b[1] - a[1]).map(([genre, count]) => <li key={genre}>{genre} <span style={{ color: '#888' }}>({count})</span></li>)}
+                </ol>
               </div>
             )}
-            {/* Playlist Creation Modal */}
-            {showPlaylistModal && (
-              <div className={styles.metricsModalOverlay} onClick={() => setShowPlaylistModal(false)}>
-                <div className={styles.metricsModal} onClick={e => e.stopPropagation()} style={{ minWidth: 400, maxWidth: 500 }}>
-                  <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Create Playlist</h2>
-                  <p style={{ textAlign: 'center', marginBottom: 16, color: '#888' }}>
-                    Creating playlist from: <span style={{ color: '#1db954' }}>{playlistTimeRange}</span>
-                  </p>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, color: '#fff' }}>
-                      Playlist Name:
-                    </label>
-                    <input
-                      type="text"
-                      value={playlistName}
-                      onChange={(e) => setPlaylistName(e.target.value)}
-                      placeholder="Enter playlist name..."
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid #444',
-                        background: '#222',
-                        color: '#fff',
-                        fontSize: '16px'
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleCreatePlaylistSubmit();
-                        }
-                      }}
-                    />
-                  </div>
-                  <div style={{ marginBottom: 16 }}>
-                    <p style={{ color: '#888', fontSize: '14px' }}>
-                      This will create a playlist with {playlistTracks.length} tracks from your {playlistTimeRange.toLowerCase()}.
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <button
-                      onClick={handleCreatePlaylistSubmit}
-                      className={styles.vibeButton}
-                      disabled={isCreatingPlaylist}
-                      style={{ flex: 1 }}
-                    >
-                      {isCreatingPlaylist ? 'Creating...' : 'Create Playlist'}
-                    </button>
-                    <button
-                      onClick={() => setShowPlaylistModal(false)}
-                      className={styles.closeModalButton}
-                      style={{ flex: 1 }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  {playlistCreationStatus && (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      color: playlistCreationStatus.includes('successfully') ? '#1db954' : 'red', 
-                      marginTop: 12,
-                      fontSize: '14px'
-                    }}>
-                      {playlistCreationStatus}
-                    </div>
-                  )}
-                </div>
+            {topData && topData.error && <div style={{ color: 'red' }}>{topData.error}</div>}
+            <button className={styles.closeModalButton} onClick={() => setShowTopModal(false)}>Close</button>
+          </div>
+        </div>
+      )}
+      {showFeedbackModal && (
+        <div className={styles.metricsModalOverlay} onClick={() => setShowFeedbackModal(false)}>
+          <div className={styles.metricsModal} onClick={e => e.stopPropagation()} style={{ minWidth: 320, maxWidth: 400 }}>
+            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>How do you feel about the app?</h2>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 32, marginBottom: 16 }}>
+              {['😡','🙁','😐','😊','😍'].map((emoji, idx) => (
+                <span
+                  key={emoji}
+                  style={{
+                    cursor: 'pointer',
+                    filter: feedbackEmoji === emoji ? 'drop-shadow(0 0 12px #1db954) brightness(1.2)' : 'none',
+                    transform: feedbackEmoji === emoji ? 'scale(1.2)' : 'scale(1)',
+                    transition: 'filter 0.2s, transform 0.2s',
+                    borderRadius: '50%',
+                    background: feedbackEmoji === emoji ? 'rgba(29,185,84,0.15)' : 'transparent',
+                    padding: feedbackEmoji === emoji ? '4px' : '0',
+                  }}
+                  onClick={() => setFeedbackEmoji(emoji)}
+                  title={['Extremely Unhappy','Unhappy','Neutral','Happy','Extremely Happy'][idx]}
+                >
+                  {emoji}
+                </span>
+              ))}
+            </div>
+            <textarea
+              placeholder="Optional: Tell us more..."
+              value={feedbackText}
+              onChange={e => setFeedbackText(e.target.value)}
+              style={{ width: '100%', minHeight: 60, borderRadius: 8, border: '1px solid #444', padding: 8, marginBottom: 12, resize: 'vertical', background: '#222', color: '#fff' }}
+            />
+            <button
+              onClick={handleSendFeedback}
+              className={styles.vibeButton}
+              style={{ width: '100%', marginBottom: 8 }}
+            >
+              Send
+            </button>
+            {feedbackStatus && <div style={{ textAlign: 'center', color: feedbackStatus.startsWith('Thank') ? '#1db954' : 'red', marginTop: 8 }}>{feedbackStatus}</div>}
+            <button className={styles.closeModalButton} onClick={() => setShowFeedbackModal(false)} style={{ marginTop: 8 }}>Close</button>
+          </div>
+        </div>
+      )}
+      {/* Playlist Creation Modal */}
+      {showPlaylistModal && (
+        <div className={styles.metricsModalOverlay} onClick={() => setShowPlaylistModal(false)}>
+          <div className={styles.metricsModal} onClick={e => e.stopPropagation()} style={{ minWidth: 400, maxWidth: 500 }}>
+            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Create Playlist</h2>
+            <p style={{ textAlign: 'center', marginBottom: 16, color: '#888' }}>
+              Creating playlist from: <span style={{ color: '#1db954' }}>{playlistTimeRange}</span>
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 8, color: '#fff' }}>
+                Playlist Name:
+              </label>
+              <input
+                type="text"
+                value={playlistName}
+                onChange={(e) => setPlaylistName(e.target.value)}
+                placeholder="Enter playlist name..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #444',
+                  background: '#222',
+                  color: '#fff',
+                  fontSize: '16px'
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreatePlaylistSubmit();
+                  }
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ color: '#888', fontSize: '14px' }}>
+                This will create a playlist with {playlistTracks.length} tracks from your {playlistTimeRange.toLowerCase()}.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={handleCreatePlaylistSubmit}
+                className={styles.vibeButton}
+                disabled={isCreatingPlaylist}
+                style={{ flex: 1 }}
+              >
+                {isCreatingPlaylist ? 'Creating...' : 'Create Playlist'}
+              </button>
+              <button
+                onClick={() => setShowPlaylistModal(false)}
+                className={styles.closeModalButton}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+            </div>
+            {playlistCreationStatus && (
+              <div style={{ 
+                textAlign: 'center', 
+                color: playlistCreationStatus.includes('successfully') ? '#1db954' : 'red', 
+                marginTop: 12,
+                fontSize: '14px'
+              }}>
+                {playlistCreationStatus}
               </div>
             )}
-            {showInfoModal && selectedSongInfo && (
-              <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
-            )}
-        </main>
+          </div>
+        </div>
+      )}
+      {showInfoModal && selectedSongInfo && (
+        <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
+      )}
+
+            {/* New Artist Analysis Modal */}
+      {showNewArtistModal && newArtistAnalysis && (
+          <StyledModal
+              isOpen={showNewArtistModal}
+              onClose={() => setShowNewArtistModal(false)}
+              title={`Artist Analysis for ${newArtistAnalysis.name}`}
+          >
+              <StyledAnalysisChart
+                  data={newArtistAnalysis.artists}
+                  xAxisKey="name"
+                  yAxisLabel="Number of Songs"
+              />
+          </StyledModal>
+      )}
+
+      {/* New Genre Analysis Modal */}
+      {showNewGenreModal && newGenreAnalysis && (
+          <StyledModal
+              isOpen={showNewGenreModal}
+              onClose={() => setShowNewGenreModal(false)}
+              title={`Genre Analysis for ${newGenreAnalysis.name}`}
+          >
+              <StyledAnalysisChart
+                  data={newGenreAnalysis.genres}
+                  xAxisKey="name"
+                  yAxisLabel="Number of Songs"
+              />
+          </StyledModal>
+      )}
+
+      {/* Add the Contributor Modal here */}
+      {showContributorModal && selectedTrackForContributors && (
+          <StyledModal
+              isOpen={showContributorModal}
+              onClose={() => setShowContributorModal(false)}
+              title={`Contributors for ${selectedTrackForContributors.name}`}
+          >
+              <ContributorFinder mbid={selectedTrackForContributors.mbid} />
+          </StyledModal>
+      )}
+    </main>
       </div>
     </div>
   );
