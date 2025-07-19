@@ -17,6 +17,8 @@ import ContributorFinder from '../components/ContributorFinder';
 
 
 export default function Home() {
+  const [fetchingMbidForTrackId, setFetchingMbidForTrackId] = useState(null);
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState(null);

@@ -663,6 +663,8 @@ app.delete('/me/following/artist/:id', async (req, res) => {
 
 module.exports = pool;
 
+
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

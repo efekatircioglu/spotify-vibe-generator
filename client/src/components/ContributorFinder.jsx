@@ -53,55 +53,59 @@ const ContributorFinder = ({ mbid }) => {
     const [contributors, setContributors] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [noRelations, setNoRelations] = useState(false);
 
     useEffect(() => {
-        // Reset state when the MBID changes
         setContributors(null);
         setError(null);
         setLoading(true);
+        setNoRelations(false);
 
-        if (!mbid) {
-            setError("No MusicBrainz ID (MBID) was provided for this track.");
+        // MBID not found at all
+        if (!mbid || mbid === 'Not Found') {
+            setError('Song or Artist is not recognized by MusicBrainz');
             setLoading(false);
             return;
         }
 
         // Check cache first
         if (contributorCache.has(mbid)) {
-            console.log(`[ContributorFinder] Using cached data for MBID: ${mbid}`);
-            setContributors(contributorCache.get(mbid));
+            const cached = contributorCache.get(mbid);
+            setContributors(cached);
+            setNoRelations(cached._noRelations || false);
             setLoading(false);
             return;
         }
 
         const fetchContributors = async () => {
-            // IMPORTANT: Replace with your app's name, version, and contact info for the User-Agent.
             const MUSICBRAINZ_USER_AGENT = 'spotify-vibe-generator/1.0 (your@email.com)';
             const includes = 'artist-rels+work-rels';
             const url = `https://musicbrainz.org/ws/2/recording/${mbid}?inc=${includes}&fmt=json`;
 
             try {
-                console.log(`[ContributorFinder] Fetching contributors for MBID: ${mbid}`);
                 const response = await axios.get(url, {
                     headers: { 'User-Agent': MUSICBRAINZ_USER_AGENT }
                 });
-
                 const relations = response.data.relations || [];
+                if (!Array.isArray(relations) || relations.length === 0) {
+                    setNoRelations(true);
+                    contributorCache.set(mbid, { _noRelations: true });
+                    setContributors({});
+                    setLoading(false);
+                    return;
+                }
                 const categorized = {
                     performers: [], writers: [], producers: [], mixers: [],
                     engineers: [], arrangers: [], remixers: []
                 };
-
                 relations.forEach(rel => {
                     const artistName = rel.artist?.name;
                     if (!artistName) return;
-
                     const addUnique = (category, value) => {
                         if (!categorized[category].includes(value)) {
                             categorized[category].push(value);
                         }
                     };
-
                     switch (rel.type) {
                         case 'performer': case 'instrument': case 'vocal':
                             const details = rel.attributes?.length > 0 ? `(${rel.attributes.join(', ')})` : '';
@@ -116,22 +120,16 @@ const ContributorFinder = ({ mbid }) => {
                         default: break;
                     }
                 });
-
-                // Cache the result
                 contributorCache.set(mbid, categorized);
-                console.log(`[ContributorFinder] Cached contributors for MBID: ${mbid}`);
-                
                 setContributors(categorized);
             } catch (err) {
-                console.error("Error fetching from MusicBrainz:", err);
-                setError(`Failed to fetch data. The MBID may be incorrect or the service may be down.`);
+                setError('Failed to fetch data. The MBID may be incorrect or the service may be down.');
             } finally {
                 setLoading(false);
             }
         };
-
         fetchContributors();
-    }, [mbid]); // This effect re-runs whenever the mbid prop changes
+    }, [mbid]);
 
     if (loading) {
         return (
@@ -161,7 +159,7 @@ const ContributorFinder = ({ mbid }) => {
         );
     }
 
-    if (!contributors || Object.values(contributors).every(arr => arr.length === 0)) {
+    if (noRelations || !contributors || Object.values(contributors).every(arr => arr.length === 0)) {
         return (
             <div style={{ 
                 textAlign: 'center', 
@@ -170,7 +168,7 @@ const ContributorFinder = ({ mbid }) => {
                 fontWeight: 500,
                 padding: '20px 0'
             }}>
-                No contributor information found for this track.
+                No Contributor Information Found
             </div>
         );
     }
