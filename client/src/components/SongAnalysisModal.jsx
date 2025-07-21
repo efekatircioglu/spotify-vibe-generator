@@ -222,19 +222,22 @@ export default function SongAnalysisModal({
     setIsAcousticLoading(true);
     setIsLowLevelLoading(true);
 
-    // Fetch high-level
-    fetch(`http://127.0.0.1:8000/${mbid}/high-level`)
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(data => setAcousticMetrics(data))
-      .catch(() => setAcousticMetrics('Not Found'))
-      .finally(() => setIsAcousticLoading(false));
-
-    // Fetch low-level
-    fetch(`http://127.0.0.1:8000/${mbid}/low-level`)
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(data => setLowLevelMetrics(data))
-      .catch(() => setLowLevelMetrics('Not Found'))
-      .finally(() => setIsLowLevelLoading(false));
+    try {
+      const [highLevel, lowLevel] = await Promise.all([
+        fetch(`https://acousticbrainz.org/${mbid}/high-level`).then(res => res.ok ? res.json() : Promise.reject()),
+        fetch(`http://127.0.0.1:8000/${mbid}/low-level`).then(res => res.ok ? res.json() : Promise.reject())
+      ]);
+      setAcousticMetrics(highLevel);
+      setLowLevelMetrics(lowLevel);
+    } catch (e) {
+      setAcousticMetrics('Not Found');
+      setGenreError(true);
+      setLowLevelError(true);
+      setLowLevelMetrics(null);
+    } finally {
+      setIsAcousticLoading(false);
+      setIsLowLevelLoading(false);
+    }
   }
 
   useEffect(() => {

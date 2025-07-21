@@ -6,6 +6,8 @@ import { Doughnut } from 'react-chartjs-2';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
 import TrackTable from '../../components/TrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
+import ContributorFinder from '../../components/ContributorFinder';
+import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
 
 export default function Last12MonthsPage() {
   const [data, setData] = useState(null);
@@ -14,6 +16,10 @@ export default function Last12MonthsPage() {
   const router = useRouter();
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedSongInfo, setSelectedSongInfo] = useState(null);
+  // Contributor modal state
+  const [fetchingMbidForTrackId, setFetchingMbidForTrackId] = useState(null);
+  const [selectedTrackForContributors, setSelectedTrackForContributors] = useState(null);
+  const [showContributorModal, setShowContributorModal] = useState(false);
 
   useEffect(() => {
     fetch("http://127.0.0.1:8000/last-12-months")
@@ -35,6 +41,19 @@ export default function Last12MonthsPage() {
   const handleCloseInfoModal = () => {
     setShowInfoModal(false);
     setSelectedSongInfo(null);
+  };
+  // Contributor logic
+  const handleExploreContributions = async (track) => {
+    if (!track || !track.id) return;
+    setFetchingMbidForTrackId(track.id);
+    const mbid = await lookupTrackMBID(track.id);
+    setFetchingMbidForTrackId(null);
+    if (mbid) {
+      setSelectedTrackForContributors({ ...track, mbid });
+      setShowContributorModal(true);
+    } else {
+      alert("Could not find contributor information for this track. The ISRC or MusicBrainz ID could not be located.");
+    }
   };
 
   return (
@@ -70,12 +89,24 @@ export default function Last12MonthsPage() {
           loading={loading}
           error={error}
           onExploreGenre={handleExploreGenre}
+          onExploreContributions={handleExploreContributions}
         />
       )}
       {data && data.artists && (
         <TopArtistsTable artists={data.artists} title="Top Artists" />
       )}
       
+      {/* Info Modal */}
+      {showInfoModal && selectedSongInfo && (
+        <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
+      )}
+      {/* Contributor Modal */}
+      {showContributorModal && selectedTrackForContributors && (
+        <SongAnalysisModal open={false} onClose={() => {}} songInfo={null} /> /* keep modal tree stable */
+      )}
+      {showContributorModal && selectedTrackForContributors && (
+        <ContributorFinder mbid={selectedTrackForContributors.mbid} />
+      )}
     </main>
   );
 } 

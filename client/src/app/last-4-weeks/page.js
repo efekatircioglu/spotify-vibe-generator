@@ -16,6 +16,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import ContributorFinder from '../../components/ContributorFinder';
+import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -27,6 +29,11 @@ export default function Last4WeeksPage() {
   // Add state for info modal
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedSongInfo, setSelectedSongInfo] = useState(null);
+  // Contributor modal state
+  const [fetchingMbidForTrackId, setFetchingMbidForTrackId] = useState(null);
+  const [selectedTrackForContributors, setSelectedTrackForContributors] = useState(null);
+  const [showContributorModal, setShowContributorModal] = useState(false);
+
   const handleExploreGenre = (track) => {
     setSelectedSongInfo({
       ...track,
@@ -37,6 +44,19 @@ export default function Last4WeeksPage() {
   const handleCloseInfoModal = () => {
     setShowInfoModal(false);
     setSelectedSongInfo(null);
+  };
+  // Contributor logic
+  const handleExploreContributions = async (track) => {
+    if (!track || !track.id) return;
+    setFetchingMbidForTrackId(track.id);
+    const mbid = await lookupTrackMBID(track.id);
+    setFetchingMbidForTrackId(null);
+    if (mbid) {
+      setSelectedTrackForContributors({ ...track, mbid });
+      setShowContributorModal(true);
+    } else {
+      alert("Could not find contributor information for this track. The ISRC or MusicBrainz ID could not be located.");
+    }
   };
 
   useEffect(() => {
@@ -81,6 +101,7 @@ export default function Last4WeeksPage() {
           loading={loading}
           error={error}
           onExploreGenre={handleExploreGenre}
+          onExploreContributions={handleExploreContributions}
         />
       )}
       {data && data.artists && (
@@ -90,6 +111,13 @@ export default function Last4WeeksPage() {
       {/* Info Modal */}
       {showInfoModal && selectedSongInfo && (
         <SongAnalysisModal open={showInfoModal} onClose={handleCloseInfoModal} songInfo={selectedSongInfo} />
+      )}
+      {/* Contributor Modal */}
+      {showContributorModal && selectedTrackForContributors && (
+        <SongAnalysisModal open={false} onClose={() => {}} songInfo={null} /> /* keep modal tree stable */
+      )}
+      {showContributorModal && selectedTrackForContributors && (
+        <ContributorFinder mbid={selectedTrackForContributors.mbid} />
       )}
     </main>
   );
