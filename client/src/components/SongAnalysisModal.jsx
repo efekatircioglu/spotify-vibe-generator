@@ -217,27 +217,24 @@ export default function SongAnalysisModal({
   ];
 
   // Helper to fetch both high and low-level metrics
-  async function fetchAcousticData(mbid, setAcousticMetrics, setLowLevelMetrics, setIsAcousticLoading, setIsLowLevelLoading, setGenreError, setLowLevelError) {
-    console.log('[fetchAcousticData] Called with MBID:', mbid);
+  async function fetchAcousticData(mbid) {
     if (!mbid || mbid === 'Not Found') return;
     setIsAcousticLoading(true);
     setIsLowLevelLoading(true);
-    try {
-      const [highLevel, lowLevel] = await Promise.all([
-        fetch(`https://acousticbrainz.org/${mbid}/high-level`).then(res => res.ok ? res.json() : Promise.reject()),
-        fetch(`http://127.0.0.1:8000/${mbid}/low-level`).then(res => res.ok ? res.json() : Promise.reject())
-      ]);
-      setAcousticMetrics(highLevel);
-      setLowLevelMetrics(lowLevel);
-    } catch (e) {
-      setAcousticMetrics('Not Found');
-      setGenreError(true);
-      setLowLevelError(true);
-      setLowLevelMetrics(null);
-    } finally {
-      setIsAcousticLoading(false);
-      setIsLowLevelLoading(false);
-    }
+
+    // Fetch high-level
+    fetch(`http://127.0.0.1:8000/${mbid}/high-level`)
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => setAcousticMetrics(data))
+      .catch(() => setAcousticMetrics('Not Found'))
+      .finally(() => setIsAcousticLoading(false));
+
+    // Fetch low-level
+    fetch(`http://127.0.0.1:8000/${mbid}/low-level`)
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => setLowLevelMetrics(data))
+      .catch(() => setLowLevelMetrics('Not Found'))
+      .finally(() => setIsLowLevelLoading(false));
   }
 
   useEffect(() => {
@@ -267,7 +264,7 @@ export default function SongAnalysisModal({
       if (mbid) {
         setSongMBID(mbid);
         if (!cancelled && mbid && mbid !== 'Not Found') {
-          await fetchAcousticData(mbid, setAcousticMetrics, setLowLevelMetrics, setIsAcousticLoading, setIsLowLevelLoading, setGenreError, setLowLevelError);
+          fetchAcousticData(mbid);
         }
         setIsISRCLoading(false);
         setIsMBIDLoading(false);
@@ -307,10 +304,9 @@ export default function SongAnalysisModal({
         setSongMBID(mbid || 'Not Found');
         setTrackMBID(spotifyId, mbid || 'Not Found');
         if (!cancelled && mbid) {
-          await fetchAcousticData(mbid, setAcousticMetrics, setLowLevelMetrics, setIsAcousticLoading, setIsLowLevelLoading, setGenreError, setLowLevelError);
+          fetchAcousticData(mbid);
         } else {
           setAcousticMetrics(null);
-          setGenreError(true);
           setLowLevelMetrics(null);
           setIsAcousticLoading(false);
           setIsLowLevelLoading(false);
@@ -319,7 +315,6 @@ export default function SongAnalysisModal({
         setSongMBID('Not Found');
         setTrackMBID(spotifyId, 'Not Found');
         setAcousticMetrics(null);
-        setGenreError(true);
         setLowLevelMetrics(null);
         setIsAcousticLoading(false);
         setIsLowLevelLoading(false);

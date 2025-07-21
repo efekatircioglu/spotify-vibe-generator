@@ -491,18 +491,62 @@ app.get('/track-isrc/:id', async (req, res) => {
   }
 });
 
-app.get('/isrc-mbid/:isrc', async (req, res) => {
-  const isrc = req.params.isrc;
-  if (!isrc) return res.status(400).json({ error: 'Missing ISRC' });
+// This new endpoint can be called like:
+// /find-mbid?isrc=...&songName=...&artistName=...
+app.get('/find-mbid', async (req, res) => {
+  // We now get ISRC, songName, and artistName from query parameters
+  const { isrc, songName, artistName } = req.query;
+
+  console.log('[find-mbid] Called with:', { isrc, songName, artistName });
+
+  if (!isrc && (!songName || !artistName)) {
+    return res.status(400).json({ error: 'Missing required parameters. Provide either an ISRC or both a song and artist name.' });
+  }
+
   try {
-    const url = `https://musicbrainz.org/ws/2/recording?query=isrc:${isrc}&fmt=json`;
-    const response = await axios.get(url, { headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' } });
-    const recordings = response.data.recordings;
-    const mbid = recordings && recordings.length > 0 ? recordings[0].id : null;
+    let mbid = null;
+
+    // --- Step 1: Try to find MBID using ISRC (if provided) ---
+    if (isrc) {
+      console.log('[find-mbid] Step 1: Attempting ISRC search:', isrc);
+      const isrcUrl = `https://musicbrainz.org/ws/2/recording?query=isrc:${isrc}&fmt=json`;
+      const isrcResponse = await axios.get(isrcUrl, { 
+        headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' } 
+      });
+      const isrcRecordings = isrcResponse.data.recordings;
+      if (isrcRecordings && isrcRecordings.length > 0) {
+        mbid = isrcRecordings[0].id;
+        console.log('[find-mbid] Step 1: Found MBID via ISRC:', mbid);
+      } else {
+        console.log('[find-mbid] Step 1: No MBID found via ISRC.');
+      }
+    }
+
+    // --- Step 2: If not found, fall back to searching by name and artist ---
+    if (!mbid && songName && artistName) {
+      console.log('[find-mbid] Step 2: Attempting name/artist search:', { songName, artistName });
+      const nameQuery = `recording:"${encodeURIComponent(songName)}" AND artist:"${encodeURIComponent(artistName)}"`;
+      const nameUrl = `https://musicbrainz.org/ws/2/recording?query=${nameQuery}&fmt=json`;
+      const nameResponse = await axios.get(nameUrl, { 
+        headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' } 
+      });
+      const nameRecordings = nameResponse.data.recordings;
+      if (nameRecordings && nameRecordings.length > 0) {
+        mbid = nameRecordings[0].id;
+        console.log('[find-mbid] Step 2: Found MBID via name/artist:', mbid);
+      } else {
+        console.log('[find-mbid] Step 2: No MBID found via name/artist.');
+      }
+    }
+
+    // --- Step 3: Send the final result ---
+    // mbid will be the found ID, or null if both searches failed.
+    console.log(`[find-mbid] Search complete. Final MBID: ${mbid}`);
     res.json({ mbid });
+
   } catch (err) {
-    console.error('Error fetching MBID for ISRC:', err);
-    res.status(500).json({ error: 'Failed to fetch MBID' });
+    console.error('[find-mbid] Error during MBID fetch:', err.message);
+    res.status(500).json({ error: 'An error occurred while fetching MBID from MusicBrainz' });
   }
 });
 
