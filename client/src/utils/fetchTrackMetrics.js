@@ -1,5 +1,5 @@
 import pLimit from 'p-limit';
-import { getTrackAnalysis, setTrackAnalysis } from './trackAnalysisCache';
+import { getAnalysis, setAnalysis } from './trackAnalysis';
 
 const limit = pLimit(5); // 5 concurrent requests
 
@@ -47,10 +47,10 @@ export async function fetchTrackMetrics(tracks, onProgress) {
 
   await Promise.all(tracksWithMBID.map(async track => {
     const mbid = track.mbid || track.MBID || track.MBID;
-    // Check cache first
-    const cached = getTrackAnalysis(mbid);
-    if (cached && cached.analysis) {
-      results.push({ track, ...cached.analysis, fromCache: true });
+    // Check analysis_cache first
+    const cached = getAnalysis(mbid);
+    if (cached && (cached.highLevel || cached.lowLevel)) {
+      results.push({ track, ...cached, fromCache: true });
       done++;
       if (onProgress) onProgress({ done, total });
       return;
@@ -62,7 +62,7 @@ export async function fetchTrackMetrics(tracks, onProgress) {
       ]);
       
       if (highLevel || lowLevel) {
-        setTrackAnalysis(mbid, { analysis: { highLevel, lowLevel } });
+        setAnalysis(mbid, { highLevel, lowLevel });
         results.push({ track, highLevel, lowLevel });
       } else {
         results.push({ track, highLevel: null, lowLevel: null, error: 'No analysis data found' });

@@ -9,6 +9,7 @@ import {
   getTrackMBID,
   setTrackMBID
 } from '../utils/trackAnalysisCache';
+import { setAnalysis } from '../utils/trackAnalysis';
 
 ChartJS.register(ArcElement, Legend);
 
@@ -229,6 +230,10 @@ export default function SongAnalysisModal({
       ]);
       setAcousticMetrics(highLevel);
       setLowLevelMetrics(lowLevel);
+      // Store in analysis_cache if both are not empty
+      if (highLevel && lowLevel && Object.keys(highLevel).length > 0 && Object.keys(lowLevel).length > 0) {
+        setAnalysis(mbid, { highLevel, lowLevel });
+      }
     } catch (e) {
       setAcousticMetrics('Not Found');
       setGenreError(true);

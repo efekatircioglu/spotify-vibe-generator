@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchTrackMetrics } from '../utils/fetchTrackMetrics';
-import { getMbidForTrack } from '../utils/trackAnalysis';
+import { lookupTrackMBID, getTrackISRC, setTrackISRC, setTrackMBID, getTrackMBID } from '../utils/trackAnalysisCache';
 import styles from './WrappedAnalysisModal.module.css'; // Import the CSS module
 
 export default function WrappedAnalysisModal({ open, onClose, tracks }) {
@@ -31,7 +31,28 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
           newStatuses[index].status = 'Checking cache...';
           setStatuses(newStatuses);
 
-          const mbid = await getMbidForTrack(track);
+          // Check if MBID is already cached
+          let mbid = getTrackMBID(track.id);
+          let mbidWasCached = !!mbid && mbid !== 'Not Found';
+          if (!mbidWasCached) {
+            mbid = await lookupTrackMBID(track.id);
+            // If we found MBID (not from cache), ensure ISRC and MBID are stored
+            if (mbid) {
+              let isrc = getTrackISRC(track.id);
+              if (!isrc || isrc === 'Not found') {
+                // Try to fetch ISRC if not present
+                try {
+                  const isrcRes = await fetch(`http://127.0.0.1:8000/track-isrc/${track.id}`);
+                  if (isrcRes.ok) {
+                    const isrcData = await isrcRes.json();
+                    isrc = isrcData.isrc || 'Not found';
+                    setTrackISRC(track.id, isrc);
+                  }
+                } catch {}
+              }
+              setTrackMBID(track.id, mbid);
+            }
+          }
 
           if (mbid) {
             newStatuses[index].status = 'MBID Found';

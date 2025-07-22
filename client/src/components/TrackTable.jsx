@@ -4,7 +4,8 @@ import styles from '../app/page.module.css';
 import WrappedAnalysisModal from './WrappedAnalysisModal';
 import DropdownPortal from './DropdownPortal';
 import ContributorFinder from './ContributorFinder';
-import { getMbidForTrack } from '../utils/trackAnalysis';
+import { lookupTrackMBID } from '../utils/trackAnalysisCache';
+import NewSongAnalysisModal from './NewSongAnalysisModal';
 
 export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true }) {
   const [showWrapped, setShowWrapped] = useState(false);
@@ -16,6 +17,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const [contributorModalOpen, setContributorModalOpen] = useState(false);
   const [selectedTrackMBID, setSelectedTrackMBID] = useState(null);
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
+  const [showNewSongAnalysisModal, setShowNewSongAnalysisModal] = useState(false);
+  const [selectedTrackForNewAnalysis, setSelectedTrackForNewAnalysis] = useState(null);
 
   // When tracks change, increment tableKey to trigger animation
   useEffect(() => {
@@ -41,8 +44,13 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
     setContributorModalOpen(true);
     
     // Lookup MBID for the track
-    const mbid = await getMbidForTrack(track);
+    const mbid = await lookupTrackMBID(track);
     setSelectedTrackMBID(mbid);
+  };
+
+  const handleThirdGenreClick = (track) => {
+    setSelectedTrackForNewAnalysis(track);
+    setShowNewSongAnalysisModal(true);
   };
 
   // Estimate row height for minHeight reservation
@@ -236,6 +244,32 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                           >
                             Contributions
                           </button>
+                          <button
+                            style={{
+                              background: 'none',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 6,
+                              fontWeight: 700,
+                              fontSize: '0.92rem',
+                              padding: '4px 10px',
+                              lineHeight: 1.1,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              transition: 'background 0.18s, color 0.18s',
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = '#404040';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'none';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onClick={() => { setDropdownOpen(null); handleThirdGenreClick(track); }}
+                          >
+                            Third Genre
+                          </button>
                         </div>
                       </DropdownPortal>
                     )}
@@ -310,6 +344,14 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
             )}
           </div>
         </div>
+      )}
+      
+      {showNewSongAnalysisModal && selectedTrackForNewAnalysis && (
+        <NewSongAnalysisModal
+          open={showNewSongAnalysisModal}
+          onClose={() => setShowNewSongAnalysisModal(false)}
+          songInfo={selectedTrackForNewAnalysis}
+        />
       )}
       
       <style>{`

@@ -1,32 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import AudioAnalysisInterface from './AudioAnalysisInterface';
+import { lookupTrackMBID } from '../utils/trackAnalysisCache';
 
 export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
   const [mbid, setMbid] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (open && songInfo) {
       setLoading(true);
-      // Mock fetching mbid for now
-      // In a real scenario, you would fetch this from an API
+      setError(null);
       const fetchMbid = async () => {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        // This is a placeholder. You'll need to implement actual MBID fetching.
-        const mockMbid = 'some-mock-mbid'; 
-        setMbid(mockMbid);
-        setLoading(false);
+        try {
+          const realMbid = await lookupTrackMBID(songInfo.id);
+          if (realMbid) {
+            setMbid(realMbid);
+            setError(null);
+          } else {
+            setMbid(null);
+            setError('Could not find MusicBrainz ID for this track.');
+          }
+        } catch (e) {
+          setMbid(null);
+          setError('Error fetching MBID.');
+        } finally {
+          setLoading(false);
+        }
       };
-
       fetchMbid();
+    } else {
+      setMbid(null);
+      setLoading(false);
+      setError(null);
     }
   }, [open, songInfo]);
 
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(20,20,20,0.88)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
@@ -34,8 +45,12 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
         <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 24, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', zIndex: 1001 }}>×</button>
         {loading ? (
           <div style={{ color: 'white', textAlign: 'center', padding: '50px' }}>Loading Analysis...</div>
-        ) : (
+        ) : error ? (
+          <div style={{ color: '#f87171', textAlign: 'center', padding: '50px' }}>{error}</div>
+        ) : mbid ? (
           <AudioAnalysisInterface mbid={mbid} />
+        ) : (
+          <div style={{ color: '#f87171', textAlign: 'center', padding: '50px' }}>No analysis available for this track.</div>
         )}
       </div>
     </div>
