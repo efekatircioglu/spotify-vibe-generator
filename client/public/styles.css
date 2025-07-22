@@ -1,0 +1,66 @@
+/* Custom styles for a more professional look */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #111827; /* Darker gray */
+}
+.modal-content {
+    max-height: 90vh;
+}
+/* Custom scrollbar */
+.modal-content::-webkit-scrollbar, .scrollable-chart::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.modal-content::-webkit-scrollbar-track, .scrollable-chart::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+.modal-content::-webkit-scrollbar-thumb, .scrollable-chart::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+    border-radius: 10px;
+    border: 2px solid #1f2937;
+}
+.chart-container {
+    position: relative;
+    height: 200px;
+}
+/* Custom Tooltip */
+#tooltip {
+    position: absolute;
+    display: none;
+    padding: 8px 12px;
+    background-color: #111827;
+    color: #d1d5db;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    font-size: 12px;
+    pointer-events: none; /* So it doesn't interfere with mouse events */
+    z-index: 10001; /* Must be on top of everything */
+    white-space: pre-wrap;
+    max-width: 250px;
+    transition: opacity 0.2s;
+}
+.gradient-text {
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.card-hover {
+    transition: all 0.3s ease-in-out;
+}
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    cursor: pointer;
+}
+/* Focus View Styles */
+#focus-view {
+    transition: opacity 0.5s ease-in-out;
+}
+#focus-view-content {
+    transition: all 0.5s ease-in-out;
+}
+#modal-container.blurred {
+    filter: blur(8px);
+    transform: scale(0.98);
+    transition: all 0.5s ease-in-out;
+}

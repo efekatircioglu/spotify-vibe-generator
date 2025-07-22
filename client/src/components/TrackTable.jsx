@@ -4,7 +4,7 @@ import styles from '../app/page.module.css';
 import WrappedAnalysisModal from './WrappedAnalysisModal';
 import DropdownPortal from './DropdownPortal';
 import ContributorFinder from './ContributorFinder';
-import { lookupTrackMBID } from '../utils/trackAnalysisCache';
+import { getMbidForTrack } from '../utils/trackAnalysis';
 
 export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true }) {
   const [showWrapped, setShowWrapped] = useState(false);
@@ -41,7 +41,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
     setContributorModalOpen(true);
     
     // Lookup MBID for the track
-    const mbid = await lookupTrackMBID(track.id);
+    const mbid = await getMbidForTrack(track);
     setSelectedTrackMBID(mbid);
   };
 
@@ -326,4 +326,4 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
       `}</style>
     </div>
   );
-} 
+}

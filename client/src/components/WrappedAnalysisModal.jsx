@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchTrackMetrics } from '../utils/fetchTrackMetrics';
+import { getMbidForTrack } from '../utils/trackAnalysis';
+import styles from './WrappedAnalysisModal.module.css'; // Import the CSS module
 
 export default function WrappedAnalysisModal({ open, onClose, tracks }) {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -9,84 +11,203 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
 
   useEffect(() => {
     if (!open || !tracks || tracks.length === 0) return;
-    console.log("[WrappedAnalysisModal] tracks prop:", tracks);
-    setLoading(true);
-    setResults(null);
-    // Prepare status for each track
-    const initialStatuses = tracks.map(track => {
-      const hasMBID = !!(track.mbid || track.MBID);
-      return {
+
+    const analyzeTracks = async () => {
+      console.log("[WrappedAnalysisModal] Starting analysis for", tracks.length, "tracks.");
+      setLoading(true);
+      setResults(null);
+      setProgress({ done: 0, total: tracks.length });
+
+      let initialStatuses = tracks.map(track => ({
         name: track.name,
         artist: track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : ''),
-        status: hasMBID ? 'Fetching...' : 'Skipped (no MBID)'
-      };
-    });
-    console.log("[WrappedAnalysisModal] initialStatuses:", initialStatuses);
-    setStatuses(initialStatuses);
-    // Only fetch for tracks with MBID
-    fetchTrackMetrics(tracks, ({ done, total }) => {
-      setProgress({ done, total });
-      setStatuses(prev => {
-        // Mark the next 'Fetching...' as 'Done' as each finishes
-        let count = 0;
-        return prev.map((s, i) => {
-          const hasMBID = s.status !== 'Skipped (no MBID)';
-          if (hasMBID) {
-            count++;
-            if (count === done) {
-              return { ...s, status: 'Done' };
+        status: 'Queued'
+      }));
+      setStatuses(initialStatuses);
+
+      const tracksWithMbids = await Promise.all(
+        tracks.map(async (track, index) => {
+          const newStatuses = [...initialStatuses];
+          newStatuses[index].status = 'Checking cache...';
+          setStatuses(newStatuses);
+
+          const mbid = await getMbidForTrack(track);
+
+          if (mbid) {
+            newStatuses[index].status = 'MBID Found';
+            setStatuses([...newStatuses]);
+            return { ...track, mbid };
+          } else {
+            newStatuses[index].status = 'Skipped (no MBID)';
+            setStatuses([...newStatuses]);
+            return { ...track, mbid: null };
+          }
+        })
+      );
+
+      const tracksToFetch = tracksWithMbids.filter(t => t.mbid);
+      console.log(`[WrappedAnalysisModal] Found MBIDs for ${tracksToFetch.length}/${tracks.length} tracks.`);
+
+      let finalStatuses = tracksWithMbids.map(track => ({
+        name: track.name,
+        artist: track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : ''),
+        status: track.mbid ? 'Fetching Metrics...' : 'Skipped (no MBID)'
+      }));
+      setStatuses(finalStatuses);
+
+      if (tracksToFetch.length > 0) {
+        fetchTrackMetrics(tracksToFetch, ({ done, total }) => {
+          setProgress({ done, total });
+          let completedCount = 0;
+          const newStatuses = [...finalStatuses];
+          for (let i = 0; i < newStatuses.length; i++) {
+            if (newStatuses[i].status === 'Fetching Metrics...') {
+              if (completedCount < done) {
+                newStatuses[i].status = 'Done';
+                completedCount++;
+              }
             }
           }
-          return s;
-        });
-      });
-    })
-      .then(res => setResults(res))
-      .finally(() => setLoading(false));
+          setStatuses(newStatuses);
+        })
+        .then(res => {
+          console.log("[WrappedAnalysisModal] Analysis results:", res);
+          setResults(res);
+        })
+        .finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    };
+
+    analyzeTracks();
   }, [open, tracks]);
 
   if (!open) return null;
 
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'Done': return styles.statusDone;
+      case 'Skipped (no MBID)': return styles.statusSkipped;
+      case 'Fetching Metrics...': return styles.statusFetching;
+      default: return styles.statusDefault;
+    }
+  };
+
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(20,20,20,0.88)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ maxHeight: 650, overflowY: 'auto', padding: '56px 48px 40px 48px', background: '#18181b', borderRadius: 24, minWidth: 420, minWidth: 520, minHeight: 320, boxShadow: '0 8px 48px #000b', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 24, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', zIndex: 2 }}>×</button>
-        <h2 style={{ color: '#fff', fontWeight: 900, fontSize: 34, margin: 0, letterSpacing: 1 }}>Wrapped Analysis</h2>
-        {loading && (
-          <>
-            <div style={{ margin: '32px 0', color: '#1db954', fontWeight: 700, fontSize: 20 }}>
-              Fetching metrics... {progress.done} / {progress.total}
-              <div style={{ background: '#333', borderRadius: 8, height: 16, marginTop: 12, width: 320 }}>
-                <div style={{ background: 'linear-gradient(90deg, #1db954 60%, #00ffff 100%)', height: '100%', borderRadius: 8, width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`, transition: 'width 0.3s' }} />
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className={styles.modalContent}>
+        <div className={styles.modalHeader}>
+          <h2 className={styles.modalTitle}>Analysis Dashboard</h2>
+          <button onClick={onClose} className={styles.closeButton}>&times;</button>
+        </div>
+
+        <div className={styles.modalBody}>
+          {loading && (
+            <>
+              <div className={styles.progressText}>Fetching metrics... {progress.done} / {progress.total}</div>
+              <div className={styles.progressBarContainer}>
+                <div className={styles.progressBar} style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
               </div>
-            </div>
-            <table style={{ width: '100%', background: '#232323', borderRadius: 12, marginTop: 18, color: '#fff', fontSize: 15, boxShadow: '0 2px 12px #0004' }}>
-              <thead>
-                <tr style={{ color: '#1db954', fontWeight: 800 }}>
-                  <th style={{ textAlign: 'left', padding: 8 }}>Song</th>
-                  <th style={{ textAlign: 'left', padding: 8 }}>Artist</th>
-                  <th style={{ textAlign: 'center', padding: 8 }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {statuses.map((s, i) => (
-                  <tr key={i}>
-                    <td style={{ padding: 8 }}>{s.name}</td>
-                    <td style={{ padding: 8 }}>{s.artist}</td>
-                    <td style={{ padding: 8, textAlign: 'center', color: s.status === 'Skipped (no MBID)' ? '#fbbf24' : s.status === 'Done' ? '#1db954' : '#fff' }}>{s.status}</td>
+              <table className={styles.statusTable}>
+                <thead>
+                  <tr>
+                    <th className={styles.tableHeader}>Song</th>
+                    <th className={styles.tableHeader}>Artist</th>
+                    <th className={`${styles.tableHeader} ${styles.statusCell}`}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-        {results && !loading && (
-          <div style={{ marginTop: 32, color: '#fff', fontSize: 15, maxWidth: 600, wordBreak: 'break-all' }}>
-            {/* Results UI will go here */}
-            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#232323', borderRadius: 12, padding: 16, maxHeight: 300, overflowY: 'auto' }}>{JSON.stringify(results, null, 2)}</pre>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {statuses.map((s, i) => (
+                    <tr key={i} className={i === statuses.length - 1 ? '' : styles.tableRow}>
+                      <td className={styles.tableCell}>{s.name}</td>
+                      <td className={`${styles.tableCell} ${styles.artistCell}`}>{s.artist}</td>
+                      <td className={`${styles.tableCell} ${styles.statusCell} ${getStatusClass(s.status)}`}>{s.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {results && !loading && (
+            <div>
+              {(() => {
+                const analyzedTracks = results.filter(r => r.highLevel && r.lowLevel);
+                if (analyzedTracks.length === 0) {
+                  return <p>No analysis data could be found for these tracks.</p>;
+                }
+
+                const avgMetrics = { danceability: 0, energy: 0, valence: 0, acousticness: 0 };
+                const genreCounts = {};
+
+                analyzedTracks.forEach(r => {
+                  if (r.highLevel && r.highLevel.highlevel) {
+                    avgMetrics.danceability += r.highLevel.highlevel.danceability?.all?.danceable || 0;
+                    avgMetrics.energy += r.highLevel.highlevel.energy?.all?.energetic || 0;
+                    avgMetrics.valence += r.highLevel.highlevel.valence?.all?.positive || 0;
+                    avgMetrics.acousticness += r.highLevel.highlevel.acousticness?.all?.acoustic || 0;
+
+                    if (r.highLevel.highlevel.genre_dortmund && r.highLevel.highlevel.genre_dortmund.all) {
+                      const genres = r.highLevel.highlevel.genre_dortmund.all;
+                      for (const genre in genres) {
+                        genreCounts[genre] = (genreCounts[genre] || 0) + genres[genre];
+                      }
+                    }
+                  }
+                });
+
+                for (const key in avgMetrics) {
+                  avgMetrics[key] /= analyzedTracks.length;
+                }
+
+                const topGenres = Object.entries(genreCounts)
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5);
+
+                return (
+                  <div className={styles.resultsGrid}>
+                    <div className={styles.card}>
+                      <h3 className={styles.sectionTitle}>Overall Vibe</h3>
+                      <div>
+                        {Object.entries(avgMetrics).map(([key, value]) => (
+                          <div key={key} className={styles.metricItem}>
+                            <div className={styles.metricLabel}>{key}</div>
+                            <div className={styles.metricBar}>
+                              <div className={styles.metricBarFill} style={{ width: `${value * 100}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className={styles.card}>
+                      <h3 className={styles.sectionTitle}>Top Genres</h3>
+                      <ul className={styles.genreList}>
+                        {topGenres.map(([genre, count]) => (
+                          <li key={genre} className={styles.genreListItem}>
+                            <span className={styles.genreName}>{genre}</span>
+                            <span className={styles.genreCount}>{count.toFixed(2)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className={`${styles.card} ${styles.trackListContainer}`}>
+                      <h3 className={styles.sectionTitle}>Analyzed Tracks ({analyzedTracks.length}/{results.length})</h3>
+                      <ul className={styles.trackList}>
+                        {analyzedTracks.map(({ track }) => (
+                          <li key={track.id} className={styles.trackListItem}>
+                            {track.name} - <span className={styles.artistName}>{track.artist || track.artists.map(a => a.name).join(', ')}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
-} 
+}

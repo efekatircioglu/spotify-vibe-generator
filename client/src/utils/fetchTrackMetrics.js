@@ -5,16 +5,32 @@ const limit = pLimit(5); // 5 concurrent requests
 
 // Helper to fetch high-level metrics
 async function fetchHighLevel(mbid) {
-  const res = await fetch(`https://acousticbrainz.org/${mbid}/high-level`);
-  if (!res.ok) throw new Error('Failed to fetch high-level');
-  return res.json();
+  try {
+    const res = await fetch(`https://acousticbrainz.org/${mbid}/high-level`);
+    if (!res.ok) {
+      console.log(`[fetchTrackMetrics] Failed to fetch high-level for ${mbid}: ${res.status}`);
+      return null;
+    }
+    return res.json();
+  } catch (error) {
+    console.log(`[fetchTrackMetrics] Error in fetchHighLevel for ${mbid}:`, error);
+    return null;
+  }
 }
 
 // Helper to fetch low-level metrics
 async function fetchLowLevel(mbid) {
-  const res = await fetch(`http://127.0.0.1:8000/${mbid}/low-level`);
-  if (!res.ok) throw new Error('Failed to fetch low-level');
-  return res.json();
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/${mbid}/low-level`);
+    if (!res.ok) {
+      console.log(`[fetchTrackMetrics] Failed to fetch low-level for ${mbid}: ${res.status}`);
+      return null;
+    }
+    return res.json();
+  } catch (error) {
+    console.log(`[fetchTrackMetrics] Error in fetchLowLevel for ${mbid}:`, error);
+    return null;
+  }
 }
 
 /**
@@ -41,12 +57,16 @@ export async function fetchTrackMetrics(tracks, onProgress) {
     }
     try {
       const [highLevel, lowLevel] = await Promise.all([
-        limit(() => fetchHighLevel(mbid).catch(e => ({ error: e.message }))),
-        limit(() => fetchLowLevel(mbid).catch(e => ({ error: e.message })))
+        limit(() => fetchHighLevel(mbid)),
+        limit(() => fetchLowLevel(mbid))
       ]);
-      // Store in cache
-      setTrackAnalysis(mbid, { analysis: { highLevel, lowLevel } });
-      results.push({ track, highLevel, lowLevel });
+      
+      if (highLevel || lowLevel) {
+        setTrackAnalysis(mbid, { analysis: { highLevel, lowLevel } });
+        results.push({ track, highLevel, lowLevel });
+      } else {
+        results.push({ track, highLevel: null, lowLevel: null, error: 'No analysis data found' });
+      }
     } catch (error) {
       results.push({ track, highLevel: null, lowLevel: null, error: error.message });
     }
@@ -55,4 +75,4 @@ export async function fetchTrackMetrics(tracks, onProgress) {
   }));
 
   return results;
-} 
+}

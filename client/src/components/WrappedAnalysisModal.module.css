@@ -1,0 +1,229 @@
+/* --- General Modal Styles --- */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 50;
+    font-family: 'Inter', sans-serif;
+}
+
+.modalContent {
+    background-color: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 1100px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.modalHeader {
+    padding: 1.25rem;
+    border-bottom: 1px solid #374151;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modalTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f9fafb;
+}
+
+.closeButton {
+    color: #9ca3af;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.closeButton:hover {
+    color: #ffffff;
+}
+
+.modalBody {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+/* --- Loading State Styles --- */
+.progressText {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.progressBarContainer {
+    background-color: #374151;
+    border-radius: 9999px;
+    height: 10px;
+    width: 100%;
+}
+
+.progressBar {
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s ease-in-out;
+}
+
+.statusTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
+}
+
+.tableHeader {
+    color: #9ca3af;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #374151;
+}
+
+.tableRow {
+    border-bottom: 1px solid #374151;
+}
+
+.tableCell {
+    color: #d1d5db;
+    padding: 0.75rem 1rem;
+}
+
+.artistCell {
+    color: #9ca3af;
+}
+
+.statusCell {
+    text-align: right;
+    font-weight: 500;
+}
+
+.statusDone { color: #22c55e; }
+.statusSkipped { color: #f59e0b; }
+.statusFetching { color: #38bdf8; }
+.statusDefault { color: #6b7280; }
+
+
+/* --- Results State Styles --- */
+.resultsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+}
+
+.card {
+    background-color: rgba(17, 24, 39, 0.5);
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid #374151;
+}
+
+.sectionTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #f9fafb;
+}
+
+.metricItem {
+    margin-bottom: 1rem;
+}
+
+.metricLabel {
+    text-transform: capitalize;
+    font-weight: 500;
+    color: #d1d5db;
+    margin-bottom: 0.5rem;
+}
+
+.metricBar {
+    background-color: #374151;
+    border-radius: 9999px;
+    height: 8px;
+}
+
+.metricBarFill {
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    height: 100%;
+    border-radius: 9999px;
+}
+
+.genreList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.genreListItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #1f2937;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+}
+
+.genreName {
+    color: #d1d5db;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.genreCount {
+    color: #6b7280;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.trackListContainer {
+    grid-column: span 2 / span 2;
+}
+
+.trackList {
+    list-style: none;
+    padding: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.trackListItem {
+    padding: 0.5rem 0.25rem;
+    border-bottom: 1px solid #374151;
+    color: #d1d5db;
+}
+
+.artistName {
+    color: #6b7280;
+}
+
+/* --- Custom Scrollbar for Webkit Browsers --- */
+.modalBody::-webkit-scrollbar {
+    width: 8px;
+}
+.modalBody::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+.modalBody::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+    border-radius: 10px;
+    border: 2px solid #1f2937;
+}
