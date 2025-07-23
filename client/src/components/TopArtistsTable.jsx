@@ -27,14 +27,21 @@ export default function TopArtistsTable({ artists, title }) {
   }
 
   // Helper to update ticketmasterId in localStorage
-  function updateTicketmasterIdInLocalStorage(artistName, ticketmasterId) {
+  function updateTicketmasterIdInLocalStorage(artistName, ticketmasterId, artistObj) {
     try {
       let recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
       let foundIdx = recents.findIndex(a => a.name.toLowerCase() === artistName.toLowerCase());
+      // Always build the full structure
+      const entry = {
+        name: artistName,
+        spotifyId: artistObj.spotifyId || artistObj.id || null,
+        image: artistObj.image || (artistObj.images && artistObj.images[0] && artistObj.images[0].url) || null,
+        ticketmasterId: ticketmasterId || null,
+      };
       if (foundIdx !== -1) {
-        recents[foundIdx].ticketmasterId = ticketmasterId;
+        recents[foundIdx] = entry;
       } else {
-        recents.unshift({ name: artistName, ticketmasterId });
+        recents.unshift(entry);
       }
       localStorage.setItem('recent_artist_searches', JSON.stringify(recents));
     } catch {}
@@ -85,7 +92,7 @@ export default function TopArtistsTable({ artists, title }) {
             return updated;
           });
           // Update localStorage for future
-          updateTicketmasterIdInLocalStorage(artist.name, ticketmasterId);
+          updateTicketmasterIdInLocalStorage(artist.name, ticketmasterId, artist);
           console.log('[TopArtistsTable] Updated ticketmasterId in localStorage for:', artist.name);
         } else {
           console.log('[TopArtistsTable] No ticketmasterId found from server for:', artist.name);

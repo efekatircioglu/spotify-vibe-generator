@@ -214,7 +214,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                               e.currentTarget.style.background = 'none';
                               e.currentTarget.style.color = '#fff';
                             }}
-                            onClick={() => { setDropdownOpen(null); onExploreGenre && onExploreGenre(track); }}
+                            onClick={() => { setDropdownOpen(null); handleThirdGenreClick(track); }}
                           >
                             Genre
                           </button>
@@ -243,32 +243,6 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                             onClick={() => { setDropdownOpen(null); handleContributionsClick(track); }}
                           >
                             Contributions
-                          </button>
-                          <button
-                            style={{
-                              background: 'none',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: 6,
-                              fontWeight: 700,
-                              fontSize: '0.92rem',
-                              padding: '4px 10px',
-                              lineHeight: 1.1,
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              transition: 'background 0.18s, color 0.18s',
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.background = '#404040';
-                              e.currentTarget.style.color = '#fff';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.background = 'none';
-                              e.currentTarget.style.color = '#fff';
-                            }}
-                            onClick={() => { setDropdownOpen(null); handleThirdGenreClick(track); }}
-                          >
-                            Third Genre
                           </button>
                         </div>
                       </DropdownPortal>

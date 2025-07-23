@@ -55,7 +55,7 @@ export default function Last6MonthsPage() {
   };
 
   return (
-    <main style={{ padding: 32 }}>
+    <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
       <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
         <button
           onClick={() => router.push('/')}

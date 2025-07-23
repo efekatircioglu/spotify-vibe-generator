@@ -196,6 +196,14 @@ function getLayeringLabel(layerCount) {
   return 'Simple Arrangement';
 }
 
+// Human-friendly mappings for genre codes (for use in chord/genre leaderboards)
+const rosamericaMap = {
+  pop: 'Pop', rhy: 'Rhythm & Blues', hip: 'Hip-Hop', roc: 'Rock', dan: 'Dance', spe: 'Speech', ele: 'Electronic', jaz: 'Jazz', ins: 'Instrumental', fol: 'Folk', bla: 'Blues', cou: 'Country', reg: 'Reggae', sou: 'Soul', fun: 'Funk', lat: 'Latin', met: 'Metal', pun: 'Punk', cla: 'Classical', exp: 'Experimental', amb: 'Ambient', wor: 'World', blu: 'Blues', rap: 'Rap', '': ''
+};
+const tzanetakisMap = {
+  blu: 'Blues', cla: 'Classical', cou: 'Country', dis: 'Disco', hip: 'Hip-Hop', jaz: 'Jazz', met: 'Metal', pop: 'Pop', reg: 'Reggae', roc: 'Rock', '': ''
+};
+
 const AudioAnalysisInterface = ({ mbid, onClose }) => {
     const [analysisData, setAnalysisData] = useState(null);
     const [loading, setLoading] = useState(!!mbid);
@@ -542,11 +550,27 @@ const HighLevelCard = ({ featureKey, feature, onCardClick, onMouseMove, onMouseL
             const ctx = canvasRef.current.getContext('2d');
             const valueName = feature.value.replace(/_/g, ' ');
 
+            // Map for bar chart labels if Rosamerica or Tzanetakis
+            const labelMap = featureKey === 'genre_rosamerica' ? rosamericaMap : featureKey === 'genre_tzanetakis' ? tzanetakisMap : null;
+
             if (Object.keys(feature.all).length === 2) {
                 chartInstance.current = new Chart(ctx, { type: 'doughnut', data: { labels: [valueName, 'Other'], datasets: [{ data: [feature.probability, 1 - feature.probability], backgroundColor: ['#22d3ee', '#374151'], borderColor: '#1f2937', borderWidth: 4, cutout: '70%' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } } });
             } else {
                 const sortedData = Object.entries(feature.all).sort(([, a], [, b]) => b - a).slice(0, 5);
-                chartInstance.current = new Chart(ctx, { type: 'bar', data: { labels: sortedData.map(item => item[0]), datasets: [{ label: 'Probability', data: sortedData.map(item => item[1]), backgroundColor: 'rgba(99, 102, 241, 0.6)', borderColor: 'rgba(99, 102, 241, 1)', borderWidth: 1 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#9CA3AF', font: { size: 10 } } }, x: { display: false } } } });
+                chartInstance.current = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedData.map(item => labelMap ? (labelMap[item[0]] || item[0]) : item[0]),
+                        datasets: [{ label: 'Probability', data: sortedData.map(item => item[1]), backgroundColor: 'rgba(99, 102, 241, 0.6)', borderColor: 'rgba(99, 102, 241, 1)', borderWidth: 1 }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { ticks: { color: '#9CA3AF', font: { size: 10 } } }, x: { display: false } }
+                    }
+                });
             }
         }
         // Cleanup function to destroy chart on component unmount
@@ -913,7 +937,7 @@ const FocusChartView = ({ chartType, analysisData }) => {
             minorChords = analysisData.tonal.chords_histogram.slice(12);
             yData = majorChords.map((v, i) => v + minorChords[i]);
             xAxisExplanation = 'Each label is a musical chord (Major or Minor).';
-            yAxisExplanation = 'The strength of each major and minor chord.';
+            yAxisExplanation = 'The percentage of each major and minor chord heard.';
             definition = METRIC_DEFINITIONS.chords;
             leaderboard = xLabels.map((label, i) => [label, yData[i]]).sort((a, b) => b[1] - a[1]);
             majorLeaderboard = xLabels.map((label, i) => [label, majorChords[i]]).sort((a, b) => b[1] - a[1]);
@@ -983,8 +1007,8 @@ const FocusChartView = ({ chartType, analysisData }) => {
                         <div style={{ maxHeight: 140, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px', marginBottom: 12 }}>
                             {majorLeaderboard.map(([label, val], i) => (
                                 <div key={label + '-maj'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== majorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
-                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}</span>
-                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(3)}</span>
+                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}</span>
+                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(1)} %</span>
                                 </div>
                             ))}
                         </div>
@@ -992,8 +1016,8 @@ const FocusChartView = ({ chartType, analysisData }) => {
                         <div style={{ maxHeight: 140, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px' }}>
                             {minorLeaderboard.map(([label, val], i) => (
                                 <div key={label + '-min'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== minorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
-                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}m</span>
-                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(3)}</span>
+                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}m</span>
+                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(1)} %</span>
                                 </div>
                             ))}
                         </div>

@@ -118,6 +118,10 @@
 .statusSkipped { color: #f59e0b; }
 .statusFetching { color: #38bdf8; }
 .statusDefault { color: #6b7280; }
+.statusError {
+  color: #f87171;
+  font-weight: 700;
+}
 
 
 /* --- Results State Styles --- */

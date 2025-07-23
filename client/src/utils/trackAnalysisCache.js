@@ -3,10 +3,21 @@
 const CACHE_KEY = 'trackAnalysisCache';
 let cache = {};
 
+function isValidSpotifyId(id) {
+  return typeof id === 'string' && id.length === 22 && /^[A-Za-z0-9]+$/.test(id);
+}
+
 function loadCache() {
   try {
     const data = localStorage.getItem(CACHE_KEY);
-    cache = data ? JSON.parse(data) : {};
+    let parsed = data ? JSON.parse(data) : {};
+    // Only keep valid Spotify IDs
+    cache = {};
+    for (const key in parsed) {
+      if (isValidSpotifyId(key)) {
+        cache[key] = parsed[key];
+      }
+    }
   } catch (e) {
     cache = {};
   }
@@ -25,6 +36,7 @@ export function getTrackISRC(spotifyId) {
 }
 
 export function setTrackISRC(spotifyId, isrc) {
+  if (!isValidSpotifyId(spotifyId)) return;
   cache[spotifyId] = { ...cache[spotifyId], isrc };
   saveCache();
 }
@@ -34,6 +46,7 @@ export function getTrackMBID(spotifyId) {
 }
 
 export function setTrackMBID(spotifyId, mbid) {
+  if (!isValidSpotifyId(spotifyId)) return;
   cache[spotifyId] = { ...cache[spotifyId], mbid };
   saveCache();
 }
