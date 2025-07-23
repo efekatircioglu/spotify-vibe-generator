@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
-import { Doughnut } from 'react-chartjs-2';
+// import { Doughnut } from 'react-chartjs-2';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
 import TrackTable from '../../components/TrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';

@@ -32,39 +32,171 @@ const interpretations = { danceability: { not_danceable: "The track's rhythm is 
 
 // --- Metric Definitions and Label Functions ---
 const METRIC_DEFINITIONS = {
-  bpm: `BPM (Beats Per Minute): Measures the tempo or speed of a song. A low BPM suggests a slower, more relaxed track, while a high BPM indicates a faster, more energetic song. Below 70 BPM: Very Slow (ambient, ballads). 70-90 BPM: Relaxed Pace (hip-hop, lo-fi). 90-110 BPM: Groovy/Moderate (pop, funk, mid-tempo rock). 110-130 BPM: Upbeat (pop, dance). Above 130 BPM: Fast/Very Fast (techno, drum & bass, metal).`,
-  danceability: `Danceability: Classifies whether a track is suitable for dancing based on rhythmic patterns, tempo, and beat strength. Higher values indicate a more danceable track.`,
-  loudness: `Volume (Average Loudness): Reflects the average loudness of the track after normalization. Below 60%: Soft/Very Dynamic. 60%-85%: Moderate. Above 85%: Consistently Loud (common in modern pop, rock, electronic).`,
-  dyn_complexity: `Dynamic Range: Measures the variation between the quietest and loudest moments. Score < 2: Steady Volume (compressed, modern pop/metal). 2-4: Moderate Range (balanced). > 4: Very Dynamic (classical, jazz, live performances).`,
-  beats_count: 'Beats Count: The total number of detected beats in the track. Higher values often indicate a longer or more rhythmically active song.',
-  beats_loudness: 'Beats Loudness: The average loudness of detected beats, reflecting the perceived strength or punch of the rhythm section.'
+    // High-level classifiers (from tooltips)
+  danceability_classifier: 'Classifies whether a track is suitable for dancing based on rhythmic patterns.',
+  gender: 'Identifies the gender of the primary and other vocalists in the track.',
+  genre_dortmund: 'Classifies the track into one of nine broad genres based on the Dortmund model.',
+  genre_electronic: 'Classifies the track into sub-genres of electronic music.',
+  genre_rosamerica: 'Classifies the track based on the Rosamerica genre taxonomy.',
+  genre_tzanetakis: 'Classifies the track based on the Tzanetakis genre collection.',
+  ismir04_rhythm: 'Classifies the track\'s rhythm into ballroom dance styles.',
+  mood_acoustic: 'Detects the presence of acoustic instruments.',
+  mood_aggressive: 'Detects if the track has an aggressive or intense mood.',
+  mood_electronic: 'Detects the presence of electronic instruments and sounds.',
+  mood_happy: 'Detects if the track has a happy, cheerful mood.',
+  mood_party: 'Detects if the track is suitable for a party atmosphere.',
+  mood_relaxed: 'Detects if the track has a relaxed, calm mood.',
+  mood_sad: 'Detects if the track has a sad or melancholic mood.',
+  moods_mirex: 'Classifies the track\'s mood into one of five clusters from the MIREX challenge.',
+  timbre: 'Describes the textural quality of the sound (bright vs. dark).',
+  tonal_atonal: 'Distinguishes between music with a clear tonal center (tonal) and music without (atonal).',
+  voice_instrumental: 'Classifies whether the track is primarily vocal or instrumental.',
+
+  // Key Metrics
+  bpm: `Measures the tempo or speed of a song. A low BPM suggests a slower, more relaxed track, while a high BPM indicates a faster, more energetic song.`,
+  danceability: `Classifies whether a track is suitable for dancing based on rhythmic patterns, tempo, and beat strength. Higher values indicate a more danceable track.`,
+  loudness: `Reflects the average loudness of the track after normalization.`,
+  dyn_complexity: `Measures the variation between the quietest and loudest moments.`,
+  beats_count: 'The total number of detected beats in the track. Higher values often indicate a longer or more rhythmically active song.',
+  beats_loudness: 'The average loudness of detected beats, reflecting the perceived strength or punch of the rhythm section.',
+  groove: 'The complexity and regularity of rhythmic onsets, indicating how "groovy" or complex the rhythm is. Higher values suggest a more rhythmically active or complex track.',
+  melody_clarity: 'How clear and prominent the melody is in the track. Higher values indicate a more melodic and memorable composition.',
+  harmonic_tension: 'The perceived tension in the harmony, often related to dissonance. Higher values indicate a more complex or dissonant harmonic structure.',
+  silence: 'The proportion of the track that is silent or near-silent. Higher values indicate a more silent or introspective track.',
+  brightness: 'The perceived brightness of the sound, related to spectral centroid. Higher values indicate a brighter or more energetic sound.',
+  texture: 'The complexity of the sound texture, often related to spectral contrast. Higher values indicate a more complex or varied sound texture.',
+  layering: 'The number of simultaneous sound sources or layers in the track. Higher values indicate a more layered or complex soundscape.',
+  
+  // Detailed analysis chart types
+  tonality: 'Tonality Profile: Shows the strength of each of the 12 musical pitch classes, providing a detailed view of the track\'s harmonic content.',
+  melbands: 'Mel Bands Mean Energy: Represents the energy in different frequency bands, modeled after human hearing.',
+  chords: 'Chords Histogram: Shows the relative presence of each of the 12 major and 12 minor chords.'
 };
+// --- Metric Label Functions ---
 function getBpmLabel(bpm) {
-  if (!bpm) return '';
+  if (bpm === undefined || bpm === null) return '';
   if (bpm < 70) return 'Very Slow';
   if (bpm < 90) return 'Relaxed Pace';
   if (bpm < 110) return 'Groovy';
   if (bpm < 130) return 'Upbeat';
   return 'Very Fast';
 }
-function getVolumeLabel(loudness) {
-  if (loudness === undefined) return '';
-  if (loudness > 0.8) return 'Consistently Loud';
-  if (loudness > 0.5) return 'Moderate';
-  return 'Soft';
+function getLoudnessLabel(loudnessPercent) {
+  if (loudnessPercent === undefined || loudnessPercent === null) return '';
+  if (loudnessPercent > 80) return 'Consistently Loud';
+  if (loudnessPercent > 50) return 'Dynamic & Full';
+  if (loudnessPercent > 30) return 'Moderate Volume';
+  return 'Soft & Gentle';
 }
-function getDynamicLabelUX(dynamic) {
+function getDynamicComplexityLabel(dynamic) {
+  if (dynamic === undefined || dynamic === null) return '';
   if (dynamic < 2) return 'Steady';
   if (dynamic < 4) return 'Moderate';
   return 'Very Dynamic';
 }
+function getBeatsCountLabel(count) {
+  if (count === undefined || count === null) return '';
+  if (count < 200) return 'Sparse Rhythm';
+  if (count < 400) return 'Understated Beat';
+  if (count < 600) return 'Consistent Beat';
+  return 'Dense & Driving';
+}
+function getBeatsLoudnessLabel(loudness) {
+  if (loudness === undefined || loudness === null) return '';
+  if (loudness < 0.02) return 'Ghost Notes';
+  if (loudness < 0.05) return 'Light Touch';
+  if (loudness < 0.1) return 'Solid Hits';
+  return 'Heavy Impact';
+}
+function getChordTonalityLabel(majorPercentage) {
+  if (majorPercentage === undefined || majorPercentage === null) return '';
+  if (majorPercentage > 75) return 'Overwhelmingly Major';
+  if (majorPercentage > 60) return 'Major Dominant';
+  if (majorPercentage > 40) return 'Balanced Major/Minor';
+  if (majorPercentage > 25) return 'Minor Dominant';
+  return 'Overwhelmingly Minor';
+}
 function getDanceabilityLabel(val) {
+  if (val === undefined || val === null) return '';
   if (val < 0.5) return 'Not Danceable';
   if (val < 1.0) return 'Somewhat Danceable';
   return 'Highly Danceable';
 }
+function getMoodConfidenceLabel(confidence) {
+  if (confidence === undefined || confidence === null) return '';
+  if (confidence > 0.8) return 'Very Strong';
+  if (confidence > 0.6) return 'Confident';
+  if (confidence > 0.4) return 'Likely';
+  return 'Subtle Hint';
+}
+function getTonalLabel(tonalityScore) {
+  if (tonalityScore === undefined || tonalityScore === null) return '';
+  if (tonalityScore > 0.8) return 'Strongly Tonal';
+  if (tonalityScore > 0.6) return 'Clearly Tonal';
+  if (tonalityScore > 0.4) return 'Ambiguous Tonality';
+  if (tonalityScore > 0.2) return 'Leaning Atonal';
+  return 'Strongly Atonal';
+}
+function getVoiceInstrumentalLabel(voiciness) {
+  if (voiciness === undefined || voiciness === null) return '';
+  if (voiciness > 0.9) return 'Acapella';
+  if (voiciness > 0.7) return 'Vocal-led';
+  if (voiciness > 0.4) return 'Balanced Voice & Inst.';
+  if (voiciness > 0.1) return 'Instrumental with Vocals';
+  return 'Purely Instrumental';
+}
+function getGrooveLabel(grooveScore) {
+  if (grooveScore === undefined || grooveScore === null) return '';
+  if (grooveScore > 0.8) return 'Deeply Funky';
+  if (grooveScore > 0.6) return 'Swinging Feel';
+  if (grooveScore > 0.4) return 'Steady Rhythm';
+  return 'Straight & On-the-grid';
+}
+function getMelodyClarityLabel(clarity) {
+  if (clarity === undefined || clarity === null) return '';
+  if (clarity > 0.8) return 'Very Prominent';
+  if (clarity > 0.6) return 'Clear & Defined';
+  if (clarity > 0.4) return 'Slightly Obscured';
+  return 'Muddled / Abstract';
+}
+function getHarmonicTensionLabel(tension) {
+  if (tension === undefined || tension === null) return '';
+  if (tension > 0.8) return 'Highly Dissonant';
+  if (tension > 0.6) return 'Tense & Unresolved';
+  if (tension > 0.3) return 'Moderate Tension';
+  return 'Calm & Resolved';
+}
+function getSilenceLabel(silencePercent) {
+  if (silencePercent === undefined || silencePercent === null) return '';
+  if (silencePercent > 25) return 'Full of Pauses';
+  if (silencePercent > 13) return 'Breathy & Spacious';
+  if (silencePercent > 5) return 'Some Space';
+  return 'Continuous Sound';
+}
+function getBrightnessLabel(brightness) {
+  if (brightness === undefined || brightness === null) return '';
+  if (brightness > 0.8) return 'Brilliant & Crisp';
+  if (brightness > 0.6) return 'Bright & Clear';
+  if (brightness > 0.4) return 'Neutral Tone';
+  if (brightness > 0.2) return 'Warm & Mellow';
+  return 'Dark & Subdued';
+}
+function getTextureLabel(density) {
+  if (density === undefined || density === null) return '';
+  if (density > 0.8) return 'Very Dense';
+  if (density > 0.6) return 'Rich & Full';
+  if (density > 0.3) return 'Moderate Texture';
+  return 'Sparse & Minimalist';
+}
+function getLayeringLabel(layerCount) {
+  if (layerCount === undefined || layerCount === null) return '';
+  if (layerCount > 8) return 'Highly Complex';
+  if (layerCount > 5) return 'Multi-layered';
+  if (layerCount > 2) return 'Moderately Layered';
+  return 'Simple Arrangement';
+}
 
-const AudioAnalysisInterface = ({ mbid }) => {
+const AudioAnalysisInterface = ({ mbid, onClose }) => {
     const [analysisData, setAnalysisData] = useState(null);
     const [loading, setLoading] = useState(!!mbid);
     const [error, setError] = useState(null);
@@ -181,12 +313,25 @@ const AudioAnalysisInterface = ({ mbid }) => {
                     <div id="modal-container" className={`modal-container${focusViewData.isOpen ? ' blurred' : ''}`}> 
                         <div className="modal-header" style={{ position: 'relative' }}>
                             <h2 className="modal-title">Comprehensive Audio Analysis</h2>
-                            <button
-                                onClick={closeModal}
-                                style={{ position: 'absolute', top: 18, right: 24, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', zIndex: 1001 }}
-                            >
-                                &times;
-                            </button>
+                            {onClose && (
+                                <button
+                                    onClick={onClose}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 18,
+                                        right: 24,
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#fff',
+                                        fontSize: 28,
+                                        cursor: 'pointer',
+                                        zIndex: 1001
+                                    }}
+                                    aria-label="Close Modal"
+                                >
+                                    &times;
+                                </button>
+                            )}
                         </div>
                         <div className="modal-content-area">
                             {/* Track Info */}
@@ -234,6 +379,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.rhythm?.bpm?.toFixed(1)}</div>
                                         <div className="card-confidence">Beats Per Minute</div>
+                                        {getBpmLabel(analysisData.rhythm?.bpm) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getBpmLabel(analysisData.rhythm?.bpm)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'beats_count' })}>
@@ -241,6 +389,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.rhythm?.beats_count ?? '--'}</div>
                                         <div className="card-confidence">Total Beats</div>
+                                        {getBeatsCountLabel(analysisData.rhythm?.beats_count) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getBeatsCountLabel(analysisData.rhythm?.beats_count)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'beats_loudness' })}>
@@ -248,6 +399,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.rhythm?.beats_loudness?.dmean !== undefined ? analysisData.rhythm.beats_loudness.dmean.toFixed(2) : '--'}</div>
                                         <div className="card-confidence">Avg. Beat Loudness</div>
+                                        {getBeatsLoudnessLabel(analysisData.rhythm?.beats_loudness?.dmean) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getBeatsLoudnessLabel(analysisData.rhythm?.beats_loudness?.dmean)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'loudness' })}>
@@ -255,6 +409,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{(analysisData.lowlevel?.average_loudness * 100).toFixed(1)}%</div>
                                         <div className="card-confidence">Average perceived volume</div>
+                                        {getLoudnessLabel(analysisData.lowlevel?.average_loudness * 100) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getLoudnessLabel(analysisData.lowlevel?.average_loudness * 100)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'dyn_complexity' })}>
@@ -262,6 +419,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.lowlevel?.dynamic_complexity?.toFixed(2)}</div>
                                         <div className="card-confidence">Loudness variation</div>
+                                        {getDynamicComplexityLabel(analysisData.lowlevel?.dynamic_complexity) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getDynamicComplexityLabel(analysisData.lowlevel?.dynamic_complexity)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'groove' })}>
@@ -269,6 +429,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.rhythm?.onset_rate !== undefined ? analysisData.rhythm.onset_rate.toFixed(2) : '--'}</div>
                                         <div className="card-confidence">Onsets/sec</div>
+                                        {getGrooveLabel(analysisData.rhythm?.onset_rate) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getGrooveLabel(analysisData.rhythm?.onset_rate)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'melody_clarity' })}>
@@ -276,6 +439,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.lowlevel?.pitch_salience?.mean !== undefined ? analysisData.lowlevel.pitch_salience.mean.toFixed(2) : '--'}</div>
                                         <div className="card-confidence">Salience</div>
+                                        {getMelodyClarityLabel(analysisData.lowlevel?.pitch_salience?.mean) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getMelodyClarityLabel(analysisData.lowlevel?.pitch_salience?.mean)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'harmonic_tension' })}>
@@ -283,6 +449,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.lowlevel?.dissonance?.mean !== undefined ? analysisData.lowlevel.dissonance.mean.toFixed(2) : '--'}</div>
                                         <div className="card-confidence">Dissonance</div>
+                                        {getHarmonicTensionLabel(analysisData.lowlevel?.dissonance?.mean) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getHarmonicTensionLabel(analysisData.lowlevel?.dissonance?.mean)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'silence' })}>
@@ -290,6 +459,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.lowlevel?.silence_rate_60dB?.mean !== undefined ? (analysisData.lowlevel.silence_rate_60dB.mean * 100).toFixed(1) + '%' : '--'}</div>
                                         <div className="card-confidence">% of Track</div>
+                                        {getSilenceLabel(analysisData.lowlevel?.silence_rate_60dB?.mean * 100) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getSilenceLabel(analysisData.lowlevel?.silence_rate_60dB?.mean * 100)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'brightness' })}>
@@ -297,6 +469,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.lowlevel?.spectral_centroid?.mean !== undefined ? analysisData.lowlevel.spectral_centroid.mean.toFixed(0) : '--'}</div>
                                         <div className="card-confidence">Centroid (Hz)</div>
+                                        {getBrightnessLabel(analysisData.lowlevel?.spectral_centroid?.mean) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getBrightnessLabel(analysisData.lowlevel?.spectral_centroid?.mean)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'texture' })}>
@@ -304,6 +479,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{Array.isArray(analysisData.lowlevel?.spectral_contrast_coeffs?.mean) ? (analysisData.lowlevel.spectral_contrast_coeffs.mean.reduce((a, b) => a + b, 0) / analysisData.lowlevel.spectral_contrast_coeffs.mean.length).toFixed(2) : '--'}</div>
                                         <div className="card-confidence">Contrast</div>
+                                        {getTextureLabel(Array.isArray(analysisData.lowlevel?.spectral_contrast_coeffs?.mean) ? (analysisData.lowlevel.spectral_contrast_coeffs.mean.reduce((a, b) => a + b, 0) / analysisData.lowlevel.spectral_contrast_coeffs.mean.length) : 0) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getTextureLabel(Array.isArray(analysisData.lowlevel?.spectral_contrast_coeffs?.mean) ? (analysisData.lowlevel.spectral_contrast_coeffs.mean.reduce((a, b) => a + b, 0) / analysisData.lowlevel.spectral_contrast_coeffs.mean.length) : 0)}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'layering' })}>
@@ -311,6 +489,9 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                     <div className="card-main-value-container">
                                         <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.lowlevel?.spectral_complexity?.mean !== undefined ? analysisData.lowlevel.spectral_complexity.mean.toFixed(2) : '--'}</div>
                                         <div className="card-confidence">Complexity</div>
+                                        {getLayeringLabel(analysisData.lowlevel?.spectral_complexity?.mean) && (
+                                            <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getLayeringLabel(analysisData.lowlevel?.spectral_complexity?.mean)}</div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -320,19 +501,19 @@ const AudioAnalysisInterface = ({ mbid }) => {
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'chart', data: 'tonality' })}>
                                     <div className="card-title" style={{ textAlign: 'left' }}>Tonality Profile</div>
                                     <div className="card-main-value-container">
-                                        <DetailedChartCard title="Tonality Profile" chartType="tonality" analysisData={analysisData} />
+                                        <DetailedChartCard chartType="tonality" analysisData={analysisData} />
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'chart', data: 'melbands' })}>
                                     <div className="card-title" style={{ textAlign: 'left' }}>Mel Bands Mean Energy</div>
                                     <div className="card-main-value-container">
-                                        <DetailedChartCard title="Mel Bands Mean Energy" chartType="melbands" analysisData={analysisData} />
+                                        <DetailedChartCard chartType="melbands" analysisData={analysisData} />
                                     </div>
                                 </div>
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'chart', data: 'chords' })}>
                                     <div className="card-title" style={{ textAlign: 'left' }}>Chords Histogram</div>
                                     <div className="card-main-value-container">
-                                        <DetailedChartCard title="Chords Histogram" chartType="chords" analysisData={analysisData} />
+                                        <DetailedChartCard chartType="chords" analysisData={analysisData} />
                                     </div>
                                 </div>
                             </div>
@@ -484,7 +665,25 @@ const FocusView = ({ data, onClose, analysisData, tooltips }) => {
     }
     return (
         <div className="focus-view-overlay" onClick={onClose}>
-            <div className="focus-view-content" onClick={(e) => e.stopPropagation()}>
+            <div className="focus-view-content" onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
+                {/* Close button for focus mode */}
+                <button
+                    onClick={onClose}
+                    style={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 18,
+                        background: 'none',
+                        border: 'none',
+                        color: '#fff',
+                        fontSize: 28,
+                        cursor: 'pointer',
+                        zIndex: 1001
+                    }}
+                    aria-label="Close Focus View"
+                >
+                    &times;
+                </button>
                 {content}
             </div>
         </div>
@@ -513,77 +712,77 @@ const FocusMetricView = ({ metricKey, analysisData, tooltips }) => {
             title = 'Average Loudness';
             interpretation = `This value represents the overall perceived volume. A score of ${value} suggests a relatively high and consistent volume level, common in commercially produced music.`;
             definition = METRIC_DEFINITIONS.loudness;
-            labelComment = getVolumeLabel(analysisData.lowlevel.average_loudness);
+            labelComment = getLoudnessLabel((analysisData.lowlevel.average_loudness * 100));
             break;
         case 'dyn_complexity':
             value = analysisData.lowlevel.dynamic_complexity.toFixed(2);
             title = 'Dynamic Complexity';
             interpretation = `This score of ${value} reflects the variation in loudness throughout the track. Higher values indicate significant changes between quiet and loud sections, contributing to a more expressive and less uniform sound.`;
             definition = METRIC_DEFINITIONS.dyn_complexity;
-            labelComment = getDynamicLabelUX(analysisData.lowlevel.dynamic_complexity);
+            labelComment = getDynamicComplexityLabel(analysisData.lowlevel.dynamic_complexity);
             break;
         case 'beats_count':
             value = analysisData.rhythm.beats_count ?? '--';
             title = 'Beats Count';
             interpretation = `This metric represents the total number of detected beats in the track. A higher count often indicates a more rhythmically active or longer song.`;
             definition = METRIC_DEFINITIONS.beats_count;
-            labelComment = `Total Beats: ${analysisData.rhythm.beats_count ?? '--'}`;
+            labelComment = getBeatsCountLabel(analysisData.rhythm.beats_count);
             break;
         case 'beats_loudness':
             value = analysisData.rhythm.beats_loudness?.dmean !== undefined ? analysisData.rhythm.beats_loudness.dmean.toFixed(2) : '--';
             title = 'Beats Loudness';
             interpretation = `This metric reflects the average loudness of detected beats. A higher average loudness typically indicates a more energetic or punchy rhythm section.`;
             definition = METRIC_DEFINITIONS.beats_loudness;
-            labelComment = `Avg. Beat Loudness: ${value}`;
+            labelComment = getBeatsLoudnessLabel(analysisData.rhythm.beats_loudness?.dmean);
             break;
         case 'groove':
             value = analysisData.rhythm?.onset_rate !== undefined ? analysisData.rhythm.onset_rate.toFixed(2) : '--';
             title = 'Groove';
             interpretation = `This metric reflects the complexity and regularity of rhythmic onsets, indicating how "groovy" or complex the rhythm is. A higher value suggests a more rhythmically active or complex track.`;
             definition = METRIC_DEFINITIONS.groove;
-            labelComment = `Onsets/sec: ${value}`;
+            labelComment = getGrooveLabel(analysisData.rhythm?.onset_rate);
             break;
         case 'melody_clarity':
             value = analysisData.lowlevel?.pitch_salience?.mean !== undefined ? analysisData.lowlevel.pitch_salience.mean.toFixed(2) : '--';
             title = 'Melody Clarity';
             interpretation = `This metric reflects how clear and prominent the melody is in the track. A higher value indicates a more melodic and memorable composition.`;
             definition = METRIC_DEFINITIONS.melody_clarity;
-            labelComment = `Salience: ${value}`;
+            labelComment = getMelodyClarityLabel(analysisData.lowlevel?.pitch_salience?.mean);
             break;
         case 'harmonic_tension':
             value = analysisData.lowlevel?.dissonance?.mean !== undefined ? analysisData.lowlevel.dissonance.mean.toFixed(2) : '--';
             title = 'Harmonic Tension';
             interpretation = `This metric reflects the perceived tension in the harmony, often related to dissonance. A higher value indicates a more complex or dissonant harmonic structure.`;
             definition = METRIC_DEFINITIONS.harmonic_tension;
-            labelComment = `Dissonance: ${value}`;
+            labelComment = getHarmonicTensionLabel(analysisData.lowlevel?.dissonance?.mean);
             break;
         case 'silence':
             value = analysisData.lowlevel?.silence_rate_60dB?.mean !== undefined ? (analysisData.lowlevel.silence_rate_60dB.mean * 100).toFixed(1) + '%' : '--';
             title = 'Silence';
             interpretation = `This metric represents the proportion of the track that is silent or near-silent. A higher value indicates a more silent or introspective track.`;
             definition = METRIC_DEFINITIONS.silence;
-            labelComment = `% of Track: ${value}`;
+            labelComment = getSilenceLabel((analysisData.lowlevel.silence_rate_60dB?.mean) * 100);
             break;
         case 'brightness':
             value = analysisData.lowlevel?.spectral_centroid?.mean !== undefined ? analysisData.lowlevel.spectral_centroid.mean.toFixed(0) : '--';
             title = 'Brightness';
             interpretation = `This metric reflects the perceived brightness of the sound, related to spectral centroid. A higher value indicates a brighter or more energetic sound.`;
             definition = METRIC_DEFINITIONS.brightness;
-            labelComment = `Centroid (Hz): ${value}`;
+            labelComment = getBrightnessLabel(analysisData.lowlevel?.spectral_centroid?.mean);
             break;
         case 'texture':
             value = Array.isArray(analysisData.lowlevel?.spectral_contrast_coeffs?.mean) ? (analysisData.lowlevel.spectral_contrast_coeffs.mean.reduce((a, b) => a + b, 0) / analysisData.lowlevel.spectral_contrast_coeffs.mean.length).toFixed(2) : '--';
             title = 'Texture';
             interpretation = `This metric reflects the complexity of the sound texture, often related to spectral contrast. A higher value indicates a more complex or varied sound texture.`;
             definition = METRIC_DEFINITIONS.texture;
-            labelComment = `Contrast: ${value}`;
+            labelComment = getTextureLabel(Array.isArray(analysisData.lowlevel?.spectral_contrast_coeffs?.mean) ? (analysisData.lowlevel.spectral_contrast_coeffs.mean.reduce((a, b) => a + b, 0) / analysisData.lowlevel.spectral_contrast_coeffs.mean.length) : 0);
             break;
         case 'layering':
             value = analysisData.lowlevel?.spectral_complexity?.mean !== undefined ? analysisData.lowlevel.spectral_complexity.mean.toFixed(2) : '--';
             title = 'Layering';
             interpretation = `This metric reflects the number of simultaneous sound sources or layers in the track. A higher value indicates a more layered or complex soundscape.`;
             definition = METRIC_DEFINITIONS.layering;
-            labelComment = `Complexity: ${value}`;
+            labelComment = getLayeringLabel(analysisData.lowlevel?.spectral_complexity?.mean);
             break;
         default:
             return <p>Unknown Metric</p>;
@@ -592,7 +791,16 @@ const FocusMetricView = ({ metricKey, analysisData, tooltips }) => {
         <div style={{ padding: '2rem', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#d1d5db', marginBottom: '0.5rem' }}>{title}</h3>
             <p className="gradient-text" style={{ fontSize: '4.5rem', fontWeight: '800', margin: '1.5rem 0' }}>{value}</p>
-            {labelComment && <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, marginBottom: 12 }}>{labelComment}</div>}
+            {labelComment && (
+                <div style={{
+                    fontSize: '2rem',
+                    fontWeight: 700,
+                    color: '#38bdf8',
+                    marginBottom: 18,
+                    letterSpacing: 0.5,
+                    textShadow: '0 2px 12px #0ea5e9cc',
+                }}>{labelComment}</div>
+            )}
             <div style={{ maxWidth: '36rem', margin: '0 auto' }}>
                 <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Interpretation</h4>
                 <p style={{ color: '#9ca3af' }}>{interpretation}</p>
@@ -675,31 +883,78 @@ const FocusChartView = ({ chartType, analysisData }) => {
     const chartInstance = useRef(null);
     let title = '';
     let dominantChordText = '';
+    let xLabels = [];
+    let yData = [];
+    let xAxisExplanation = '';
+    let leaderboard = [];
+    let majorLeaderboard = [];
+    let minorLeaderboard = [];
+    let majorChords = [];
+    let minorChords = [];
+    let labelLogic = '';
+    let definition = '';
+    let interpretation = '';
+    let yAxisExplanation = '';
+    switch (chartType) {
+        case 'melbands':
+            title = 'Mel Bands Energy';
+            xLabels = analysisData.lowlevel.melbands.mean.map((_, i) => `Band ${i + 1}`);
+            yData = analysisData.lowlevel.melbands.mean;
+            xAxisExplanation = 'Each band represents a frequency range modeled after human hearing.';
+            yAxisExplanation = 'The relative energy or strength in each frequency band.';
+            definition = METRIC_DEFINITIONS.melbands;
+            leaderboard = xLabels.map((label, i) => [label, yData[i]]).sort((a, b) => b[1] - a[1]);
+            interpretation = 'Bands with higher energy indicate dominant frequency regions.';
+            break;
+        case 'chords':
+            title = 'Chords Histogram';
+            xLabels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            majorChords = analysisData.tonal.chords_histogram.slice(0, 12);
+            minorChords = analysisData.tonal.chords_histogram.slice(12);
+            yData = majorChords.map((v, i) => v + minorChords[i]);
+            xAxisExplanation = 'Each label is a musical chord (Major or Minor).';
+            yAxisExplanation = 'The strength of each major and minor chord.';
+            definition = METRIC_DEFINITIONS.chords;
+            leaderboard = xLabels.map((label, i) => [label, yData[i]]).sort((a, b) => b[1] - a[1]);
+            majorLeaderboard = xLabels.map((label, i) => [label, majorChords[i]]).sort((a, b) => b[1] - a[1]);
+            minorLeaderboard = xLabels.map((label, i) => [label, minorChords[i]]).sort((a, b) => b[1] - a[1]);
+            const maxIdx = yData.indexOf(Math.max(...yData));
+            labelLogic = `Dominant: ${xLabels[maxIdx]}`;
+            interpretation = 'The dominant chord(s) indicate the harmonic center of the track.';
+            break;
+        case 'tonality':
+            title = 'Tonality Profile';
+            xLabels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            yData = analysisData.tonal.thpcp.slice(0, 12);
+            xAxisExplanation = 'Each label is a pitch class (note name).';
+            yAxisExplanation = 'Y axis shows the relative strength of each pitch class.';
+            definition = METRIC_DEFINITIONS.tonality;
+            leaderboard = xLabels.map((label, i) => [label, yData[i]]).sort((a, b) => b[1] - a[1]);
+            const maxPitchIdx = yData.indexOf(Math.max(...yData));
+            labelLogic = `Dominant: ${xLabels[maxPitchIdx]}`;
+            interpretation = 'The dominant pitch class indicates the tonal center of the track.';
+            break;
+        default:
+            break;
+    }
     useEffect(() => {
         if (canvasRef.current) {
             if (chartInstance.current) chartInstance.current.destroy();
             const ctx = canvasRef.current.getContext('2d');
-            const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Strength / Energy', color: '#FFFFFF' }, ticks: { color: '#FFFFFF' } }, x: { title: { display: true, text: 'Band / Class', color: '#FFFFFF' }, ticks: { color: '#FFFFFF', minRotation: 0, maxRotation: 0 } } } };
+            const chartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: 'Strength / Energy', color: '#FFFFFF' }, ticks: { color: '#FFFFFF' } }, x: { title: { display: true, text: 'Band / Class', color: '#FFFFFF' }, ticks: { color: '#FFFFFF', minRotation: 0, maxRotation: 0 } } }, plugins: { legend: { labels: { color: '#d1d5db' }, position: 'bottom' } } };
             let config = {};
             switch (chartType) {
                 case 'melbands':
-                    title = 'Mel Bands Energy';
-                    config = { type: 'line', data: { labels: analysisData.lowlevel.melbands.mean.map((_, i) => `Band ${i + 1}`), datasets: [{ label: 'Mean Energy', data: analysisData.lowlevel.melbands.mean, borderColor: 'rgba(34, 211, 238, 1)', backgroundColor: 'rgba(34, 211, 238, 0.2)', fill: true, tension: 0.4 }] }, options: { ...chartOptions, plugins: { legend: { display: false } } } };
+                    config = { type: 'line', data: { labels: xLabels, datasets: [{ label: 'Mean Energy', data: yData, borderColor: 'rgba(34, 211, 238, 1)', backgroundColor: 'rgba(34, 211, 238, 0.2)', fill: true, tension: 0.4 }] }, options: { ...chartOptions, plugins: { legend: { display: false } } } };
                     break;
                 case 'chords':
-                    title = 'Chords Histogram';
-                    const chordLabels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-                    const majorChords = analysisData.tonal.chords_histogram.slice(0, 12);
-                    const minorChords = analysisData.tonal.chords_histogram.slice(12);
-                    const dominantMajorIndex = majorChords.indexOf(Math.max(...majorChords));
-                    const dominantMinorIndex = minorChords.indexOf(Math.max(...minorChords));
-                    dominantChordText = `Dominant Chords: ${chordLabels[dominantMajorIndex]} (Major), ${chordLabels[dominantMinorIndex]}m (Minor)`;
-                    config = { type: 'line', data: { labels: chordLabels, datasets: [{ label: 'Major Chords', data: majorChords, borderColor: 'rgba(59, 130, 246, 1)', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true, tension: 0.3, pointRadius: (ctx) => ctx.dataIndex === dominantMajorIndex ? 6 : 3, pointBackgroundColor: (ctx) => ctx.dataIndex === dominantMajorIndex ? '#38bdf8' : 'rgba(59, 130, 246, 1)' }, { label: 'Minor Chords', data: minorChords, borderColor: 'rgba(234, 179, 8, 1)', backgroundColor: 'rgba(234, 179, 8, 0.2)', fill: true, tension: 0.3, pointRadius: (ctx) => ctx.dataIndex === dominantMinorIndex ? 6 : 3, pointBackgroundColor: (ctx) => ctx.dataIndex === dominantMinorIndex ? '#facc15' : 'rgba(234, 179, 8, 1)' }] }, options: { ...chartOptions, plugins: { legend: { labels: { color: '#d1d5db' } } } } };
+                    config = { type: 'line', data: { labels: xLabels, datasets: [
+                        { label: 'Major Chords', data: majorChords, borderColor: 'rgba(59, 130, 246, 1)', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true, tension: 0.3 },
+                        { label: 'Minor Chords', data: minorChords, borderColor: 'rgba(234, 179, 8, 1)', backgroundColor: 'rgba(234, 179, 8, 0.2)', fill: true, tension: 0.3 }
+                    ] }, options: chartOptions };
                     break;
                 case 'tonality':
-                    title = 'Tonality Profile';
-                    const thpcpLabels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-                    config = { type: 'line', data: { labels: thpcpLabels, datasets: [{ label: 'Pitch Strength', data: analysisData.tonal.thpcp.slice(0, 12), borderColor: 'rgba(22, 163, 74, 1)', backgroundColor: 'rgba(22, 163, 74, 0.2)', fill: true, tension: 0.4 }] }, options: { ...chartOptions, plugins: { legend: { display: false } }, scales: { ...chartOptions.scales, x: { ...chartOptions.scales.x, title: { display: true, text: 'Pitch Class', color: '#FFFFFF' } } } } };
+                    config = { type: 'line', data: { labels: xLabels, datasets: [{ label: 'Pitch Strength', data: yData, borderColor: 'rgba(22, 163, 74, 1)', backgroundColor: 'rgba(22, 163, 74, 0.2)', fill: true, tension: 0.4 }] }, options: { ...chartOptions, plugins: { legend: { display: false } }, scales: { ...chartOptions.scales, x: { ...chartOptions.scales.x, title: { display: true, text: 'Pitch Class', color: '#FFFFFF' } } } } };
                     break;
                 default:
                     break;
@@ -709,15 +964,53 @@ const FocusChartView = ({ chartType, analysisData }) => {
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
     }, [chartType, analysisData]);
     return (
-        <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ marginBottom: '1rem' }}>
-                <h3 className="gradient-text" style={{ fontSize: '1.5rem', fontWeight: '700', textTransform: 'capitalize' }}>{title}</h3>
-                {dominantChordText && <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{dominantChordText}</p>}
-            </div>
-            <div className="scrollable-chart" style={{ flexGrow: 1, overflowX: 'auto' }}>
-                <div style={{ width: '1200px', height: '100%' }}>
+        <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'row', gap: '2.5rem' }}>
+            <div style={{ flex: 2, minWidth: 0 }}>
+                <div className="scrollable-chart" style={{ width: '100%', height: '100%' }}>
                     <canvas ref={canvasRef}></canvas>
                 </div>
+            </div>
+            <div style={{ flex: 1, minWidth: 320, maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <h3 className="gradient-text" style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>{title}</h3>
+                {labelLogic && <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, marginBottom: 8 }}>{labelLogic}</div>}
+                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Interpretation:</b> {interpretation}</div>
+                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Definition:</b> {definition}</div>
+                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>X Axis:</b> {xAxisExplanation}</div>
+                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Y Axis:</b> {yAxisExplanation}</div>
+                {chartType === 'chords' ? (
+                    <>
+                        <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Major Chords Leaderboard</div>
+                        <div style={{ maxHeight: 140, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px', marginBottom: 12 }}>
+                            {majorLeaderboard.map(([label, val], i) => (
+                                <div key={label + '-maj'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== majorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}</span>
+                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(3)}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Minor Chords Leaderboard</div>
+                        <div style={{ maxHeight: 140, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px' }}>
+                            {minorLeaderboard.map(([label, val], i) => (
+                                <div key={label + '-min'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== minorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}m</span>
+                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(3)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Leaderboard</div>
+                        <div style={{ maxHeight: 180, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: 8 }}>
+                            {leaderboard.map(([label, val], i) => (
+                                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '2px 0', borderBottom: i !== leaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}</span>
+                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(3)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

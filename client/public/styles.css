@@ -61,7 +61,8 @@ body {
 }
 
 .close-button {
-    color: #9ca3af; /* text-gray-400 */
+    /* color: #9ca3af; text-gray-400 */
+    color: #0284c7; /* text-white */
     font-size: 1.875rem; /* text-3xl */
     background: none;
     border: none;

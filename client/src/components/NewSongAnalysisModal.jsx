@@ -26,7 +26,7 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
           setMbid(null);
           setError('Error fetching MBID.');
         } finally {
-          setLoading(false);
+        setLoading(false);
         }
       };
       fetchMbid();
@@ -42,13 +42,12 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(20,20,20,0.88)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', width: '90vw', overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#444 #232323', background: '#18181b', borderRadius: 24, boxShadow: '0 8px 48px #000b', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 24, background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', zIndex: 1001 }}>×</button>
         {loading ? (
           <div style={{ color: 'white', textAlign: 'center', padding: '50px' }}>Loading Analysis...</div>
         ) : error ? (
           <div style={{ color: '#f87171', textAlign: 'center', padding: '50px' }}>{error}</div>
         ) : mbid ? (
-          <AudioAnalysisInterface mbid={mbid} />
+          <AudioAnalysisInterface mbid={mbid} onClose={onClose} />
         ) : (
           <div style={{ color: '#f87171', textAlign: 'center', padding: '50px' }}>No analysis available for this track.</div>
         )}
