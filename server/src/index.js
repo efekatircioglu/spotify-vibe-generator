@@ -258,10 +258,10 @@ app.get('/concerts/artist-search', async (req, res) => {
 
 // Get events by artist ID (Ticketmaster)
 app.get('/concerts/events', async (req, res) => {
-  const { artistId } = req.query;
+  const { artistId, location } = req.query;
   if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
   try {
-    const data = await ticketmasterService.getEventsByArtistId(artistId);
+    const data = await ticketmasterService.getEventsByArtistId(artistId, location);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message || 'Failed to get events' });
@@ -371,6 +371,73 @@ app.get('/last-12-months', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch last 12 months data' });
+  }
+});
+
+// New endpoint to get all artists from all time periods, deduplicated
+app.get('/all-artists-deduplicated', async (req, res) => {
+  try {
+    // Fetch artists from all three time periods
+    const [data12Months, data6Months, data4Weeks] = await Promise.all([
+      getTopData('long_term'),
+      getTopData('medium_term'),
+      getTopData('short_term')
+    ]);
+
+    // Create a map to track seen artists and their time periods
+    const artistMap = new Map();
+    
+    // Process 12 months artists first (highest priority)
+    data12Months.artists.forEach((artist, index) => {
+      if (index < 50) { // Only take first 50
+        artistMap.set(artist.id, {
+          ...artist,
+          timePeriod: '12_months',
+          originalRank: index + 1
+        });
+      }
+    });
+
+    // Process 6 months artists (medium priority)
+    data6Months.artists.forEach((artist, index) => {
+      if (index < 50 && !artistMap.has(artist.id)) { // Only if not already in 12 months
+        artistMap.set(artist.id, {
+          ...artist,
+          timePeriod: '6_months',
+          originalRank: index + 1
+        });
+      }
+    });
+
+    // Process 4 weeks artists (lowest priority)
+    data4Weeks.artists.forEach((artist, index) => {
+      if (index < 50 && !artistMap.has(artist.id)) { // Only if not already in 12 or 6 months
+        artistMap.set(artist.id, {
+          ...artist,
+          timePeriod: '4_weeks',
+          originalRank: index + 1
+        });
+      }
+    });
+
+    // Convert map to array and sort by time period priority
+    const allArtists = Array.from(artistMap.values()).sort((a, b) => {
+      const priorityOrder = { '12_months': 1, '6_months': 2, '4_weeks': 3 };
+      return priorityOrder[a.timePeriod] - priorityOrder[b.timePeriod];
+    });
+
+    res.json({
+      artists: allArtists,
+      totalCount: allArtists.length,
+      breakdown: {
+        '12_months': allArtists.filter(a => a.timePeriod === '12_months').length,
+        '6_months': allArtists.filter(a => a.timePeriod === '6_months').length,
+        '4_weeks': allArtists.filter(a => a.timePeriod === '4_weeks').length
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch deduplicated artists data' });
   }
 });
 
@@ -704,6 +771,43 @@ app.delete('/me/following/artist/:id', async (req, res) => {
   } catch (err) {
     console.error('Error unfollowing artist:', err);
     res.status(500).json({ error: 'Failed to unfollow artist' });
+  }
+});
+
+// Get all followed artists
+app.get('/me/following/artists', async (req, res) => {
+  try {
+    const { body } = await spotifyApi.getFollowedArtists({ limit: 50 });
+    res.json({ artists: body.artists.items });
+  } catch (err) {
+    console.error('Error fetching followed artists:', err);
+    res.status(500).json({ error: 'Failed to fetch followed artists' });
+  }
+});
+
+// Search artists
+app.get('/spotify/search-artists', async (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.status(400).json({ error: 'Missing search query' });
+  try {
+    const { body } = await spotifyApi.searchArtists(q, { limit: 10 });
+    res.json({ artists: body.artists.items });
+  } catch (err) {
+    console.error('Error searching artists:', err);
+    res.status(500).json({ error: 'Failed to search artists' });
+  }
+});
+
+// Search artists on Ticketmaster
+app.get('/ticketmaster/search-artist', async (req, res) => {
+  const { artistName } = req.query;
+  if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
+  try {
+    const data = await ticketmasterService.searchArtist(artistName);
+    res.json(data);
+  } catch (err) {
+    console.error('Error searching artist on Ticketmaster:', err);
+    res.status(500).json({ error: 'Failed to search artist' });
   }
 });
 

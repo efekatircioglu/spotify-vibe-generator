@@ -19,15 +19,20 @@ async function searchArtist(artistName) {
   }
 }
 
-async function getEventsByArtistId(artistId) {
+async function getEventsByArtistId(artistId, location = null) {
   const url = `${BASE_URL}/events.json`;
   try {
-    const response = await axios.get(url, {
-      params: {
-        attractionId: artistId,
-        apikey: TICKETMASTER_API_KEY,
-      },
-    });
+    const params = {
+      attractionId: artistId,
+      apikey: TICKETMASTER_API_KEY,
+    };
+    
+    // Add location parameter if provided
+    if (location) {
+      params.city = location;
+    }
+    
+    const response = await axios.get(url, { params });
     return response.data;
   } catch (error) {
     throw new Error('Failed to get events from Ticketmaster');

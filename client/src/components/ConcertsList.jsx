@@ -3,7 +3,7 @@ import ReactCalendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import CustomCalendar from '../components/CustomCalendar';
 
-export default function ConcertsList({ concerts = [] }) {
+export default function ConcertsList({ concerts = [], selectedArtist = null }) {
   const eventRefs = useRef({});
 
   // Helper to format date
@@ -45,7 +45,9 @@ export default function ConcertsList({ concerts = [] }) {
       <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '2.4rem', margin: '0 0 32px 50px', letterSpacing: 1 }}>Upcoming Concerts</h2>
       <div style={{ background: '#181818', borderRadius: 18, padding: '32px 0', margin: '0 16px', boxShadow: '0 2px 24px #0002' }}>
         {concerts.length === 0 && (
-          <div style={{ color: '#b3b3b3', fontSize: 18, textAlign: 'center', padding: 32 }}>No upcoming concerts found for this artist.</div>
+          <div style={{ color: '#b3b3b3', fontSize: 18, textAlign: 'center', padding: 32 }}>
+            {selectedArtist ? 'No upcoming concerts found for this artist.' : 'No upcoming concerts found.'}
+          </div>
         )}
         {concerts.map((event, idx) => {
             // Try to get date parts from event.dates?.start?.localDate
@@ -94,7 +96,34 @@ export default function ConcertsList({ concerts = [] }) {
                         <path fillRule="evenodd" d="M5.5 8.5A.5.5 0 016 8v1a4 4 0 004 4 .5.5 0 010 1 5 5 0 01-5-5V8.5A.5.5 0 015.5 8.5zM9 4a1 1 0 102 0V3a1 1 0 10-2 0v1z"/>
                         <path d="M13.5 8.5a.5.5 0 00-.5-.5v-1a5 5 0 00-5 5 .5.5 0 001 0 4 4 0 014-4v1a.5.5 0 00.5.5z"/>
                       </svg>
-                      {event._embedded.attractions.map(a => a.name).join(', ')}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {event._embedded.attractions.map((attraction, index) => {
+                          const isSelectedArtist = selectedArtist && 
+                            selectedArtist.split(', ').some(artistName => {
+                              const matches = attraction.name.toLowerCase().includes(artistName.toLowerCase()) ||
+                                artistName.toLowerCase().includes(attraction.name.toLowerCase());
+                              if (matches) {
+                                console.log(`Highlighting: "${attraction.name}" matches "${artistName}"`);
+                              }
+                              return matches;
+                            });
+                          
+                          return (
+                            <span
+                              key={attraction.id || index}
+                              style={{
+                                color: isSelectedArtist ? '#fbbf24' : '#b3b3b3',
+                                fontWeight: isSelectedArtist ? 700 : 400,
+                              }}
+                            >
+                              {attraction.name}
+                              {index < event._embedded.attractions.length - 1 && (
+                                <span style={{ color: '#b3b3b3', fontWeight: 400 }}>, </span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

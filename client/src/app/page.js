@@ -946,6 +946,7 @@ const handleExploreContributions = async (track) => {
               <button className={styles.timeRangeButton} onClick={() => handleTimeRangeNav('/last-4-weeks')}>Last 4 Weeks</button>
               <button className={styles.timeRangeButton} onClick={() => handleTimeRangeNav('/last-6-months')}>Last 6 Months</button>
               <button className={styles.timeRangeButton} onClick={() => handleTimeRangeNav('/last-12-months')}>Last 12 Months</button>
+              <button className={styles.timeRangeButton} onClick={() => router.push('/concerts')}>Find Concerts</button>
             </div>
             <div className={styles.orDivider}><span>OR</span></div>
         <div className={styles.actionButtons}>

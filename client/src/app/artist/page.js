@@ -503,7 +503,7 @@ export default function ArtistConcertsPage() {
           {loading && <div>Loading concerts...</div>}
           {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
           {!loading && !error && (
-            <ConcertsList concerts={concerts} />
+            <ConcertsList concerts={concerts} selectedArtist={artistName} />
           )}
         </>
       )}
