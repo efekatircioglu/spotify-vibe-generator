@@ -6,6 +6,30 @@ import AlbumSelector from '../../components/AlbumSelector';
 import TrackTable from '../../components/TrackTable';
 import ConcertsList from '../../components/ConcertsList';
 
+// Add this helper function at the top-level (outside the component)
+function discogsProfileToLinks(profile) {
+  if (!profile) return '';
+  // [a=Name] or [l=Name] → just the name
+  let result = profile
+    .replace(/\[a=([^\]]+)\]/g, '$1')
+    .replace(/\[l=([^\]]+)\]/g, '$1');
+  // [a12345] → link to artist
+  result = result.replace(/\[a(\d+)\]/g, (match, id) =>
+    `<a href="https://www.discogs.com/artist/${id}" target="_blank" rel="noopener noreferrer">Artist #${id}</a>`
+  );
+  // [l67890] → link to label
+  result = result.replace(/\[l(\d+)\]/g, (match, id) =>
+    `<a href="https://www.discogs.com/label/${id}" target="_blank" rel="noopener noreferrer">Label #${id}</a>`
+  );
+  // [r54321] → link to release
+  result = result.replace(/\[r(\d+)\]/g, (match, id) =>
+    `<a href="https://www.discogs.com/release/${id}" target="_blank" rel="noopener noreferrer">Release #${id}</a>`
+  );
+  // Remove any other [bracketed] codes
+  result = result.replace(/\[[^\]]+\]/g, '');
+  return result;
+}
+
 export default function ArtistConcertsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -32,6 +56,8 @@ export default function ArtistConcertsPage() {
   const [artistFollowers, setArtistFollowers] = useState(null);
   const [isFollowing, setIsFollowing] = useState(null);
   const [followLoading, setFollowLoading] = useState(false);
+  const [discogsProfile, setDiscogsProfile] = useState(null);
+  const [discogsRealName, setDiscogsRealName] = useState(null);
 
   // Album group filter state
   const [albumGroup, setAlbumGroup] = useState('album');
@@ -136,6 +162,22 @@ export default function ArtistConcertsPage() {
       .catch(() => setIsFollowing(false));
   }, [spotifyId]);
 
+  // Fetch Discogs artist profile when artistName changes
+  useEffect(() => {
+    if (!artistName) return;
+    console.log("Fetching Discogs profile for:", artistName);
+    fetch(`http://localhost:8000/discogs/artist-profile?name=${encodeURIComponent(artistName)}`)
+      .then(res => res.json())
+      .then(data => {
+        setDiscogsProfile(data.profile || null);
+        setDiscogsRealName(data.realName || null);
+        console.log("Discogs profile response:", data);
+      })
+      .catch(err => {
+        console.error("Error fetching Discogs profile:", err);
+      });
+  }, [artistName]);
+
   // Fetch concerts (existing logic, but after albums)
   useEffect(() => {
     if (!ticketmasterId) return;
@@ -180,7 +222,7 @@ export default function ArtistConcertsPage() {
   }));
 
   return (
-    <main style={{ padding: 0, margin: 0 }}>
+    <main style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh' }}>
       {/* Artist Info and Albums */}
       {selectedArtist && (
         <>
@@ -332,6 +374,37 @@ export default function ArtistConcertsPage() {
               </div>
             </div>
           </div>
+
+          {/* About (Discogs profile) block - show above albums if exists */}
+          {discogsProfile && (
+            <div style={{
+              marginTop: 18,
+              background: '#181c24',
+              color: '#b3b3b3',
+              padding: 18,
+              borderRadius: 12,
+              maxWidth: '80vw',
+              width: '80vw',
+              minWidth: 320,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              boxShadow: '0 2px 16px #0004',
+              fontSize: 18,
+              fontWeight: 400,
+              whiteSpace: 'pre-line',
+              textAlign: 'left',
+            }}>
+              {discogsRealName && (
+                <div style={{ color: '#fff', fontWeight: 600, fontSize: 20, marginBottom: 8 }}>
+                  Real Name: <span style={{ color: '#38bdf8' }}>{discogsRealName}</span>
+                </div>
+              )}
+              <strong style={{ color: '#fff', fontSize: 22 }}>About:</strong>
+              <div style={{ marginTop: 8 }}
+                dangerouslySetInnerHTML={{ __html: discogsProfileToLinks(discogsProfile) }}
+              />
+            </div>
+          )}
           
           {/* Album Selector */}
           <div style={{ marginBottom: 64, marginTop: 48 }}>

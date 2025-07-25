@@ -375,13 +375,24 @@ const handleExploreContributions = async (track) => {
     }
   }
   function saveRecentSearch(artistObj) {
+    const spotifyId = artistObj.spotifyId || artistObj.id;
+    const name = artistObj.name;
+    if (!spotifyId || !name) {
+      // Do not add entry if no valid Spotify ID or name
+      return;
+    }
     let searches = getRecentSearches();
     // Remove any previous entry with the same name or spotifyId
     searches = searches.filter(
-      s => s.name !== artistObj.name && s.spotifyId !== artistObj.spotifyId
+      s => s.name !== name && s.spotifyId !== spotifyId
     );
-    searches = [artistObj, ...searches];
-    // Remove the .slice(0, 7) to keep all searches
+    const entry = {
+      name,
+      spotifyId,
+      image: artistObj.image || (artistObj.images && artistObj.images[0]?.url) || null,
+      ticketmasterId: artistObj.ticketmasterId || null,
+    };
+    searches = [entry, ...searches];
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
   }
 

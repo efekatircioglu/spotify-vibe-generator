@@ -15,7 +15,9 @@
     "cors": "^2.8.5",
     "dotenv": "^17.0.0",
     "express": "^5.1.0",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.4",
+    "pg": "^8.16.3",
     "spotify-web-api-node": "^5.0.2"
   }
 }

@@ -42,9 +42,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const handleContributionsClick = async (track) => {
     setSelectedTrackInfo(track);
     setContributorModalOpen(true);
-    
-    // Lookup MBID for the track
-    const mbid = await lookupTrackMBID(track);
+    // Always use track.id for MBID lookup
+    const mbid = await lookupTrackMBID(track.id);
     setSelectedTrackMBID(mbid);
   };
 

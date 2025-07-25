@@ -6,6 +6,8 @@ const SpotifyWebApi = require('spotify-web-api-node');
 const { Pool } = require('pg');
 const pool = new Pool(); // Uses .env variables automatically
 const axios = require('axios');
+const { getDiscogsArtistProfile } = require('./services/discogsService');
+const { getArtistBio } = require('./services/discogsService');
 
 const app = express();
 const PORT = 8000;
@@ -702,6 +704,24 @@ app.delete('/me/following/artist/:id', async (req, res) => {
   } catch (err) {
     console.error('Error unfollowing artist:', err);
     res.status(500).json({ error: 'Failed to unfollow artist' });
+  }
+});
+
+app.get('/discogs/artist-profile', async (req, res) => {
+  const { name } = req.query;
+  console.log(`[Discogs API] /discogs/artist-profile called with name:`, name);
+  if (!name) return res.status(400).json({ error: 'Missing artist name' });
+  try {
+    const result = await getArtistBio(name);
+    if (result.error) {
+      console.log(`[Discogs API] No profile found for:`, name, '| Error:', result.error);
+      return res.status(404).json({ error: result.error });
+    }
+    console.log(`[Discogs API] Profile found for:`, name, '| First 120 chars:', result.profile ? result.profile.substring(0, 120) + '...' : 'No profile');
+    res.json(result);
+  } catch (e) {
+    console.error(`[Discogs API] Error fetching profile for:`, name, e);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
