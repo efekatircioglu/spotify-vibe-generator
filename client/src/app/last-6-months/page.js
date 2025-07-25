@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
-import TrackTable from '../../components/TrackTable';
+import NewTrackTable from '../../components/NewTrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
 import ContributorFinder from '../../components/ContributorFinder';
 import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
@@ -80,9 +80,9 @@ export default function Last6MonthsPage() {
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
-        <TrackTable
+        <NewTrackTable
           tracks={data.tracks}
-          title="Top Tracks: Last 6 Months"
+          title="Top Tracks in Last 6 Months"
           playlistKey="last6months"
           loading={loading}
           error={error}

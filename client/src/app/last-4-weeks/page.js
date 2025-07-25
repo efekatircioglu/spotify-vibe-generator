@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import { Doughnut } from 'react-chartjs-2';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
-import TrackTable from '../../components/TrackTable';
+import NewTrackTable from '../../components/NewTrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -94,9 +94,9 @@ export default function Last4WeeksPage() {
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
-        <TrackTable
+        <NewTrackTable
           tracks={data.tracks}
-          title="Top Tracks: Last 4 Weeks"
+          title="Top Tracks in Last 4 Weeks"
           playlistKey="last4weeks"
           loading={loading}
           error={error}

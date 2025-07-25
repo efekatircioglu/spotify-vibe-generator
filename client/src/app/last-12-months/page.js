@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 // import { Doughnut } from 'react-chartjs-2';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
-import TrackTable from '../../components/TrackTable';
+import NewTrackTable from '../../components/NewTrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
 import ContributorFinder from '../../components/ContributorFinder';
 import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
@@ -82,9 +82,9 @@ export default function Last12MonthsPage() {
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
-        <TrackTable
+        <NewTrackTable
           tracks={data.tracks}
-          title="Top Tracks: Last 12 Months"
+          title="Top Tracks in Last 12 Months"
           playlistKey="last12months"
           loading={loading}
           error={error}

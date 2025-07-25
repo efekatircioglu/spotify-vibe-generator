@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import AlbumSelector from '../../components/AlbumSelector';
-import TrackTable from '../../components/TrackTable';
+import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 
 // Add this helper function at the top-level (outside the component)
@@ -15,19 +15,31 @@ function discogsProfileToLinks(profile) {
     .replace(/\[l=([^\]]+)\]/g, '$1');
   // [a12345] → link to artist
   result = result.replace(/\[a(\d+)\]/g, (match, id) =>
-    `<a href="https://www.discogs.com/artist/${id}" target="_blank" rel="noopener noreferrer">Artist #${id}</a>`
+    `<a href="https://www.discogs.com/artist/${id}" target="_blank" rel="noopener noreferrer" title="View artist on Discogs">Artist #${id}</a>`
   );
   // [l67890] → link to label
   result = result.replace(/\[l(\d+)\]/g, (match, id) =>
-    `<a href="https://www.discogs.com/label/${id}" target="_blank" rel="noopener noreferrer">Label #${id}</a>`
+    `<a href="https://www.discogs.com/label/${id}" target="_blank" rel="noopener noreferrer" title="View label on Discogs">Label #${id}</a>`
   );
   // [r54321] → link to release
   result = result.replace(/\[r(\d+)\]/g, (match, id) =>
-    `<a href="https://www.discogs.com/release/${id}" target="_blank" rel="noopener noreferrer">Release #${id}</a>`
+    `<a href="https://www.discogs.com/release/${id}" target="_blank" rel="noopener noreferrer" title="View release on Discogs">Release #${id}</a>`
   );
   // Remove any other [bracketed] codes
   result = result.replace(/\[[^\]]+\]/g, '');
   return result;
+}
+
+// Add this helper function for genre/style lookup (copied from AlbumSelector.jsx)
+function findDiscogsGenreStyle(albumName, genreStyleMap) {
+  if (!albumName || !genreStyleMap) return null;
+  const normalized = albumName.trim().toLowerCase();
+  for (const key of Object.keys(genreStyleMap)) {
+    if (key.toLowerCase().endsWith(normalized)) {
+      return { discogsKey: key, genre: genreStyleMap[key][0], style: genreStyleMap[key][1] };
+    }
+  }
+  return null;
 }
 
 export default function ArtistConcertsPage() {
@@ -58,6 +70,8 @@ export default function ArtistConcertsPage() {
   const [followLoading, setFollowLoading] = useState(false);
   const [discogsProfile, setDiscogsProfile] = useState(null);
   const [discogsRealName, setDiscogsRealName] = useState(null);
+  // New state for genre/style map
+  const [albumGenreStyleMap, setAlbumGenreStyleMap] = useState({});
 
   // Album group filter state
   const [albumGroup, setAlbumGroup] = useState('album');
@@ -82,11 +96,13 @@ export default function ArtistConcertsPage() {
 
   // Fetch albums when artist or group changes
   useEffect(() => {
-    if (!selectedArtist?.id) return;
+    if (!selectedArtist?.id || !selectedArtist?.name) return;
+    console.log('Selected artist for genre/style fetch:', selectedArtist.name);
     setLoadingAlbums(true);
     setAlbumError('');
     setAlbums([]);
     setSelectedAlbumId(null);
+    // Fetch albums from Spotify
     fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}?group=${albumGroup}`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch albums');
@@ -102,7 +118,24 @@ export default function ArtistConcertsPage() {
         setAlbumError(err.message || 'Failed to fetch albums');
       })
       .finally(() => setLoadingAlbums(false));
+    // Explicitly fetch genre/style map from Discogs
+    fetch(`http://localhost:8000/discogs/artist/${encodeURIComponent(selectedArtist.name)}/genre-style-map`)
+      .then(res => res.ok ? res.json() : { map: {} })
+      .then(data => {
+        console.log('Fetched genre/style map:', data.map);
+        setAlbumGenreStyleMap(data.map || {});
+      })
+      .catch((err) => {
+        console.error('Error fetching genre/style map:', err);
+        setAlbumGenreStyleMap({});
+      });
   }, [selectedArtist, albumGroup]);
+
+  // Merge genre/style info into albums
+  const albumsWithGenreStyle = albums.map(album => {
+    const genreStyle = albumGenreStyleMap[album.name] || [[], []];
+    return { ...album, genre: genreStyle[0], style: genreStyle[1] };
+  });
 
   // Fetch tracks for selected album
   useEffect(() => {
@@ -220,6 +253,13 @@ export default function ArtistConcertsPage() {
     release_year: selectedAlbum?.releaseYear || '',
     album_image: selectedAlbum?.image || '',
   }));
+
+  // Get genres and styles for selected album from Discogs
+  const discogsGenreStyle = findDiscogsGenreStyle(selectedAlbum?.name, albumGenreStyleMap);
+  const genresForTable = [
+    ...(discogsGenreStyle?.genre || []),
+    ...(discogsGenreStyle?.style || [])
+  ];
 
   return (
     <main style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh' }}>
@@ -393,7 +433,9 @@ export default function ArtistConcertsPage() {
               fontWeight: 400,
               whiteSpace: 'pre-line',
               textAlign: 'left',
+              position: 'relative',
             }}>
+              <style>{`.discogs-profile-links a { text-decoration: underline !important; }`}</style>
               {discogsRealName && (
                 <div style={{ color: '#fff', fontWeight: 600, fontSize: 20, marginBottom: 8 }}>
                   Real Name: <span style={{ color: '#38bdf8' }}>{discogsRealName}</span>
@@ -401,6 +443,7 @@ export default function ArtistConcertsPage() {
               )}
               <strong style={{ color: '#fff', fontSize: 22 }}>About:</strong>
               <div style={{ marginTop: 8 }}
+                className="discogs-profile-links"
                 dangerouslySetInnerHTML={{ __html: discogsProfileToLinks(discogsProfile) }}
               />
             </div>
@@ -431,9 +474,10 @@ export default function ArtistConcertsPage() {
               ))}
             </div>
             <AlbumSelector
-              albums={albums}
+              albums={albumsWithGenreStyle}
               selectedAlbumId={selectedAlbumId}
               onAlbumSelect={album => setSelectedAlbumId(album.id)}
+              albumGenreStyleMap={albumGenreStyleMap}
             />
             {loadingAlbums && <div>Loading...</div>}
             {albumError && <div style={{ color: 'red' }}>{albumError}</div>}
@@ -442,7 +486,7 @@ export default function ArtistConcertsPage() {
           {/* Track Table for selected album */}
           {selectedAlbumId && albumTracks.length > 0 && (
             <div style={{ marginBottom: 48 }}>
-              <TrackTable
+              <NewTrackTable
                 tracks={tracksWithAlbumInfo}
                 title={selectedAlbum?.name || 'Album Tracks'}
                 playlistKey={selectedAlbumId}
@@ -450,6 +494,7 @@ export default function ArtistConcertsPage() {
                 error={tracksError}
                 showCreatePlaylist={false}
                 showViewPlaylist={false}
+                genres={genresForTable}
               />
             </div>
           )}

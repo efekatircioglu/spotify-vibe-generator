@@ -5,7 +5,7 @@ import styles from './page.module.css';
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import SongAnalysisModal from '../components/SongAnalysisModal';
-import TrackTable from '../components/TrackTable';
+import NewTrackTable from '../components/NewTrackTable';
 import UserProfile from '../components/UserProfile';
 import ArtistSearch from '../components/ArtistSearch';
 import ConcertsList from '../components/ConcertsList';
@@ -91,6 +91,8 @@ export default function Home() {
 
   const [selectedTrackForContributors, setSelectedTrackForContributors] = useState(null);
   const [showContributorModal, setShowContributorModal] = useState(false);
+  const [hoveredPlaylistIndex, setHoveredPlaylistIndex] = useState(null);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState(null);
 
   const handleAnalyzeNewGenres = async (playlist) => {
     try {
@@ -936,7 +938,7 @@ const handleExploreContributions = async (track) => {
             </div>
           )}
         </div>
-        <main className={styles.main}>
+        <main className={styles.main} style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh', width: '100vw' }}>
           <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false} onFeedback={() => setShowFeedbackModal(true)}>
             <h2 className={styles.reportTitle}>Create Your Listening Report</h2>
             <div className={styles.reportSubtitle}>Select a time range to see your top artists and tracks.</div>
@@ -955,19 +957,13 @@ const handleExploreContributions = async (track) => {
           </button>
         </div>
           </UserProfile>
-          {!(showSongsTable || (showPlaylistsTable && playlists.length > 0)) && (
-            <div className={styles.emptyResultsBox}>
-              <img src="/spotify-logo.svg" alt="Spotify Logo" style={{ width: 56, height: 56, opacity: 0.18, marginBottom: 18 }} />
-              <div style={{ fontSize: '1.45rem', fontWeight: 700, color: '#222', marginBottom: 8, textAlign: 'center' }}>Your results will appear here</div>
-              <div style={{ color: '#888', fontSize: '1.08rem', textAlign: 'center' }}>Select an analysis option above to get started.</div>
-          </div>
-        )}
+          {/* Removed empty state message */}
           <div className={styles.dashboardContentArea}>
             <div className={styles.resultsCard}>
       {/* Table section for last 50 songs */}
       {showSongsTable && (
         <div ref={tableRef}>
-          <TrackTable
+          <NewTrackTable
             tracks={songs}
             title="Your Last 50 Songs"
             playlistKey="last50"
@@ -981,7 +977,18 @@ const handleExploreContributions = async (track) => {
       )}
       {/* Table section for playlists */}
       {showPlaylistsTable && playlists.length > 0 && (
-        <div ref={playlistsTableRef} className={styles.songsTableWrapper} style={{ position: 'relative', marginTop: 40 }}>
+        <div ref={playlistsTableRef} style={{
+          background: '#181818',
+          borderRadius: 18,
+          padding: '3vw 2vw 2vw 2vw',
+          margin: '3vw auto',
+          maxWidth: '98vw',
+          width: '90vw',
+          boxShadow: '0 4px 32px #0003',
+          position: 'relative',
+          minHeight: 120,
+          fontSize: 'clamp(0.85rem, 1.1vw, 1.08rem)',
+        }}>
           <span
             style={{ position: 'absolute', top: 8, right: 12, cursor: 'pointer', fontSize: 20, color: '#888', zIndex: 2 }}
             title="Hide table"
@@ -989,158 +996,275 @@ const handleExploreContributions = async (track) => {
           >
             ×
           </span>
-          <div className={styles.songsTableTitle}>Your Playlists</div>
-          <table className={styles.songsTable}>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Cover</th>
-                <th>Name</th>
-                <th>Number of Songs</th>
-                <th>Total Duration</th>
-                        <th>Analyze</th>
-                <th>Play</th>
-              </tr>
-            </thead>
-            <tbody>
-              {playlists.map((playlist, idx) => (
-                <tr key={idx}>
-                  <td>{idx + 1}</td>
-                  <td>{playlist.images && playlist.images.length > 0 ? <img src={playlist.images[0].url} alt={playlist.name} style={{ width: 48, height: 48, borderRadius: 8 }} /> : ''}</td>
-                  <td>{playlist.name}</td>
-                  <td>{playlist.trackCount}</td>
-                  <td>{playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</td>
-                          <td>
-                            <div style={{ position: 'relative', display: 'inline-block' }}>
-                              <button
-                                style={{
-                                  background: '#2b2b2b',
-                                  color: '#fff',
-                                  borderRadius: 10,
-                                  fontWeight: 700,
-                                  padding: '8px 22px',
-                                  fontSize: '1rem',
-                                  margin: '0 4px',
-                                  cursor: 'pointer',
-                                  boxShadow: 'none',
-                                  border: 'none',
-                                  outline: 'none',
-                                  display: 'inline-block',
-                                  transition: 'background 0.18s, color 0.18s',
-                                }}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.background = '#404040';
-                                  e.currentTarget.style.color = '#fff';
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = '#2b2b2b';
-                                  e.currentTarget.style.color = '#fff';
-                                }}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setDropdownOpen(idx === dropdownOpen ? null : idx);
-                                  if (idx !== dropdownOpen) {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setDropdownPosition({
-                                      top: rect.bottom + window.scrollY,
-                                      left: rect.left + window.scrollX,
-                                    });
-                                  }
-                                }}
-                                ref={el => { if (el) buttonRefs.current[idx] = el; }}
-                                disabled={analyzingPlaylistId === playlist.id || analyzingArtistPlaylistId === playlist.id}
-                              >
-                                Breakdown By
-                              </button>
-                              {dropdownOpen === idx && (
-                                <DropdownPortal>
-                                  <div
-                                    ref={dropdownRef}
-                                    style={{
-                                      position: 'absolute',
-                                      top: dropdownPosition.top,
-                                      left: dropdownPosition.left,
-                                      background: '#232323',
-                                      borderRadius: 10,
-                                      boxShadow: '0 2px 16px #0003',
-                                      zIndex: 99999,
-                                      minWidth: 140,
-                                      padding: 6,
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: 4,
-                                    }}
-                                  >
-                                    <button
-                                      style={{
-                                        background: 'none',
-                                        color: '#fff',
-                                        border: 'none',
-                                        borderRadius: 6,
-                                        fontWeight: 700,
-                                        fontSize: '0.92rem',
-                                        padding: '4px 10px',
-                                        lineHeight: 1.1,
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        transition: 'background 0.18s, color 0.18s',
-                                      }}
-                                      onMouseEnter={e => {
-                                        e.currentTarget.style.background = '#404040';
-                                        e.currentTarget.style.color = '#fff';
-                                      }}
-                                      onMouseLeave={e => {
-                                        e.currentTarget.style.background = 'none';
-                                        e.currentTarget.style.color = '#fff';
-                                      }}
-                                      onClick={() => { setDropdownOpen(null); handleAnalyzeNewGenres(playlist); }}
-                                      disabled={analyzingPlaylistId === playlist.id}
-                                    >
-                                       Genre Count
-                                    </button>
-                                    <button
-                                      style={{
-                                        background: 'none',
-                                        color: '#fff',
-                                        border: 'none',
-                                        borderRadius: 6,
-                                        fontWeight: 700,
-                                        fontSize: '0.92rem',
-                                        padding: '4px 10px',
-                                        lineHeight: 1.1,
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        transition: 'background 0.18s, color 0.18s',
-                                      }}
-                                      onMouseEnter={e => {
-                                        e.currentTarget.style.background = '#404040';
-                                        e.currentTarget.style.color = '#fff';
-                                      }}
-                                      onMouseLeave={e => {
-                                        e.currentTarget.style.background = 'none';
-                                        e.currentTarget.style.color = '#fff';
-                                      }}
-                                      onClick={() => { setDropdownOpen(null); handleAnalyzeNewArtists(playlist); }}
-                                      disabled={analyzingArtistPlaylistId === playlist.id}
-                                    >
-                                      Artist Count
-                                    </button>
-                                  </div>
-                                </DropdownPortal>
-                              )}
-                            </div>
-                          </td>
-                  <td>
-                    {playlist.id && (
-                      <a href={`https://open.spotify.com/playlist/${playlist.id}`} target="_blank" rel="noopener noreferrer">
-                        <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{
+            fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
+            fontWeight: 900,
+            color: '#f3f3f3',
+            letterSpacing: 1,
+            textShadow: '0 2px 8px #0008',
+            marginBottom: 24,
+          }}>Your Playlists</div>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 'clamp(18px, 3vw, 36px)',
+            justifyContent: 'flex-start',
+            alignItems: 'flex-start',
+            width: '100%',
+            minHeight: 120,
+          }}>
+            {playlists.map((playlist, idx) => {
+              const palette = ['#7c6fc9','#b86b4b','#4b8bb8','#000000','#c92b2b','#f7f7c2','#1db954','#f87171','#fbbf24','#818cf8'];
+              const color = palette[idx % palette.length];
+              return (
+                <div
+                  key={playlist.id || playlist.name || idx}
+                  style={{
+                    background: '#181818',
+                    borderRadius: 16,
+                    boxShadow:
+                      hoveredPlaylistIndex === idx
+                        ? `0 0 32px 4px ${color}88, 0 2px 16px #0006`
+                        : '0 2px 12px #0004',
+                    padding: 'clamp(14px, 2.5vw, 22px)',
+                    minWidth: 'clamp(150px, 26vw, 200px)',
+                    maxWidth: 'clamp(160px, 28vw, 240px)',
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                    transition: 'box-shadow 0.18s, transform 0.18s',
+                    cursor: playlist.external_urls?.spotify ? 'pointer' : 'default',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                  onClick={() => {
+                    if (playlist.external_urls?.spotify) {
+                      window.open(playlist.external_urls.spotify, '_blank');
+                    }
+                  }}
+                  onMouseEnter={() => setHoveredPlaylistIndex(idx)}
+                  onMouseLeave={() => setHoveredPlaylistIndex(null)}
+                >
+                  {/* Blurry overlay on hover */}
+                  {hoveredPlaylistIndex === idx && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 1,
+                        background: 'rgba(24,24,24,0.32)',
+                        backdropFilter: 'blur(2.5px)',
+                        WebkitBackdropFilter: 'blur(2.5px)',
+                        borderRadius: 16,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
+                  {/* More Options SVG button (top right) */}
+                  {hoveredPlaylistIndex === idx && (
+                    <button
+                      style={{
+                        position: 'absolute',
+                        top: 10,
+                        right: 12,
+                        background: 'rgba(32,32,32,0.85)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: 28,
+                        height: 28,
+                        fontSize: 18,
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        zIndex: 3,
+                        boxShadow: '0 2px 8px #0004',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                      }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setOpenDropdownIndex(openDropdownIndex === idx ? null : idx);
+                      }}
+                      onMouseEnter={() => setOpenDropdownIndex(idx)}
+                      onMouseLeave={() => setOpenDropdownIndex(null)}
+                      title="More options"
+                    >
+                      +
+                    </button>
+                  )}
+                  {/* Dropdown menu */}
+                  {openDropdownIndex === idx && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 34,
+                        right: 0,
+                        background: '#232323',
+                        borderRadius: 10,
+                        boxShadow: '0 2px 16px #0003',
+                        zIndex: 10,
+                        minWidth: 110,
+                        padding: 6,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                      onMouseEnter={() => setOpenDropdownIndex(idx)}
+                      onMouseLeave={() => setOpenDropdownIndex(null)}
+                    >
+                      <button
+                        style={{
+                          background: 'none',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontWeight: 700,
+                          fontSize: '0.92rem',
+                          padding: '6px 12px',
+                          lineHeight: 1.1,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          transition: 'background 0.18s, color 0.18s',
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          setOpenDropdownIndex(null);
+                          handleAnalyzeNewGenres(playlist);
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#404040';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                      >
+                        Genres
+                      </button>
+                      <button
+                        style={{
+                          background: 'none',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontWeight: 700,
+                          fontSize: '0.92rem',
+                          padding: '6px 12px',
+                          lineHeight: 1.1,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          transition: 'background 0.18s, color 0.18s',
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          setOpenDropdownIndex(null);
+                          handleAnalyzeNewArtists(playlist);
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#404040';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.color = '#fff';
+                        }}
+                      >
+                        Artists
+                      </button>
+                    </div>
+                  )}
+                  {/* Cover */}
+                  {playlist.images && playlist.images.length > 0 ? (
+                    <img
+                      src={playlist.images[0].url}
+                      alt={playlist.name}
+                      style={{
+                        width: 'clamp(120px, 16vw, 180px)',
+                        height: 'clamp(120px, 16vw, 180px)',
+                        borderRadius: 10,
+                        objectFit: 'cover',
+                        marginBottom: 16,
+                        background: '#232323',
+                        boxShadow: '0 2px 8px #0003',
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 'clamp(120px, 16vw, 180px)',
+                      height: 'clamp(120px, 16vw, 180px)',
+                      borderRadius: 10,
+                      background: color,
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 900,
+                      fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
+                      marginBottom: 16,
+                      boxShadow: '0 2px 8px #0003',
+                      textTransform: 'uppercase',
+                      letterSpacing: 2,
+                    }}>{playlist.name?.split(' ')[0]?.slice(0,8) || '?'}</div>
+                  )}
+                  {/* Playlist name */}
+                  <div style={{
+                    fontWeight: 800,
+                    fontSize: 'clamp(1.15rem, 1.5vw, 1.35rem)',
+                    color: '#fff',
+                    marginBottom: 8,
+                    textAlign: 'center',
+                    width: '100%',
+                    textShadow: '0 2px 8px #0008',
+                  }}>{playlist.name}</div>
+                  {/* Track count and duration */}
+                  <div style={{
+                    color: '#b3b3b3',
+                    fontSize: 'clamp(1rem, 1.2vw, 1.12rem)',
+                    marginBottom: 0,
+                    textAlign: 'center',
+                  }}>{playlist.trackCount} tracks • {playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h ${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</div>
+                  {/* Play SVG button (bottom center) */}
+                  {hoveredPlaylistIndex === idx && (
+                        <a
+                          href={`https://open.spotify.com/playlist/${playlist.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            position: 'absolute',
+                            bottom: 12,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: '#1db954',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '50%',
+                            fontWeight: 700,
+                            width: 38,
+                            height: 38,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px #1db95433',
+                            zIndex: 3,
+                            padding: 0,
+                            textDecoration: 'none',
+                          }}
+                          title="Play on Spotify"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <svg role="img" height="24" width="24" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path></svg>
+                        </a>
+                      )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
             </div>

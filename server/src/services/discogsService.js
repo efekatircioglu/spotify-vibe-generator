@@ -25,7 +25,6 @@ async function getArtistBio(artistName) {
       return { error: 'Artist not found.' };
     }
     const artistId = searchData.results[0].id;
-    console.log(`[Discogs] Artist ID: ${artistId}`);
 
     // Step 2: Use the ID to get the full artist profile
     console.log(`[Discogs] Fetching details for artist ID: ${artistId}`);
@@ -38,11 +37,10 @@ async function getArtistBio(artistName) {
     const artistData = await artistResponse.json();
     console.log(`[Discogs] Artist profile:`, artistData.profile ? artistData.profile.substring(0, 120) + '...' : 'No profile');
     return {
-        artistId: artistData.artistId,
+      artistId: artistData.artistId,
       name: artistData.name,
       realName: artistData.realname || null,
       profile: artistData.profile,
-      //
     };
   } catch (error) {
     console.error('Discogs API Error:', error);
@@ -50,4 +48,65 @@ async function getArtistBio(artistName) {
   }
 }
 
-module.exports = { getArtistBio };
+/**
+ * Fetch all albums (masters, format=album) for an artist from Discogs, paginating through all pages.
+ * @param {string} artistName
+ * @returns {Promise<Array>} Array of album objects
+ */
+async function getAllAlbumsByArtistName(artistName) {
+  const authHeaders = {
+    'User-Agent': DISCOGS_USER_AGENT,
+    'Authorization': `Discogs key=${DISCOGS_KEY}, secret=${DISCOGS_SECRET}`,
+  };
+  const albums = [];
+  let page = 1;
+  let pages = 1;
+  try {
+    do {
+      const url = `https://api.discogs.com/database/search?artist=${encodeURIComponent(artistName)}&type=master&format=album&page=${page}&per_page=100`;
+      const res = await fetch(url, { headers: authHeaders });
+      if (!res.ok) throw new Error(`Discogs API error: ${res.status}`);
+      const data = await res.json();
+      if (data.results && Array.isArray(data.results)) {
+        // Only include albums where the main artist is exactly the artistName (case-insensitive)
+        const filtered = data.results.filter(r => {
+          // Discogs returns 'title' as 'Artist - Album', so split and check artist part
+          if (!r.title) return false;
+          const dashIdx = r.title.indexOf(' - ');
+          if (dashIdx === -1) return false;
+          const mainArtist = r.title.substring(0, dashIdx).trim().toLowerCase();
+          const target = artistName.trim().toLowerCase();
+          // Allow exact match, startsWith, or 'Artist (number)'
+          if (mainArtist === target) return true;
+          if (mainArtist.startsWith(target + ' ')) return true;
+          if (mainArtist.match(new RegExp(`^${target} \(\d+\)$`))) return true;
+          return false;
+        });
+        albums.push(...filtered);
+      }
+      pages = data.pagination ? data.pagination.pages : 1;
+      page++;
+    } while (page <= pages);
+    return albums;
+  } catch (err) {
+    console.error('[Discogs] Error fetching all albums:', err);
+    throw err;
+  }
+}
+
+/**
+ * Map album title to [genre, style] arrays for all albums by artist.
+ * @param {string} artistName
+ * @returns {Promise<Object>} { [albumTitle]: [genres, styles] }
+ */
+async function getAlbumGenreStyleMapByArtistName(artistName) {
+  const albums = await getAllAlbumsByArtistName(artistName);
+  const map = {};
+  for (const album of albums) {
+    // genre and style can be arrays or undefined
+    map[album.title] = [album.genre || [], album.style || []];
+  }
+  return map;
+}
+
+module.exports = { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName };

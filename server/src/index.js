@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const pool = new Pool(); // Uses .env variables automatically
 const axios = require('axios');
 const { getDiscogsArtistProfile } = require('./services/discogsService');
-const { getArtistBio } = require('./services/discogsService');
+const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName } = require('./services/discogsService');
 
 const app = express();
 const PORT = 8000;
@@ -722,6 +722,30 @@ app.get('/discogs/artist-profile', async (req, res) => {
   } catch (e) {
     console.error(`[Discogs API] Error fetching profile for:`, name, e);
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// --- Discogs: Get all albums for an artist (paginated) ---
+app.get('/discogs/artist/:name', async (req, res) => {
+  const artistName = req.params.name;
+  if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
+  try {
+    const albums = await getAllAlbumsByArtistName(artistName);
+    res.json({ albums });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch albums', details: err.message });
+  }
+});
+
+// --- Discogs: Get album-> [genre, style] map for an artist ---
+app.get('/discogs/artist/:name/genre-style-map', async (req, res) => {
+  const artistName = req.params.name;
+  if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
+  try {
+    const map = await getAlbumGenreStyleMapByArtistName(artistName);
+    res.json({ map });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch genre/style map', details: err.message });
   }
 });
 
