@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import ReactCalendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import CustomCalendar from '../components/CustomCalendar';
+import styles from '../app/page.module.css';
 
 export default function ConcertsList({ 
   concerts = [], 
@@ -9,9 +10,19 @@ export default function ConcertsList({
   currentPage = 1,
   totalPages = 1,
   onPageChange = null,
-  showPagination = false
+  showPagination = false,
+  allConcerts = [], // New prop for all concerts (for calendar)
+  totalConcerts = 0, // New prop for total concert count
+  concertsPerPage = 20, // New prop for concerts per page
+  ticketmasterIdNotFound = false // New prop for when Ticketmaster ID is not found
 }) {
   const eventRefs = useRef({});
+  const [animationKey, setAnimationKey] = useState(0);
+
+  // When concerts change, increment animation key to trigger animation
+  useEffect(() => {
+    setAnimationKey(k => k + 1);
+  }, [concerts, currentPage]);
 
   // Helper to format date
   function getDateParts(dateStr) {
@@ -23,7 +34,9 @@ export default function ConcertsList({
     return { month, day, weekday };
   }
 
-  const concertDates = concerts
+  const concertDates = allConcerts.length > 0 ? allConcerts
+    .map(event => event.dates?.start?.localDate)
+    .filter(Boolean) : concerts
     .map(event => event.dates?.start?.localDate)
     .filter(Boolean);
 
@@ -38,12 +51,48 @@ export default function ConcertsList({
   };
 
   const handleEventDayClick = (dateStr) => {
-    const ref = eventRefs.current[dateStr];
-    if (ref && ref.scrollIntoView) {
-      ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Optionally, add a highlight effect
-      ref.classList.add('highlight-event');
-      setTimeout(() => ref.classList.remove('highlight-event'), 1500);
+    // Find all events on this date from allConcerts
+    const eventsOnDate = allConcerts.length > 0 ? 
+      allConcerts.filter(event => event.dates?.start?.localDate === dateStr) :
+      concerts.filter(event => event.dates?.start?.localDate === dateStr);
+    
+    if (eventsOnDate.length === 0) return;
+    
+    // Get the first event on this date
+    const targetEvent = eventsOnDate[0];
+    
+    // Find which page this event is on
+    const eventIndex = allConcerts.length > 0 ? 
+      allConcerts.findIndex(event => event.id === targetEvent.id) :
+      concerts.findIndex(event => event.id === targetEvent.id);
+    
+    if (eventIndex === -1) return;
+    
+    // Calculate which page this event is on (assuming 20 concerts per page)
+    const concertsPerPage = 20;
+    const targetPage = Math.floor(eventIndex / concertsPerPage) + 1;
+    
+    // If the event is on a different page, change to that page
+    if (onPageChange && targetPage !== currentPage) {
+      onPageChange(targetPage);
+      
+      // Wait for the page to change and then scroll to the event
+      setTimeout(() => {
+        const ref = eventRefs.current[dateStr];
+        if (ref && ref.scrollIntoView) {
+          ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          ref.classList.add('highlight-event');
+          setTimeout(() => ref.classList.remove('highlight-event'), 1500);
+        }
+      }, 100); // Small delay to ensure page change completes
+    } else {
+      // Event is on current page, scroll directly
+      const ref = eventRefs.current[dateStr];
+      if (ref && ref.scrollIntoView) {
+        ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ref.classList.add('highlight-event');
+        setTimeout(() => ref.classList.remove('highlight-event'), 1500);
+      }
     }
   };
 
@@ -58,10 +107,49 @@ export default function ConcertsList({
       }}>
         Upcoming Concerts
       </h2>
-      <div style={{ background: '#181818', borderRadius: 18, padding: '32px 0', margin: '0 16px', boxShadow: '0 2px 24px #0002' }}>
+      
+      <div style={{ 
+        background: '#181818', 
+        borderRadius: 18, 
+        padding: 'clamp(16px, 3vw, 32px) 0', 
+        margin: '0 clamp(8px, 2vw, 16px)', 
+        boxShadow: '0 2px 24px #0002',
+        maxWidth: '1200px',
+        marginLeft: 'auto',
+        marginRight: 'auto'
+      }}>
+        {/* Concert Count Header - Inside the table container */}
+        {totalConcerts > 0 && (
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: 24,
+            padding: '0 32px'
+          }}>
+            <div style={{ 
+              color: '#fff', 
+              fontSize: '1.2rem',
+              fontWeight: 600,
+              marginBottom: 8
+            }}>
+              {totalConcerts} Upcoming Concert{totalConcerts !== 1 ? 's' : ''}
+            </div>
+            <div style={{ 
+              color: '#b3b3b3', 
+              fontSize: '1rem'
+            }}>
+              {totalConcerts > concertsPerPage ? 
+                `Showing ${((currentPage - 1) * concertsPerPage) + 1}-${Math.min(currentPage * concertsPerPage, totalConcerts)} of ${totalConcerts} concerts` :
+                `All ${totalConcerts} concerts shown`
+              }
+            </div>
+          </div>
+        )}
         {concerts.length === 0 && (
           <div style={{ color: '#b3b3b3', fontSize: 18, textAlign: 'center', padding: 32 }}>
-            {selectedArtist ? 'No upcoming concerts found for this artist.' : 'No upcoming concerts found.'}
+            {ticketmasterIdNotFound ? 
+              'Ticketmaster ID is not found for this artist.' : 
+              (selectedArtist ? 'No upcoming concerts found for this artist.' : 'No upcoming concerts found.')
+            }
           </div>
         )}
         {concerts.map((event, idx) => {
@@ -77,25 +165,128 @@ export default function ConcertsList({
             const dateStr = event.dates?.start?.localDate;
             return (
               <div
-                key={event.id || idx}
+                key={`${event.id || idx}-${animationKey}`}
                 ref={el => { if (dateStr) eventRefs.current[dateStr] = el; }}
-                style={{ display: 'flex', alignItems: 'center', padding: '28px 0', borderBottom: idx !== concerts.length - 1 ? '1px solid #232323' : 'none', margin: '0 48px' }}
-                className="concert-event-row"
+                className={`concert-event-row ${styles.animatedRow}`}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  padding: 'clamp(16px, 4vw, 28px) 0', 
+                  borderBottom: idx !== concerts.length - 1 ? '1px solid #232323' : 'none', 
+                  margin: '0 clamp(16px, 4vw, 48px)',
+                  flexWrap: 'wrap',
+                  gap: 'clamp(8px, 2vw, 16px)',
+                  animationDelay: `${idx * 60}ms`,
+                  animationName: 'fadeInUp',
+                  animationDuration: '400ms',
+                  animationFillMode: 'both',
+                  opacity: 0,
+                  animationTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
+                }}
               >
-                {/* Date block */}
-                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', minWidth: 90, marginRight: 32 }}>
-                  <div style={{ fontSize: 38, color: '#fff', fontWeight: 900, lineHeight: 1, minWidth: 44, textAlign: 'center' }}>{day}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 8 }}>
-                    <div style={{ color: '#1db954', fontWeight: 900, fontSize: 16, letterSpacing: 1, marginBottom: 2 }}>{month}</div>
-                    <div style={{ color: '#1db954', fontWeight: 700, fontSize: 15, letterSpacing: 1, marginTop: 2 }}>{formattedWeekday}</div>
+                {/* Date and Tickets Column (Left) */}
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  minWidth: 'clamp(80px, 10vw, 120px)', 
+                  marginRight: 'clamp(16px, 3vw, 32px)',
+                  flexShrink: 0,
+                  gap: 'clamp(8px, 2vw, 16px)',
+                  alignSelf: 'center'
+                }}>
+                  {/* Date block */}
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'row', 
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%'
+                  }}>
+                    <div style={{ 
+                      fontSize: 'clamp(24px, 5vw, 38px)', 
+                      color: '#fff', 
+                      fontWeight: 900, 
+                      lineHeight: 1, 
+                      minWidth: 'clamp(32px, 5vw, 44px)', 
+                      textAlign: 'center' 
+                    }}>{day}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: 'clamp(4px, 1vw, 8px)' }}>
+                      <div style={{ 
+                        color: '#1db954', 
+                        fontWeight: 900, 
+                        fontSize: 'clamp(12px, 2vw, 16px)', 
+                        letterSpacing: 1, 
+                        marginBottom: 2 
+                      }}>{month}</div>
+                      <div style={{ 
+                        color: '#1db954', 
+                        fontWeight: 700, 
+                        fontSize: 'clamp(11px, 1.8vw, 15px)', 
+                        letterSpacing: 1, 
+                        marginTop: 2 
+                      }}>{formattedWeekday}</div>
+                    </div>
                   </div>
+                  
+                  {/* Tickets button - positioned under date on small screens */}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: 'transparent',
+                      color: '#fff',
+                      border: '2px solid #fff',
+                      borderRadius: 'clamp(16px, 3vw, 24px)',
+                      padding: 'clamp(6px, 1.5vw, 10px) clamp(12px, 2.5vw, 20px)',
+                      fontWeight: 800,
+                      fontSize: 'clamp(11px, 2vw, 16px)',
+                      textDecoration: 'none',
+                      transition: 'background 0.18s, color 0.18s',
+                      cursor: 'pointer',
+                      boxShadow: 'none',
+                      outline: 'none',
+                      display: 'inline-block',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                      width: 'fit-content'
+                    }}
+                    onMouseOver={e => {
+                      e.currentTarget.style.background = '#fff';
+                      e.currentTarget.style.color = '#181818';
+                    }}
+                    onMouseOut={e => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#fff';
+                    }}
+                  >
+                    Tickets
+                  </a>
                 </div>
                 {/* Event info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: '#fff', fontWeight: 500, fontSize: 22, marginBottom: 2, letterSpacing: 0.2 }}>{eventName}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b3b3b3', fontWeight: 500, fontSize: 18, marginBottom: 0 }}>
+                  <div style={{ 
+                    color: '#fff', 
+                    fontWeight: 500, 
+                    fontSize: 'clamp(16px, 3vw, 22px)', 
+                    marginBottom: 8, 
+                    letterSpacing: 0.2,
+                    lineHeight: 1.2
+                  }}>{eventName}</div>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 'clamp(4px, 1vw, 8px)', 
+                    color: '#b3b3b3', 
+                    fontWeight: 500, 
+                    fontSize: 'clamp(14px, 2.5vw, 18px)', 
+                    marginBottom: 8,
+                    flexWrap: 'wrap'
+                  }}>
                     {/* Location SVG icon */}
-                    <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22" style={{ color: '#b3b3b3', marginRight: 4, flexShrink: 0 }}>
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="clamp(16px, 3vw, 22px)" height="clamp(16px, 3vw, 22px)" style={{ color: '#b3b3b3', marginRight: 4, flexShrink: 0 }}>
                       <path d="M10 20S3 10.87 3 7a7 7 0 1114 0c0 3.87-7 13-7 13zm0-11a2 2 0 100-4 2 2 0 000 4z"/>
                     </svg>
                     {venue}{venue && city ? ', ' : ''}
@@ -104,9 +295,18 @@ export default function ConcertsList({
                   </div>
                   {/* Artist name(s) below location */}
                   {event._embedded?.attractions && (
-                    <div style={{ display: 'flex', alignItems: 'center', color: '#b3b3b3', fontWeight: 400, fontSize: 17, marginTop: 2, gap: 8 }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      color: '#b3b3b3', 
+                      fontWeight: 400, 
+                      fontSize: 'clamp(13px, 2.2vw, 17px)', 
+                      marginTop: 0, 
+                      gap: 'clamp(4px, 1vw, 8px)',
+                      flexWrap: 'wrap'
+                    }}>
                       {/* Artist SVG icon */}
-                      <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20" style={{ color: '#b3b3b3', marginRight: 4, flexShrink: 0 }}>
+                      <svg viewBox="0 0 20 20" fill="currentColor" width="clamp(14px, 2.5vw, 20px)" height="clamp(14px, 2.5vw, 20px)" style={{ color: '#b3b3b3', marginRight: 4, flexShrink: 0 }}>
                         <path d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4z"/>
                         <path fillRule="evenodd" d="M5.5 8.5A.5.5 0 016 8v1a4 4 0 004 4 .5.5 0 010 1 5 5 0 01-5-5V8.5A.5.5 0 015.5 8.5zM9 4a1 1 0 102 0V3a1 1 0 10-2 0v1z"/>
                         <path d="M13.5 8.5a.5.5 0 00-.5-.5v-1a5 5 0 00-5 5 .5.5 0 001 0 4 4 0 014-4v1a.5.5 0 00.5.5z"/>
@@ -142,39 +342,6 @@ export default function ConcertsList({
                     </div>
                   )}
                 </div>
-                {/* Tickets button */}
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    background: 'transparent',
-                    color: '#fff',
-                    border: '2px solid #fff',
-                    borderRadius: 32,
-                    padding: '12px 32px',
-                    fontWeight: 800,
-                    fontSize: 22,
-                    textDecoration: 'none',
-                    marginLeft: 32,
-                    transition: 'background 0.18s, color 0.18s',
-                    cursor: 'pointer',
-                    boxShadow: 'none',
-                    outline: 'none',
-                    display: 'inline-block',
-                    textAlign: 'center',
-                  }}
-                  onMouseOver={e => {
-                    e.currentTarget.style.background = '#fff';
-                    e.currentTarget.style.color = '#181818';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#fff';
-                  }}
-                >
-                  Tickets
-                </a>
               </div>
             );
           })}
@@ -245,16 +412,17 @@ export default function ConcertsList({
         </div>
         <div style={{ width: '100%', maxWidth: '1600px', background: '#181818', borderRadius: 18, boxShadow: '0 2px 24px #0002', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 auto', padding: 0 }}>
           <CustomCalendar
-            eventDates={concerts.map(event => event.dates?.start?.localDate).filter(Boolean)}
+            eventDates={allConcerts.length > 0 ? allConcerts.map(event => event.dates?.start?.localDate).filter(Boolean) : concerts.map(event => event.dates?.start?.localDate).filter(Boolean)}
             onEventDayClick={handleEventDayClick}
           />
         </div>
       </div>
       <style jsx global>{`
         .concert-date {
-          background: #1db954 !important;
+          /* Remove green background dot, keep only green underline */
+          background: transparent !important;
           color: #fff !important;
-          border-radius: 50%;
+          border-radius: 0 !important;
         }
         .react-calendar {
           background: transparent !important;
@@ -263,15 +431,16 @@ export default function ConcertsList({
           width: 100% !important;
           max-width: 1000px;
           margin: 0 auto;
-          font-size: 1.6rem !important;
+          font-size: clamp(1.2rem, 3vw, 1.6rem) !important;
         }
         .react-calendar__tile {
-          font-size: 1.45rem !important;
+          font-size: clamp(1rem, 2.5vw, 1.45rem) !important;
           color: #fff;
           border-radius: 50%;
           transition: background 0.18s, color 0.18s;
-          min-width: 64px;
-          min-height: 64px;
+          min-width: clamp(40px, 8vw, 64px);
+          min-height: clamp(40px, 8vw, 64px);
+          position: relative;
         }
         .react-calendar__tile--active {
           background: #1db954 !important;
@@ -280,24 +449,44 @@ export default function ConcertsList({
         .react-calendar__navigation button {
           color: #fff !important;
           background: none !important;
-          font-size: 2rem !important;
+          font-size: clamp(1.5rem, 4vw, 2rem) !important;
         }
         .react-calendar__navigation__label {
           color: #fff !important;
           font-weight: 800;
-          font-size: 2rem !important;
+          font-size: clamp(1.5rem, 4vw, 2rem) !important;
         }
         .react-calendar__month-view__weekdays {
           color: #b3b3b3 !important;
           font-weight: 700;
-          font-size: 1.25rem !important;
+          font-size: clamp(1rem, 2.5vw, 1.25rem) !important;
         }
         .react-calendar__month-view__weekdays__weekday {
-          padding: 1.1em 0 !important;
+          padding: clamp(0.8em, 2vw, 1.1em) 0 !important;
         }
         .highlight-event {
           box-shadow: 0 0 0 4px #1db954, 0 2px 24px #1db95455;
           transition: box-shadow 0.3s;
+        }
+        
+        /* Green underline for concert dates */
+        .concert-date {
+          text-decoration: underline !important;
+          text-decoration-color: #1db954 !important;
+          text-decoration-thickness: clamp(1px, 0.3vw, 2px) !important;
+          text-underline-offset: clamp(1px, 0.5vw, 3px) !important;
+        }
+        
+        /* Animation styles for concert rows */
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(24px);}
+          to { opacity: 1; transform: translateY(0);}
+        }
+        .${styles.animatedRow} {
+          opacity: 0;
+        }
+        .${styles.animatedRow}[style*='animation-name'] {
+          opacity: 1;
         }
       `}</style>
     </div>

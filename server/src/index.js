@@ -17,6 +17,9 @@ app.use(cors({
   origin: 'http://localhost:3000'
 }));
 
+// Parse JSON bodies for POST requests
+app.use(express.json());
+
 // Define the "scopes" or permissions we need from the user
 const scopes = [
   'user-read-recently-played',
@@ -850,6 +853,126 @@ app.get('/discogs/artist/:name/genre-style-map', async (req, res) => {
     res.json({ map });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch genre/style map', details: err.message });
+  }
+});
+
+// Optimized batch endpoint using single Ticketmaster API call
+app.post('/concerts/events/optimized-batch', async (req, res) => {
+  const artistIds = req.body.artistIds;
+  if (!Array.isArray(artistIds) || artistIds.length === 0) {
+    return res.status(400).json({ error: 'artistIds required' });
+  }
+  
+  try {
+    console.log(`Optimized batch request for ${artistIds.length} artists`);
+    
+    // Make a single API call to Ticketmaster with all artist IDs
+    const data = await ticketmasterService.getEventsByMultipleArtistIds(artistIds);
+    const events = data._embedded?.events || [];
+    
+    console.log(`Found ${events.length} total events for ${artistIds.length} artists`);
+    
+    // Add artist info to each event (match by attraction ID)
+    const eventsWithArtistInfo = events.map(event => {
+      // Find which artist this event belongs to by checking attractions
+      const eventArtistId = event._embedded?.attractions?.[0]?.id;
+      return {
+        ...event,
+        artistId: eventArtistId || null
+      };
+    });
+    
+    res.json({ 
+      concerts: eventsWithArtistInfo,
+      totalEvents: eventsWithArtistInfo.length,
+      totalArtists: artistIds.length
+    });
+  } catch (err) {
+    console.error('Optimized batch error:', err);
+    res.status(500).json({ error: 'Failed to fetch optimized batch concerts', details: err.message });
+  }
+});
+
+// Test endpoint for batch functionality (easy browser testing)
+app.get('/test-batch', async (req, res) => {
+  try {
+    // Get real artist IDs from followed artists (dynamic, no hardcoded IDs)
+    let artistIds = [];
+    
+    try {
+      // Fetch followed artists from Spotify to get real Ticketmaster IDs
+      const { body } = await spotifyApi.getFollowedArtists({ limit: 10 });
+      const followedArtists = body.artists.items;
+      
+      console.log(`Found ${followedArtists.length} followed artists`);
+      
+      // For each followed artist, search on Ticketmaster to get their ID
+      for (const artist of followedArtists) { // Increased from 5 to 10 for testing
+        try {
+          const ticketmasterData = await ticketmasterService.searchArtist(artist.name);
+          const attractions = ticketmasterData._embedded?.attractions || [];
+          const musicArtists = attractions.filter(attraction => {
+            const isMusic = attraction.classifications &&
+              attraction.classifications.some(classification =>
+                classification.segment && classification.segment.name === 'Music'
+              );
+            return isMusic;
+          });
+          
+          if (musicArtists.length > 0) {
+            artistIds.push(musicArtists[0].id);
+            console.log(`Found Ticketmaster ID for ${artist.name}: ${musicArtists[0].id}`);
+          }
+        } catch (err) {
+          console.log(`Could not find Ticketmaster ID for ${artist.name}:`, err.message);
+        }
+      }
+    } catch (err) {
+      console.log('Error fetching followed artists:', err.message);
+    }
+    
+    if (artistIds.length === 0) {
+      return res.json({ 
+        message: 'No artist IDs found. Make sure you are logged in to Spotify and have followed artists.',
+        error: 'Could not fetch real artist IDs'
+      });
+    }
+    
+    console.log('Testing batch endpoint with real artist IDs:', artistIds);
+    
+    // Fetch concerts for each artist using the optimized batch method
+    const data = await ticketmasterService.getEventsByMultipleArtistIds(artistIds);
+    const events = data._embedded?.events || [];
+    
+    console.log(`Found ${events.length} total events for ${artistIds.length} artists`);
+    
+    // Add artist info to each event
+    const eventsWithArtistInfo = events.map(event => {
+      const eventArtistId = event._embedded?.attractions?.[0]?.id;
+      return {
+        ...event,
+        artistId: eventArtistId || null
+      };
+    });
+    
+    res.json({ 
+      message: 'Optimized batch test successful!',
+      totalArtists: artistIds.length,
+      totalConcerts: eventsWithArtistInfo.length,
+      artistIds: artistIds,
+      concerts: eventsWithArtistInfo,
+      debug: {
+        ticketmasterRequest: `attractionId=${artistIds.join(',')}`,
+        eventsPerArtist: eventsWithArtistInfo.reduce((acc, event) => {
+          const artistId = event.artistId;
+          acc[artistId] = (acc[artistId] || 0) + 1;
+          return acc;
+        }, {})
+      }
+    });
+  } catch (err) {
+    console.error('Batch test error:', err);
+    res.status(500).json({ error: 'Batch test failed', details: err.message });
   }
 });
 

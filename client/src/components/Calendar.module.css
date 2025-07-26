@@ -80,18 +80,16 @@
     font-weight: 700;
 }
 
-.calendar-day.has-event::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 6px;
-    height: 6px;
-    background-color: #1DB954;
-    border-radius: 50%;
+.calendar-day.has-event {
+    text-decoration: underline;
+    text-decoration-color: #1DB954;
+    text-decoration-thickness: clamp(1px, 0.3vw, 2px);
+    text-underline-offset: clamp(1px, 0.5vw, 3px);
 }
 
-.calendar-day.is-today.has-event::after {
-     background-color: #121212;
+.calendar-day.is-today.has-event {
+    text-decoration: underline;
+    text-decoration-color: #1DB954;
+    text-decoration-thickness: clamp(1px, 0.3vw, 2px);
+    text-underline-offset: clamp(1px, 0.5vw, 3px);
 } 

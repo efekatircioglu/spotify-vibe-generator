@@ -5,6 +5,7 @@ import styles from '../page.module.css';
 import AlbumSelector from '../../components/AlbumSelector';
 import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
+import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../../utils/artistCache';
 
 // Add this helper function at the top-level (outside the component)
 function discogsProfileToLinks(profile) {
@@ -72,6 +73,19 @@ export default function ArtistConcertsPage() {
   const [discogsRealName, setDiscogsRealName] = useState(null);
   // New state for genre/style map
   const [albumGenreStyleMap, setAlbumGenreStyleMap] = useState({});
+  
+  // Pagination state for concerts
+  const [currentPage, setCurrentPage] = useState(1);
+  const concertsPerPage = 20;
+  
+  // State for Ticketmaster ID not found
+  const [ticketmasterIdNotFound, setTicketmasterIdNotFound] = useState(false);
+  
+  // State for artist search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   // Album group filter state
   const [albumGroup, setAlbumGroup] = useState('album');
@@ -162,9 +176,9 @@ export default function ArtistConcertsPage() {
 
   // Initialize artist from URL params
   useEffect(() => {
-    if (artistName && spotifyId) {
+    if (artistName) {
       setSelectedArtist({
-        id: spotifyId,
+        id: spotifyId || null,
         name: artistName,
       });
     }
@@ -211,37 +225,128 @@ export default function ArtistConcertsPage() {
       });
   }, [artistName]);
 
-  // Fetch concerts (existing logic, but after albums)
+  // Retry function for API calls (same as concerts page)
+  const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          return await response.json();
+        } else if (response.status === 500 && attempt < maxRetries) {
+          console.log(`Attempt ${attempt} failed with 500 error, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+          continue;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      }
+    }
+  };
+
+  // Search for artist on Ticketmaster
+  const searchArtist = async (artistName) => {
+    setSearching(true);
+    setSearchError('');
+    try {
+      // Check cache first
+      const cachedId = getCachedArtistId(artistName);
+      if (cachedId) {
+        console.log(`Found cached Ticketmaster ID for "${artistName}": ${cachedId}`);
+        // Navigate to the artist page with the cached ID
+        router.push(`/artist?name=${encodeURIComponent(artistName)}&spotifyId=${spotifyId}&ticketmasterId=${cachedId}`);
+        return;
+      }
+
+      const data = await fetchWithRetry(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+      const attractions = data._embedded?.attractions || data.attractions || [];
+      const musicArtists = attractions.filter(artist => {
+        const isMusic = artist.classifications && 
+          artist.classifications.some(classification => 
+            classification.segment && classification.segment.name === 'Music'
+          );
+        return isMusic;
+      });
+      
+      if (musicArtists.length > 0) {
+        // Cache the successful result with image
+        const firstArtist = musicArtists[0];
+        const imageUrl = firstArtist.images?.[0]?.url || null;
+        setArtistCache(artistName, firstArtist.id, imageUrl);
+        console.log(`Cached Ticketmaster ID for "${artistName}": ${firstArtist.id}${imageUrl ? ' with image' : ''}`);
+        
+        // Navigate to the artist page with the found ID
+        router.push(`/artist?name=${encodeURIComponent(artistName)}&spotifyId=${spotifyId}&ticketmasterId=${firstArtist.id}`);
+      } else {
+        setSearchError('No Ticketmaster artist found. Try a different search term.');
+      }
+    } catch (err) {
+      console.error('Error searching artist:', err);
+      setSearchError('Failed to search for artist. Please try again.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Fetch concerts using batch API (same as concerts page)
   useEffect(() => {
-    if (!ticketmasterId) return;
+    if (!ticketmasterId) {
+      setTicketmasterIdNotFound(true);
+      setConcerts([]);
+      return;
+    }
+    
     setLoading(true);
     setError('');
     setConcerts([]);
-    fetch(`http://127.0.0.1:8000/concerts/events?artistId=${ticketmasterId}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to get events');
-        return res.json();
-      })
-      .then(data2 => {
-        let events = data2._embedded?.events || [];
-        events = events.slice().sort((a, b) => {
+    setTicketmasterIdNotFound(false);
+    
+    const fetchConcerts = async () => {
+      try {
+        console.log(`Making batch request for artist ID: ${ticketmasterId}`);
+        
+        // Use the same batch endpoint as concerts page
+        const response = await fetch('http://127.0.0.1:8000/concerts/events/optimized-batch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ artistIds: [ticketmasterId] }),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const allConcerts = data.concerts || [];
+        
+        console.log(`Received ${allConcerts.length} concerts from batch endpoint`);
+        
+        // Sort by date
+        const sortedConcerts = allConcerts.sort((a, b) => {
           const dateA = a.dates?.start?.localDate || '';
           const dateB = b.dates?.start?.localDate || '';
-          if (dateA < dateB) return -1;
-          if (dateA > dateB) return 1;
-          const timeA = a.dates?.start?.localTime || '';
-          const timeB = b.dates?.start?.localTime || '';
-          if (!timeA && !timeB) return 0;
-          if (!timeA) return 1;
-          if (!timeB) return -1;
-          return timeA.localeCompare(timeB);
+          return dateA.localeCompare(dateB);
         });
-        setConcerts(events);
-      })
-      .catch(err => {
+        
+        setConcerts(sortedConcerts);
+      } catch (err) {
         setError(err.message || 'Concert search failed');
-      })
-      .finally(() => setLoading(false));
+        console.error('Error fetching concerts:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchConcerts();
   }, [ticketmasterId]);
 
   // Compute selected album object
@@ -263,6 +368,117 @@ export default function ArtistConcertsPage() {
 
   return (
     <main style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh' }}>
+      {/* Artist Search Section (when no artist is selected) */}
+      {!selectedArtist && (
+        <div style={{ 
+          padding: 32, 
+          background: '#101114', 
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: 12, 
+            marginBottom: 24 
+          }}>
+            <button
+              onClick={() => router.push('/')}
+              className={styles.vibeButton}
+            >
+              Profile
+            </button>
+          </div>
+          
+          <h1 style={{ 
+            marginBottom: 32, 
+            fontSize: 'clamp(2rem, 4vw, 3rem)',
+            fontWeight: 900,
+            color: '#fff',
+            textAlign: 'center'
+          }}>
+            Search Artist on Ticketmaster
+          </h1>
+          
+          <div style={{ 
+            background: '#181818', 
+            padding: 24, 
+            borderRadius: 16, 
+            marginBottom: 32,
+            boxShadow: '0 4px 16px #0003',
+            width: '100%',
+            maxWidth: 500
+          }}>
+            <div style={{ marginBottom: 16 }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && searchQuery.trim() && searchArtist(searchQuery.trim())}
+                placeholder="Enter artist name (e.g., Kanye West, Ye, etc.)"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  border: '2px solid #333',
+                  background: '#232323',
+                  color: '#fff',
+                  fontSize: '1rem',
+                  outline: 'none',
+                  marginBottom: 12,
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#1db954'}
+                onBlur={(e) => e.target.style.borderColor = '#333'}
+              />
+              
+              <button
+                onClick={() => searchQuery.trim() && searchArtist(searchQuery.trim())}
+                disabled={!searchQuery.trim() || searching}
+                style={{
+                  width: '100%',
+                  padding: '12px 24px',
+                  background: searchQuery.trim() && !searching ? '#1db954' : '#333',
+                  color: searchQuery.trim() && !searching ? '#000' : '#666',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  cursor: searchQuery.trim() && !searching ? 'pointer' : 'not-allowed',
+                  transition: 'background 0.2s',
+                }}
+              >
+                {searching ? 'Searching...' : 'Search Artist'}
+              </button>
+            </div>
+            
+            {searchError && (
+              <div style={{ 
+                background: '#f87171', 
+                color: '#000', 
+                padding: 16, 
+                borderRadius: 8, 
+                marginTop: 16,
+                fontSize: '0.9rem'
+              }}>
+                {searchError}
+              </div>
+            )}
+            
+            <div style={{ 
+              color: '#b3b3b3', 
+              fontSize: '0.9rem', 
+              marginTop: 16,
+              textAlign: 'center'
+            }}>
+              <p>💡 <strong>Tip:</strong> Try different variations of artist names.</p>
+              <p>For example: "Kanye West" might return "Ye" on Ticketmaster.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Artist Info and Albums */}
       {selectedArtist && (
         <>
@@ -503,7 +719,81 @@ export default function ArtistConcertsPage() {
           {loading && <div>Loading concerts...</div>}
           {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
           {!loading && !error && (
-            <ConcertsList concerts={concerts} selectedArtist={artistName} />
+            <>
+              {/* Pagination Controls Above Calendar */}
+              {concerts.length > concertsPerPage && (
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  gap: 16, 
+                  marginBottom: 24,
+                  padding: '16px 0'
+                }}>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '8px 16px',
+                      background: currentPage === 1 ? '#333' : '#1db954',
+                      color: currentPage === 1 ? '#666' : '#000',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ← Previous
+                  </button>
+                  
+                  <div style={{ 
+                    color: '#fff', 
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    minWidth: '100px',
+                    textAlign: 'center'
+                  }}>
+                    {currentPage} / {Math.ceil(concerts.length / concertsPerPage)}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(concerts.length / concertsPerPage), prev + 1))}
+                    disabled={currentPage === Math.ceil(concerts.length / concertsPerPage)}
+                    style={{
+                      padding: '8px 16px',
+                      background: currentPage === Math.ceil(concerts.length / concertsPerPage) ? '#333' : '#1db954',
+                      color: currentPage === Math.ceil(concerts.length / concertsPerPage) ? '#666' : '#000',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: currentPage === Math.ceil(concerts.length / concertsPerPage) ? 'not-allowed' : 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+              
+              <ConcertsList 
+                concerts={concerts.slice(
+                  (currentPage - 1) * concertsPerPage, 
+                  currentPage * concertsPerPage
+                )} 
+                selectedArtist={artistName}
+                currentPage={currentPage}
+                totalPages={Math.ceil(concerts.length / concertsPerPage)}
+                onPageChange={setCurrentPage}
+                showPagination={concerts.length > concertsPerPage}
+                allConcerts={concerts}
+                totalConcerts={concerts.length}
+                concertsPerPage={concertsPerPage}
+                ticketmasterIdNotFound={ticketmasterIdNotFound}
+              />
+            </>
           )}
         </>
       )}

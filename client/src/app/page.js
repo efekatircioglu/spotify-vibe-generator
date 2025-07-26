@@ -12,6 +12,7 @@ import ConcertsList from '../components/ConcertsList';
 import DropdownPortal from '../components/DropdownPortal';
 import { StyledModal, StyledAnalysisChart } from '../components/Charts';
 import ContributorFinder from '../components/ContributorFinder';
+import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 
 
 
@@ -535,25 +536,68 @@ const handleExploreContributions = async (track) => {
     }
   };
 
+  // Retry function for API calls (same as concerts page)
+  const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          return await response.json();
+        } else if (response.status === 500 && attempt < maxRetries) {
+          console.log(`Attempt ${attempt} failed with 500 error, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+          continue;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      }
+    }
+  };
+
   const handleSuggestionClick = async (artist) => {
     // Use the exact name from Spotify to search Ticketmaster
     let spotifyId = artist.spotifyId || null;
     let image = artist.image || null;
     let genres = artist.genres || [];
     let ticketmasterId = null;
-    // Always use the Spotify name for Ticketmaster search
-    try {
-      const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(artist.name)}`);
-      if (tmRes.ok) {
-        const tmData = await tmRes.json();
+    
+    // Check cache first
+    const cachedId = getCachedArtistId(artist.name);
+    if (cachedId) {
+      console.log(`Found cached Ticketmaster ID for "${artist.name}": ${cachedId}`);
+      ticketmasterId = cachedId;
+      // Get cached image if available
+      const cachedImage = getCachedArtistImage(artist.name);
+      if (cachedImage && !image) {
+        image = cachedImage;
+      }
+    } else {
+      // Always use the Spotify name for Ticketmaster search
+      try {
+        const tmData = await fetchWithRetry(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(artist.name)}`);
         const attractions = tmData._embedded?.attractions || [];
         // Find an exact name match (case-insensitive)
         const exact = attractions.find(a => a.name.toLowerCase() === artist.name.toLowerCase());
         if (exact && exact.id) {
           ticketmasterId = exact.id;
+          // Cache the successful result with image and Spotify ID
+          const imageUrl = exact.images?.[0]?.url || image;
+          setArtistCache(artist.name, exact.id, imageUrl, spotifyId);
+          console.log(`Cached Ticketmaster ID for "${artist.name}": ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
         }
+      } catch (err) {
+        console.error('Error searching Ticketmaster:', err);
       }
-    } catch {}
+    }
+    
     // Save full object to recents
     saveRecentSearch({ name: artist.name, spotifyId, ticketmasterId, image });
     setRecentSearches(getRecentSearches());

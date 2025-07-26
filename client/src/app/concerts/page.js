@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
+import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId } from '../../utils/artistCache';
 
 export default function ConcertsPage() {
   const router = useRouter();
@@ -28,13 +29,11 @@ export default function ConcertsPage() {
   const [concertsError, setConcertsError] = useState('');
   
   // State for filtering
-  const [locationFilter, setLocationFilter] = useState('');
+  const [locationFilters, setLocationFilters] = useState([]); // Array of selected filters
+  const [locationInput, setLocationInput] = useState(''); // For manual input
   const [filteredConcerts, setFilteredConcerts] = useState([]);
   const [availableCities, setAvailableCities] = useState([]);
   const [availableCountries, setAvailableCountries] = useState([]);
-  
-  // State for view mode
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
   
   // State for artist list type (followed or top)
   const [artistListType, setArtistListType] = useState('followed'); // 'followed' or 'top'
@@ -48,6 +47,9 @@ export default function ConcertsPage() {
   
   // State for tracking if concerts have been searched
   const [hasSearchedConcerts, setHasSearchedConcerts] = useState(false);
+  
+  // Ref for scrolling to concerts section
+  const concertsSectionRef = useRef(null);
   
   // Fetch followed artists
   useEffect(() => {
@@ -80,6 +82,34 @@ export default function ConcertsPage() {
       .finally(() => setLoadingTop(false));
   }, []);
   
+  // Retry function for API calls
+  const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          return await response.json();
+        } else if (response.status === 500 && attempt < maxRetries) {
+          console.log(`Attempt ${attempt} failed with 500 error, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+          continue;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      }
+    }
+  };
+
+
+  
   // Debounced artist search
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -91,33 +121,38 @@ export default function ConcertsPage() {
       return;
     }
     
-    searchTimeoutRef.current = setTimeout(() => {
+    searchTimeoutRef.current = setTimeout(async () => {
       setSearching(true);
-      fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery)}`)
-        .then(res => res.ok ? res.json() : { attractions: [] })
-        .then(data => {
-          console.log('Raw Ticketmaster response:', data);
-          // Filter for music artists only
-          const attractions = data._embedded?.attractions || data.attractions || [];
-          console.log('All attractions:', attractions);
-          
-          const musicArtists = attractions.filter(artist => {
-            const isMusic = artist.classifications && 
-              artist.classifications.some(classification => 
-                classification.segment && classification.segment.name === 'Music'
-              );
-            console.log(`Artist ${artist.name}: isMusic = ${isMusic}`);
-            return isMusic;
-          });
-          
-          console.log('Filtered music artists:', musicArtists);
-          setSearchResults(musicArtists);
-        })
-        .catch(err => {
-          console.error('Error searching artists:', err);
-          setSearchResults([]);
-        })
-        .finally(() => setSearching(false));
+      try {
+        const data = await fetchWithRetry(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery)}`);
+        console.log('Raw Ticketmaster response:', data);
+        // Filter for music artists only
+        const attractions = data._embedded?.attractions || data.attractions || [];
+        console.log('All attractions:', attractions);
+        
+        const musicArtists = attractions.filter(artist => {
+          const isMusic = artist.classifications && 
+            artist.classifications.some(classification => 
+              classification.segment && classification.segment.name === 'Music'
+            );
+          console.log(`Artist ${artist.name}: isMusic = ${isMusic}`);
+          return isMusic;
+        });
+        
+        // Cache successful results with images (no Spotify ID for manual search)
+        musicArtists.forEach(artist => {
+          const imageUrl = artist.images?.[0]?.url || null;
+          setArtistCache(artist.name, artist.id, imageUrl, null);
+        });
+        
+        console.log('Filtered music artists:', musicArtists);
+        setSearchResults(musicArtists);
+      } catch (err) {
+        console.error('Error searching artists:', err);
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
     }, 300);
     
     return () => {
@@ -127,32 +162,50 @@ export default function ConcertsPage() {
     };
   }, [searchQuery]);
   
-  // Filter concerts when location filter changes
+  // Filter concerts when location filters change
   useEffect(() => {
-    if (!locationFilter.trim()) {
+    if (locationFilters.length === 0) {
       setFilteredConcerts(concerts);
     } else {
       const filtered = concerts.filter(concert => {
         const venue = concert._embedded?.venues?.[0];
-        if (!venue) return false;
         
-        // Check city, country, state first (more relevant for location filtering)
-        const city = venue.city?.name || '';
-        const country = venue.country?.name || '';
-        const state = venue.state?.name || '';
-        const venueName = venue.name || '';
+        // Check if any of the selected filters match
+        const hasMatchingFilter = locationFilters.some(filter => {
+          const searchTerm = filter.toLowerCase();
+          
+          // Search by artist names (check all attractions)
+          const artistNames = concert._embedded?.attractions?.map(attraction => 
+            attraction.name?.toLowerCase() || ''
+          ) || [];
+          
+          const hasMatchingArtist = artistNames.some(artistName => 
+            artistName.includes(searchTerm)
+          );
+          
+          // Search by location (city, country, state)
+          let hasMatchingLocation = false;
+          if (venue) {
+            const city = venue.city?.name || '';
+            const country = venue.country?.name || '';
+            const state = venue.state?.name || '';
+            
+            hasMatchingLocation = city.toLowerCase().includes(searchTerm) ||
+                                 country.toLowerCase().includes(searchTerm) ||
+                                 state.toLowerCase().includes(searchTerm);
+          }
+          
+          // Return true if either artist name or location matches this filter
+          return hasMatchingArtist || hasMatchingLocation;
+        });
         
-        const searchTerm = locationFilter.toLowerCase();
-        
-        // Only search by city, country, and state (no venue name)
-        return city.toLowerCase().includes(searchTerm) ||
-               country.toLowerCase().includes(searchTerm) ||
-               state.toLowerCase().includes(searchTerm);
+        // Return true if any filter matches
+        return hasMatchingFilter;
       });
       setFilteredConcerts(filtered);
       setCurrentPage(1); // Reset to first page when filter changes
     }
-  }, [concerts, locationFilter]);
+  }, [concerts, locationFilters]);
   
   // Add artist to selection
   const addArtist = (artist) => {
@@ -165,28 +218,56 @@ export default function ConcertsPage() {
   };
 
   // Auto-search and add artist from Spotify
-  const autoSearchAndAddArtist = async (artistName) => {
+  const autoSearchAndAddArtist = async (artistName, spotifyArtist = null) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
-      if (response.ok) {
-        const data = await response.json();
-        const attractions = data._embedded?.attractions || data.attractions || [];
-        const musicArtists = attractions.filter(artist => {
-          const isMusic = artist.classifications && 
-            artist.classifications.some(classification => 
-              classification.segment && classification.segment.name === 'Music'
-            );
-          return isMusic;
-        });
+      // Check cache first
+      const cachedId = getCachedArtistId(artistName);
+      if (cachedId) {
+        console.log(`Found cached Ticketmaster ID for "${artistName}": ${cachedId}`);
+        // Get cached image and Spotify ID if available
+        const cachedImage = getCachedArtistImage(artistName);
+        const cachedSpotifyId = getCachedSpotifyId(artistName);
+        // Create a mock artist object with the cached data
+        const cachedArtist = {
+          id: cachedId,
+          name: artistName,
+          images: cachedImage ? [{ url: cachedImage }] : [],
+          spotifyId: cachedSpotifyId || spotifyArtist?.id,
+          // Add minimal required fields
+          classifications: [{ segment: { name: 'Music' } }]
+        };
+        addArtist(cachedArtist);
+        return;
+      }
+
+      const data = await fetchWithRetry(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+      const attractions = data._embedded?.attractions || data.attractions || [];
+      const musicArtists = attractions.filter(artist => {
+        const isMusic = artist.classifications && 
+          artist.classifications.some(classification => 
+            classification.segment && classification.segment.name === 'Music'
+          );
+        return isMusic;
+      });
+      
+      if (musicArtists.length > 0) {
+        // Cache the successful result with image and Spotify ID
+        const firstArtist = musicArtists[0];
+        const imageUrl = firstArtist.images?.[0]?.url || null;
+        const spotifyId = spotifyArtist?.id || null;
+        setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId);
+        console.log(`Cached Ticketmaster ID for "${artistName}": ${firstArtist.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
         
-        if (musicArtists.length > 0) {
-          // Auto-select the first match
-          addArtist(musicArtists[0]);
-        } else {
-          // If no match found, just set the search query
-          setSearchQuery(artistName);
-        }
+        // Add Spotify ID to the artist object
+        const artistWithSpotifyId = {
+          ...firstArtist,
+          spotifyId: spotifyId
+        };
+        
+        // Auto-select the first match
+        addArtist(artistWithSpotifyId);
       } else {
+        // If no match found, just set the search query
         setSearchQuery(artistName);
       }
     } catch (err) {
@@ -207,7 +288,7 @@ export default function ConcertsPage() {
     );
     
     for (const artist of artistsToAdd) {
-      await autoSearchAndAddArtist(artist.name);
+      await autoSearchAndAddArtist(artist.name, artist);
     }
   };
 
@@ -218,13 +299,49 @@ export default function ConcertsPage() {
     );
     
     for (const artist of artistsToAdd) {
-      await autoSearchAndAddArtist(artist.name);
+      await autoSearchAndAddArtist(artist.name, artist);
     }
   };
 
   // Remove all selected artists
   const removeAllArtists = () => {
     setSelectedArtists([]);
+  };
+
+  // Toggle location filter (add if not present, remove if present)
+  const toggleLocationFilter = (filter) => {
+    if (locationFilters.includes(filter)) {
+      setLocationFilters(prev => prev.filter(f => f !== filter));
+    } else {
+      setLocationFilters(prev => [...prev, filter]);
+    }
+  };
+
+  // Remove location filter
+  const removeLocationFilter = (filter) => {
+    setLocationFilters(prev => prev.filter(f => f !== filter));
+  };
+
+  // Clear all location filters
+  const clearAllLocationFilters = () => {
+    setLocationFilters([]);
+  };
+
+  // Handle manual filter input
+  const handleLocationInputKeyPress = (e) => {
+    if (e.key === 'Enter' && locationInput.trim()) {
+      toggleLocationFilter(locationInput.trim());
+      setLocationInput('');
+    }
+  };
+
+  // Navigate to artist page
+  const navigateToArtist = (artist) => {
+    if (artist.spotifyId && artist.id) {
+      router.push(`/artist?name=${encodeURIComponent(artist.name)}&spotifyId=${artist.spotifyId}&ticketmasterId=${artist.id}`);
+    } else {
+      console.log('Missing Spotify ID or Ticketmaster ID for navigation');
+    }
   };
   
   // Search concerts for selected artists (globally)
@@ -238,50 +355,72 @@ export default function ConcertsPage() {
     setLoadingConcerts(true);
     setConcertsError('');
     setConcerts([]);
-    setLocationFilter(''); // Reset filter
+    setLocationFilters([]); // Reset filters
     setCurrentPage(1); // Reset to first page
     
     try {
-      // Fetch all concerts for all selected artists globally
-      const allConcerts = [];
+      // Extract artist IDs from selected artists
+      const artistIds = selectedArtists.map(artist => artist.id).filter(Boolean);
       
-      for (const artist of selectedArtists) {
-        const artistId = artist.id;
-        if (artistId) {
-          const response = await fetch(`http://127.0.0.1:8000/concerts/events?artistId=${artistId}`);
-          if (response.ok) {
-            const data = await response.json();
-            const events = data._embedded?.events || [];
-            // Add artist info to each event
-            const eventsWithArtist = events.map(event => ({
-              ...event,
-              artist: artist
-            }));
-            allConcerts.push(...eventsWithArtist);
-          }
-        }
+      if (artistIds.length === 0) {
+        setConcertsError('No valid artist IDs found.');
+        return;
       }
       
-      // Remove duplicates based on event ID
-      const uniqueConcerts = allConcerts.filter((concert, index, self) => 
-        index === self.findIndex(c => c.id === concert.id)
-      );
+      console.log(`Making optimized batch request for ${artistIds.length} artists`);
+      
+      // Use the new optimized batch endpoint
+      const response = await fetch('http://127.0.0.1:8000/concerts/events/optimized-batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ artistIds }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const allConcerts = data.concerts || [];
+      
+      console.log(`Received ${allConcerts.length} concerts from optimized batch endpoint`);
+      
+      // Add artist info to each event (match by artistId)
+      const concertsWithArtistInfo = allConcerts.map(event => {
+        const artist = selectedArtists.find(a => a.id === event.artistId);
+        return {
+          ...event,
+          artist: artist || null
+        };
+      });
       
       // Sort by date
-      uniqueConcerts.sort((a, b) => {
+      concertsWithArtistInfo.sort((a, b) => {
         const dateA = a.dates?.start?.localDate || '';
         const dateB = b.dates?.start?.localDate || '';
         return dateA.localeCompare(dateB);
       });
       
-      setConcerts(uniqueConcerts);
-      setFilteredConcerts(uniqueConcerts);
+      setConcerts(concertsWithArtistInfo);
+      setFilteredConcerts(concertsWithArtistInfo);
+      
+      // Scroll to concerts section after a short delay to ensure DOM is updated
+      setTimeout(() => {
+        if (concertsSectionRef.current) {
+          concertsSectionRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+        }
+      }, 100);
       
       // Extract cities and countries with concert counts from concerts
       const cityCounts = {};
       const countryCounts = {};
       
-      uniqueConcerts.forEach(concert => {
+      concertsWithArtistInfo.forEach(concert => {
         const venue = concert._embedded?.venues?.[0];
         if (venue) {
           if (venue.city?.name) {
@@ -463,18 +602,25 @@ export default function ConcertsPage() {
                 <button
                   onClick={selectAllFollowed}
                   style={{
-                    padding: '6px 12px',
-                    background: '#1db954',
-                    color: '#000',
+                    padding: '8px 16px',
+                    background: '#3b82f6',
+                    color: '#fff',
                     border: 'none',
                     borderRadius: 12,
-                    fontSize: '0.8rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    transition: 'background 0.2s',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#1ed760'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#1db954'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#2563eb';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#3b82f6';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
                 >
                   Select All
                 </button>
@@ -490,7 +636,7 @@ export default function ConcertsPage() {
               {followedArtists.map(artist => (
                 <button
                   key={artist.id}
-                  onClick={() => autoSearchAndAddArtist(artist.name)}
+                  onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
                     padding: '8px 12px',
                     background: '#232323',
@@ -536,18 +682,25 @@ export default function ConcertsPage() {
                 <button
                   onClick={selectAllTop}
                   style={{
-                    padding: '6px 12px',
-                    background: '#1db954',
-                    color: '#000',
+                    padding: '8px 16px',
+                    background: '#3b82f6',
+                    color: '#fff',
                     border: 'none',
                     borderRadius: 12,
-                    fontSize: '0.8rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    transition: 'background 0.2s',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#1ed760'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#1db954'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#2563eb';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#3b82f6';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
                 >
                   Select All
                 </button>
@@ -563,7 +716,7 @@ export default function ConcertsPage() {
               {topArtists.map(artist => (
                 <button
                   key={artist.id}
-                  onClick={() => autoSearchAndAddArtist(artist.name)}
+                  onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
                     padding: '8px 12px',
                     background: '#232323',
@@ -610,18 +763,25 @@ export default function ConcertsPage() {
               <button
                 onClick={removeAllArtists}
                 style={{
-                  padding: '6px 12px',
-                  background: '#f87171',
-                  color: '#000',
+                  padding: '8px 16px',
+                  background: '#ef4444',
+                  color: '#fff',
                   border: 'none',
                   borderRadius: 12,
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'background 0.2s',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#f87171'}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#dc2626';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#ef4444';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
               >
                 Remove All
               </button>
@@ -645,6 +805,21 @@ export default function ConcertsPage() {
                     alignItems: 'center',
                     gap: 10,
                     minWidth: 'fit-content',
+                    cursor: artist.spotifyId ? 'pointer' : 'default',
+                    transition: 'all 0.2s',
+                  }}
+                  onClick={() => artist.spotifyId && navigateToArtist(artist)}
+                  onMouseEnter={(e) => {
+                    if (artist.spotifyId) {
+                      e.currentTarget.style.background = '#1ed760';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (artist.spotifyId) {
+                      e.currentTarget.style.background = '#1db954';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }
                   }}
                 >
                   {/* Artist Image */}
@@ -663,7 +838,10 @@ export default function ConcertsPage() {
                   )}
                   <span style={{ fontWeight: 600 }}>{artist.name}</span>
                   <button
-                    onClick={() => removeArtist(artist.id)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the parent click
+                      removeArtist(artist.id);
+                    }}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -692,29 +870,64 @@ export default function ConcertsPage() {
           onClick={searchConcerts}
           disabled={selectedArtists.length === 0 || loadingConcerts}
           style={{
-            padding: '12px 24px',
-            background: selectedArtists.length > 0 ? '#1db954' : '#333',
-            color: selectedArtists.length > 0 ? '#000' : '#666',
+            padding: '16px 32px',
+            background: selectedArtists.length > 0 ? '#10b981' : '#374151',
+            color: selectedArtists.length > 0 ? '#fff' : '#6b7280',
             border: 'none',
-            borderRadius: 8,
-            fontSize: '1rem',
-            fontWeight: 700,
+            borderRadius: 12,
+            fontSize: '1.1rem',
+            fontWeight: 800,
             cursor: selectedArtists.length > 0 ? 'pointer' : 'not-allowed',
-            transition: 'background 0.2s',
+            transition: 'all 0.3s ease',
+            boxShadow: selectedArtists.length > 0 ? '0 2px 8px rgba(16, 185, 129, 0.2)' : 'none',
+            transform: selectedArtists.length > 0 ? 'translateY(0)' : 'none',
+            position: 'relative',
+            overflow: 'hidden',
           }}
           onMouseEnter={(e) => {
             if (selectedArtists.length > 0) {
-              e.currentTarget.style.background = '#1ed760';
+              e.currentTarget.style.background = '#059669';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
             }
           }}
           onMouseLeave={(e) => {
             if (selectedArtists.length > 0) {
-              e.currentTarget.style.background = '#1db954';
+              e.currentTarget.style.background = '#10b981';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.2)';
             }
           }}
         >
-          {loadingConcerts ? 'Searching Worldwide...' : 'Find All Concerts'}
+          {loadingConcerts ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ 
+                width: 16, 
+                height: 16, 
+                border: '2px solid transparent', 
+                borderTop: '2px solid #fff', 
+                borderRadius: '50%', 
+                animation: 'spin 1s linear infinite' 
+              }}></div>
+              Searching Worldwide...
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+              Find All Concerts
+            </span>
+          )}
         </button>
+        
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
       
       {/* Concerts Results */}
@@ -757,60 +970,108 @@ export default function ConcertsPage() {
       )}
       
       {concerts.length > 0 && (
-        <div style={{ 
-          background: '#181818', 
-          padding: 24, 
-          borderRadius: 16,
-          boxShadow: '0 4px 16px #0003'
-        }}>
+        <div 
+          ref={concertsSectionRef}
+          style={{ 
+            background: '#181818', 
+            padding: 24, 
+            borderRadius: 16,
+            boxShadow: '0 4px 16px #0003'
+          }}
+        >
           <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
             marginBottom: 24 
           }}>
             <h2 style={{ color: '#fff', fontSize: '1.5rem' }}>
               Concerts Found ({filteredConcerts.length} of {concerts.length})
             </h2>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setViewMode('list')}
-                style={{
-                  padding: '8px 16px',
-                  background: viewMode === 'list' ? '#1db954' : '#232323',
-                  color: viewMode === 'list' ? '#000' : '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                }}
-              >
-                List View
-              </button>
-              <button
-                onClick={() => setViewMode('calendar')}
-                style={{
-                  padding: '8px 16px',
-                  background: viewMode === 'calendar' ? '#1db954' : '#232323',
-                  color: viewMode === 'calendar' ? '#000' : '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                }}
-              >
-                Calendar View
-              </button>
-            </div>
           </div>
           
           {/* Location Filter */}
           <div style={{ marginBottom: 24 }}>
+            {/* Selected Filters Display */}
+            {locationFilters.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ 
+                  color: '#1db954', 
+                  fontSize: '0.9rem', 
+                  marginBottom: 8,
+                  fontWeight: 600
+                }}>
+                  Active Filters ({locationFilters.length}):
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: 8,
+                  marginBottom: 12
+                }}>
+                  {locationFilters.map(filter => (
+                    <div
+                      key={filter}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#1db954',
+                        color: '#000',
+                        border: '1px solid #1db954',
+                        borderRadius: 16,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span>{filter}</span>
+                      <button
+                        onClick={() => removeLocationFilter(filter)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#000',
+                          cursor: 'pointer',
+                          fontSize: '1rem',
+                          padding: 0,
+                          width: 16,
+                          height: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={clearAllLocationFilters}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#f87171',
+                      color: '#000',
+                      border: '1px solid #f87171',
+                      borderRadius: 16,
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#f87171'}
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <input
               type="text"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              placeholder="Filter by location (e.g., London, GB, New York)..."
+              value={locationInput}
+              onChange={(e) => setLocationInput(e.target.value)}
+              onKeyPress={handleLocationInputKeyPress}
+              placeholder="Type location or artist name and press Enter to add filter"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -858,11 +1119,11 @@ export default function ConcertsPage() {
                         {availableCities.map(city => (
                           <button
                             key={city}
-                            onClick={() => setLocationFilter(city)}
+                            onClick={() => toggleLocationFilter(city)}
                             style={{
                               padding: '4px 8px',
-                              background: locationFilter === city ? '#1db954' : '#232323',
-                              color: locationFilter === city ? '#000' : '#fff',
+                              background: locationFilters.includes(city) ? '#1db954' : '#232323',
+                              color: locationFilters.includes(city) ? '#000' : '#fff',
                               border: '1px solid #333',
                               borderRadius: 12,
                               cursor: 'pointer',
@@ -875,12 +1136,12 @@ export default function ConcertsPage() {
                               minWidth: 0,
                             }}
                             onMouseEnter={(e) => {
-                              if (locationFilter !== city) {
+                              if (!locationFilters.includes(city)) {
                                 e.currentTarget.style.background = '#404040';
                               }
                             }}
                             onMouseLeave={(e) => {
-                              if (locationFilter !== city) {
+                              if (!locationFilters.includes(city)) {
                                 e.currentTarget.style.background = '#232323';
                               }
                             }}
@@ -915,11 +1176,11 @@ export default function ConcertsPage() {
                         {availableCountries.map(country => (
                           <button
                             key={country}
-                            onClick={() => setLocationFilter(country)}
+                            onClick={() => toggleLocationFilter(country)}
                             style={{
                               padding: '4px 8px',
-                              background: locationFilter === country ? '#fbbf24' : '#232323',
-                              color: locationFilter === country ? '#000' : '#fff',
+                              background: locationFilters.includes(country) ? '#fbbf24' : '#232323',
+                              color: locationFilters.includes(country) ? '#000' : '#fff',
                               border: '1px solid #333',
                               borderRadius: 12,
                               cursor: 'pointer',
@@ -932,12 +1193,12 @@ export default function ConcertsPage() {
                               minWidth: 0,
                             }}
                             onMouseEnter={(e) => {
-                              if (locationFilter !== country) {
+                              if (!locationFilters.includes(country)) {
                                 e.currentTarget.style.background = '#404040';
                               }
                             }}
                             onMouseLeave={(e) => {
-                              if (locationFilter !== country) {
+                              if (!locationFilters.includes(country)) {
                                 e.currentTarget.style.background = '#232323';
                               }
                             }}
@@ -950,128 +1211,99 @@ export default function ConcertsPage() {
                   )}
                 </div>
                 
-                {/* Clear Filter Button */}
-                {locationFilter && (
-                  <div style={{ marginTop: 12, textAlign: 'center' }}>
-                    <button
-                      onClick={() => setLocationFilter('')}
-                      style={{
-                        padding: '6px 16px',
-                        background: '#f87171',
-                        color: '#000',
-                        border: '1px solid #f87171',
-                        borderRadius: 16,
-                        cursor: 'pointer',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = '#f87171'}
-                    >
-                      Clear Filter
-                    </button>
-                  </div>
-                )}
+
               </div>
             )}
           </div>
           
-          {viewMode === 'list' ? (
-            <>
-              {/* Pagination Info */}
-              {filteredConcerts.length > 0 && (
-                <div style={{ 
-                  marginBottom: 24, 
-                  color: '#fff', 
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  textAlign: 'center'
-                }}>
-                  Concerts Found ({filteredConcerts.length} of {concerts.length})
-                </div>
-              )}
-              
-              {/* Pagination Controls Above Calendar */}
-              {filteredConcerts.length > concertsPerPage && (
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center', 
-                  gap: 16, 
-                  marginBottom: 24,
-                  padding: '16px 0'
-                }}>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    style={{
-                      padding: '8px 16px',
-                      background: currentPage === 1 ? '#333' : '#1db954',
-                      color: currentPage === 1 ? '#666' : '#000',
-                      border: 'none',
-                      borderRadius: 6,
-                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    ← Previous
-                  </button>
-                  
-                  <div style={{ 
-                    color: '#fff', 
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    minWidth: '100px',
-                    textAlign: 'center'
-                  }}>
-                    {currentPage} / {Math.ceil(filteredConcerts.length / concertsPerPage)}
-                  </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredConcerts.length / concertsPerPage), prev + 1))}
-                    disabled={currentPage === Math.ceil(filteredConcerts.length / concertsPerPage)}
-                    style={{
-                      padding: '8px 16px',
-                      background: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#333' : '#1db954',
-                      color: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#666' : '#000',
-                      border: 'none',
-                      borderRadius: 6,
-                      cursor: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? 'not-allowed' : 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-              
-              {/* Paginated Concerts */}
-              <ConcertsList 
-                concerts={filteredConcerts.slice(
-                  (currentPage - 1) * concertsPerPage, 
-                  currentPage * concertsPerPage
-                )} 
-                selectedArtist={selectedArtists.length > 0 ? (() => {
-                  const artistNames = selectedArtists.map(artist => artist.name).join(', ');
-                  console.log('Selected artists for highlighting:', artistNames);
-                  return artistNames;
-                })() : null}
-                currentPage={currentPage}
-                totalPages={Math.ceil(filteredConcerts.length / concertsPerPage)}
-                onPageChange={setCurrentPage}
-                showPagination={filteredConcerts.length > concertsPerPage}
-              />
-            </>
-          ) : (
-            <div style={{ color: '#fff', textAlign: 'center', padding: 40 }}>
-              Calendar view coming soon!
+          {/* Pagination Info */}
+          {filteredConcerts.length > 0 && (
+            <div style={{ 
+              marginBottom: 24, 
+              color: '#fff', 
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              textAlign: 'center'
+            }}>
+              Concerts Found ({filteredConcerts.length} of {concerts.length})
             </div>
           )}
+          
+          {/* Pagination Controls Above Calendar */}
+          {filteredConcerts.length > concertsPerPage && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              gap: 16, 
+              marginBottom: 24,
+              padding: '16px 0'
+            }}>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '8px 16px',
+                  background: currentPage === 1 ? '#333' : '#1db954',
+                  color: currentPage === 1 ? '#666' : '#000',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+              >
+                ← Previous
+              </button>
+              
+              <div style={{ 
+                color: '#fff', 
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                minWidth: '100px',
+                textAlign: 'center'
+              }}>
+                {currentPage} / {Math.ceil(filteredConcerts.length / concertsPerPage)}
+              </div>
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredConcerts.length / concertsPerPage), prev + 1))}
+                disabled={currentPage === Math.ceil(filteredConcerts.length / concertsPerPage)}
+                style={{
+                  padding: '8px 16px',
+                  background: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#333' : '#1db954',
+                  color: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#666' : '#000',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? 'not-allowed' : 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+          
+          {/* Paginated Concerts */}
+          <ConcertsList 
+            concerts={filteredConcerts.slice(
+              (currentPage - 1) * concertsPerPage, 
+              currentPage * concertsPerPage
+            )} 
+            selectedArtist={selectedArtists.length > 0 ? (() => {
+              const artistNames = selectedArtists.map(artist => artist.name).join(', ');
+              console.log('Selected artists for highlighting:', artistNames);
+              return artistNames;
+            })() : null}
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredConcerts.length / concertsPerPage)}
+            onPageChange={setCurrentPage}
+            showPagination={filteredConcerts.length > concertsPerPage}
+            allConcerts={filteredConcerts} // Pass all concerts for calendar
+          />
         </div>
       )}
     </main>

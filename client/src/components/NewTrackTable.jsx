@@ -6,8 +6,11 @@ import DropdownPortal from './DropdownPortal';
 import ContributorFinder from './ContributorFinder';
 import { lookupTrackMBID } from '../utils/trackAnalysisCache';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
+import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
+import { useRouter } from 'next/navigation';
 
 export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [] }) {
+  const router = useRouter();
   const [showWrapped, setShowWrapped] = useState(false);
   const [tableKey, setTableKey] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(null); // row index for open dropdown
@@ -19,10 +22,46 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const [selectedTrackInfo, setSelectedTrackInfo] = useState(null);
   const [showNewSongAnalysisModal, setShowNewSongAnalysisModal] = useState(false);
   const [selectedTrackForNewAnalysis, setSelectedTrackForNewAnalysis] = useState(null);
+  const [hoveredCell, setHoveredCell] = useState(null); // { row: number, col: string, content: string }
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [clickingArtist, setClickingArtist] = useState(null); // Track which artist is being clicked
+  const [popoverStates, setPopoverStates] = useState({}); // Track popover states for each track
+  const [truncatedStates, setTruncatedStates] = useState({}); // Track which tracks have truncated content
 
   // When tracks change, increment tableKey to trigger animation
   useEffect(() => {
     setTableKey(k => k + 1);
+  }, [tracks]);
+
+  // Check for truncated content when tracks change
+  useEffect(() => {
+    if (!tracks || tracks.length === 0) return;
+    
+    // Use setTimeout to ensure DOM is rendered
+    const timeoutId = setTimeout(() => {
+      const newTruncatedStates = {};
+      
+      tracks.forEach((track, index) => {
+        if (track.artist && typeof track.artist === 'string') {
+          const artists = track.artist.split(', ').map(a => a.trim());
+          
+          // Only check for truncation if there are 3+ artists
+          if (artists.length >= 3) {
+            // Find the artist cell in the DOM
+            const artistCells = document.querySelectorAll(`[data-track-index="${index}"] .artist-cell`);
+            if (artistCells.length > 0) {
+              const cell = artistCells[0];
+              const isOverflowing = cell.scrollWidth > cell.clientWidth;
+              newTruncatedStates[index] = isOverflowing;
+            }
+          }
+        }
+      });
+      
+      setTruncatedStates(newTruncatedStates);
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, [tracks]);
 
   // Close dropdown on outside click
@@ -50,6 +89,451 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const handleThirdGenreClick = (track) => {
     setSelectedTrackForNewAnalysis(track);
     setShowNewSongAnalysisModal(true);
+  };
+
+  // Tooltip handlers
+  const handleCellMouseEnter = (e, rowIndex, column, content) => {
+    // Only show tooltip if content is actually truncated
+    const element = e.currentTarget;
+    if (element.scrollWidth > element.clientWidth) {
+      const rect = element.getBoundingClientRect();
+      setTooltipPosition({
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height
+      });
+      setHoveredCell({ row: rowIndex, col: column, content });
+    }
+  };
+
+  const handleCellMouseLeave = () => {
+    // Delay hiding tooltip for 5 seconds
+    window.tooltipTimeout = setTimeout(() => {
+      setHoveredCell(null);
+    }, 5000);
+  };
+
+  // Retry function for API calls (same as other pages)
+  const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          return await response.json();
+        } else if (response.status === 500 && attempt < maxRetries) {
+          console.log(`Attempt ${attempt} failed with 500 error, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+          continue;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      }
+    }
+  };
+
+  // Handle artist click with caching
+  const handleArtistClick = async (artistName, trackIndex) => {
+    if (clickingArtist) return; // Prevent multiple simultaneous clicks
+    
+    setClickingArtist(artistName);
+    
+    try {
+      let spotifyId = null;
+      let ticketmasterId = null;
+      let imageUrl = null;
+      
+      // Get Spotify ID and image from track data or search Spotify API
+      const track = tracks[trackIndex];
+      console.log('Full track data:', JSON.stringify(track, null, 2));
+      console.log('Looking for artist:', artistName);
+      
+      // Try to get from track.artists array first (if it exists)
+      if (track && track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
+        const artist = track.artists[0];
+        if (artist && artist.id) {
+          spotifyId = artist.id;
+          imageUrl = artist.images?.[0]?.url || null;
+          console.log(`Extracted Spotify ID from track.artists: ${spotifyId}`);
+          console.log(`Extracted image URL from track.artists: ${imageUrl}`);
+        }
+      }
+      
+      // If we don't have Spotify ID, search Spotify API
+      if (!spotifyId) {
+        try {
+          console.log(`Searching Spotify API for "${artistName}"...`);
+          const spData = await fetchWithRetry(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+          const spotifyArtists = spData.artists || [];
+          console.log('Spotify search results:', spotifyArtists);
+          
+          // Find exact match
+          const exactSpotify = spotifyArtists.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+          if (exactSpotify && exactSpotify.id) {
+            spotifyId = exactSpotify.id;
+            imageUrl = exactSpotify.image || exactSpotify.images?.[0]?.url || imageUrl;
+            console.log(`Found Spotify ID from API: ${spotifyId}`);
+            console.log(`Found Spotify image from API: ${imageUrl}`);
+          }
+        } catch (err) {
+          console.error('Error searching Spotify API:', err);
+        }
+      }
+      
+      // Check cache first
+      const cachedId = getCachedArtistId(artistName);
+      if (cachedId) {
+        console.log(`Found cached Ticketmaster ID for "${artistName}": ${cachedId}`);
+        ticketmasterId = cachedId;
+        // Get cached image if available (only if we don't have it from track data)
+        if (!imageUrl) {
+          const cachedImage = getCachedArtistImage(artistName);
+          if (cachedImage) {
+            imageUrl = cachedImage;
+          }
+        }
+        // Get cached Spotify ID if available (only if we don't have it from track data)
+        if (!spotifyId) {
+          const cachedSpotifyId = getCachedSpotifyId(artistName);
+          if (cachedSpotifyId) {
+            spotifyId = cachedSpotifyId;
+          }
+        }
+      } else {
+        // Search Spotify for the artist if we don't have Spotify ID
+        if (!spotifyId) {
+          try {
+            console.log(`Searching Spotify for "${artistName}"...`);
+            const spData = await fetchWithRetry(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+            const spotifyArtists = spData.artists || [];
+            // Find an exact name match (case-insensitive)
+            const exactSpotify = spotifyArtists.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+            if (exactSpotify && exactSpotify.id) {
+              spotifyId = exactSpotify.id;
+              imageUrl = exactSpotify.image || exactSpotify.images?.[0]?.url || imageUrl;
+              console.log(`Found Spotify ID for "${artistName}": ${spotifyId}`);
+              console.log(`Found Spotify image: ${imageUrl}`);
+            }
+          } catch (err) {
+            console.error('Error searching Spotify:', err);
+          }
+        }
+        
+        // Search Ticketmaster for the artist
+        try {
+          const tmData = await fetchWithRetry(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(artistName)}`);
+          const attractions = tmData._embedded?.attractions || [];
+          // Find an exact name match (case-insensitive)
+          const exact = attractions.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+          if (exact && exact.id) {
+            ticketmasterId = exact.id;
+            // Use Ticketmaster image if we don't have one from Spotify
+            if (!imageUrl) {
+              imageUrl = exact.images?.[0]?.url || null;
+            }
+            // Cache the successful result with both Spotify ID and Ticketmaster ID
+            setArtistCache(artistName, exact.id, imageUrl, spotifyId);
+            console.log(`Cached Ticketmaster ID for "${artistName}": ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+          }
+        } catch (err) {
+          console.error('Error searching Ticketmaster:', err);
+        }
+      }
+      
+      // Build URL parameters
+      const urlParamsArr = [`name=${encodeURIComponent(artistName)}`];
+      if (spotifyId) urlParamsArr.push(`spotifyId=${spotifyId}`);
+      if (ticketmasterId) urlParamsArr.push(`ticketmasterId=${ticketmasterId}`);
+      const urlParams = urlParamsArr.join('&');
+      
+      // Navigate to artist page
+      router.push(`/artist?${urlParams}`);
+      
+    } catch (error) {
+      console.error('Error handling artist click:', error);
+      // Still navigate with just the name if there's an error
+      router.push(`/artist?name=${encodeURIComponent(artistName)}`);
+    } finally {
+      setClickingArtist(null);
+    }
+  };
+
+  // Helper function to render clickable artist names with popover
+  const renderArtistNames = (track, trackIndex) => {
+    const artistNames = track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '');
+    
+    if (!artistNames) return '';
+    
+    // Split by comma and handle multiple artists
+    const artists = artistNames.split(',').map(name => name.trim()).filter(name => name);
+    
+    if (artists.length === 1) {
+      // Single artist - make it clickable
+      const isClicking = clickingArtist === artists[0];
+      return (
+        <span
+          style={{
+            color: '#1db954',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            textDecorationColor: '#1db954',
+            textUnderlineOffset: '2px',
+            transition: 'all 0.2s ease',
+            opacity: isClicking ? 0.7 : 1,
+            padding: '2px 4px',
+            borderRadius: '4px',
+            position: 'relative',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#1ed760';
+            e.currentTarget.style.textDecorationColor = '#1ed760';
+            e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#1db954';
+            e.currentTarget.style.textDecorationColor = '#1db954';
+            e.currentTarget.style.background = 'transparent';
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleArtistClick(artists[0], trackIndex);
+          }}
+          title={`Click to view ${artists[0]}'s profile`}
+        >
+          {artists[0]}
+        </span>
+      );
+    } else if (artists.length <= 2) {
+      // 2 or fewer artists - make each clickable without popover
+      return artists.map((artist, index) => {
+        const isClicking = clickingArtist === artist;
+        return (
+          <React.Fragment key={index}>
+            <span
+              style={{
+                color: '#1db954',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                textDecorationColor: '#1db954',
+                textUnderlineOffset: '2px',
+                transition: 'all 0.2s ease',
+                opacity: isClicking ? 0.7 : 1,
+                padding: '2px 4px',
+                borderRadius: '4px',
+                position: 'relative',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#1ed760';
+                e.currentTarget.style.textDecorationColor = '#1ed760';
+                e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#1db954';
+                e.currentTarget.style.textDecorationColor = '#1db954';
+                e.currentTarget.style.background = 'transparent';
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleArtistClick(artist, trackIndex);
+              }}
+              title={`Click to view ${artist}'s profile`}
+            >
+              {artist}
+            </span>
+            {index < artists.length - 1 && (
+              <span style={{ color: '#b3b3b3' }}>, </span>
+            )}
+          </React.Fragment>
+        );
+      });
+    } else {
+      // 3+ artists - check if content is actually truncated
+      const showPopover = popoverStates[trackIndex] || false;
+      const isTruncated = truncatedStates[trackIndex] || false;
+      
+      // If not truncated, render as simple clickable artists (like the 2-artist case)
+      if (!isTruncated) {
+        return artists.map((artist, index) => {
+          const isClicking = clickingArtist === artist;
+          return (
+            <React.Fragment key={index}>
+              <span
+                style={{
+                  color: '#1db954',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  textDecorationColor: '#1db954',
+                  textUnderlineOffset: '2px',
+                  transition: 'all 0.2s ease',
+                  opacity: isClicking ? 0.7 : 1,
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  position: 'relative',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#1ed760';
+                  e.currentTarget.style.textDecorationColor = '#1ed760';
+                  e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#1db954';
+                  e.currentTarget.style.textDecorationColor = '#1db954';
+                  e.currentTarget.style.background = 'transparent';
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleArtistClick(artist, trackIndex);
+                }}
+                title={`Click to view ${artist}'s profile`}
+              >
+                {artist}
+              </span>
+              {index < artists.length - 1 && (
+                <span style={{ color: '#b3b3b3' }}>, </span>
+              )}
+            </React.Fragment>
+          );
+        });
+      }
+      
+      // Only show popover if content is actually truncated
+      return (
+        <div 
+          style={{ 
+            position: 'relative', 
+            display: 'inline-block',
+            cursor: 'pointer',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+          onMouseEnter={() => setPopoverStates(prev => ({ ...prev, [trackIndex]: true }))}
+          onMouseLeave={() => setPopoverStates(prev => ({ ...prev, [trackIndex]: false }))}
+          onClick={(e) => {
+            e.stopPropagation();
+            setPopoverStates(prev => ({ ...prev, [trackIndex]: !prev[trackIndex] }));
+          }}
+        >
+          {/* Visible truncated list */}
+          <span style={{ color: '#1db954' }}>
+            {artists.slice(0, 2).map((artist, index) => (
+              <React.Fragment key={index}>
+                <span
+                  style={{
+                    color: '#1db954',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    textDecorationColor: '#1db954',
+                    textUnderlineOffset: '2px',
+                    transition: 'all 0.2s ease',
+                    padding: '2px 4px',
+                    borderRadius: '4px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#1ed760';
+                    e.currentTarget.style.textDecorationColor = '#1ed760';
+                    e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#1db954';
+                    e.currentTarget.style.textDecorationColor = '#1db954';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleArtistClick(artist, trackIndex);
+                  }}
+                >
+                  {artist}
+                </span>
+                {index < Math.min(2, artists.length - 1) && (
+                  <span style={{ color: '#b3b3b3' }}>, </span>
+                )}
+              </React.Fragment>
+            ))}
+            {artists.length > 2 && (
+              <span style={{ color: '#1db954', textDecoration: 'underline' }}>...</span>
+            )}
+          </span>
+          
+          {/* Hidden popover menu - only show if content is truncated */}
+          {showPopover && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '-10px',
+                left: '0',
+                transform: 'translateY(-100%)',
+                background: '#1a1a1a',
+                color: '#fff',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.9)',
+                zIndex: 10000,
+                minWidth: '200px',
+                border: '1px solid #333',
+              }}
+            >
+              <div style={{ 
+                fontSize: '0.8rem', 
+                color: '#b3b3b3', 
+                marginBottom: '8px',
+                fontWeight: 600
+              }}>
+                All Artists
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {artists.map((artist, index) => {
+                  const isClicking = clickingArtist === artist;
+                  return (
+                    <span
+                      key={index}
+                      style={{
+                        color: '#1db954',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        textDecorationColor: '#1db954',
+                        textUnderlineOffset: '2px',
+                        transition: 'all 0.2s ease',
+                        opacity: isClicking ? 0.7 : 1,
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.9rem',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#1ed760';
+                        e.currentTarget.style.textDecorationColor = '#1ed760';
+                        e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '#1db954';
+                        e.currentTarget.style.textDecorationColor = '#1db954';
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleArtistClick(artist, trackIndex);
+                      }}
+                    >
+                      {artist}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
   };
 
   // Estimate row height for minHeight reservation
@@ -188,11 +672,19 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
               {tracks.map((track, idx) => (
                 <tr
                   key={track.id ? `${track.id}-${idx}` : idx}
+                  data-track-index={idx}
+                  className={styles.animatedRow}
                   style={{
                     background: idx % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
                     borderRadius: 12,
                     transition: 'background 0.18s',
                     fontSize: '1.13em',
+                    animationDelay: `${idx * 60}ms`,
+                    animationName: 'fadeInUp',
+                    animationDuration: '400ms',
+                    animationFillMode: 'both',
+                    opacity: 0,
+                    animationTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
                   }}
                 >
                   <td style={{ padding: '16px 0 16px 12px', fontWeight: 700, fontSize: '1.08em', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{idx + 1}</td>
@@ -217,9 +709,118 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                       }}>{track.name ? track.name[0] : '?'}</div>
                     )}
                   </td>
-                  <td style={{ padding: '16px 0', fontWeight: 700, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{track.name}</td>
-                  <td style={{ padding: '16px 0', color: '#b3b3b3', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '')}</td>
-                  <td style={{ padding: '16px 0', color: '#b3b3b3', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{track.album?.name || track.album}</td>
+                  <td 
+                    style={{ 
+                      padding: '16px 0', 
+                      fontWeight: 700, 
+                      maxWidth: 180, 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap', 
+                      paddingLeft: 'clamp(6px, 1vw, 18px)', 
+                      paddingRight: 'clamp(6px, 1vw, 18px)',
+                      cursor: 'default',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      // Show tooltip when hovering anywhere in the cell
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltipPosition({
+                        x: rect.left,
+                        y: rect.top - 10, // Position tooltip slightly above the cell
+                        width: rect.width,
+                        height: rect.height
+                      });
+                      setHoveredCell({ 
+                        row: idx, 
+                        col: 'name', 
+                        content: track.name
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      // Delay hiding tooltip for 5 seconds
+                      window.tooltipTimeout = setTimeout(() => {
+                        setHoveredCell(null);
+                      }, 5000);
+                    }}
+                  >
+                    {track.name}
+                  </td>
+                  <td 
+                    className="artist-cell"
+                    style={{ 
+                      padding: '16px 0', 
+                      color: '#b3b3b3', 
+                      maxWidth: 160, 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap', 
+                      paddingLeft: 'clamp(6px, 1vw, 18px)', 
+                      paddingRight: 'clamp(6px, 1vw, 18px)',
+                      cursor: 'default',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      // Show tooltip when hovering anywhere in the cell
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltipPosition({
+                        x: rect.left,
+                        y: rect.top - 10, // Position tooltip slightly above the cell
+                        width: rect.width,
+                        height: rect.height
+                      });
+                      setHoveredCell({ 
+                        row: idx, 
+                        col: 'artist', 
+                        content: track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '')
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      // Delay hiding tooltip for 5 seconds
+                      window.tooltipTimeout = setTimeout(() => {
+                        setHoveredCell(null);
+                      }, 5000);
+                    }}
+                  >
+                    {renderArtistNames(track, idx)}
+                  </td>
+                  <td 
+                    style={{ 
+                      padding: '16px 0', 
+                      color: '#b3b3b3', 
+                      maxWidth: 160, 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap', 
+                      paddingLeft: 'clamp(6px, 1vw, 18px)', 
+                      paddingRight: 'clamp(6px, 1vw, 18px)',
+                      cursor: 'default',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      // Show tooltip when hovering anywhere in the cell
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setTooltipPosition({
+                        x: rect.left,
+                        y: rect.top - 10, // Position tooltip slightly above the cell
+                        width: rect.width,
+                        height: rect.height
+                      });
+                      setHoveredCell({ 
+                        row: idx, 
+                        col: 'album', 
+                        content: track.album?.name || track.album
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      // Delay hiding tooltip for 5 seconds
+                      window.tooltipTimeout = setTimeout(() => {
+                        setHoveredCell(null);
+                      }, 5000);
+                    }}
+                  >
+                    {track.album?.name || track.album}
+                  </td>
                   <td style={{ padding: '16px 0', color: '#b3b3b3', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')}</td>
                   <td style={{ padding: '16px 0', color: '#b3b3b3', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
                   <td style={{ padding: '16px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{/* Analyze button remains as is for now */}
@@ -420,10 +1021,119 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
         />
       )}
       
+      {/* Hover Tooltip */}
+      {hoveredCell && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            width: tooltipPosition.width,
+            minHeight: tooltipPosition.height,
+            background: '#1a1a1a',
+            color: '#fff',
+            padding: '16px 0',
+            paddingLeft: 'clamp(6px, 1vw, 18px)',
+            paddingRight: 'clamp(6px, 1vw, 18px)',
+            fontSize: 'clamp(0.85rem, 1.1vw, 1.08rem)',
+            fontWeight: hoveredCell.col === 'name' ? 700 : 400,
+            wordWrap: 'break-word',
+            whiteSpace: 'normal',
+            zIndex: 10000,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.9)',
+            pointerEvents: 'auto',
+            animation: 'tooltipFadeIn 0.2s ease-out',
+            display: 'flex',
+            alignItems: 'center',
+            overflow: 'visible',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            borderRadius: '8px',
+          }}
+          onMouseEnter={() => {
+            // Keep tooltip visible when hovering over it - clear any pending timeout
+            if (window.tooltipTimeout) {
+              clearTimeout(window.tooltipTimeout);
+              window.tooltipTimeout = null;
+            }
+          }}
+          onMouseLeave={() => {
+            // Hide tooltip after 5 seconds when leaving the tooltip
+            window.tooltipTimeout = setTimeout(() => {
+              setHoveredCell(null);
+            }, 5000);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            // If it's an artist cell, make it clickable
+            if (hoveredCell.col === 'artist') {
+              const artistNames = hoveredCell.content;
+              const artists = artistNames.split(',').map(name => name.trim()).filter(name => name);
+              if (artists.length > 0) {
+                // Click the first artist (or you could show a selection dialog)
+                handleArtistClick(artists[0], hoveredCell.row);
+              }
+            }
+          }}
+        >
+          {hoveredCell.col === 'artist' ? (
+            // Render clickable artist names in tooltip
+            <div style={{ width: '100%' }}>
+              {hoveredCell.content.split(',').map((artist, index) => {
+                const artistName = artist.trim();
+                return (
+                  <React.Fragment key={index}>
+                    <span
+                      style={{
+                        color: '#1db954',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        textDecorationColor: '#1db954',
+                        textUnderlineOffset: '2px',
+                        transition: 'all 0.2s ease',
+                        padding: '2px 4px',
+                        borderRadius: '4px',
+                        display: 'inline-block',
+                        margin: '2px 0',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#1ed760';
+                        e.currentTarget.style.textDecorationColor = '#1ed760';
+                        e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '#1db954';
+                        e.currentTarget.style.textDecorationColor = '#1db954';
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleArtistClick(artistName, hoveredCell.row);
+                      }}
+                    >
+                      {artistName}
+                    </span>
+                    {index < hoveredCell.content.split(',').length - 1 && (
+                      <span style={{ color: '#b3b3b3' }}>, </span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          ) : (
+            hoveredCell.content
+          )}
+        </div>
+      )}
+      
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(24px);}
           to { opacity: 1; transform: translateY(0);}
+        }
+        @keyframes tooltipFadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
         }
         .${styles.animatedRow} {
           opacity: 0;
