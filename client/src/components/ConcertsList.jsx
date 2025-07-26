@@ -3,7 +3,14 @@ import ReactCalendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import CustomCalendar from '../components/CustomCalendar';
 
-export default function ConcertsList({ concerts = [], selectedArtist = null }) {
+export default function ConcertsList({ 
+  concerts = [], 
+  selectedArtist = null,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange = null,
+  showPagination = false
+}) {
   const eventRefs = useRef({});
 
   // Helper to format date
@@ -42,7 +49,15 @@ export default function ConcertsList({ concerts = [], selectedArtist = null }) {
 
   return (
     <div style={{ padding: '0 0 32px 0', width: '100%' }}>
-      <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '2.4rem', margin: '0 0 32px 50px', letterSpacing: 1 }}>Upcoming Concerts</h2>
+      <h2 style={{ 
+        color: '#fff', 
+        fontWeight: 800, 
+        fontSize: '2.4rem', 
+        margin: '0 0 32px 50px', 
+        letterSpacing: 1 
+      }}>
+        Upcoming Concerts
+      </h2>
       <div style={{ background: '#181818', borderRadius: 18, padding: '32px 0', margin: '0 16px', boxShadow: '0 2px 24px #0002' }}>
         {concerts.length === 0 && (
           <div style={{ color: '#b3b3b3', fontSize: 18, textAlign: 'center', padding: 32 }}>
@@ -164,6 +179,65 @@ export default function ConcertsList({ concerts = [], selectedArtist = null }) {
             );
           })}
       </div>
+      
+      {/* Pagination Controls at the bottom */}
+      {showPagination && onPageChange && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          gap: 16, 
+          marginTop: 32,
+          padding: '20px 0'
+        }}>
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            style={{
+              padding: '10px 20px',
+              background: currentPage === 1 ? '#333' : '#1db954',
+              color: currentPage === 1 ? '#666' : '#000',
+              border: 'none',
+              borderRadius: 8,
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              transition: 'all 0.2s',
+            }}
+          >
+            Previous
+          </button>
+          
+          <div style={{ 
+            color: '#fff', 
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            minWidth: '120px',
+            textAlign: 'center'
+          }}>
+            Page {currentPage} of {totalPages}
+          </div>
+          
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '10px 20px',
+              background: currentPage === totalPages ? '#333' : '#1db954',
+              color: currentPage === totalPages ? '#666' : '#000',
+              border: 'none',
+              borderRadius: 8,
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              transition: 'all 0.2s',
+            }}
+          >
+            Next
+          </button>
+        </div>
+      )}
+      
       {/* Tour Calendar below the concerts list */}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '48px 0 0 0' }}>
         <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>

@@ -36,8 +36,18 @@ export default function ConcertsPage() {
   // State for view mode
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
   
+  // State for artist list type (followed or top)
+  const [artistListType, setArtistListType] = useState('followed'); // 'followed' or 'top'
+  
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const concertsPerPage = 20;
+  
   // Debounced search
   const searchTimeoutRef = useRef(null);
+  
+  // State for tracking if concerts have been searched
+  const [hasSearchedConcerts, setHasSearchedConcerts] = useState(false);
   
   // Fetch followed artists
   useEffect(() => {
@@ -140,6 +150,7 @@ export default function ConcertsPage() {
                state.toLowerCase().includes(searchTerm);
       });
       setFilteredConcerts(filtered);
+      setCurrentPage(1); // Reset to first page when filter changes
     }
   }, [concerts, locationFilter]);
   
@@ -223,10 +234,12 @@ export default function ConcertsPage() {
       return;
     }
     
+    setHasSearchedConcerts(true); // Set to true when searching
     setLoadingConcerts(true);
     setConcertsError('');
     setConcerts([]);
     setLocationFilter(''); // Reset filter
+    setCurrentPage(1); // Reset to first page
     
     try {
       // Fetch all concerts for all selected artists globally
@@ -249,44 +262,49 @@ export default function ConcertsPage() {
         }
       }
       
+      // Remove duplicates based on event ID
+      const uniqueConcerts = allConcerts.filter((concert, index, self) => 
+        index === self.findIndex(c => c.id === concert.id)
+      );
+      
       // Sort by date
-      allConcerts.sort((a, b) => {
+      uniqueConcerts.sort((a, b) => {
         const dateA = a.dates?.start?.localDate || '';
         const dateB = b.dates?.start?.localDate || '';
         return dateA.localeCompare(dateB);
       });
       
-              setConcerts(allConcerts);
-        setFilteredConcerts(allConcerts);
-        
-        // Extract cities and countries with concert counts from concerts
-        const cityCounts = {};
-        const countryCounts = {};
-        
-        allConcerts.forEach(concert => {
-          const venue = concert._embedded?.venues?.[0];
-          if (venue) {
-            if (venue.city?.name) {
-              cityCounts[venue.city.name] = (cityCounts[venue.city.name] || 0) + 1;
-            }
-            if (venue.country?.name) {
-              countryCounts[venue.country.name] = (countryCounts[venue.country.name] || 0) + 1;
-            }
+      setConcerts(uniqueConcerts);
+      setFilteredConcerts(uniqueConcerts);
+      
+      // Extract cities and countries with concert counts from concerts
+      const cityCounts = {};
+      const countryCounts = {};
+      
+      uniqueConcerts.forEach(concert => {
+        const venue = concert._embedded?.venues?.[0];
+        if (venue) {
+          if (venue.city?.name) {
+            cityCounts[venue.city.name] = (cityCounts[venue.city.name] || 0) + 1;
           }
-        });
-        
-        // Sort cities by concert count (most to least)
-        const sortedCities = Object.entries(cityCounts)
-          .sort(([,a], [,b]) => b - a)
-          .map(([city]) => city);
-        
-        // Sort countries by concert count (most to least)
-        const sortedCountries = Object.entries(countryCounts)
-          .sort(([,a], [,b]) => b - a)
-          .map(([country]) => country);
-        
-        setAvailableCities(sortedCities);
-        setAvailableCountries(sortedCountries);
+          if (venue.country?.name) {
+            countryCounts[venue.country.name] = (countryCounts[venue.country.name] || 0) + 1;
+          }
+        }
+      });
+      
+      // Sort cities by concert count (most to least)
+      const sortedCities = Object.entries(cityCounts)
+        .sort(([,a], [,b]) => b - a)
+        .map(([city]) => city);
+      
+      // Sort countries by concert count (most to least)
+      const sortedCountries = Object.entries(countryCounts)
+        .sort(([,a], [,b]) => b - a)
+        .map(([country]) => country);
+      
+      setAvailableCities(sortedCities);
+      setAvailableCountries(sortedCountries);
     } catch (err) {
       setConcertsError('Failed to fetch concerts. Please try again.');
       console.error('Error fetching concerts:', err);
@@ -329,10 +347,6 @@ export default function ConcertsPage() {
         
         {/* Search Artists */}
         <div style={{ marginBottom: 24 }}>
-          <h3 style={{ color: '#b3b3b3', marginBottom: 12, fontSize: '1.1rem' }}>Search Artists</h3>
-          <div style={{ color: '#888', fontSize: '0.8rem', marginBottom: 8 }}>
-            Debug: Query length: {searchQuery.length}, Searching: {searching ? 'Yes' : 'No'}, Results: {searchResults.length}
-          </div>
           <input
             type="text"
             value={searchQuery}
@@ -397,153 +411,189 @@ export default function ConcertsPage() {
           )}
         </div>
         
-        {/* Followed Artists */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: 12 
-          }}>
-            <h3 style={{ color: '#b3b3b3', fontSize: '1.1rem', margin: 0 }}>
-              Your Followed Artists {loadingFollowed && '(Loading...)'}
-            </h3>
-            {followedArtists.length > 0 && (
-              <button
-                onClick={selectAllFollowed}
-                style={{
-                  padding: '6px 12px',
-                  background: '#1db954',
-                  color: '#000',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'background 0.2s',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#1ed760'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#1db954'}
-              >
-                Select All
-              </button>
-            )}
-          </div>
-
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: 8,
-            maxHeight: 150,
-            overflowY: 'auto'
-          }}>
-            {followedArtists.map(artist => (
-              <button
-                key={artist.id}
-                onClick={() => autoSearchAndAddArtist(artist.name)}
-                style={{
-                  padding: '8px 12px',
-                  background: '#232323',
-                  color: '#fff',
-                  border: '1px solid #333',
-                  borderRadius: 20,
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  textAlign: 'center',
-                  minWidth: 0,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#1db954';
-                  e.currentTarget.style.color = '#000';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#232323';
-                  e.currentTarget.style.color = '#fff';
-                }}
-              >
-                {artist.name}
-              </button>
-            ))}
-          </div>
+        {/* Toggle Buttons for Artist List Type */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+          <button
+            onClick={() => setArtistListType('followed')}
+            style={{
+              padding: '10px 24px',
+              background: artistListType === 'followed' ? '#1db954' : '#232323',
+              color: artistListType === 'followed' ? '#000' : '#fff',
+              border: 'none',
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+          >
+            Your Followed Artists
+          </button>
+          <button
+            onClick={() => setArtistListType('top')}
+            style={{
+              padding: '10px 24px',
+              background: artistListType === 'top' ? '#1db954' : '#232323',
+              color: artistListType === 'top' ? '#000' : '#fff',
+              border: 'none',
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+          >
+            Your Top Artists
+          </button>
         </div>
         
-        {/* Top Artists */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            marginBottom: 12 
-          }}>
-            <h3 style={{ color: '#b3b3b3', fontSize: '1.1rem', margin: 0 }}>
-              Your Top Artists {loadingTop && '(Loading...)'}
-            </h3>
-            {topArtists.length > 0 && (
-              <button
-                onClick={selectAllTop}
-                style={{
-                  padding: '6px 12px',
-                  background: '#1db954',
-                  color: '#000',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'background 0.2s',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#1ed760'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#1db954'}
-              >
-                Select All
-              </button>
-            )}
+        {/* Unified Artist List (Followed or Top) */}
+        {artistListType === 'followed' && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: 12 
+            }}>
+              <h3 style={{ color: '#b3b3b3', fontSize: '1.1rem', margin: 0 }}>
+                Your Followed Artists {loadingFollowed && '(Loading...)'}
+              </h3>
+              {followedArtists.length > 0 && (
+                <button
+                  onClick={selectAllFollowed}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#1db954',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#1ed760'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#1db954'}
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+              gap: 8,
+              maxHeight: 150,
+              overflowY: 'auto'
+            }}>
+              {followedArtists.map(artist => (
+                <button
+                  key={artist.id}
+                  onClick={() => autoSearchAndAddArtist(artist.name)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#232323',
+                    color: '#fff',
+                    border: '1px solid #333',
+                    borderRadius: 20,
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    textAlign: 'center',
+                    minWidth: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#1db954';
+                    e.currentTarget.style.color = '#000';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#232323';
+                    e.currentTarget.style.color = '#fff';
+                  }}
+                >
+                  {artist.name}
+                </button>
+              ))}
+            </div>
           </div>
-
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            gap: 8,
-            maxHeight: 150,
-            overflowY: 'auto'
-          }}>
-            {topArtists.map(artist => (
-              <button
-                key={artist.id}
-                onClick={() => autoSearchAndAddArtist(artist.name)}
-                style={{
-                  padding: '8px 12px',
-                  background: '#232323',
-                  color: '#fff',
-                  border: '1px solid #333',
-                  borderRadius: 20,
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  textAlign: 'center',
-                  minWidth: 0,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#1db954';
-                  e.currentTarget.style.color = '#000';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#232323';
-                  e.currentTarget.style.color = '#fff';
-                }}
-              >
-                {artist.name}
-              </button>
-            ))}
+        )}
+        {artistListType === 'top' && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: 12 
+            }}>
+              <h3 style={{ color: '#b3b3b3', fontSize: '1.1rem', margin: 0 }}>
+                Your Top Artists {loadingTop && '(Loading...)'}
+              </h3>
+              {topArtists.length > 0 && (
+                <button
+                  onClick={selectAllTop}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#1db954',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#1ed760'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#1db954'}
+                >
+                  Select All
+                </button>
+              )}
+            </div>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+              gap: 8,
+              maxHeight: 150,
+              overflowY: 'auto'
+            }}>
+              {topArtists.map(artist => (
+                <button
+                  key={artist.id}
+                  onClick={() => autoSearchAndAddArtist(artist.name)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#232323',
+                    color: '#fff',
+                    border: '1px solid #333',
+                    borderRadius: 20,
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    textAlign: 'center',
+                    minWidth: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#1db954';
+                    e.currentTarget.style.color = '#000';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#232323';
+                    e.currentTarget.style.color = '#fff';
+                  }}
+                >
+                  {artist.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
         
         {/* Selected Artists */}
         {selectedArtists.length > 0 && (
@@ -680,7 +730,8 @@ export default function ConcertsPage() {
         </div>
       )}
       
-      {!loadingConcerts && !concertsError && concerts.length === 0 && selectedArtists.length > 0 && (
+      {/* Only show this message after a search attempt */}
+      {!loadingConcerts && !concertsError && concerts.length === 0 && selectedArtists.length > 0 && hasSearchedConcerts && (
         <div style={{ 
           background: '#181818', 
           padding: 24, 
@@ -799,8 +850,10 @@ export default function ConcertsPage() {
                         display: 'grid', 
                         gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
                         gap: 6,
-                        maxHeight: 100,
-                        overflowY: 'auto'
+                        maxHeight: 220,
+                        overflowY: 'auto',
+                        paddingBottom: 16,
+                        boxShadow: 'inset 0 -16px 16px -16px #101114',
                       }}>
                         {availableCities.map(city => (
                           <button
@@ -854,8 +907,10 @@ export default function ConcertsPage() {
                         display: 'grid', 
                         gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
                         gap: 6,
-                        maxHeight: 100,
-                        overflowY: 'auto'
+                        maxHeight: 220,
+                        overflowY: 'auto',
+                        paddingBottom: 16,
+                        boxShadow: 'inset 0 -16px 16px -16px #101114',
                       }}>
                         {availableCountries.map(country => (
                           <button
@@ -923,14 +978,95 @@ export default function ConcertsPage() {
           </div>
           
           {viewMode === 'list' ? (
-            <ConcertsList 
-              concerts={filteredConcerts} 
-              selectedArtist={selectedArtists.length > 0 ? (() => {
-                const artistNames = selectedArtists.map(artist => artist.name).join(', ');
-                console.log('Selected artists for highlighting:', artistNames);
-                return artistNames;
-              })() : null}
-            />
+            <>
+              {/* Pagination Info */}
+              {filteredConcerts.length > 0 && (
+                <div style={{ 
+                  marginBottom: 24, 
+                  color: '#fff', 
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  textAlign: 'center'
+                }}>
+                  Concerts Found ({filteredConcerts.length} of {concerts.length})
+                </div>
+              )}
+              
+              {/* Pagination Controls Above Calendar */}
+              {filteredConcerts.length > concertsPerPage && (
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  gap: 16, 
+                  marginBottom: 24,
+                  padding: '16px 0'
+                }}>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '8px 16px',
+                      background: currentPage === 1 ? '#333' : '#1db954',
+                      color: currentPage === 1 ? '#666' : '#000',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    ← Previous
+                  </button>
+                  
+                  <div style={{ 
+                    color: '#fff', 
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    minWidth: '100px',
+                    textAlign: 'center'
+                  }}>
+                    {currentPage} / {Math.ceil(filteredConcerts.length / concertsPerPage)}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredConcerts.length / concertsPerPage), prev + 1))}
+                    disabled={currentPage === Math.ceil(filteredConcerts.length / concertsPerPage)}
+                    style={{
+                      padding: '8px 16px',
+                      background: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#333' : '#1db954',
+                      color: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#666' : '#000',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? 'not-allowed' : 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+              
+              {/* Paginated Concerts */}
+              <ConcertsList 
+                concerts={filteredConcerts.slice(
+                  (currentPage - 1) * concertsPerPage, 
+                  currentPage * concertsPerPage
+                )} 
+                selectedArtist={selectedArtists.length > 0 ? (() => {
+                  const artistNames = selectedArtists.map(artist => artist.name).join(', ');
+                  console.log('Selected artists for highlighting:', artistNames);
+                  return artistNames;
+                })() : null}
+                currentPage={currentPage}
+                totalPages={Math.ceil(filteredConcerts.length / concertsPerPage)}
+                onPageChange={setCurrentPage}
+                showPagination={filteredConcerts.length > concertsPerPage}
+              />
+            </>
           ) : (
             <div style={{ color: '#fff', textAlign: 'center', padding: 40 }}>
               Calendar view coming soon!
