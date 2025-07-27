@@ -14,7 +14,7 @@ const PORT = 8000;
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
-  origin: 'http://localhost:3000'
+  origin: ['http://localhost:3000', 'http://192.168.1.4:3000']
 }));
 
 // Parse JSON bodies for POST requests
@@ -80,7 +80,15 @@ app.get('/callback', async (req, res) => {
     
     // Send the user back to the 'face' of your application
     // HERE REDIRECT TO SOME OTHER PAGE
-    res.redirect('http://localhost:3000');
+    // Check if the request came from mobile or desktop
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
+    
+    if (isMobile) {
+      res.redirect('http://192.168.1.4:3000');
+    } else {
+      res.redirect('http://localhost:3000');
+    }
  
   } catch (err) {
     console.error('--- ERROR GETTING TOKENS ---');
@@ -980,6 +988,7 @@ module.exports = pool;
 
 
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is also accessible on http://192.168.1.4:${PORT}`);
 });

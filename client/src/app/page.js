@@ -9,7 +9,7 @@ import NewTrackTable from '../components/NewTrackTable';
 import UserProfile from '../components/UserProfile';
 import ArtistSearch from '../components/ArtistSearch';
 import ConcertsList from '../components/ConcertsList';
-import DropdownPortal from '../components/DropdownPortal';
+
 import { StyledModal, StyledAnalysisChart } from '../components/Charts';
 import ContributorFinder from '../components/ContributorFinder';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
@@ -94,6 +94,9 @@ export default function Home() {
   const [showContributorModal, setShowContributorModal] = useState(false);
   const [hoveredPlaylistIndex, setHoveredPlaylistIndex] = useState(null);
   const [openDropdownIndex, setOpenDropdownIndex] = useState(null);
+  const [timeRangeDropdownOpen, setTimeRangeDropdownOpen] = useState(false);
+  const [timeRangeDropdownPosition, setTimeRangeDropdownPosition] = useState({ top: 0, left: 0 });
+  const timeRangeButtonRef = useRef(null);
 
   const handleAnalyzeNewGenres = async (playlist) => {
     try {
@@ -162,12 +165,37 @@ const handleExploreContributions = async (track) => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [dropdownOpen]);
 
+  // Close time range dropdown on outside click
+  useEffect(() => {
+    if (!timeRangeDropdownOpen) return;
+    function handleClick(e) {
+      // Check if click is on the button or inside the dropdown
+      const isButtonClick = timeRangeButtonRef.current && timeRangeButtonRef.current.contains(e.target);
+      const isDropdownClick = e.target.closest('[data-dropdown="time-range"]');
+      
+      if (!isButtonClick && !isDropdownClick) {
+        setTimeRangeDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [timeRangeDropdownOpen]);
+
+  // Dynamic API base URL based on current hostname
+  const getApiBaseUrl = () => {
+    if (typeof window !== 'undefined' && window.location.hostname === '192.168.1.4') {
+      return 'http://192.168.1.4:8000';
+    }
+    return 'http://127.0.0.1:8000';
+  };
+
   // This is the URL to our backend's login route
+  // Always use 127.0.0.1 for login to avoid Spotify's HTTPS requirement
   const LOGIN_URL = 'http://127.0.0.1:8000/login';
 
   // This function runs when the page loads
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/me')
+    fetch(`${getApiBaseUrl()}/me`)
       .then((res) => {
         if (!res.ok) throw new Error('User not logged in');
         return res.json();
@@ -203,7 +231,7 @@ const handleExploreContributions = async (track) => {
     setAnalysis(null);
     setShowSongsTable(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/recent-tracks');
+      const res = await fetch(`${getApiBaseUrl()}/recent-tracks`);
       if (!res.ok) throw new Error('Failed to fetch recent tracks');
       const data = await res.json();
       
@@ -233,7 +261,7 @@ const handleExploreContributions = async (track) => {
     setIsAnalyzingPlaylists(true);
     setShowPlaylistsTable(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/playlists');
+      const res = await fetch(`${getApiBaseUrl()}/playlists`);
       if (!res.ok) throw new Error('Failed to fetch playlists');
       const data = await res.json();
       setPlaylists(data.playlists || []);
@@ -252,7 +280,7 @@ const handleExploreContributions = async (track) => {
   // Fetch metrics for a single song by its ID (only when clicking the name cell)
   const handleSongNameClick = async (song) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/audio-features/${song.id}`);
+      const res = await fetch(`${getApiBaseUrl()}/audio-features/${song.id}`);
       if (!res.ok) throw new Error('Failed to fetch audio features');
       const data = await res.json();
       setSelectedSongMetrics({ ...data, name: song.name, artist: song.artist });
@@ -669,7 +697,12 @@ const handleExploreContributions = async (track) => {
 
   // Add time range navigation buttons
   const handleTimeRangeNav = (endpoint) => {
-    router.push(endpoint);
+    console.log('Navigating to:', endpoint);
+    try {
+      router.push(endpoint);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
   };
 
   const handleSendFeedback = async () => {
@@ -903,9 +936,9 @@ const handleExploreContributions = async (track) => {
   return (
     <div className={styles.dashboardBackground}>
       <div className={styles.dashboardContainer}>
-        {/* Top Bar: search + concerts button */}
-        <div style={{ position: 'relative', width: '100%' }}>
-          <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '100%' }}>
+        {/* Top Bar: centered search */}
+        <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '90%' }}>
         <input
           type="text"
               className={styles.searchInput}
@@ -917,13 +950,6 @@ const handleExploreContributions = async (track) => {
           autoComplete="off"
               ref={searchInputRef}
             />
-            <button
-              className={styles.concertsButton}
-              onClick={() => router.push('/concerts')}
-              type="button"
-            >
-              Concerts
-        </button>
           </form>
         {showSuggestions && artistSuggestions.length > 0 && (
             <div
@@ -985,20 +1011,565 @@ const handleExploreContributions = async (track) => {
         <main className={styles.main} style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh', width: '100vw' }}>
           <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false} onFeedback={() => setShowFeedbackModal(true)}>
             <h2 className={styles.reportTitle}>Create Your Listening Report</h2>
-            <div className={styles.reportSubtitle}>Select a time range to see your top artists and tracks.</div>
-            <div className={styles.timeRangeRow}>
-              <button className={styles.timeRangeButton} onClick={() => handleTimeRangeNav('/last-4-weeks')}>Last 4 Weeks</button>
-              <button className={styles.timeRangeButton} onClick={() => handleTimeRangeNav('/last-6-months')}>Last 6 Months</button>
-              <button className={styles.timeRangeButton} onClick={() => handleTimeRangeNav('/last-12-months')}>Last 12 Months</button>
-              <button className={styles.timeRangeButton} onClick={() => router.push('/concerts')}>Find Concerts</button>
+            <div className={styles.reportSubtitle}>Select a time range to see your top artists and tracks, and analyze your recent songs and playlists.</div>
+            
+            {/* Time Range Dropdown and Analyze Buttons Row */}
+            <div className="responsive-container" style={{ 
+              display: 'flex', 
+              alignItems: 'flex-start', 
+              gap: '16px', 
+              marginTop: '24px',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              flexDirection: 'row'
+            }}>
+              {/* Time Range Dropdown Button */}
+              <div style={{ position: 'relative' }}>
+                <button 
+                  ref={timeRangeButtonRef}
+                  className={styles.analyzeButton}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTimeRangeDropdownPosition({
+                      top: rect.bottom + window.scrollY + 8,
+                      left: rect.left + window.scrollX
+                    });
+                    setTimeRangeDropdownOpen(!timeRangeDropdownOpen);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    minWidth: '140px',
+                    fontSize: '0.75rem',
+                    padding: '6px 12px'
+                  }}
+                >
+                  Time Range
+                  <span style={{ 
+                    transform: timeRangeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                    fontSize: '12px'
+                  }}>
+                    ▼
+                  </span>
+                </button>
+                
+                {/* Time Range Dropdown */}
+                {timeRangeDropdownOpen && (
+                  <div
+                    data-dropdown="time-range"
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      background: '#1a1a1a',
+                      border: '1px solid #333',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.9)',
+                      zIndex: 1000,
+                      minWidth: '140px',
+                      overflow: 'hidden',
+                      marginTop: '8px'
+                    }}
+                  >
+                      <button 
+                        className={styles.timeRangeButton}
+                        onClick={(e) => {
+                          console.log('4 weeks button clicked!');
+                          e.stopPropagation();
+                          handleTimeRangeNav('/last-4-weeks');
+                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
+                        }}
+                        style={{
+                          width: '100%',
+                          borderRadius: '0',
+                          borderBottom: '1px solid #333',
+                          background: 'transparent',
+                          transition: 'background 0.2s ease',
+                          fontSize: '0.65rem',
+                          padding: '4px 8px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        Last 4 Weeks
+                      </button>
+                      <button 
+                        className={styles.timeRangeButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTimeRangeNav('/last-6-months');
+                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
+                        }}
+                        style={{
+                          width: '100%',
+                          borderRadius: '0',
+                          borderBottom: '1px solid #333',
+                          background: 'transparent',
+                          transition: 'background 0.2s ease',
+                          fontSize: '0.65rem',
+                          padding: '4px 8px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        Last 6 Months
+                      </button>
+                      <button 
+                        className={styles.timeRangeButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTimeRangeNav('/last-12-months');
+                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
+                        }}
+                        style={{
+                          width: '100%',
+                          borderRadius: '0',
+                          background: 'transparent',
+                          transition: 'background 0.2s ease',
+                          fontSize: '0.65rem',
+                          padding: '4px 8px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        Last 12 Months
+                      </button>
+                    </div>
+                )}
+              </div>
+              
+              {/* Analyze Buttons */}
+              <div className={styles.actionButtons} style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                flexWrap: 'wrap',
+                flexDirection: 'row'
+              }}>
+                <button onClick={handleGenerateFromRecents} className={styles.analyzeButton} disabled={isAnalyzingRecents}>
+                  {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Your Last 50 Songs'}
+                </button>
+                <button onClick={handleGenerateFromPlaylist} className={styles.analyzeButton} disabled={isAnalyzingPlaylists}>
+                  {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
+                </button>
+              </div>
+              
+              {/* Responsive CSS */}
+              <style jsx>{`
+                @media (max-width: 768px) {
+                  .responsive-container {
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                  }
+                  .responsive-container > div {
+                    width: 100% !important;
+                    max-width: 300px !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                  }
+                  .responsive-container .actionButtons {
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    width: 100% !important;
+                  }
+                  .responsive-container .actionButtons button {
+                    width: 100% !important;
+                    max-width: 300px !important;
+                  }
+                }
+                
+                /* Fix user profile centering on small screens */
+                @media (max-width: 768px) {
+                  .profileContainer {
+                    text-align: center !important;
+                  }
+                  .profileContainer > div > div:first-child {
+                    justify-content: center !important;
+                    flex-direction: column !important;
+                    gap: 16px !important;
+                  }
+                  .profileContainer > div > div:first-child > div:first-child {
+                    justify-content: center !important;
+                  }
+                  .profileContainer > div > div:first-child > div:last-child {
+                    position: absolute !important;
+                    top: 16px !important;
+                    right: 16px !important;
+                  }
+                }
+                
+                /* Make everything smaller on mobile */
+                @media (max-width: 768px) {
+                  .profileContainer > div {
+                    min-height: 180px !important;
+                    padding: 10px !important;
+                    margin: 4px auto !important;
+                    border-radius: 8px !important;
+                    max-width: 85% !important;
+                    width: 85% !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child {
+                    margin-bottom: 12px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > img {
+                    width: 40px !important;
+                    height: 40px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > div {
+                    font-size: 0.9rem !important;
+                  }
+                  
+                  .reportTitle {
+                    font-size: 1.1rem !important;
+                    margin-bottom: 8px !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 0.75rem !important;
+                    line-height: 1.2 !important;
+                    margin-bottom: 12px !important;
+                  }
+                  
+                  .responsive-container {
+                    margin-top: 12px !important;
+                    gap: 8px !important;
+                  }
+                  
+                  .responsive-container button {
+                    font-size: 0.7rem !important;
+                    padding: 6px 12px !important;
+                    min-width: 100px !important;
+                  }
+                  
+                  .responsive-container .actionButtons button {
+                    font-size: 0.65rem !important;
+                    padding: 4px 8px !important;
+                  }
+                  
+                  /* Make Find Concerts section smaller */
+                  .profileContainer > div > div:nth-child(4) {
+                    margin-top: 12px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 4px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.65rem !important;
+                    margin-bottom: 8px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) button {
+                    font-size: 0.7rem !important;
+                    padding: 6px 16px !important;
+                  }
+                }
+                
+                /* Even smaller for very small screens */
+                @media (max-width: 480px) {
+                  .profileContainer > div {
+                    min-height: 140px !important;
+                    padding: 6px !important;
+                    margin: 2px auto !important;
+                    max-width: 80% !important;
+                    width: 80% !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > img {
+                    width: 32px !important;
+                    height: 32px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > div {
+                    font-size: 0.8rem !important;
+                  }
+                  
+                  .reportTitle {
+                    font-size: 0.95rem !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 0.65rem !important;
+                  }
+                  
+                  .responsive-container button {
+                    font-size: 0.6rem !important;
+                    padding: 4px 8px !important;
+                    min-width: 80px !important;
+                  }
+                  
+                  .responsive-container .actionButtons button {
+                    font-size: 0.55rem !important;
+                    padding: 3px 6px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 0.8rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.55rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) button {
+                    font-size: 0.6rem !important;
+                    padding: 4px 12px !important;
+                  }
+                }
+                
+                /* Ultra compact for phones */
+                @media (max-width: 360px) {
+                  .profileContainer > div {
+                    min-height: 120px !important;
+                    padding: 4px !important;
+                    margin: 1px auto !important;
+                    max-width: 75% !important;
+                    width: 75% !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > img {
+                    width: 28px !important;
+                    height: 28px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > div {
+                    font-size: 0.7rem !important;
+                  }
+                  
+                  .reportTitle {
+                    font-size: 0.85rem !important;
+                    margin-bottom: 6px !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 0.6rem !important;
+                    margin-bottom: 8px !important;
+                  }
+                  
+                  .responsive-container {
+                    margin-top: 8px !important;
+                    gap: 6px !important;
+                  }
+                  
+                  .responsive-container button {
+                    font-size: 0.55rem !important;
+                    padding: 3px 6px !important;
+                    min-width: 70px !important;
+                  }
+                  
+                  .responsive-container .actionButtons button {
+                    font-size: 0.5rem !important;
+                    padding: 2px 4px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 0.7rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.5rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) button {
+                    font-size: 0.55rem !important;
+                    padding: 3px 10px !important;
+                  }
+                }
+                
+                /* Extra narrow screens */
+                @media (max-width: 320px) {
+                  .profileContainer > div {
+                    min-height: 80px !important;
+                    padding: 2px !important;
+                    margin: 1px auto !important;
+                    max-width: 60% !important;
+                    width: 60% !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > img {
+                    width: 20px !important;
+                    height: 20px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > div {
+                    font-size: 0.5rem !important;
+                  }
+                  
+                  .reportTitle {
+                    font-size: 0.65rem !important;
+                    margin-bottom: 3px !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 0.4rem !important;
+                    margin-bottom: 4px !important;
+                  }
+                  
+                  .responsive-container {
+                    margin-top: 4px !important;
+                    gap: 3px !important;
+                  }
+                  
+                  .responsive-container button {
+                    font-size: 0.35rem !important;
+                    padding: 1px 3px !important;
+                    min-width: 50px !important;
+                  }
+                  
+                  .responsive-container .actionButtons button {
+                    font-size: 0.3rem !important;
+                    padding: 1px 2px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 0.5rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.3rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) button {
+                    font-size: 0.35rem !important;
+                    padding: 1px 6px !important;
+                  }
+                }
+                
+                /* Super compact for very small screens */
+                @media (max-width: 280px) {
+                  .profileContainer > div {
+                    min-height: 60px !important;
+                    padding: 1px !important;
+                    margin: 0 auto !important;
+                    max-width: 50% !important;
+                    width: 50% !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > img {
+                    width: 16px !important;
+                    height: 16px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > div {
+                    font-size: 0.4rem !important;
+                  }
+                  
+                  .reportTitle {
+                    font-size: 0.55rem !important;
+                    margin-bottom: 2px !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 0.3rem !important;
+                    margin-bottom: 3px !important;
+                  }
+                  
+                  .responsive-container {
+                    margin-top: 3px !important;
+                    gap: 2px !important;
+                  }
+                  
+                  .responsive-container button {
+                    font-size: 0.25rem !important;
+                    padding: 1px 2px !important;
+                    min-width: 40px !important;
+                  }
+                  
+                  .responsive-container .actionButtons button {
+                    font-size: 0.2rem !important;
+                    padding: 1px 1px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 0.4rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.25rem !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) button {
+                    font-size: 0.3rem !important;
+                    padding: 1px 4px !important;
+                  }
+                }
+              `}</style>
             </div>
-            <div className={styles.orDivider}><span>OR</span></div>
-        <div className={styles.actionButtons}>
-              <button onClick={handleGenerateFromRecents} className={styles.analyzeButton} disabled={isAnalyzingRecents}>
-                {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Your Last 50 Songs'}
-          </button>
-              <button onClick={handleGenerateFromPlaylist} className={styles.analyzeButton} disabled={isAnalyzingPlaylists}>
-                {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
+            
+
+        
+        {/* Horizontal line */}
+        <div style={{ 
+          width: '100%', 
+          height: '2px', 
+          background: '#333', 
+          margin: '16px 0',
+          opacity: 0.6
+        }}></div>
+        
+        {/* Find Concerts Section */}
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <h3 style={{ 
+            color: '#fff', 
+            fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', 
+            fontWeight: 700, 
+            marginBottom: 8 
+          }}>
+            Find Concerts For You
+          </h3>
+          <p style={{ 
+            color: '#b3b3b3', 
+            fontSize: 'clamp(0.9rem, 1.5vw, 1.1rem)', 
+            marginBottom: 20,
+            lineHeight: 1.4
+          }}>
+            Use your listening report to discover upcoming shows from your favorite artists.
+          </p>
+          <button 
+            onClick={() => router.push('/concerts')} 
+            style={{
+              background: '#1db954',
+              color: '#000',
+              border: 'none',
+              borderRadius: 25,
+              padding: '12px 32px',
+              fontSize: 'clamp(0.9rem, 1.5vw, 1.1rem)',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(29, 185, 84, 0.3)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#1ed760';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(29, 185, 84, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#1db954';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(29, 185, 84, 0.3)';
+            }}
+          >
+            Find Concerts
           </button>
         </div>
           </UserProfile>

@@ -979,7 +979,7 @@ body, .main {
   display: flex;
   align-items: center;
   width: 100%;
-  margin: 18px 0 12px 0;
+  margin: 0;
 }
 .orDivider::before,
 .orDivider::after {
@@ -991,7 +991,7 @@ body, .main {
 .orDivider span {
   color: #b3b3b3;
   font-weight: 700;
-  margin: 0 18px;
+  margin: 0 8px;
   font-size: 1.08rem;
   letter-spacing: 1px;
 }
