@@ -70,7 +70,15 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
   };
 
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center', height: '64px', minHeight: '64px', justifyContent: 'flex-end' }}>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'row',
+      gap: 12, 
+      alignItems: 'center', 
+      height: '64px', 
+      minHeight: '64px', 
+      justifyContent: 'flex-end' 
+    }}>
       {showCreatePlaylist && (
         <button
           onClick={handleCreatePlaylist}
@@ -81,6 +89,9 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
             justifyContent: 'center',
             height: 48,
             minWidth: 0,
+            fontSize: window.innerWidth <= 768 ? '0.8rem' : undefined,
+            padding: window.innerWidth <= 768 ? '6px 10px' : undefined,
+            whiteSpace: window.innerWidth <= 768 ? 'normal' : 'nowrap',
           }}
         >
           Create Playlist
@@ -100,10 +111,12 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
             height: 48,
             minWidth: 0,
             fontWeight: 700,
-            fontSize: '1.08rem',
+            fontSize: window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
             border: 'none',
             boxShadow: 'none',
             transition: 'background 0.18s, color 0.18s',
+            padding: window.innerWidth <= 768 ? '6px 10px' : undefined,
+            whiteSpace: window.innerWidth <= 768 ? 'normal' : 'nowrap',
           }}
           onClick={handleViewPlaylist}
           disabled={!createdPlaylistUrl}
@@ -120,7 +133,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           height: 48,
           minWidth: 0,
           fontWeight: 700,
-          fontSize: '1.08rem',
+          fontSize: window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -128,6 +141,8 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           border: 'none',
           boxShadow: 'none',
           transition: 'background 0.18s, color 0.18s',
+          padding: window.innerWidth <= 768 ? '6px 10px' : undefined,
+          whiteSpace: window.innerWidth <= 768 ? 'normal' : 'nowrap',
         }}
         onClick={() => onWrapped && onWrapped()}
         disabled={!tracks || tracks.length === 0}

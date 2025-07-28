@@ -628,8 +628,8 @@ export default function ConcertsPage() {
             </div>
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: 8,
+              gridTemplateColumns: window.innerWidth <= 768 ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+              gap: window.innerWidth <= 768 ? 6 : 8,
               maxHeight: 150,
               overflowY: 'auto'
             }}>
@@ -638,13 +638,13 @@ export default function ConcertsPage() {
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: '8px 12px',
+                    padding: window.innerWidth <= 768 ? '6px 8px' : '8px 12px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
                     borderRadius: 20,
                     cursor: 'pointer',
-                    fontSize: '0.85rem',
+                    fontSize: window.innerWidth <= 768 ? '0.75rem' : '0.85rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -708,8 +708,8 @@ export default function ConcertsPage() {
             </div>
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: 8,
+              gridTemplateColumns: window.innerWidth <= 768 ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+              gap: window.innerWidth <= 768 ? 6 : 8,
               maxHeight: 150,
               overflowY: 'auto'
             }}>
@@ -718,13 +718,13 @@ export default function ConcertsPage() {
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: '8px 12px',
+                    padding: window.innerWidth <= 768 ? '6px 8px' : '8px 12px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
                     borderRadius: 20,
                     cursor: 'pointer',
-                    fontSize: '0.85rem',
+                    fontSize: window.innerWidth <= 768 ? '0.75rem' : '0.85rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',

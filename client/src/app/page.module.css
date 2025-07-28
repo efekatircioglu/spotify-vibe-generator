@@ -957,6 +957,26 @@ body, .main {
   box-shadow: 0 2px 8px #0001;
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
+
+/* Desktop-specific larger button text */
+@media (min-width: 769px) {
+  .analyzeButton {
+    font-size: 1.5rem !important;
+    padding: 20px 36px !important;
+    min-height: 65px !important;
+    font-weight: 600 !important;
+  }
+  
+  /* Force override for all button styles */
+  .actionButtons .analyzeButton,
+  .actionButtons button,
+  button.analyzeButton {
+    font-size: 1.5rem !important;
+    padding: 20px 36px !important;
+    min-height: 65px !important;
+    font-weight: 600 !important;
+  }
+}
 .analyzeButton:hover {
   background: #1db954;
   color: #181818;
@@ -1106,4 +1126,17 @@ body, .main {
 .analyzeCol {
   overflow: visible !important;
   position: relative;
+}
+
+/* Global override for desktop button sizes */
+@media (min-width: 769px) {
+  .analyzeButton,
+  .actionButtons .analyzeButton,
+  .actionButtons button,
+  button.analyzeButton {
+    font-size: 1.6rem !important;
+    padding: 22px 40px !important;
+    min-height: 70px !important;
+    font-weight: 600 !important;
+  }
 }

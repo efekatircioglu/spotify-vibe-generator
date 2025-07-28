@@ -6,6 +6,17 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 430);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -23,7 +34,12 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
 
   if (!user) return null;
   return (
-    <div className={styles.profileContainer} style={{ position: 'relative' }}>
+    <div className={styles.profileContainer} style={{ 
+      position: 'relative',
+      minWidth: isMobile ? '200px' : undefined,
+      maxWidth: isMobile ? '80%' : undefined,
+      width: isMobile ? '100%' : undefined
+    }}>
       <div style={{ background: '#181818', width: '100%', borderRadius: 14, padding: 0, minHeight: 440, position: 'relative' }}>
         <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40, position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

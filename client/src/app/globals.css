@@ -40,3 +40,17 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Global desktop button styles - highest priority */
+@media (min-width: 769px) {
+  .analyzeButton,
+  [class*="analyzeButton"],
+  .actionButtons button,
+  .actionButtons .analyzeButton,
+  .responsive-container button[class*="analyzeButton"] {
+    font-size: 1.1rem !important;
+    padding: 18px 32px !important;
+    min-height: 60px !important;
+    font-weight: 600 !important;
+  }
+}

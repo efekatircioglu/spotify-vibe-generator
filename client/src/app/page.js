@@ -1013,7 +1013,7 @@ const handleExploreContributions = async (track) => {
             <h2 className={styles.reportTitle}>Create Your Listening Report</h2>
             <div className={styles.reportSubtitle}>Select a time range to see your top artists and tracks, and analyze your recent songs and playlists.</div>
             
-            {/* Time Range Dropdown and Analyze Buttons Row */}
+            {/* Analyze Buttons and Time Range Row */}
             <div className="responsive-container" style={{ 
               display: 'flex', 
               alignItems: 'flex-start', 
@@ -1023,8 +1023,44 @@ const handleExploreContributions = async (track) => {
               justifyContent: 'center',
               flexDirection: 'row'
             }}>
-              {/* Time Range Dropdown Button */}
-              <div style={{ position: 'relative' }}>
+              {/* All Action Buttons with Equal Spacing */}
+              <div className={styles.actionButtons} style={{ 
+                display: 'flex', 
+                gap: '16px', 
+                flexWrap: 'wrap',
+                flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <button 
+                  onClick={handleGenerateFromRecents} 
+                  className={styles.analyzeButton} 
+                  disabled={isAnalyzingRecents}
+                  style={{
+                    fontSize: window.innerWidth > 768 ? '1.5rem' : undefined,
+                    padding: window.innerWidth > 768 ? '20px 36px' : undefined,
+                    minHeight: window.innerWidth > 768 ? '65px' : undefined,
+                    fontWeight: window.innerWidth > 768 ? '600' : undefined
+                  }}
+                >
+                  {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Your Last 50 Songs'}
+                </button>
+                <button 
+                  onClick={handleGenerateFromPlaylist} 
+                  className={styles.analyzeButton} 
+                  disabled={isAnalyzingPlaylists}
+                  style={{
+                    fontSize: window.innerWidth > 768 ? '1.5rem' : undefined,
+                    padding: window.innerWidth > 768 ? '20px 36px' : undefined,
+                    minHeight: window.innerWidth > 768 ? '65px' : undefined,
+                    fontWeight: window.innerWidth > 600 ? '600' : undefined
+                  }}
+                >
+                  {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
+                </button>
+                
+                {/* Time Range Dropdown Button */}
+                <div style={{ position: 'relative' }}>
                 <button 
                   ref={timeRangeButtonRef}
                   className={styles.analyzeButton}
@@ -1041,8 +1077,10 @@ const handleExploreContributions = async (track) => {
                     alignItems: 'center',
                     gap: '8px',
                     minWidth: '140px',
-                    fontSize: '0.75rem',
-                    padding: '6px 12px'
+                    fontSize: window.innerWidth > 768 ? '1.5rem' : undefined,
+                    padding: window.innerWidth > 768 ? '20px 36px' : undefined,
+                    minHeight: window.innerWidth > 768 ? '65px' : undefined,
+                    fontWeight: window.innerWidth > 768 ? '600' : undefined
                   }}
                 >
                   Time Range
@@ -1087,7 +1125,7 @@ const handleExploreContributions = async (track) => {
                           borderBottom: '1px solid #333',
                           background: 'transparent',
                           transition: 'background 0.2s ease',
-                          fontSize: '0.65rem',
+                          fontSize: '0.85rem',
                           padding: '4px 8px'
                         }}
                         onMouseEnter={(e) => {
@@ -1112,7 +1150,7 @@ const handleExploreContributions = async (track) => {
                           borderBottom: '1px solid #333',
                           background: 'transparent',
                           transition: 'background 0.2s ease',
-                          fontSize: '0.65rem',
+                          fontSize: '0.85rem',
                           padding: '4px 8px'
                         }}
                         onMouseEnter={(e) => {
@@ -1136,7 +1174,7 @@ const handleExploreContributions = async (track) => {
                           borderRadius: '0',
                           background: 'transparent',
                           transition: 'background 0.2s ease',
-                          fontSize: '0.65rem',
+                          fontSize: '0.85rem',
                           padding: '4px 8px'
                         }}
                         onMouseEnter={(e) => {
@@ -1151,20 +1189,6 @@ const handleExploreContributions = async (track) => {
                     </div>
                 )}
               </div>
-              
-              {/* Analyze Buttons */}
-              <div className={styles.actionButtons} style={{ 
-                display: 'flex', 
-                gap: '12px', 
-                flexWrap: 'wrap',
-                flexDirection: 'row'
-              }}>
-                <button onClick={handleGenerateFromRecents} className={styles.analyzeButton} disabled={isAnalyzingRecents}>
-                  {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Your Last 50 Songs'}
-                </button>
-                <button onClick={handleGenerateFromPlaylist} className={styles.analyzeButton} disabled={isAnalyzingPlaylists}>
-                  {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
-                </button>
               </div>
               
               {/* Responsive CSS */}
@@ -1185,10 +1209,89 @@ const handleExploreContributions = async (track) => {
                     flex-direction: column !important;
                     align-items: center !important;
                     width: 100% !important;
+                    gap: 12px !important;
                   }
                   .responsive-container .actionButtons button {
                     width: 100% !important;
                     max-width: 300px !important;
+                  }
+                  .responsive-container .actionButtons > div {
+                    width: 100% !important;
+                    max-width: 300px !important;
+                  }
+                  .responsive-container .actionButtons > div button {
+                    width: 100% !important;
+                    max-width: 300px !important;
+                  }
+                }
+                
+                /* Additional mobile-specific styles */
+                @media (max-width: 430px) {
+                  .actionButtons {
+                    flex-direction: column !important;
+                    gap: 12px !important;
+                  }
+                  .actionButtons button,
+                  .actionButtons > div {
+                    width: 100% !important;
+                    max-width: 300px !important;
+                  }
+                  
+                  /* Fix outer color elements for very small screens */
+                  .profileContainer {
+                    min-width: 280px !important;
+                    max-width: 95% !important;
+                    width: 95% !important;
+                    padding: 20px 16px !important;
+                    margin: 20px auto !important;
+                    border-radius: 12px !important;
+                    overflow: hidden !important;
+                    background: #181818 !important;
+                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+                  }
+                  
+                  .profileContainer::before {
+                    width: 120% !important;
+                    height: 120% !important;
+                    top: -10% !important;
+                    left: -10% !important;
+                    animation: none !important;
+                  }
+                  
+                  .profileContainer::after {
+                    inset: 1px !important;
+                    border-radius: 11px !important;
+                  }
+                }
+                
+                /* Desktop-specific styles for larger button text */
+                @media (min-width: 769px) {
+                  .actionButtons button,
+                  .actionButtons .analyzeButton,
+                  .actionButtons button[class*="analyzeButton"],
+                  .actionButtons .analyzeButton[class*="analyzeButton"] {
+                    font-size: 1.5rem !important;
+                    padding: 20px 36px !important;
+                    min-height: 65px !important;
+                    font-weight: 600 !important;
+                  }
+                }
+                
+                /* Enable outer color elements only for screens > 430px */
+                @media (min-width: 431px) {
+                  .profileContainer {
+                    background: linear-gradient(145deg, #181818 60%, #232323 100%) !important;
+                    border: 2px solid rgba(255, 255, 255, 0.08) !important;
+                    box-shadow: 0 0 24px rgba(0, 255, 255, 0.08) !important;
+                  }
+                  
+                  .profileContainer::before {
+                    display: block !important;
+                  }
+                  
+                  .profileContainer::after {
+                    display: block !important;
                   }
                 }
                 
@@ -1196,14 +1299,28 @@ const handleExploreContributions = async (track) => {
                 @media (max-width: 768px) {
                   .profileContainer {
                     text-align: center !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                  }
+                  .profileContainer > div {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    text-align: center !important;
                   }
                   .profileContainer > div > div:first-child {
                     justify-content: center !important;
                     flex-direction: column !important;
                     gap: 16px !important;
+                    align-items: center !important;
+                    width: 100% !important;
                   }
                   .profileContainer > div > div:first-child > div:first-child {
                     justify-content: center !important;
+                    align-items: center !important;
+                    width: 100% !important;
                   }
                   .profileContainer > div > div:first-child > div:last-child {
                     position: absolute !important;
@@ -1214,48 +1331,172 @@ const handleExploreContributions = async (track) => {
                 
                 /* Make everything smaller on mobile */
                 @media (max-width: 768px) {
+                  .profileContainer {
+                    min-width: 300px !important;
+                    max-width: 95% !important;
+                    width: 95% !important;
+                    padding: 16px !important;
+                    margin-top: 32px !important;
+                    margin-bottom: 64px !important;
+                  }
+                  
                   .profileContainer > div {
-                    min-height: 180px !important;
-                    padding: 10px !important;
-                    margin: 4px auto !important;
+                    min-height: 120px !important;
+                    padding: 8px !important;
+                    margin: 2px auto !important;
                     border-radius: 8px !important;
-                    max-width: 85% !important;
-                    width: 85% !important;
+                    max-width: 70% !important;
+                    width: 70% !important;
+                  }
+                }
+                
+                /* iPhone 15 Pro Max and similar devices (430px width) */
+                @media (max-width: 430px) {
+                  .profileContainer {
+                    min-width: 200px !important;
+                    max-width: 60% !important;
+                    width: 60% !important;
+                    padding: 8px !important;
+                    margin-top: 20px !important;
+                    margin-bottom: 40px !important;
+                  }
+                  
+                  /* Force override with higher specificity */
+                  body .profileContainer,
+                  html .profileContainer,
+                  .main .profileContainer,
+                  [class*="profileContainer"],
+                  div[class*="profileContainer"] {
+                    min-width: 200px !important;
+                    max-width: 60% !important;
+                    width: 60% !important;
+                    padding: 8px !important;
+                    margin-top: 20px !important;
+                    margin-bottom: 40px !important;
+                  }
+                  
+                  .profileContainer > div {
+                    min-height: 60px !important;
+                    padding: 4px !important;
+                    margin: 1px auto !important;
+                    border-radius: 6px !important;
+                    max-width: 45% !important;
+                    width: 45% !important;
                   }
                   
                   .profileContainer > div > div:first-child {
-                    margin-bottom: 12px !important;
+                    margin-bottom: 4px !important;
                   }
                   
                   .profileContainer > div > div:first-child > div:first-child > img {
-                    width: 40px !important;
-                    height: 40px !important;
+                    width: 20px !important;
+                    height: 20px !important;
                   }
                   
                   .profileContainer > div > div:first-child > div:first-child > div {
-                    font-size: 0.9rem !important;
+                    font-size: 0.4rem !important;
                   }
                   
-                  .reportTitle {
-                    font-size: 1.1rem !important;
-                    margin-bottom: 8px !important;
-                  }
+                  /* Mobile styles removed - only apply to iPhone 15 Pro Max and smaller */
                   
                   .reportSubtitle {
-                    font-size: 0.75rem !important;
-                    line-height: 1.2 !important;
-                    margin-bottom: 12px !important;
+                    font-size: 0.3rem !important;
+                    line-height: 1.1 !important;
+                    margin-bottom: 3px !important;
                   }
                   
                   .responsive-container {
-                    margin-top: 12px !important;
-                    gap: 8px !important;
+                    margin-top: 4px !important;
+                    gap: 3px !important;
+                  }
+                  
+                  .responsive-container button {
+                    font-size: 0.25rem !important;
+                    padding: 1px 3px !important;
+                    min-width: 30px !important;
+                  }
+                  
+                  /* Time Range button and dropdown buttons */
+                  .responsive-container button[class*="analyzeButton"] {
+                    font-size: 0.25rem !important;
+                    padding: 1px 3px !important;
+                  }
+                  
+                  .responsive-container [data-dropdown="time-range"] button {
+                    font-size: 0.2rem !important;
+                    padding: 1px 2px !important;
+                  }
+                  
+                  .responsive-container .actionButtons button {
+                    font-size: 0.2rem !important;
+                    padding: 1px 2px !important;
+                  }
+                  
+                  /* Make Find Concerts section smaller */
+                  .profileContainer > div > div:nth-child(4) {
+                    margin-top: 4px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 1.1rem !important;
+                    margin-bottom: 2px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 3px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) button {
+                    font-size: 0.25rem !important;
+                    padding: 1px 6px !important;
+                  }
+                }
+                  
+                  .profileContainer > div > div:first-child {
+                    margin-bottom: 8px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > img {
+                    width: 32px !important;
+                    height: 32px !important;
+                  }
+                  
+                  .profileContainer > div > div:first-child > div:first-child > div {
+                    font-size: 0.8rem !important;
+                  }
+                  
+                  .reportTitle {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 6px !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 0.65rem !important;
+                    line-height: 1.2 !important;
+                    margin-bottom: 8px !important;
+                  }
+                  
+                  .responsive-container {
+                    margin-top: 8px !important;
+                    gap: 6px !important;
                   }
                   
                   .responsive-container button {
                     font-size: 0.7rem !important;
                     padding: 6px 12px !important;
                     min-width: 100px !important;
+                  }
+                  
+                  /* Time Range button and dropdown buttons */
+                  .responsive-container button[class*="analyzeButton"] {
+                    font-size: 0.7rem !important;
+                    padding: 6px 12px !important;
+                  }
+                  
+                  .responsive-container [data-dropdown="time-range"] button {
+                    font-size: 0.65rem !important;
+                    padding: 4px 8px !important;
                   }
                   
                   .responsive-container .actionButtons button {
@@ -1287,11 +1528,11 @@ const handleExploreContributions = async (track) => {
                 /* Even smaller for very small screens */
                 @media (max-width: 480px) {
                   .profileContainer > div {
-                    min-height: 140px !important;
+                    min-height: 100px !important;
                     padding: 6px !important;
                     margin: 2px auto !important;
-                    max-width: 80% !important;
-                    width: 80% !important;
+                    max-width: 65% !important;
+                    width: 65% !important;
                   }
                   
                   .profileContainer > div > div:first-child > div:first-child > img {
@@ -1317,6 +1558,17 @@ const handleExploreContributions = async (track) => {
                     min-width: 80px !important;
                   }
                   
+                  /* Time Range button and dropdown buttons */
+                  .responsive-container button[class*="analyzeButton"] {
+                    font-size: 0.6rem !important;
+                    padding: 4px 8px !important;
+                  }
+                  
+                  .responsive-container [data-dropdown="time-range"] button {
+                    font-size: 0.55rem !important;
+                    padding: 3px 6px !important;
+                  }
+                  
                   .responsive-container .actionButtons button {
                     font-size: 0.55rem !important;
                     padding: 3px 6px !important;
@@ -1339,11 +1591,11 @@ const handleExploreContributions = async (track) => {
                 /* Ultra compact for phones */
                 @media (max-width: 360px) {
                   .profileContainer > div {
-                    min-height: 120px !important;
+                    min-height: 80px !important;
                     padding: 4px !important;
                     margin: 1px auto !important;
-                    max-width: 75% !important;
-                    width: 75% !important;
+                    max-width: 60% !important;
+                    width: 60% !important;
                   }
                   
                   .profileContainer > div > div:first-child > div:first-child > img {
@@ -1374,6 +1626,17 @@ const handleExploreContributions = async (track) => {
                     font-size: 0.55rem !important;
                     padding: 3px 6px !important;
                     min-width: 70px !important;
+                  }
+                  
+                  /* Time Range button and dropdown buttons */
+                  .responsive-container button[class*="analyzeButton"] {
+                    font-size: 0.55rem !important;
+                    padding: 3px 6px !important;
+                  }
+                  
+                  .responsive-container [data-dropdown="time-range"] button {
+                    font-size: 0.5rem !important;
+                    padding: 2px 4px !important;
                   }
                   
                   .responsive-container .actionButtons button {
@@ -1435,6 +1698,17 @@ const handleExploreContributions = async (track) => {
                     min-width: 50px !important;
                   }
                   
+                  /* Time Range button and dropdown buttons */
+                  .responsive-container button[class*="analyzeButton"] {
+                    font-size: 0.35rem !important;
+                    padding: 1px 3px !important;
+                  }
+                  
+                  .responsive-container [data-dropdown="time-range"] button {
+                    font-size: 0.3rem !important;
+                    padding: 1px 2px !important;
+                  }
+                  
                   .responsive-container .actionButtons button {
                     font-size: 0.3rem !important;
                     padding: 1px 2px !important;
@@ -1494,6 +1768,17 @@ const handleExploreContributions = async (track) => {
                     min-width: 40px !important;
                   }
                   
+                  /* Time Range button and dropdown buttons */
+                  .responsive-container button[class*="analyzeButton"] {
+                    font-size: 0.25rem !important;
+                    padding: 1px 2px !important;
+                  }
+                  
+                  .responsive-container [data-dropdown="time-range"] button {
+                    font-size: 0.2rem !important;
+                    padding: 1px 1px !important;
+                  }
+                  
                   .responsive-container .actionButtons button {
                     font-size: 0.2rem !important;
                     padding: 1px 1px !important;
@@ -1510,6 +1795,67 @@ const handleExploreContributions = async (track) => {
                   .profileContainer > div > div:nth-child(4) button {
                     font-size: 0.3rem !important;
                     padding: 1px 4px !important;
+                  }
+                }
+                /* Desktop styles - ensure proper sizing for larger screens */
+                @media (min-width: 769px) {
+                  .reportTitle {
+                    font-size: 2.1rem !important;
+                    margin-bottom: 18px !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 1.3rem !important;
+                    margin-bottom: 28px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 1.5rem !important;
+                    margin-bottom: 8px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 1.1rem !important;
+                    margin-bottom: 20px !important;
+                  }
+                }
+                
+                /* Mobile-specific styles - only for phones */
+                @media (max-width: 430px) {
+                  .reportTitle {
+                    font-size: 1.1rem !important;
+                    margin-bottom: 2px !important;
+                  }
+                  
+                  /* Force override for the title on mobile only */
+                  .profileContainer h2,
+                  .profileContainer .reportTitle,
+                  .profileContainer > div > div:nth-child(2) h2 {
+                    font-size: 1.1rem !important;
+                    margin-bottom: 2px !important;
+                  }
+                  
+                  .reportSubtitle {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 4px !important;
+                  }
+                  
+                  /* Force override for the title on mobile only */
+                  .profileContainer h2,
+                  .profileContainer .reportTitle,
+                  .profileContainer > div > div:nth-child(2) h2 {
+                    font-size: 1.1rem !important;
+                    margin-bottom: 2px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) h3 {
+                    font-size: 1.1rem !important;
+                    margin-bottom: 2px !important;
+                  }
+                  
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 3px !important;
                   }
                 }
               `}</style>
