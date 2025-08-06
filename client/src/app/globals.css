@@ -54,3 +54,11 @@ a {
     font-weight: 600 !important;
   }
 }
+
+@media (min-width: 769px) {
+  .big-scalable-button {
+    font-size: clamp(1.6rem, 2.5vw, 2.8rem) !important;
+    padding: clamp(24px, 4vh, 32px) clamp(48px, 6vw, 64px) !important;
+    min-height: clamp(60px, 10vh, 90px) !important;
+  }
+}

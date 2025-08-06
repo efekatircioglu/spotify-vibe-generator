@@ -1,9 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../app/page.module.css';
 import { useRouter } from 'next/navigation';
 
+function useIsMobile(breakpoint = 600) {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= breakpoint);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
 export default function TopArtistsTable({ artists, title }) {
   const router = useRouter();
+  const isMobile = useIsMobile(); // <-- Add this line
+
   if (!artists || artists.length === 0) return null;
 
   // Limit to 50 artists, 5 per row
@@ -110,102 +126,88 @@ export default function TopArtistsTable({ artists, title }) {
 
   return (
     <div style={{ width: '100%', margin: '32px auto' }}>
-      <div className={styles.songsTableTitle} style={{ marginTop: 32, color: '#fff' }}>{title}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 32, alignItems: 'center' }}>
-        {rows.map((row, rowIdx) => (
-          <div
-            key={rowIdx}
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: 64, // wider gap between nodes
-              justifyContent: 'center',
-              width: '100%',
-              maxWidth: '1200px',
-              margin: '0 auto',
-            }}
-          >
-            {row.map((artist, idx) => {
-              const artistNumber = rowIdx * 5 + idx + 1;
-              const globalIdx = rowIdx * 5 + idx;
-              return (
-                <div
-                  key={artist.id || artist.name || idx}
-                  className={styles.albumNode}
-                  style={{ cursor: 'pointer', position: 'relative', transition: 'box-shadow 0.18s, transform 0.18s' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.boxShadow = '0 0 32px 4px #1db95488, 0 2px 16px #0006';
-                    e.currentTarget.style.transform = 'scale(1.06)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.boxShadow = '';
-                    e.currentTarget.style.transform = '';
-                  }}
-                  onClick={() => handleArtistClick(artist, globalIdx)}
-                >
-                  {/* Number badge */}
+      <div className={styles.songsTableTitle} style={{ marginTop: 32, color: '#fff', borderLeft: 'none', paddingLeft: '16px' }}>{title}</div>
+      
+      {/* This is our new CSS Grid container */}
+      <div className={styles.artistsGridContainer}>
+        {artistsToShow.map((artist, idx) => {
+          const artistNumber = idx + 1;
+          return (
+            <div
+              key={artist.id || artist.name || idx}
+              className={styles.albumNode}
+              style={{ cursor: 'pointer', position: 'relative', transition: 'box-shadow 0.18s, transform 0.18s' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.boxShadow = '0 0 32px 4px #1db95488, 0 2px 16px #0006';
+                e.currentTarget.style.transform = 'scale(1.06)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.boxShadow = '';
+                e.currentTarget.style.transform = '';
+              }}
+              onClick={() => handleArtistClick(artist, idx)}
+            >
+              {/* Number badge */}
+              <div style={{
+                position: 'absolute',
+                top: isMobile ? 6 : 8,
+                left: isMobile ? 6 : 8,
+                background: '#1db954',
+                color: '#fff',
+                borderRadius: '50%',
+                width: isMobile ? 24 : 32,
+                height: isMobile ? 24 : 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: isMobile ? 14 : 18,
+                boxShadow: '0 2px 8px #1db95433',
+                zIndex: 2
+              }}>{artistNumber}</div>
+              {/* Loading spinner overlay */}
+              {loadingIdx === idx && (
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'rgba(0,0,0,0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
+                  borderRadius: 12
+                }}>
                   <div style={{
-                    position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    background: '#1db954',
-                    color: '#fff',
+                    width: 36,
+                    height: 36,
+                    border: '4px solid #1db954',
+                    borderTop: '4px solid #fff',
                     borderRadius: '50%',
-                    width: 32,
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 18,
-                    boxShadow: '0 2px 8px #1db95433',
-                    zIndex: 2
-                  }}>{artistNumber}</div>
-                  {/* Loading spinner overlay */}
-                  {loadingIdx === globalIdx && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      background: 'rgba(0,0,0,0.35)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 10,
-                      borderRadius: 12
-                    }}>
-                      <div style={{
-                        width: 36,
-                        height: 36,
-                        border: '4px solid #1db954',
-                        borderTop: '4px solid #fff',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }} />
-                      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                    </div>
-                  )}
-                  {artist.image || artist.images?.[0]?.url ? (
-                    <img
-                      src={artist.image || artist.images?.[0]?.url}
-                      alt={artist.name}
-                      className={styles.albumCover}
-                    />
-                  ) : (
-                    <div className={styles.albumCover} style={{ background: '#444', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
-                      {artist.name?.[0] || '?'}
-                    </div>
-                  )}
-                  <div className={styles.albumName} title={artist.name} style={{ marginTop: 12 }}>
-                    {artist.name}
-                  </div>
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
                 </div>
-              );
-            })}
-          </div>
-        ))}
+              )}
+              {artist.image || artist.images?.[0]?.url ? (
+                <img
+                  src={artist.image || artist.images?.[0]?.url}
+                  alt={artist.name}
+                  className={styles.albumCover}
+                />
+              ) : (
+                <div className={styles.albumCover} style={{ background: '#444', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
+                  {artist.name?.[0] || '?'}
+                </div>
+              )}
+              <div className={styles.albumName} title={artist.name} style={{ marginTop: 12 }}>
+                {artist.name}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

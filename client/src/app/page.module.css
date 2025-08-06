@@ -693,7 +693,6 @@ body, .main {
 }
 
 .albumNode {
-  width: 190px;
   height: 260px;
   background: #181818;
   border-radius: 12px;
@@ -702,15 +701,10 @@ body, .main {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transition: box-shadow 0.2s, border 0.2s;
+  transition: box-shadow 0.2s, border 0.2s, transform 0.2s;
   border: 2px solid transparent;
   padding: 8px 0;
   overflow: hidden;
-  flex: 0 0 auto;
-  min-width: 190px;
-  min-height: 260px;
-  max-width: 190px;
-  max-height: 260px;
   position: relative;
 }
 
@@ -948,35 +942,30 @@ body, .main {
 .analyzeButton {
   background: #23272f;
   color: #fff;
-  font-size: 0.98rem;
   font-weight: 700;
-  padding: 9px 18px;
-  border-radius: 20px;
   border: none;
+  border-radius: 20px;
   cursor: pointer;
   box-shadow: 0 2px 8px #0001;
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+
+  /* --- Final Responsive Sizing Properties --- */
+  font-size: clamp(1rem, 2.2vw, 2rem);
+  padding: clamp(14px, 3vh, 28px) clamp(28px, 5vw, 56px);
+  min-height: clamp(45px, 10vh, 80px);
 }
 
-/* Desktop-specific larger button text */
-@media (min-width: 769px) {
-  .analyzeButton {
-    font-size: 1.5rem !important;
-    padding: 20px 36px !important;
-    min-height: 65px !important;
-    font-weight: 600 !important;
-  }
-  
-  /* Force override for all button styles */
-  .actionButtons .analyzeButton,
-  .actionButtons button,
-  button.analyzeButton {
-    font-size: 1.5rem !important;
-    padding: 20px 36px !important;
-    min-height: 65px !important;
-    font-weight: 600 !important;
-  }
+.analyzeButton:hover {
+  background: #353b45;
+  color: #fff;
 }
+
+
 .analyzeButton:hover {
   background: #1db954;
   color: #181818;
@@ -1128,15 +1117,67 @@ body, .main {
   position: relative;
 }
 
-/* Global override for desktop button sizes */
-@media (min-width: 769px) {
-  .analyzeButton,
-  .actionButtons .analyzeButton,
-  .actionButtons button,
-  button.analyzeButton {
-    font-size: 1.6rem !important;
-    padding: 22px 40px !important;
-    min-height: 70px !important;
-    font-weight: 600 !important;
+
+
+/* Responsive, scalable style specifically for the main action buttons */
+.actionButtons .analyzeButton {
+  background: #23272f;
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0001;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  /* Responsive Sizing Properties */
+  font-size: clamp(1.2rem, 2.2vw, 2.2rem) !important;
+  padding: clamp(16px, 3vh, 30px) clamp(32px, 5vw, 60px) !important;
+  min-height: clamp(50px, 10vh, 85px) !important;
+}
+
+.actionButtons .analyzeButton:hover {
+  background: #353b45;
+  color: #fff;
+}
+
+.artistsGridContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+@media (max-width: 684px) {
+  .artistsGridContainer {
+    /* Use a smaller minimum column width to fit more cards */
+    grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+    /* Explicitly set the gap between cards */
+    gap: 16px;
+    padding: 0 12px;
+  }
+
+  .albumNode {
+    /* Make the entire card smaller */
+    height: 200px;
+  }
+
+  .albumCover {
+    /* Make the cover art smaller to fit */
+    width: 120px;
+    height: 120px;
+  }
+
+  .albumName {
+    /* Adjust font size for the smaller card */
+    font-size: 0.85rem;
+    max-height: 36px; /* This fixes the disappearing name issue */
+
   }
 }

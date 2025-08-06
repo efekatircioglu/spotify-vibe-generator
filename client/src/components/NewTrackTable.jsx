@@ -484,9 +484,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
     });
   };
 
-  // Estimate row height for minHeight reservation
-  const rowHeight = 72; // px, adjust as needed
-  const minHeight = tracks && tracks.length > 0 ? tracks.length * rowHeight + 120 : 0; // +120 for header/buttons
+
 
   const isMobile = useIsMobile(680);
 
@@ -688,7 +686,6 @@ if (isMobile) {
       width: 'clamp(95vw, 98vw, 98vw)',
       boxShadow: '0 4px 32px #0003',
       position: 'relative',
-      minHeight,
       fontSize: 'clamp(0.75rem, 1vw, 1.08rem)', // base font size for all text
     }}>
       {/* Header: Title, Genres, and Action Buttons */}

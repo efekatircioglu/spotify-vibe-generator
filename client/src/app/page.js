@@ -1032,54 +1032,38 @@ const handleExploreContributions = async (track) => {
                 justifyContent: 'center',
                 alignItems: 'center'
               }}>
-                <button 
-                  onClick={handleGenerateFromPlaylist} 
-                  className={styles.analyzeButton} 
-                  disabled={isAnalyzingPlaylists}
-                  style={{
-                    fontSize: window.innerWidth > 768 ? '1.8rem' : '0.8rem',
-                    padding: window.innerWidth > 768 ? '24px 48px' : '8px 16px',
-                    minHeight: window.innerWidth > 768 ? '75px' : '40px',
-                    fontWeight: window.innerWidth > 600 ? '700' : '600',
-                    minWidth: window.innerWidth > 768 ? '280px' : '160px'
-                  }}
-                >
-                  {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
-                </button>
+                <button
+  onClick={handleGenerateFromPlaylist}
+  className={`${styles.analyzeButton} big-scalable-button`}
+  disabled={isAnalyzingPlaylists}
+  
+>
+  {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
+</button>
                 
                 {/* Analyze Your Data Dropdown Button */}
                 <div style={{ position: 'relative' }}>
-                <button 
-                  ref={timeRangeButtonRef}
-                  className={styles.analyzeButton}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setTimeRangeDropdownPosition({
-                      top: rect.bottom + window.scrollY + 8,
-                      left: rect.left + window.scrollX
-                    });
-                    setTimeRangeDropdownOpen(!timeRangeDropdownOpen);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    minWidth: window.innerWidth > 768 ? '280px' : '160px',
-                    fontSize: window.innerWidth > 768 ? '1.8rem' : '0.8rem',
-                    padding: window.innerWidth > 768 ? '24px 48px' : '8px 16px',
-                    minHeight: window.innerWidth > 768 ? '75px' : '40px',
-                    fontWeight: window.innerWidth > 768 ? '700' : '600'
-                  }}
-                >
-                  Analyze Your Data
-                  <span style={{ 
-                    transform: timeRangeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s ease',
-                    fontSize: window.innerWidth > 768 ? '14px' : '10px'
-                  }}>
-                    ▼
-                  </span>
-                </button>
+                <button
+  ref={timeRangeButtonRef}
+  className={styles.analyzeButton}
+  onClick={(e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTimeRangeDropdownPosition({
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.left + window.scrollX
+    });
+    setTimeRangeDropdownOpen(!timeRangeDropdownOpen);
+  }}
+  
+>
+  Analyze Your Data
+  <span style={{
+    transform: timeRangeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+    transition: 'transform 0.2s ease',
+  }}>
+    ▼
+  </span>
+</button>
                 
                 {/* Analyze Your Data Dropdown */}
                 {timeRangeDropdownOpen && (
@@ -1213,6 +1197,7 @@ const handleExploreContributions = async (track) => {
                     align-items: center !important;
                     justify-content: center !important;
                   }
+                   
                   .responsive-container > div {
                     width: 100% !important;
                     max-width: 300px !important;
@@ -1280,18 +1265,7 @@ const handleExploreContributions = async (track) => {
                 }
                 
                 /* Desktop-specific styles for larger button text */
-                @media (min-width: 769px) {
-                  .actionButtons button,
-                  .actionButtons .analyzeButton,
-                  .actionButtons button[class*="analyzeButton"],
-                  .actionButtons .analyzeButton[class*="analyzeButton"] {
-                    font-size: 1.8rem !important;
-                    padding: 24px 48px !important;
-                    min-height: 75px !important;
-                    font-weight: 700 !important;
-                    min-width: 280px !important;
-                  }
-                }
+              
                 
                 /* Enable outer color elements only for screens > 430px */
                 @media (min-width: 431px) {
