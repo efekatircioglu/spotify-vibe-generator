@@ -7,6 +7,22 @@ import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../../utils/artistCache';
 
+// --- Add this entire helper function ---
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsMobile(window.innerWidth <= breakpoint);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
 // Add this helper function at the top-level (outside the component)
 function discogsProfileToLinks(profile) {
   if (!profile) return '';
@@ -49,6 +65,7 @@ export default function ArtistConcertsPage() {
   const artistName = searchParams.get('name') || '';
   const spotifyId = searchParams.get('spotifyId') || '';
   const ticketmasterId = searchParams.get('ticketmasterId') || '';
+  const isMobile = useIsMobile(); 
   
   const [concerts, setConcerts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -95,6 +112,9 @@ export default function ArtistConcertsPage() {
     { label: 'Compilations', value: 'compilation' },
     { label: 'Appears On', value: 'appears_on' },
   ];
+  const [isBioExpanded, setIsBioExpanded] = useState(false); // <-- Add this line
+  const BIO_TRUNCATE_LENGTH = 300; // Characters to show before truncating
+  
 
   // Helper to format date as '20 April 2025'
   function formatDate(dateStr) {
@@ -384,11 +404,11 @@ export default function ArtistConcertsPage() {
             gap: 12, 
             marginBottom: 24 
           }}>
-            <button
+           <button
               onClick={() => router.push('/')}
-              className={styles.vibeButton}
+              className={styles.profileBackButton}
             >
-              Profile
+              <span style={{ fontSize: '1.3em', marginRight: 6 }}>←</span> Profile
             </button>
           </div>
           
@@ -483,22 +503,25 @@ export default function ArtistConcertsPage() {
       {selectedArtist && (
         <>
           <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 32,
-              minHeight: '60vh',
-              width: '100vw',
-              borderRadius: '0 0 32px 32px',
-              boxShadow: '0 4px 32px #0002',
-              padding: '64px 64px 56px 64px',
-              overflow: 'hidden',
-              zIndex: 10,
-              marginTop: '-32px',
-              background: 'none', // Remove previous background
-            }}
-          >
+  className="artist-header-container"
+  style={{
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'clamp(16px, 3vw, 32px)', // Also make the gap responsive
+    minHeight: '60vh',
+    width: '100vw',
+    borderRadius: '0 0 32px 32px',
+    boxShadow: '0 4px 32px #0002',
+    // Responsive padding for all sides
+    padding: 'clamp(32px, 8vh, 64px) clamp(24px, 5vw, 64px)',
+    overflow: 'hidden',
+    zIndex: 10,
+    marginTop: '-32px',
+    background: 'none',
+    boxSizing: 'border-box', // Ensures padding is calculated correctly
+  }}
+>
             {/* Blurred, stretched background image */}
             {artistImage && (
               <div
@@ -562,14 +585,32 @@ export default function ArtistConcertsPage() {
               <span style={{ fontSize: '1.3em', marginRight: 6 }}>←</span> Profile
             </button>
             {artistImage && (
-              <img src={artistImage} alt={selectedArtist.name} style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 4px 24px #0004', border: '4px solid #fff', zIndex: 4 }} />
+             <img src={artistImage} alt={selectedArtist.name} style={{ 
+              width: 'clamp(80px, calc(60px + 4vw), 140px)', 
+              aspectRatio: '1 / 1',
+              borderRadius: '50%', 
+              objectFit: 'cover', 
+              boxShadow: '0 4px 24px #0004', 
+              border: '4px solid #fff', 
+              zIndex: 4 
+            }} />
             )}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, zIndex: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: '3.2rem', fontWeight: 900, color: '#fff', letterSpacing: 1 }}>{selectedArtist.name}</span>
+              <span style={{ 
+  fontSize: 'clamp(2rem, 5vw, 4rem)', 
+  fontWeight: 900, 
+  color: '#fff', 
+  letterSpacing: 1 
+}}>{selectedArtist.name}</span>
               </div>
               {artistFollowers !== null && (
-                <span style={{ color: '#b3b3b3', fontSize: '1.15rem', fontWeight: 500, marginTop: 2 }}>
+                <span style={{ 
+                  color: '#b3b3b3', 
+                  fontSize: 'clamp(0.9rem, 2vw, 1.25rem)', 
+                  fontWeight: 500, 
+                  marginTop: 2 
+                }}>
                   {artistFollowers.toLocaleString()} Followers
                 </span>
               )}
@@ -581,8 +622,8 @@ export default function ArtistConcertsPage() {
                     fontWeight: 700,
                     border: 'none',
                     borderRadius: 24,
-                    padding: '10px 28px',
-                    fontSize: '1.08rem',
+                    padding: `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
+                    fontSize: `clamp(0.9rem, 1.5vw, 1.1rem)`,
                     cursor: followLoading || isFollowing === null ? 'wait' : 'pointer',
                     boxShadow: '0 2px 8px #0001',
                     display: 'flex',
@@ -590,7 +631,7 @@ export default function ArtistConcertsPage() {
                     gap: 8,
                     opacity: followLoading || isFollowing === null ? 0.7 : 1,
                     pointerEvents: followLoading || isFollowing === null ? 'none' : 'auto',
-                    transition: 'background 0.2s, color 0.2s',
+                    transition: 'background 0.2s, color 0.2s, padding 0.2s, font-size 0.2s',
                   }}
                   disabled={followLoading || isFollowing === null}
                   onClick={async () => {
@@ -620,7 +661,18 @@ export default function ArtistConcertsPage() {
                   )}
                 </button>
                 <button
-                  style={{ background: '#232323', color: '#fff', fontWeight: 700, border: 'none', borderRadius: 24, padding: '10px 28px', fontSize: '1.08rem', cursor: 'pointer', boxShadow: '0 2px 8px #0001' }}
+                  style={{
+                    background: '#232323',
+                    color: '#fff',
+                    fontWeight: 700,
+                    border: 'none',
+                    borderRadius: 24,
+                    padding: `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
+                    fontSize: `clamp(0.9rem, 1.5vw, 1.1rem)`,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px #0001',
+                    transition: 'padding 0.2s, font-size 0.2s',
+                  }}
                   onClick={() => {
                     if (spotifyId) {
                       window.open(`https://open.spotify.com/artist/${spotifyId}`, '_blank', 'noopener,noreferrer');
@@ -639,13 +691,14 @@ export default function ArtistConcertsPage() {
               color: '#b3b3b3',
               padding: 18,
               borderRadius: 12,
-              maxWidth: '80vw',
-              width: '80vw',
+              width: isMobile ? '95%' : '80vw',
+              maxWidth: isMobile ? '95%' : '80vw',
               minWidth: 320,
               marginLeft: 'auto',
               marginRight: 'auto',
               boxShadow: '0 2px 16px #0004',
-              fontSize: 18,
+              // Drastically smaller font size for main text on mobile
+              fontSize: isMobile ? 12 : 18,
               fontWeight: 400,
               whiteSpace: 'pre-line',
               textAlign: 'left',
@@ -653,22 +706,58 @@ export default function ArtistConcertsPage() {
             }}>
               <style>{`.discogs-profile-links a { text-decoration: underline !important; }`}</style>
               {discogsRealName && (
-                <div style={{ color: '#fff', fontWeight: 600, fontSize: 20, marginBottom: 8 }}>
+                <div style={{
+                  color: '#fff',
+                  fontWeight: 600,
+                  // Drastically smaller font size for "Real Name" on mobile
+                  fontSize: isMobile ? 14 : 20,
+                  marginBottom: 8
+                }}>
                   Real Name: <span style={{ color: '#38bdf8' }}>{discogsRealName}</span>
                 </div>
               )}
-              <strong style={{ color: '#fff', fontSize: 22 }}>About:</strong>
-              <div style={{ marginTop: 8 }}
-                className="discogs-profile-links"
-                dangerouslySetInnerHTML={{ __html: discogsProfileToLinks(discogsProfile) }}
-              />
+              <strong style={{
+                color: '#fff',
+                // Drastically smaller font size for "About:" heading on mobile
+                fontSize: isMobile ? 16 : 22
+              }}>About:</strong>
+
+                 <strong className={styles.aboutHeading}>About:</strong>
+              <div 
+                className={`${styles.bioTextContainer} ${!isBioExpanded && discogsProfile.length > BIO_TRUNCATE_LENGTH ? styles.collapsed : ''}`}
+              >
+                <div 
+                  style={{ marginTop: 8 }}
+                  className="discogs-profile-links"
+                  dangerouslySetInnerHTML={{ __html: discogsProfileToLinks(discogsProfile) }}
+                />
+              </div>
+
+              {/* Only show the button if the text is long enough to be truncated */}
+              {discogsProfile.length > BIO_TRUNCATE_LENGTH && (
+                <button 
+                  onClick={() => setIsBioExpanded(!isBioExpanded)}
+                  className={styles.readMoreButton}
+                >
+                  {isBioExpanded ? 'Read Less' : 'Read More'}
+                </button>
+              )}
             </div>
           )}
+
           
           {/* Album Selector */}
           <div style={{ marginBottom: 64, marginTop: 48 }}>
-            <div style={{ display: 'flex', gap: 12, marginLeft: 50, marginBottom: 18 }}>
-              {albumGroups.map(group => (
+          <div style={{
+  display: 'flex',
+  flexWrap: 'wrap', // Allow buttons to wrap on very small screens
+  gap: 12,
+  marginBottom: 18,
+  // Responsive centering for mobile:
+  justifyContent: isMobile ? 'center' : 'flex-start',
+  marginLeft: isMobile ? 0 : 50,
+  padding: isMobile ? '0 16px' : 0
+}}>              {albumGroups.map(group => (
                 <button
                   key={group.value}
                   onClick={() => setAlbumGroup(group.value)}
@@ -677,9 +766,10 @@ export default function ArtistConcertsPage() {
                     color: albumGroup === group.value ? '#181818' : '#fff',
                     fontWeight: 700,
                     border: 'none',
-                    borderRadius: 18,
-                    padding: '8px 18px',
-                    fontSize: '1.02rem',
+                    borderRadius: 16, // Slightly smaller radius
+                    // Even smaller padding and font size for mobile
+                    padding: isMobile ? '4px 12px' : '8px 18px',
+                    fontSize: isMobile ? '0.8rem' : '1.02rem',
                     cursor: 'pointer',
                     boxShadow: albumGroup === group.value ? '0 2px 8px #1db95433' : 'none',
                     transition: 'background 0.18s, color 0.18s',

@@ -727,14 +727,18 @@ body, .main {
   text-align: center;
   margin-bottom: 4px;
   font-size: 1rem;
-  line-height: 1.2;
-  word-break: break-word;
+  line-height: 1.3;
   white-space: normal;
-  max-height: calc(100% - 180px); /* leave space for cover and year */
-  overflow-y: auto;
+  word-break: break-word;
+  padding: 0 8px;
+
+  /* This will show 3 lines of text and add "..." if it's longer */
+  height: 3.9em; /* Reserve space for 3 lines (3 * 1.3em) */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 2px;
-  scrollbar-width: none;
 }
 .albumName::-webkit-scrollbar {
   display: none;
@@ -1180,4 +1184,190 @@ body, .main {
     max-height: 36px; /* This fixes the disappearing name issue */
 
   }
+}
+.selectorAlbumName {
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 4px;
+  font-size: 1rem;
+  line-height: 1.3;
+  white-space: normal;
+  word-break: break-word;
+  padding: 0 8px;
+
+  /* This will show up to 2 lines of text and add "..." if it's longer */
+  height: 2.6em; /* Reserve vertical space for 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* Add this new rule for the horizontal album selector */
+.selectorAlbumNode {
+  width: 190px;
+  flex-shrink: 0; /* Prevents the card from shrinking */
+  height: 260px;
+  background: #181818;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #0003;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border 0.2s, transform 0.2s;
+  border: 2px solid transparent;
+  padding: 8px 0;
+  overflow: hidden;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  /* Reduce the gap between cards in the scroller */
+  .albumSelectorContainer {
+    gap: 16px;
+  }
+
+  /* Make the album card much smaller */
+  .selectorAlbumNode {
+    width: 90px;
+    height: 150px;
+    padding-bottom: 0; /* Remove extra padding */
+  }
+
+  /* Make the cover art smaller to match */
+  .albumCover {
+    width: 75px;
+    height: 75px;
+    margin-bottom: 8px;
+  }
+
+  /* Make the album name text smaller */
+  .selectorAlbumName {
+    font-size: 0.75rem;
+    height: 2.6em; /* Reserve space for 2 lines */
+    -webkit-line-clamp: 2; /* Truncate after 2 lines */
+    padding: 0 4px;
+  }
+
+  /* Make the year text smaller */
+  .albumYear {
+    font-size: 0.7rem;
+    bottom: 6px;
+  }
+}
+
+/* Styles for the Artist "About" section */
+.aboutContainer {
+  margin: 18px auto 0 auto;
+  background: #181c24;
+  color: #b3b3b3;
+  padding: 18px;
+  border-radius: 12px;
+  max-width: 80vw;
+  width: 80vw;
+  min-width: 320px;
+  box-shadow: 0 2px 16px #0004;
+  font-size: 18px;
+  font-weight: 400;
+  white-space: pre-line;
+  text-align: left;
+  position: relative;
+}
+
+.aboutRealName {
+  color: #fff;
+  font-weight: 600;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.aboutRealNameHighlight {
+  color: #38bdf8;
+}
+
+.aboutHeading {
+  color: #fff;
+  font-size: 22px;
+}
+
+/* Responsive styles for the "About" section on smaller screens */
+@media (max-width: 768px) {
+  .aboutContainer {
+    width: 95%;
+    max-width: 95%;
+    padding: 16px;
+    font-size: 15px; /* Smaller base font size */
+  }
+
+  .aboutRealName {
+    font-size: 17px; /* Smaller real name font size */
+  }
+
+  .aboutHeading {
+    font-size: 19px; /* Smaller heading font size */
+  }
+}
+
+/* Styles for the "Read More" bio section */
+.bioTextContainer {
+  position: relative;
+  overflow: hidden;
+  transition: max-height 0.5s ease-in-out;
+}
+
+.collapsed {
+  max-height: 100px; /* Sets the height of the collapsed text snippet */
+}
+
+/* Adds a nice fade-out effect at the bottom of the collapsed text */
+.collapsed::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, #181c24);
+}
+
+.readMoreButton {
+  background: none;
+  border: none;
+  color: #1db954;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1em; /* Inherits the font size from the container */
+  padding: 8px 0;
+  margin-top: 4px;
+  text-align: left;
+}
+
+
+.profileBackButton {
+  position: absolute;
+  top: 24px;
+  left: 32px;
+  z-index: 4;
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 24px;
+  padding: 10px 28px;
+  font-size: 1.08rem;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.profileBackButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #fff;
 }

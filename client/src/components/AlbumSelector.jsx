@@ -22,12 +22,12 @@ export default function AlbumSelector({ albums, selectedAlbumId, onAlbumSelect, 
           <div
             key={album.id}
             className={
-              styles.albumNode + (album.id === selectedAlbumId ? ' ' + styles.selectedAlbumNode : '')
+              styles.selectorAlbumNode + (album.id === selectedAlbumId ? ' ' + styles.selectedAlbumNode : '')
             }
             onClick={() => onAlbumSelect(album)}
           >
             <img src={album.image} alt={album.name} className={styles.albumCover} />
-            <div className={styles.albumName}>{album.name}</div>
+            <div className={styles.selectorAlbumName}>{album.name}</div>
             <div className={styles.albumYear}>{album.releaseYear}</div>
           </div>
         );
