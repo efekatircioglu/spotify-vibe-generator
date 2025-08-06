@@ -9,6 +9,18 @@ import NewSongAnalysisModal from './NewSongAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 import { useRouter } from 'next/navigation';
 
+function useIsMobile(breakpoint = 500) {
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
+  );
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= breakpoint);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [] }) {
   const router = useRouter();
   const [showWrapped, setShowWrapped] = useState(false);
@@ -25,6 +37,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const [clickingArtist, setClickingArtist] = useState(null); // Track which artist is being clicked
   const [showPopover, setShowPopover] = useState(null); // Track which track's popover is open
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 }); // Track popover position
+  const [mobileDropdownOpen, setMobileDropdownOpen] = useState(null); // index of open dropdown
+  const mobileDropdownRef = useRef(null);
 
   // When tracks change, increment tableKey to trigger animation
   useEffect(() => {
@@ -471,6 +485,191 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   // Estimate row height for minHeight reservation
   const rowHeight = 72; // px, adjust as needed
   const minHeight = tracks && tracks.length > 0 ? tracks.length * rowHeight + 120 : 0; // +120 for header/buttons
+
+  const isMobile = useIsMobile(500);
+
+  useEffect(() => {
+    if (mobileDropdownOpen === null) return;
+    function handleClick(e) {
+      if (mobileDropdownRef.current && !mobileDropdownRef.current.contains(e.target)) {
+        setMobileDropdownOpen(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('touchstart', handleClick);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('touchstart', handleClick);
+    };
+  }, [mobileDropdownOpen]);
+
+  if (isMobile) {
+    // --- MOBILE LAYOUT ---
+    return (
+      <div style={{
+        background: '#181818',
+        borderRadius: 18,
+        padding: '6vw 6vw 2vw 2vw',
+        margin: '3vw auto',
+        maxWidth: '100vw',
+        boxShadow: '0 4px 32px #0003',
+        position: 'relative',
+        minHeight: 0,
+        fontSize: '1rem',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 18
+        }}>
+          <div style={{ fontWeight: 900, fontSize: '1.2rem', color: '#f3f3f3', letterSpacing: 1, textAlign: 'center' }}>{title || 'Your Last 50 Songs'}</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            {tracks && tracks.length > 0 && (
+              <PlaylistActions
+                tracks={tracks}
+                playlistKey={playlistKey}
+                playlistNameLabel={title}
+                onWrapped={() => setShowWrapped(true)}
+                showCreatePlaylist={showCreatePlaylist}
+                showViewPlaylist={showViewPlaylist}
+              />
+            )}
+          </div>
+        </div>
+        {/* Song Cards */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          maxHeight: 576, // 8 * 72px
+          overflowY: 'auto',
+        }}>
+          {tracks && tracks.length > 0 && tracks.map((track, idx) => (
+            <div key={track.id ? `${track.id}-${idx}` : idx} style={{
+              background: idx % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
+              borderRadius: 14,
+              padding: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              boxShadow: '0 2px 8px #0002',
+              position: 'relative',
+            }}>
+              {/* Cover */}
+              <div>
+                {track.album_image || track.album?.images?.[0]?.url ? (
+                  <img src={track.album_image || track.album?.images?.[0]?.url} alt={track.album?.name || track.album} style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', background: '#232323' }} />
+                ) : (
+                  <div style={{
+                    width: 48, height: 48, borderRadius: '50%', background: ['#e57373','#64b5f6','#81c784','#ffd54f','#ba68c8','#4db6ac','#ffb74d','#a1887f'][idx % 8],
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 22, color: '#fff', textTransform: 'uppercase', boxShadow: '0 2px 8px #0004',
+                  }}>{track.name ? track.name[0] : '?'}</div>
+                )}
+              </div>
+              {/* Song Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, color: '#fff', fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.name}</div>
+                <div style={{ color: '#d1d5db', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '')}</div>
+                <div
+                  style={{
+                    color: '#b3b3b3',
+                    fontSize: 13,
+                    maxWidth: 120,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={track.album?.name || track.album}
+                >
+                  {track.album?.name || track.album}
+                </div>
+                <div style={{ color: '#b3b3b3', fontSize: 12 }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')} • {track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</div>
+              </div>
+              {/* Actions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', position: 'relative' }}>
+                <button
+                  style={{
+                    background: '#232323', color: '#fff', borderRadius: 8, fontWeight: 700, padding: '8px 16px', fontSize: 14, border: 'none', cursor: 'pointer', marginBottom: 4
+                  }}
+                  onClick={() => setMobileDropdownOpen(mobileDropdownOpen === idx ? null : idx)}
+                >Breakdown</button>
+                {mobileDropdownOpen === idx && (
+                  <div
+                    ref={mobileDropdownRef}
+                    style={{
+                      position: 'absolute',
+                      top: 38,
+                      right: 0,
+                      background: '#232323',
+                      borderRadius: 8,
+                      boxShadow: '0 2px 12px #0006',
+                      zIndex: 1000,
+                      minWidth: 120,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 0,
+                      overflow: 'hidden',
+                    }}>
+                    <button
+                      style={{
+                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s',
+                      }}
+                      onClick={() => { setMobileDropdownOpen(null); handleThirdGenreClick(track); }}
+                    >Genre</button>
+                    <button
+                      style={{
+                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s',
+                      }}
+                      onClick={() => { setMobileDropdownOpen(null); handleContributionsClick(track); }}
+                    >Contributors</button>
+                  </div>
+                )}
+                {track.id && (
+                  <a href={`https://open.spotify.com/track/${track.id}`} target="_blank" rel="noopener noreferrer">
+                    <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 24, height: 24, verticalAlign: 'middle' }} />
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Modals (keep as is) */}
+        <WrappedAnalysisModal open={showWrapped} onClose={() => setShowWrapped(false)} tracks={tracks} />
+        {showNewSongAnalysisModal && selectedTrackForNewAnalysis && (
+          <NewSongAnalysisModal
+            open={showNewSongAnalysisModal}
+            onClose={() => setShowNewSongAnalysisModal(false)}
+            songInfo={selectedTrackForNewAnalysis}
+          />
+        )}
+        {contributorModalOpen && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0, 0, 0, 0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000,
+          }} onClick={() => setContributorModalOpen(false)}>
+            <div style={{ background: '#232323', borderRadius: 18, padding: '40px', maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', color: '#fff', border: '2px solid #1db954' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>
+                  Contributors for {selectedTrackInfo?.name}
+                </h2>
+                <button
+                  onClick={() => setContributorModalOpen(false)}
+                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer', padding: 0, marginTop: -40, marginRight: -60, transition: 'color 0.2s' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#1db954'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#fff'}
+                >×</button>
+              </div>
+              {selectedTrackMBID ? (
+                <ContributorFinder mbid={selectedTrackMBID} />
+              ) : (
+                <p style={{ textAlign: 'center', color: '#f87171' }}>
+                  Contributor information is not available for this track.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{
