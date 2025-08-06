@@ -701,7 +701,10 @@ export default function ArtistConcertsPage() {
 
           {/* Track Table for selected album */}
           {selectedAlbumId && albumTracks.length > 0 && (
-            <div style={{ marginBottom: 48 }}>
+            <div style={{ marginBottom: 48,
+              display: 'flex',
+              justifyContent: 'center'
+             }}>
               <NewTrackTable
                 tracks={tracksWithAlbumInfo}
                 title={selectedAlbum?.name || 'Album Tracks'}

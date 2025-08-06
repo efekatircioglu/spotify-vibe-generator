@@ -1011,7 +1011,7 @@ const handleExploreContributions = async (track) => {
         <main className={styles.main} style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh', width: '100vw' }}>
           <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false} onFeedback={() => setShowFeedbackModal(true)}>
             <h2 className={styles.reportTitle}>Create Your Listening Report</h2>
-            <div className={styles.reportSubtitle}>Select a time range to see your top artists and tracks, and analyze your recent songs and playlists.</div>
+            <div className={styles.reportSubtitle}>Explore your top songs, favorite artists, and personal playlists.</div>
             
             {/* Analyze Buttons and Time Range Row */}
             <div className="responsive-container" style={{ 
@@ -1033,33 +1033,21 @@ const handleExploreContributions = async (track) => {
                 alignItems: 'center'
               }}>
                 <button 
-                  onClick={handleGenerateFromRecents} 
-                  className={styles.analyzeButton} 
-                  disabled={isAnalyzingRecents}
-                  style={{
-                    fontSize: window.innerWidth > 768 ? '1.5rem' : undefined,
-                    padding: window.innerWidth > 768 ? '20px 36px' : undefined,
-                    minHeight: window.innerWidth > 768 ? '65px' : undefined,
-                    fontWeight: window.innerWidth > 768 ? '600' : undefined
-                  }}
-                >
-                  {isAnalyzingRecents ? 'Analyzing...' : 'Analyze Your Last 50 Songs'}
-                </button>
-                <button 
                   onClick={handleGenerateFromPlaylist} 
                   className={styles.analyzeButton} 
                   disabled={isAnalyzingPlaylists}
                   style={{
-                    fontSize: window.innerWidth > 768 ? '1.5rem' : undefined,
-                    padding: window.innerWidth > 768 ? '20px 36px' : undefined,
-                    minHeight: window.innerWidth > 768 ? '65px' : undefined,
-                    fontWeight: window.innerWidth > 600 ? '600' : undefined
+                    fontSize: window.innerWidth > 768 ? '1.8rem' : '0.8rem',
+                    padding: window.innerWidth > 768 ? '24px 48px' : '8px 16px',
+                    minHeight: window.innerWidth > 768 ? '75px' : '40px',
+                    fontWeight: window.innerWidth > 600 ? '700' : '600',
+                    minWidth: window.innerWidth > 768 ? '280px' : '160px'
                   }}
                 >
                   {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
                 </button>
                 
-                {/* Time Range Dropdown Button */}
+                {/* Analyze Your Data Dropdown Button */}
                 <div style={{ position: 'relative' }}>
                 <button 
                   ref={timeRangeButtonRef}
@@ -1076,24 +1064,24 @@ const handleExploreContributions = async (track) => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    minWidth: '140px',
-                    fontSize: window.innerWidth > 768 ? '1.5rem' : undefined,
-                    padding: window.innerWidth > 768 ? '20px 36px' : undefined,
-                    minHeight: window.innerWidth > 768 ? '65px' : undefined,
-                    fontWeight: window.innerWidth > 768 ? '600' : undefined
+                    minWidth: window.innerWidth > 768 ? '280px' : '160px',
+                    fontSize: window.innerWidth > 768 ? '1.8rem' : '0.8rem',
+                    padding: window.innerWidth > 768 ? '24px 48px' : '8px 16px',
+                    minHeight: window.innerWidth > 768 ? '75px' : '40px',
+                    fontWeight: window.innerWidth > 768 ? '700' : '600'
                   }}
                 >
-                  Time Range
+                  Analyze Your Data
                   <span style={{ 
                     transform: timeRangeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                     transition: 'transform 0.2s ease',
-                    fontSize: '12px'
+                    fontSize: window.innerWidth > 768 ? '14px' : '10px'
                   }}>
                     ▼
                   </span>
                 </button>
                 
-                {/* Time Range Dropdown */}
+                {/* Analyze Your Data Dropdown */}
                 {timeRangeDropdownOpen && (
                   <div
                     data-dropdown="time-range"
@@ -1114,7 +1102,33 @@ const handleExploreContributions = async (track) => {
                       <button 
                         className={styles.timeRangeButton}
                         onClick={(e) => {
-                          console.log('4 weeks button clicked!');
+                          console.log('Last 50 Songs button clicked!');
+                          e.stopPropagation();
+                          handleGenerateFromRecents();
+                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
+                        }}
+                        style={{
+                          width: '100%',
+                          borderRadius: '0',
+                          borderBottom: '1px solid #333',
+                          background: 'transparent',
+                          transition: 'background 0.2s ease',
+                          fontSize: '0.85rem',
+                          padding: '4px 8px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        Last 50 Songs
+                      </button>
+                      <button 
+                        className={styles.timeRangeButton}
+                        onClick={(e) => {
+                          console.log('Last Month button clicked!');
                           e.stopPropagation();
                           handleTimeRangeNav('/last-4-weeks');
                           setTimeout(() => setTimeRangeDropdownOpen(false), 100);
@@ -1135,7 +1149,7 @@ const handleExploreContributions = async (track) => {
                           e.currentTarget.style.background = 'transparent';
                         }}
                       >
-                        Last 4 Weeks
+                        Last Month
                       </button>
                       <button 
                         className={styles.timeRangeButton}
@@ -1184,7 +1198,7 @@ const handleExploreContributions = async (track) => {
                           e.currentTarget.style.background = 'transparent';
                         }}
                       >
-                        Last 12 Months
+                        Last Year
                       </button>
                     </div>
                 )}
@@ -1271,10 +1285,11 @@ const handleExploreContributions = async (track) => {
                   .actionButtons .analyzeButton,
                   .actionButtons button[class*="analyzeButton"],
                   .actionButtons .analyzeButton[class*="analyzeButton"] {
-                    font-size: 1.5rem !important;
-                    padding: 20px 36px !important;
-                    min-height: 65px !important;
-                    font-weight: 600 !important;
+                    font-size: 1.8rem !important;
+                    padding: 24px 48px !important;
+                    min-height: 75px !important;
+                    font-weight: 700 !important;
+                    min-width: 280px !important;
                   }
                 }
                 
@@ -1418,13 +1433,18 @@ const handleExploreContributions = async (track) => {
                   
                   /* Time Range button and dropdown buttons */
                   .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.25rem !important;
-                    padding: 1px 3px !important;
+                    font-size: 0.6rem !important;
+                    padding: 6px 12px !important;
+                    min-width: 120px !important;
+                    min-height: 30px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 0.2rem !important;
-                    padding: 1px 2px !important;
+                    font-size: 1rem !important;
+                    padding: 8px 16px !important;
+                    min-height: 40px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container .actionButtons button {
@@ -1434,22 +1454,22 @@ const handleExploreContributions = async (track) => {
                   
                   /* Make Find Concerts section smaller */
                   .profileContainer > div > div:nth-child(4) {
-                    margin-top: 4px !important;
+                    margin-top: 8px !important;
                   }
                   
                   .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 1.1rem !important;
-                    margin-bottom: 2px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.9rem !important;
+                    font-size: 0.7rem !important;
                     margin-bottom: 3px !important;
                   }
                   
+                  .profileContainer > div > div:nth-child(4) p {
+                    font-size: 0.5rem !important;
+                    margin-bottom: 6px !important;
+                  }
+                  
                   .profileContainer > div > div:nth-child(4) button {
-                    font-size: 0.25rem !important;
-                    padding: 1px 6px !important;
+                    font-size: 0.5rem !important;
+                    padding: 4px 12px !important;
                   }
                 }
                   
@@ -1467,14 +1487,14 @@ const handleExploreContributions = async (track) => {
                   }
                   
                   .reportTitle {
-                    font-size: 0.9rem !important;
-                    margin-bottom: 6px !important;
+                    font-size: 0.7rem !important;
+                    margin-bottom: 4px !important;
                   }
                   
                   .reportSubtitle {
-                    font-size: 0.65rem !important;
-                    line-height: 1.2 !important;
-                    margin-bottom: 8px !important;
+                    font-size: 0.5rem !important;
+                    line-height: 1.1 !important;
+                    margin-bottom: 6px !important;
                   }
                   
                   .responsive-container {
@@ -1490,13 +1510,18 @@ const handleExploreContributions = async (track) => {
                   
                   /* Time Range button and dropdown buttons */
                   .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.7rem !important;
+                    font-size: 0.6rem !important;
                     padding: 6px 12px !important;
+                    min-width: 120px !important;
+                    min-height: 30px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 0.65rem !important;
-                    padding: 4px 8px !important;
+                    font-size: 1rem !important;
+                    padding: 8px 16px !important;
+                    min-height: 40px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container .actionButtons button {
@@ -1561,7 +1586,10 @@ const handleExploreContributions = async (track) => {
                   /* Time Range button and dropdown buttons */
                   .responsive-container button[class*="analyzeButton"] {
                     font-size: 0.6rem !important;
-                    padding: 4px 8px !important;
+                    padding: 6px 12px !important;
+                    min-width: 120px !important;
+                    min-height: 30px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container [data-dropdown="time-range"] button {
@@ -1630,8 +1658,11 @@ const handleExploreContributions = async (track) => {
                   
                   /* Time Range button and dropdown buttons */
                   .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.55rem !important;
-                    padding: 3px 6px !important;
+                    font-size: 0.6rem !important;
+                    padding: 6px 12px !important;
+                    min-width: 120px !important;
+                    min-height: 30px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container [data-dropdown="time-range"] button {
@@ -1700,8 +1731,11 @@ const handleExploreContributions = async (track) => {
                   
                   /* Time Range button and dropdown buttons */
                   .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.35rem !important;
-                    padding: 1px 3px !important;
+                    font-size: 0.6rem !important;
+                    padding: 6px 12px !important;
+                    min-width: 120px !important;
+                    min-height: 30px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container [data-dropdown="time-range"] button {
@@ -1770,8 +1804,11 @@ const handleExploreContributions = async (track) => {
                   
                   /* Time Range button and dropdown buttons */
                   .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.25rem !important;
-                    padding: 1px 2px !important;
+                    font-size: 0.6rem !important;
+                    padding: 6px 12px !important;
+                    min-width: 120px !important;
+                    min-height: 30px !important;
+                    font-weight: 600 !important;
                   }
                   
                   .responsive-container [data-dropdown="time-range"] button {
@@ -1876,17 +1913,19 @@ const handleExploreContributions = async (track) => {
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <h3 style={{ 
             color: '#fff', 
-            fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', 
-            fontWeight: 700, 
-            marginBottom: 8 
+            fontSize: '2.1rem', 
+            fontWeight: 800, 
+            marginBottom: 10,
+            marginTop: 0
           }}>
             Find Concerts For You
           </h3>
           <p style={{ 
             color: '#b3b3b3', 
-            fontSize: 'clamp(0.9rem, 1.5vw, 1.1rem)', 
-            marginBottom: 20,
-            lineHeight: 1.4
+            fontSize: '1.1rem', 
+            marginBottom: 24,
+            lineHeight: 1.4,
+            textAlign: 'center'
           }}>
             Use your listening report to discover upcoming shows from your favorite artists.
           </p>
@@ -1922,9 +1961,15 @@ const handleExploreContributions = async (track) => {
           {/* Removed empty state message */}
           <div className={styles.dashboardContentArea}>
             <div className={styles.resultsCard}>
-      {/* Table section for last 50 songs */}
-      {showSongsTable && (
-        <div ref={tableRef}>
+       {/* Table section for last 50 songs */}
+       {showSongsTable && (
+        <div 
+          ref={tableRef} 
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'center' 
+          }}
+        >
           <NewTrackTable
             tracks={songs}
             title="Your Last 50 Songs"
@@ -1936,6 +1981,7 @@ const handleExploreContributions = async (track) => {
                 onExploreContributions={handleExploreContributions}
           />
         </div>
+      
       )}
       {/* Table section for playlists */}
       {showPlaylistsTable && playlists.length > 0 && (

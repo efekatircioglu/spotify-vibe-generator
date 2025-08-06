@@ -9,7 +9,7 @@ import NewSongAnalysisModal from './NewSongAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 import { useRouter } from 'next/navigation';
 
-function useIsMobile(breakpoint = 500) {
+function useIsMobile(breakpoint = 680) {
   const [isMobile, setIsMobile] = React.useState(
     typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
   );
@@ -39,6 +39,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 }); // Track popover position
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(null); // index of open dropdown
   const mobileDropdownRef = useRef(null);
+  const FOUR_SONGS_HEIGHT_PX = 408;
+
 
   // When tracks change, increment tableKey to trigger animation
   useEffect(() => {
@@ -486,7 +488,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const rowHeight = 72; // px, adjust as needed
   const minHeight = tracks && tracks.length > 0 ? tracks.length * rowHeight + 120 : 0; // +120 for header/buttons
 
-  const isMobile = useIsMobile(500);
+  const isMobile = useIsMobile(680);
 
   useEffect(() => {
     if (mobileDropdownOpen === null) return;
@@ -503,26 +505,25 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
     };
   }, [mobileDropdownOpen]);
 
-  if (isMobile) {
+// Find this line in NewTrackTable.jsx...
+if (isMobile) {
+  // And replace everything inside it with this:
+  
     // --- MOBILE LAYOUT ---
     return (
       <div style={{
         background: '#181818',
-        borderRadius: 18,
-        padding: '6vw 6vw 2vw 2vw',
-        margin: '3vw auto',
-        maxWidth: '100vw',
-        boxShadow: '0 4px 32px #0003',
-        position: 'relative',
-        minHeight: 0,
-        fontSize: '1rem',
+        padding: '6vw 0', // Vertical padding, no horizontal padding
+        width: '100%',
+        boxSizing: 'border-box',
       }}>
         {/* Header */}
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 18
         }}>
           <div style={{ fontWeight: 900, fontSize: '1.2rem', color: '#f3f3f3', letterSpacing: 1, textAlign: 'center' }}>{title || 'Your Last 50 Songs'}</div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8, width: '95%',
+  justifyContent: 'center'}}>
             {tracks && tracks.length > 0 && (
               <PlaylistActions
                 tracks={tracks}
@@ -535,26 +536,31 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
             )}
           </div>
         </div>
-        {/* Song Cards */}
+        
+        {/* This is the container for the list of songs. We center this. */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
-          maxHeight: 576, // 8 * 72px
+          maxHeight: 576,
           overflowY: 'auto',
+          width: '95%',
+          margin: '0 auto',
+          maxHeight: 430,
         }}>
           {tracks && tracks.length > 0 && tracks.map((track, idx) => (
             <div key={track.id ? `${track.id}-${idx}` : idx} style={{
               background: idx % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
               borderRadius: 14,
               padding: 14,
-              display: 'flex',
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr auto',
               alignItems: 'center',
               gap: 12,
               boxShadow: '0 2px 8px #0002',
               position: 'relative',
             }}>
-              {/* Cover */}
+              {/* 1st Column: Cover Art */}
               <div>
                 {track.album_image || track.album?.images?.[0]?.url ? (
                   <img src={track.album_image || track.album?.images?.[0]?.url} alt={track.album?.name || track.album} style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', background: '#232323' }} />
@@ -565,8 +571,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                   }}>{track.name ? track.name[0] : '?'}</div>
                 )}
               </div>
-              {/* Song Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              {/* 2nd Column: Song Info */}
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700, color: '#fff', fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.name}</div>
                 <div style={{ color: '#d1d5db', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '')}</div>
                 <div
@@ -584,7 +590,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                 </div>
                 <div style={{ color: '#b3b3b3', fontSize: 12 }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')} • {track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</div>
               </div>
-              {/* Actions */}
+              {/* 3rd Column: Actions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', position: 'relative' }}>
                 <button
                   style={{
@@ -624,7 +630,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                   </div>
                 )}
                 {track.id && (
-                  <a href={`https://open.spotify.com/track/${track.id}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`https://open.spotify.com/track/$${track.id}`} target="_blank" rel="noopener noreferrer">
                     <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 24, height: 24, verticalAlign: 'middle' }} />
                   </a>
                 )}
@@ -632,7 +638,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
             </div>
           ))}
         </div>
-        {/* Modals (keep as is) */}
+        
+        {/* Modals go here */}
         <WrappedAnalysisModal open={showWrapped} onClose={() => setShowWrapped(false)} tracks={tracks} />
         {showNewSongAnalysisModal && selectedTrackForNewAnalysis && (
           <NewSongAnalysisModal
@@ -672,16 +679,17 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   }
 
   return (
-    <div style={{
+    <div       className="new-track-table-container"    style={{
       background: '#181818',
       borderRadius: 18,
-      padding: '3vw 2vw 2vw 2vw',
-      margin: '3vw auto',
-      maxWidth: '98vw',
+      padding: 'clamp(16px, 2vw, 3vw) clamp(12px, 1.5vw, 2vw)',
+      margin: 'clamp(16px, 2vw, 3vw) auto',
+      maxWidth: 'clamp(95vw, 98vw, 98vw)',
+      width: 'clamp(95vw, 98vw, 98vw)',
       boxShadow: '0 4px 32px #0003',
       position: 'relative',
       minHeight,
-      fontSize: 'clamp(0.85rem, 1.1vw, 1.08rem)', // base font size for all text
+      fontSize: 'clamp(0.75rem, 1vw, 1.08rem)', // base font size for all text
     }}>
       {/* Header: Title, Genres, and Action Buttons */}
       <div style={{
@@ -694,12 +702,13 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
         gap: genres && genres.length > 0 ? 10 : 0,
       }}>
         <div style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-        }}>
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'nowrap',
+  gap: '16px'
+}}>
           <span style={{
             fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
             fontWeight: 900,
@@ -772,7 +781,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {/* Table Section */}
-      <div style={{ width: '100%', overflowX: 'auto', marginTop: 8 }}>
+      <div className="table-container" style={{ width: '100%', overflowX: 'auto', marginTop: 8 }}>
         {!loading && !error && tracks && tracks.length > 0 && (
           <table style={{
             width: '98%',
@@ -781,22 +790,22 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
             borderSpacing: 0,
             background: 'transparent',
             color: '#f3f3f3',
-            fontSize: 'clamp(0.85rem, 1.08vw, 1.04rem)',
-            minWidth: 700,
+            fontSize: 'clamp(0.75rem, 1vw, 1.04rem)',
+            minWidth: 'clamp(600px, 90vw, 1200px)',
             boxShadow: 'none',
             margin: '0 auto',
           }} key={tableKey}>
             <thead>
-              <tr style={{ background: 'none', color: '#b3b3b3', fontWeight: 700, fontSize: 'clamp(0.93rem, 1.08vw, 1.04rem)' }}>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>#</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Cover</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Name</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Artist</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Album</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Year</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Duration</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Analyze</th>
-                <th style={{ padding: '18px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Play</th>
+              <tr style={{ background: 'none', color: '#b3b3b3', fontWeight: 700, fontSize: 'clamp(0.8rem, 1vw, 1.04rem)' }}>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>#</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Cover</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Name</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Artist</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Album</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Year</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Duration</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Analyze</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Play</th>
               </tr>
             </thead>
             <tbody>
@@ -809,7 +818,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                     background: idx % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
                     borderRadius: 12,
                     transition: 'background 0.18s',
-                    fontSize: '1.13em',
+                    fontSize: 'clamp(0.75rem, 1vw, 1.13em)',
                     animationDelay: `${idx * 60}ms`,
                     animationName: 'fadeInUp',
                     animationDuration: '400ms',
@@ -818,38 +827,38 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                     animationTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
                   }}
                 >
-                  <td style={{ padding: '16px 0 16px 12px', fontWeight: 700, fontSize: '1.08em', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{idx + 1}</td>
-                  <td style={{ padding: '10px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>
+                  <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', fontWeight: 700, fontSize: 'clamp(0.8rem, 1vw, 1.08em)', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{idx + 1}</td>
+                  <td style={{ padding: 'clamp(8px, 1.2vw, 10px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>
                     {track.album_image || track.album?.images?.[0]?.url ? (
-                      <img src={track.album_image || track.album?.images?.[0]?.url} alt={track.album?.name || track.album} style={{ width: 'clamp(32px, 7vw, 56px)', height: 'clamp(32px, 7vw, 56px)', borderRadius: 10, objectFit: 'cover', background: '#232323', marginRight: 'clamp(8px, 2vw, 18px)' }} />
+                      <img src={track.album_image || track.album?.images?.[0]?.url} alt={track.album?.name || track.album} style={{ width: 'clamp(28px, 6vw, 56px)', height: 'clamp(28px, 6vw, 56px)', borderRadius: 10, objectFit: 'cover', background: '#232323', marginRight: 'clamp(6px, 1.5vw, 18px)' }} />
                     ) : (
                       <div style={{
-                        width: 'clamp(32px, 7vw, 56px)',
-                        height: 'clamp(32px, 7vw, 56px)',
+                        width: 'clamp(28px, 6vw, 56px)',
+                        height: 'clamp(28px, 6vw, 56px)',
                         borderRadius: '50%',
                         background: ['#e57373','#64b5f6','#81c784','#ffd54f','#ba68c8','#4db6ac','#ffb74d','#a1887f'][idx % 8],
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 900,
-                        fontSize: 'clamp(1.1rem, 2vw, 1.75rem)',
+                        fontSize: 'clamp(0.9rem, 1.8vw, 1.75rem)',
                         color: '#fff',
                         textTransform: 'uppercase',
                         boxShadow: '0 2px 8px #0004',
-                        marginRight: 'clamp(8px, 2vw, 18px)',
+                        marginRight: 'clamp(6px, 1.5vw, 18px)',
                       }}>{track.name ? track.name[0] : '?'}</div>
                     )}
                   </td>
                   <td 
                     style={{ 
-                      padding: '16px 0', 
+                      padding: 'clamp(12px, 1.5vw, 16px) 0', 
                       fontWeight: 700, 
-                      maxWidth: 180, 
+                      maxWidth: 'clamp(120px, 15vw, 180px)', 
                       overflow: 'hidden', 
                       textOverflow: 'ellipsis', 
                       whiteSpace: 'nowrap', 
-                      paddingLeft: 'clamp(6px, 1vw, 18px)', 
-                      paddingRight: 'clamp(6px, 1vw, 18px)',
+                      paddingLeft: 'clamp(4px, 0.8vw, 18px)', 
+                      paddingRight: 'clamp(4px, 0.8vw, 18px)',
                       cursor: 'default',
                       position: 'relative'
                     }}
@@ -859,14 +868,14 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                   <td 
                     className="artist-cell"
                     style={{ 
-                      padding: '16px 0', 
+                      padding: 'clamp(12px, 1.5vw, 16px) 0', 
                       color: '#b3b3b3', 
-                      maxWidth: 160, 
+                      maxWidth: 'clamp(100px, 12vw, 160px)', 
                       overflow: 'hidden', 
                       textOverflow: 'ellipsis', 
                       whiteSpace: 'nowrap', 
-                      paddingLeft: 'clamp(6px, 1vw, 18px)', 
-                      paddingRight: 'clamp(6px, 1vw, 18px)',
+                      paddingLeft: 'clamp(4px, 0.8vw, 18px)', 
+                      paddingRight: 'clamp(4px, 0.8vw, 18px)',
                       cursor: 'default',
                       position: 'relative'
                     }}
@@ -875,23 +884,23 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                   </td>
                   <td 
                     style={{ 
-                      padding: '16px 0', 
+                      padding: 'clamp(12px, 1.5vw, 16px) 0', 
                       color: '#b3b3b3', 
-                      maxWidth: 160, 
+                      maxWidth: 'clamp(100px, 12vw, 160px)', 
                       overflow: 'hidden', 
                       textOverflow: 'ellipsis', 
                       whiteSpace: 'nowrap', 
-                      paddingLeft: 'clamp(6px, 1vw, 18px)', 
-                      paddingRight: 'clamp(6px, 1vw, 18px)',
+                      paddingLeft: 'clamp(4px, 0.8vw, 18px)', 
+                      paddingRight: 'clamp(4px, 0.8vw, 18px)',
                       cursor: 'default',
                       position: 'relative'
                     }}
                   >
                     {track.album?.name || track.album}
                   </td>
-                  <td style={{ padding: '16px 0', color: '#b3b3b3', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')}</td>
-                  <td style={{ padding: '16px 0', color: '#b3b3b3', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
-                  <td style={{ padding: '16px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>{/* Analyze button remains as is for now */}
+                  <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')}</td>
+                  <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
+                  <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{/* Analyze button remains as is for now */}
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <button
                         ref={el => { if (el) buttonRefs.current[idx] = el; }}
@@ -900,8 +909,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                           color: '#fff',
                           borderRadius: 10,
                           fontWeight: 700,
-                          padding: '12px 28px',
-                          fontSize: '1.08rem',
+                          padding: 'clamp(8px, 1.5vw, 12px) clamp(16px, 2.5vw, 28px)',
+                          fontSize: 'clamp(0.8rem, 1vw, 1.08rem)',
                           margin: '0 4px',
                           cursor: 'pointer',
                           boxShadow: 'none',
@@ -959,8 +968,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                                 border: 'none',
                                 borderRadius: 6,
                                 fontWeight: 700,
-                                fontSize: '0.92rem',
-                                padding: '4px 10px',
+                                fontSize: 'clamp(0.75rem, 0.9vw, 0.92rem)',
+                                padding: 'clamp(3px, 0.8vw, 4px) clamp(8px, 1.5vw, 10px)',
                                 lineHeight: 1.1,
                                 textAlign: 'left',
                                 cursor: 'pointer',
@@ -985,8 +994,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                                 border: 'none',
                                 borderRadius: 6,
                                 fontWeight: 700,
-                                fontSize: '0.92rem',
-                                padding: '4px 10px',
+                                fontSize: 'clamp(0.75rem, 0.9vw, 0.92rem)',
+                                padding: 'clamp(3px, 0.8vw, 4px) clamp(8px, 1.5vw, 10px)',
                                 lineHeight: 1.1,
                                 textAlign: 'left',
                                 cursor: 'pointer',
@@ -1101,6 +1110,41 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
         }
         .${styles.animatedRow}[style*='animation-name'] {
           opacity: 1;
+        }
+
+         @media (min-width: 651px) {
+          .new-track-table-container {
+            margin-left: auto !important;
+            margin-right: auto !important;
+            float: none !important;
+          }
+        }
+        
+        /* Responsive table improvements for medium screens */
+        @media (max-width: 1200px) and (min-width: 651px) {
+
+        .new-track-table-container {
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+          table {
+            font-size: 0.8rem !important;
+          }
+          th, td {
+            padding: 8px 4px !important;
+          }
+          button {
+            font-size: 0.75rem !important;
+            padding: 6px 12px !important;
+          }
+        }
+        
+        /* Ensure horizontal scroll on smaller screens */
+        @media (max-width: 1000px) and (min-width: 651px) {
+          .table-container {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
         }
       `}</style>
     </div>

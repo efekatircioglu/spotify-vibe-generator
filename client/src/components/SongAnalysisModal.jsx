@@ -389,7 +389,7 @@ export default function SongAnalysisModal({
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(20,20,20,0.88)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ maxHeight: 650, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#444 #232323', padding: '56px 48px 40px 48px', background: '#18181b', borderRadius: 24, minWidth: 420, minHeight: 320, boxShadow: '0 8px 48px #000b', position: 'relative' }}>
+      <div onClick={e => e.stopPropagation()} style={{ maxHeight: 680, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#444 #232323', padding: '56px 48px 40px 48px', background: '#18181b', borderRadius: 24, minWidth: 420, minHeight: 320, boxShadow: '0 8px 48px #000b', position: 'relative' }}>
         <style>{`
           ${shineKeyframes}
           /* Chrome, Edge, Safari */

@@ -804,14 +804,12 @@ body, .main {
 
 .resultsCard {
   background: #101114;
-  border-radius: 0;
+  border-radius: 18px; /* Added radius back for a card look */
   box-shadow: 0 2px 16px #0001;
   padding: 36px 32px 32px 32px;
   margin-top: auto;
-  width: 100vw;
-  max-width: 100vw;
-  margin-left: 0;
-  margin-right: 0;
+  width: 95%; /* Set a responsive width */
+  max-width: 1600px; /* Set a max-width for large screens */
   min-height: 40vh;
   display: flex;
   flex-direction: column;
@@ -820,9 +818,11 @@ body, .main {
 
 @media (max-width: 1000px) {
   .dashboardContainer, .resultsCard {
-    max-width: 98vw;
-    padding-left: 4vw;
-    padding-right: 4vw;
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    border-radius: 0;
   }
 }
 

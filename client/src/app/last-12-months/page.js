@@ -82,15 +82,17 @@ export default function Last12MonthsPage() {
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
-        <NewTrackTable
-          tracks={data.tracks}
-          title="Top Tracks in Last 12 Months"
-          playlistKey="last12months"
-          loading={loading}
-          error={error}
-          onExploreGenre={handleExploreGenre}
-          onExploreContributions={handleExploreContributions}
-        />
+       <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+       <NewTrackTable
+         tracks={data.tracks}
+         title="Top Tracks in Last 4 Weeks"
+         playlistKey="last4weeks"
+         loading={loading}
+         error={error}
+         onExploreGenre={handleExploreGenre}
+         onExploreContributions={handleExploreContributions}
+       />
+   </div>
       )}
       {data && data.artists && (
         <TopArtistsTable artists={data.artists} title="Top Artists" />
