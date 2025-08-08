@@ -39,7 +39,8 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 }); // Track popover position
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(null); // index of open dropdown
   const mobileDropdownRef = useRef(null);
-  const FOUR_SONGS_HEIGHT_PX = 408;
+  const tableContainerRef = useRef(null);
+
 
 
   // When tracks change, increment tableKey to trigger animation
@@ -87,6 +88,65 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showPopover]);
+
+  useEffect(() => {
+    if (showPopover !== null) {
+      const timer = setTimeout(() => {
+        setShowPopover(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showPopover]);
+
+  useEffect(() => {
+    // Define the function to handle scroll events
+    const handleScroll = () => {
+      setShowPopover(null);
+    };
+
+    // Check if the popover is open AND if the screen width is mobile-sized
+    if (showPopover !== null && window.innerWidth <= 680) {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    // Return a cleanup function to remove the listener
+    // This runs when the popover closes or the component unmounts
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [showPopover]); // The effect now only depends on `showPopover`
+
+  // --- Close popover on ANY scroll for small screens (< 680px) ---
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowPopover(null);
+    };
+
+    // Get the scrollable element from the ref you added in Part A
+    const scrollContainer = tableContainerRef.current;
+
+    // Check if the popover is open on a mobile-sized screen
+    if (showPopover !== null && window.innerWidth <= 680) {
+      // Listen to scroll on the main window
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // Also listen to scroll on the table's container
+      if (scrollContainer) {
+        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+      }
+    }
+
+    // Cleanup function removes BOTH listeners
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [showPopover]);
+
+
+  
 
   // Handle contributions button click
   const handleContributionsClick = async (track) => {
@@ -377,8 +437,10 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
                     setShowPopover(null);
                   } else {
                     const rect = e.currentTarget.getBoundingClientRect();
+                    // UNIFIED LOGIC: Always calculate position relative to the document
+                    // This makes the popover scroll with the page content.
                     setPopoverPosition({
-                      top: rect.top + window.scrollY,
+                      top: rect.bottom + window.scrollY,
                       left: rect.left + window.scrollX
                     });
                     setShowPopover(trackIndex);
@@ -535,6 +597,8 @@ if (isMobile) {
           </div>
         </div>
         
+        
+        
         {/* This is the container for the list of songs. We center this. */}
         <div style={{
           display: 'flex',
@@ -572,7 +636,7 @@ if (isMobile) {
               {/* 2nd Column: Song Info */}
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700, color: '#fff', fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.name}</div>
-                <div style={{ color: '#d1d5db', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '')}</div>
+                <div style={{ color: '#d1d5db', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{renderArtistNames(track, idx)}</div>
                 <div
                   style={{
                     color: '#b3b3b3',
@@ -628,7 +692,7 @@ if (isMobile) {
                   </div>
                 )}
                 {track.id && (
-                  <a href={`https://open.spotify.com/track/$${track.id}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`https://open.spotify.com/track/${track.id}`} target="_blank" rel="noopener noreferrer">
                     <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 24, height: 24, verticalAlign: 'middle' }} />
                   </a>
                 )}
@@ -778,7 +842,7 @@ if (isMobile) {
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {/* Table Section */}
-      <div className="table-container" style={{ width: '100%', overflowX: 'auto', marginTop: 8 }}>
+      <div ref={tableContainerRef} className="table-container" style={{ width: '100%', overflowX: 'auto', marginTop: 8 }}>
         {!loading && !error && tracks && tracks.length > 0 && (
           <table style={{
             width: '98%',
@@ -930,8 +994,8 @@ if (isMobile) {
                           } else {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setDropdownPosition({
-                              top: rect.bottom + window.scrollY,
-                              left: rect.left + window.scrollX,
+                              top: rect.bottom + 4, // Position below the button
+                              left: rect.left,      // Align with the button's left edge
                             });
                             setDropdownOpen(idx);
                           }
@@ -944,7 +1008,7 @@ if (isMobile) {
                           <div
                             ref={dropdownRef}
                             style={{
-                              position: 'absolute',
+                              position: 'fixed',
                               top: dropdownPosition.top,
                               left: dropdownPosition.left,
                               background: '#232323',

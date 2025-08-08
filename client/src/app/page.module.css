@@ -671,7 +671,9 @@ body, .main {
   justify-content: flex-start;
   align-items: flex-start;
   width: 100%;
-  padding: 12px 0 24px 0;
+  /* MODIFIED: Added 2rem of padding to the left and right */
+  padding: 28px;
+  box-sizing: border-box; /* Ensures padding is included in the width */
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
@@ -1438,4 +1440,69 @@ body, .main {
   transform: none;
   box-shadow: none;
 }
+.backToProfileButton {
+  position: absolute;
+  top: 1.5rem; /* 24px */
+  left: 2rem;  /* 32px */
+  z-index: 10;
+  
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px; /* Pill shape */
+  font-weight: 700;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  
+  /* --- STATIC SIZING --- */
+  padding: 10px 28px;
+  font-size: 1.08rem;
+  gap: 8px;
+}
 
+/* This handles the hover effect purely in CSS */
+.backToProfileButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #fff;
+  transform: scale(1.05);
+}
+
+
+@media (max-width: 680px) {
+  /* Make the card container full-width with less padding on mobile */
+  .resultsCard {
+    padding: 1rem;
+    border-radius: 0;
+  }
+
+  /* Target the table INSIDE the results card */
+  .resultsCard :global(table) {
+    font-size: 0.8rem; /* Reduce base font size for the whole table */
+    min-width: 650px; /* Ensure horizontal scrolling is triggered */
+  }
+
+  /* Target table headers and cells inside the results card */
+  .resultsCard :global(th),
+  .resultsCard :global(td) {
+    padding: 8px 6px !important; /* Make padding much smaller */
+  }
+
+  /* Target the cover art images inside the table */
+  .resultsCard :global(img) {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 6px !important;
+  }
+  
+  /* Target the playlist action buttons (Create, View, etc.) */
+  .resultsCard :global(.playlist-actions-container button) {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+}

@@ -551,39 +551,12 @@ export default function ArtistConcertsPage() {
             />
             {/* Main content */}
             <button
-              onClick={() => router.push('/')}
-              className={styles.vibeButton}
-              style={{
-                position: 'absolute',
-                top: 24,
-                left: 32,
-                zIndex: 4,
-                marginBottom: 0,
-                background: 'transparent',
-                color: '#fff',
-                fontWeight: 700,
-                borderRadius: 24,
-                padding: '10px 28px',
-                fontSize: '1.08rem',
-                border: '2px solid rgba(255,255,255,0.5)',
-                boxShadow: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                transition: 'background 0.2s, border-color 0.2s',
-              }}
-              onMouseOver={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                e.currentTarget.style.borderColor = '#fff';
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
-              }}
-            >
-              <span style={{ fontSize: '1.3em', marginRight: 6 }}>←</span> Profile
-            </button>
+  onClick={() => router.push('/')}
+  className={styles.backToProfileButton}
+>
+  <span style={{ fontSize: '1.3em' }}>←</span>
+  Profile
+</button>
             {artistImage && (
              <img src={artistImage} alt={selectedArtist.name} style={{ 
               width: 'clamp(80px, calc(60px + 4vw), 140px)', 

@@ -937,77 +937,78 @@ const handleExploreContributions = async (track) => {
     <div className={styles.dashboardBackground}>
       <div className={styles.dashboardContainer}>
         {/* Top Bar: centered search */}
-        <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '90%' }}>
-        <input
-          type="text"
-              className={styles.searchInput}
-              placeholder="Search for an artist..."
-              value={searchArtist || ""}
-          onChange={handleArtistInput}
-              onFocus={handleSearchInputFocus}
-          onKeyDown={handleArtistKeyDown}
-          autoComplete="off"
-              ref={searchInputRef}
-            />
-          </form>
-        {showSuggestions && artistSuggestions.length > 0 && (
-            <div
-              ref={suggestionsRef}
-              style={{
-            position: 'absolute',
-                top: '100%', // directly below the search bar
-            left: 0,
-                right: 0,
-                background: '#232323',
-            border: '1px solid #444',
-                borderRadius: '8px',
-                marginTop: '4px',
-                maxHeight: '320px',
-            overflowY: 'auto',
-                zIndex: 1000,
-                width: '100%',
-                minWidth: 0,
-                boxSizing: 'border-box',
-              }}
-            >
-              {artistSuggestions.map((artist, index) => (
-                <div
-                  key={`${artist.spotifyId || ''}_${artist.ticketmasterId || ''}_${artist.name || ''}_${index}`}
-                onClick={() => handleSuggestionClick(artist)}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+  {/* MODIFIED: Added position: 'relative' to the form */}
+  <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '90%', position: 'relative' }}>
+    <input
+      type="text"
+      className={styles.searchInput}
+      placeholder="Search for an artist..."
+      value={searchArtist || ""}
+      onChange={handleArtistInput}
+      onFocus={handleSearchInputFocus}
+      onKeyDown={handleArtistKeyDown}
+      autoComplete="off"
+      ref={searchInputRef}
+    />
+
+    {/* MODIFIED: Moved the suggestions div inside the form */}
+    {showSuggestions && artistSuggestions.length > 0 && (
+      <div
+        ref={suggestionsRef}
+        style={{
+          position: 'absolute',
+          top: '100%', // This will now be 100% of the form's height
+          left: 0,
+          right: 0,
+          background: '#232323',
+          border: '1px solid #444',
+          borderRadius: '8px',
+          marginTop: '8px', // Added a small gap
+          maxHeight: '320px',
+          overflowY: 'auto',
+          zIndex: 1000,
+          width: '100%', // This is now 100% of the form's width
+        }}
+      >
+        {artistSuggestions.map((artist, index) => (
+          <div
+            key={`${artist.spotifyId || ''}_${artist.ticketmasterId || ''}_${artist.name || ''}_${index}`}
+            onClick={() => handleSuggestionClick(artist)}
+            style={{
+              padding: '12px 18px',
+              background: highlightedSuggestion === index ? '#181818' : 'transparent',
+              color: highlightedSuggestion === index ? '#fff' : '#e5e7eb',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '1.08rem',
+              borderBottom: '1px solid #232323',
+              transition: 'background 0.18s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+            }}
+            onMouseEnter={() => setHighlightedSuggestion(index)}
+          >
+            {artist.image && (
+              <img
+                src={artist.image}
+                alt={artist.name}
                 style={{
-                    padding: '12px 18px',
-                    background: highlightedSuggestion === index ? '#181818' : 'transparent',
-                    color: highlightedSuggestion === index ? '#fff' : '#e5e7eb',
-                  cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '1.08rem',
-                    borderBottom: '1px solid #232323',
-                    transition: 'background 0.18s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                  }}
-                  onMouseEnter={() => setHighlightedSuggestion(index)}
-                >
-                  {artist.image && (
-                    <img
-                      src={artist.image}
-                      alt={artist.name}
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                      }}
-                    />
-                  )}
-                  <span>{artist.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            )}
+            <span>{artist.name}</span>
+          </div>
+        ))}
+      </div>
+    )}
+  </form>
+</div>
         <main className={styles.main} style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh', width: '100vw' }}>
           <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false} onFeedback={() => setShowFeedbackModal(true)}>
             <h2 className={styles.reportTitle}>Create Your Listening Report</h2>

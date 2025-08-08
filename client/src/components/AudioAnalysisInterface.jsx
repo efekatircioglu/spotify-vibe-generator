@@ -830,6 +830,8 @@ const FocusMetricView = ({ metricKey, analysisData, tooltips }) => {
                 <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Definition</h4>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>{METRIC_DEFINITIONS[metricKey]}</p>
             </div>
+
+            
         </div>
     );
 };
@@ -872,15 +874,15 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
     }, [feature, featureKey, sortedData]);
     return (
-    <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="focus-classifier-view">
         {/* Title Section */}
         <div style={{ marginBottom: '1rem', flexShrink: 0 }}>
             <h3 className="gradient-text" style={{ fontSize: '1.5rem', fontWeight: '700', textTransform: 'capitalize' }}>{featureName}</h3>
             <p style={{ fontSize: '1.125rem', color: '#d1d5db' }}>Dominant: <span style={{ fontWeight: '600', color: 'white' }}>{valueName}</span></p>
         </div>
 
-        {/* Two-Column Flex Container */}
-        <div style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
+        {/* Two-Column Container */}
+        <div className="two-column-container">
             
             {/* Left Column (Chart) */}
             <div style={{ flex: 1.2, minHeight: '20rem' }}>
@@ -890,7 +892,7 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
             {/* Right Column (Info) */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginBottom: '0.5rem', flexShrink: 0 }}>Detailed Breakdown</h4>
-                <ul className="scrollable-chart" style={{ listStyle: 'none', padding: 0, margin: 0, overflowY: 'auto', flex: 1, paddingRight: '0.5rem' }}>
+                <ul className="scrollable-chart" style={{ listStyle: 'none', padding: 0, margin: 0, overflowY: 'auto', flex: 1, paddingRight: '0.5rem', minHeight: '4rem' }}>
                     {sortedData.map(([label, prob]) => (
                         <li key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '0.35rem 0.75rem', marginBottom: '0.35rem' }}>
                             <span style={{ color: '#fff', fontWeight: 600, marginRight: 8 }}>{label.charAt(0).toUpperCase() + label.slice(1)}</span>
@@ -906,6 +908,50 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
                 </div>
             </div>
         </div>
+
+        {/* --- UPDATED RESPONSIVE STYLES (NOW SCOPED) --- */}
+        <style jsx>{`
+            .focus-classifier-view {
+                padding: 1.5rem;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            .two-column-container {
+                flex: 1;
+                display: flex;
+                gap: 1.5rem;
+                min-height: 0;
+            }
+
+            @media (max-width: 1000px) {
+                .two-column-container {
+                    flex-direction: column;
+                    gap: 1rem;
+                    overflow-y: auto;
+                    padding-right: 0.5rem;
+                }
+
+                .two-column-container > div:first-child {
+                    min-height: 15rem !important;
+                    flex-shrink: 0;
+                }
+                
+                /* MODIFIED: All selectors are now prefixed with .focus-classifier-view */
+                .focus-classifier-view h3 {
+                    font-size: 1.25rem !important;
+                }
+                .focus-classifier-view p {
+                    font-size: 1rem !important;
+                }
+                .focus-classifier-view h4 {
+                    font-size: 1rem !important;
+                }
+                .focus-classifier-view div[dangerouslySetInnerHTML] {
+                    font-size: 0.8rem !important;
+                }
+            }
+        `}</style>
     </div>
 );
 };
@@ -998,10 +1044,14 @@ const FocusChartView = ({ chartType, analysisData }) => {
     return (
         <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             <div style={{ width: '100%', height: '45vh' }}>
-                <div className="scrollable-chart" style={{ width: '100%', height: '100%' }}>
-                    <canvas ref={canvasRef}></canvas>
-                </div>
-            </div>
+    {/* This container will now show a scrollbar when its content is too wide */}
+    <div className="scrollable-chart" style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+        {/* This inner div forces a minimum width for the chart, triggering the scrollbar on small screens */}
+        <div style={{ position: 'relative', minWidth: '800px', height: '100%' }}>
+            <canvas ref={canvasRef}></canvas>
+        </div>
+    </div>
+</div>
             <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0 }}>
   <h3 className="gradient-text" style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>{title}</h3>
   {labelLogic && <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, marginBottom: 8 }}>{labelLogic}</div>}
