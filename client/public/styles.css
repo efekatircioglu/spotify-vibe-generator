@@ -355,3 +355,70 @@ body {
     transition: opacity 0.2s;
 }
 
+/* ================================================ */
+/* === RESPONSIVE OVERRIDES FOR ANALYSIS CARDS === */
+/* ================================================ */
+/* ========================================================= */
+/* === NEW FLUID & WRAPPING CARD GRID STYLES === */
+/* ========================================================= */
+
+/* --- 1. The Fluid Grid Container --- */
+.section-container {
+    display: grid;
+    /* This is the key property for the fluid wrapping layout. */
+    /* It tells the grid to create as many columns as can fit, with a minimum width of 200px each. */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem !important; /* Override section spacing */
+
+  }
+
+  @media (min-width: 1200px) {
+    .section-container {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  
+    /* Further reduce spacing on large desktops */
+    .section-title {
+      margin-bottom: 0.75rem !important;
+    }
+    .track-info-card {
+      margin-bottom: 1.5rem !important;
+    }
+  }
+  
+  
+  /* --- 2. Fluid Content Scaling Inside Cards --- */
+  /* We use clamp() to make font sizes scale smoothly with the card size. */
+  
+  .high-level-card {
+    /* Use clamp() for padding for smoother resizing */
+    padding: clamp(0.75rem, 2vw, 0.9rem) !important;
+  }
+  
+  .card-title {
+    font-size: clamp(0.6rem, 2vw, 1rem) !important;
+  }
+  
+  .card-main-value {
+    font-size: clamp(1.5rem, 3vw, 2.5rem) !important;
+    line-height: 1.1 !important;
+  }
+  
+  .card-confidence {
+    font-size: clamp(0.7rem, 1.5vw, 0.9rem) !important;
+  }
+  
+  .card-footer, .card-impact-text {
+    font-size: clamp(0.65rem, 1.5vw, 0.75rem) !important;
+  }
+  
+  .chart-container {
+    min-height: clamp(60px, 10vw, 80px) !important;
+  }
+
+  .section-wrapper {
+    max-width: 1200px; /* This sets the maximum width of the content area */
+    margin-left: auto;
+    margin-right: auto;
+  }

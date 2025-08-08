@@ -43,14 +43,14 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
       <div style={{
         background: '#181818',
         borderRadius: 18,
-        padding: '6vw 6vw 2vw 2vw',
+        padding: '6vw 6vw 4vw 6vw',
         margin: '3vw auto',
         maxWidth: '100vw',
         width: '100%',
         boxShadow: '0 4px 32px #0003',
         position: 'relative',
         minHeight: 0,
-        fontSize: '0.7rem', // 30% smaller base font size for mobile
+        fontSize: '0.7rem',
         border: '2px solid rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(8px)',
         overflow: 'hidden',
@@ -61,20 +61,21 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
           width: '100%', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
-          marginBottom: 16, // Reduced margin
+          marginBottom: 16,
           position: 'relative' 
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {user.images?.[0]?.url && (
               <img
                 src={user.images[0].url}
                 alt="Spotify Profile"
-                width={54} // 30% smaller profile image
-                height={54}
+                // MODIFIED: Increased image size
+                width={80}
+                height={80}
                 style={{ borderRadius: '50%', objectFit: 'cover', border: '2px solid #1db954' }}
               />
             )}
-            <div style={{ fontWeight: 700, fontSize: '0.75rem', color: '#fff' }}>{user.display_name}</div>
+            <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#fff' }}>{user.display_name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{ position: 'relative' }}>
@@ -84,7 +85,7 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
                   background: 'none',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 12, // 30% smaller dropdown button
+                  fontSize: 12,
                   cursor: 'pointer',
                   padding: '2px 4px',
                   borderRadius: 6,
@@ -105,7 +106,7 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
                     background: '#232323',
                     borderRadius: 8,
                     boxShadow: '0 4px 24px #0006',
-                    minWidth: 100, // Smaller dropdown width
+                    minWidth: 100,
                     zIndex: 100,
                     padding: '3px 0',
                     border: '1.5px solid #1db954',
@@ -118,7 +119,7 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
                       border: 'none',
                       color: '#fff',
                       fontWeight: 700,
-                      fontSize: '0.65rem', // 30% smaller dropdown text
+                      fontSize: '0.65rem',
                       padding: '3px 8px',
                       textAlign: 'left',
                       cursor: 'pointer',
@@ -140,7 +141,7 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
                       border: 'none',
                       color: '#ff3b3b',
                       fontWeight: 700,
-                      fontSize: '0.65rem', // 30% smaller dropdown text
+                      fontSize: '0.65rem',
                       padding: '3px 8px',
                       textAlign: 'left',
                       cursor: 'pointer',
@@ -159,45 +160,25 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}> {/* Reduced gap */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{
-            fontSize: '0.7rem', // Force smaller font size for all children
+            fontSize: '0.7rem',
             lineHeight: 1.2,
           }}>
             {children}
           </div>
-          {/* Mobile-specific CSS to override existing styles */}
-          <style jsx>{`
-            @media (max-width: 680px) {
-              h2 {
-                font-size: 1.2rem !important;
-                font-weight: 800 !important;
-                margin-bottom: 8px !important;
-              }
-              div {
-                font-size: 0.7rem !important;
-                line-height: 1.2 !important;
-              }
-              button {
-                font-size: 0.8rem !important;
-                padding: 8px 16px !important;
-              }
-              .reportTitle {
-                font-size: 1.2rem !important;
-                font-weight: 800 !important;
-                margin-bottom: 8px !important;
-              }
-              .reportSubtitle {
-                font-size: 0.7rem !important;
-                margin-bottom: 12px !important;
-              }
-              .analyzeButton {
-                font-size: 0.8rem !important;
-                padding: 8px 16px !important;
-                min-height: 40px !important;
-              }
-            }
-          `}</style>
+          <style jsx global>{`
+  
+
+  /* --- Paragraph Styles (p) --- */
+  p {
+    color: #d1d5db !important;
+    line-height: 1.625 !important;
+    margin-bottom: 2rem !important;
+    text-align: left !important;
+    font-size: 1rem !important; /* A readable base size for paragraphs */
+  }
+`}</style>
         </div>
       </div>
     );
@@ -303,10 +284,13 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{
+  padding: '1.5rem',
+  borderRadius: '16px',
+}}>
           {children}
         </div>
       </div>
     </div>
   );
-} 
+}

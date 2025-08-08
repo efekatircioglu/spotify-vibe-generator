@@ -906,8 +906,13 @@ body, .main {
 .reportSubtitle {
   font-size: 1.1rem;
   color: #b3b3b3;
-  text-align: center;
+  text-align: center; /* This is the fix */
   margin-bottom: 24px;
+}
+@media (max-width: 680px) {
+  .reportSubtitle {
+    text-align: left; /* Overrides the default and aligns left */
+  }
 }
 
 .timeRangeRow {
@@ -1124,6 +1129,7 @@ body, .main {
 
 
 /* Responsive, scalable style specifically for the main action buttons */
+/* Responsive, scalable style specifically for the main action buttons */
 .actionButtons .analyzeButton {
   background: #23272f;
   color: #fff;
@@ -1136,19 +1142,21 @@ body, .main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  text-align: center; /* Ensures text is centered if it wraps */
   gap: 8px;
 
-  /* Responsive Sizing Properties */
-  font-size: clamp(1.2rem, 2.2vw, 2.2rem) !important;
-  padding: clamp(16px, 3vh, 30px) clamp(32px, 5vw, 60px) !important;
-  min-height: clamp(50px, 10vh, 85px) !important;
+  /* --- THIS IS THE KEY PART FOR RESPONSIVENESS --- */
+  /* It will grow smoothly with the screen size without media queries */
+  width: auto; /* Allow button to size based on its content */
+  padding: clamp(14px, 3vh, 28px) clamp(28px, 4vw, 56px);
+  font-size: clamp(1rem, 2.2vw, 1.8rem);
+  min-height: clamp(50px, 9vh, 75px);
 }
 
 .actionButtons .analyzeButton:hover {
   background: #353b45;
   color: #fff;
 }
-
 .artistsGridContainer {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1371,3 +1379,63 @@ body, .main {
   background: rgba(255, 255, 255, 0.08);
   border-color: #fff;
 }
+
+.mainActionButton {
+  background: #23272f;
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+
+  /* Styles for the smallest screens */
+  font-size: 1rem; /* Approx 16px, a readable base size */
+  padding: 12px 24px;
+  min-height: 46px; /* Good touch-target height for mobile */
+}
+
+/* For large phones and small tablets (401px - 800px) */
+@media (min-width: 401px) {
+  .mainActionButton {
+    font-size: 1.2rem;
+    padding: 14px 32px;
+  }
+}
+
+/* For tablets and small desktops (801px - 1200px) */
+@media (min-width: 801px) {
+  .mainActionButton {
+    font-size: 1.4rem;
+    padding: 16px 40px;
+  }
+}
+
+/* For large desktops (1201px and wider) */
+@media (min-width: 1201px) {
+  .mainActionButton {
+    font-size: 1.6rem;
+    padding: 18px 48px;
+  }
+}
+
+.mainActionButton:hover {
+  background: #1db954;
+  color: #121212;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 185, 84, 0.3);
+}
+
+.mainActionButton:disabled {
+  background: #555;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+

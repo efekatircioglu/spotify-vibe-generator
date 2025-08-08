@@ -363,8 +363,7 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
         {meta.artist?.[0]}{albumName ? ` — ${albumName}` : ''}
       </div>
                             </div>
-  );
-})()}
+                        );})()}
                             {/* High-Level Classifiers */}
                             <h3 className="section-title" style={{ textAlign: 'left' }}>High-Level Classifiers</h3>
                             <div className="grid grid-cols-4 section-container">
@@ -873,33 +872,42 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
     }, [feature, featureKey, sortedData]);
     return (
-        <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ marginBottom: '1rem' }}>
-                <h3 className="gradient-text" style={{ fontSize: '1.5rem', fontWeight: '700', textTransform: 'capitalize' }}>{featureName}</h3>
-                <p style={{ fontSize: '1.125rem', color: '#d1d5db' }}>Dominant: <span style={{ fontWeight: '600', color: 'white' }}>{valueName}</span></p>
+    <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* Title Section */}
+        <div style={{ marginBottom: '1rem', flexShrink: 0 }}>
+            <h3 className="gradient-text" style={{ fontSize: '1.5rem', fontWeight: '700', textTransform: 'capitalize' }}>{featureName}</h3>
+            <p style={{ fontSize: '1.125rem', color: '#d1d5db' }}>Dominant: <span style={{ fontWeight: '600', color: 'white' }}>{valueName}</span></p>
+        </div>
+
+        {/* Two-Column Flex Container */}
+        <div style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
+            
+            {/* Left Column (Chart) */}
+            <div style={{ flex: 1.2, minHeight: '20rem' }}>
+                <canvas ref={canvasRef}></canvas>
             </div>
-            <div className="grid md-grid-cols-2 grid-cols-1" style={{ flexGrow: 1, gap: '1.5rem' }}>
-                <div style={{ minHeight: '20rem' }}>
-                    <canvas ref={canvasRef}></canvas>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginBottom: '0.5rem' }}>Detailed Breakdown</h4>
-                    <ul className="scrollable-chart" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', flexGrow: 1, overflowY: 'auto', paddingRight: '0.5rem', listStyle: 'none', paddingLeft: 0, margin: 0, marginBottom: '0.5rem' }}>
-                        {sortedData.map(([label, prob]) => (
-                            <li key={label} style={{ display: 'flex', alignItems: 'center', fontSize: '0.95rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '0.25rem 0.75rem', minWidth: 90 }}>
-                                <span style={{ color: '#fff', fontWeight: 600, marginRight: 8 }}>{label.charAt(0).toUpperCase() + label.slice(1)}</span>
-                                <span style={{ fontFamily: 'monospace', color: '#d1d5db', fontWeight: 400 }}>{(prob * 100).toFixed(2)}%</span>
-                            </li>
-                        ))}
-                    </ul>
-                    <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Definition</h4>
+
+            {/* Right Column (Info) */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginBottom: '0.5rem', flexShrink: 0 }}>Detailed Breakdown</h4>
+                <ul className="scrollable-chart" style={{ listStyle: 'none', padding: 0, margin: 0, overflowY: 'auto', flex: 1, paddingRight: '0.5rem' }}>
+                    {sortedData.map(([label, prob]) => (
+                        <li key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '0.35rem 0.75rem', marginBottom: '0.35rem' }}>
+                            <span style={{ color: '#fff', fontWeight: 600, marginRight: 8 }}>{label.charAt(0).toUpperCase() + label.slice(1)}</span>
+                            <span style={{ fontFamily: 'monospace', color: '#d1d5db', fontWeight: 400 }}>{(prob * 100).toFixed(2)}%</span>
+                        </li>
+                    ))}
+                </ul>
+                <div style={{ marginTop: '1rem', flexShrink: 0 }}>
+                    <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginBottom: '0.5rem' }}>Definition</h4>
                     <div style={{ fontSize: '0.875rem', color: '#6b7280' }} dangerouslySetInnerHTML={{ __html: tooltips[featureKey] }} />
                     <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Interpretation</h4>
                     <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{interpretationText}</p>
                 </div>
             </div>
-            </div>
-        );
+        </div>
+    </div>
+);
 };
 
 const FocusChartView = ({ chartType, analysisData }) => {
@@ -988,54 +996,70 @@ const FocusChartView = ({ chartType, analysisData }) => {
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
     }, [chartType, analysisData]);
     return (
-        <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'row', gap: '2.5rem' }}>
-            <div style={{ flex: 2, minWidth: 0 }}>
+        <div style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <div style={{ width: '100%', height: '45vh' }}>
                 <div className="scrollable-chart" style={{ width: '100%', height: '100%' }}>
                     <canvas ref={canvasRef}></canvas>
                 </div>
             </div>
-            <div style={{ flex: 1, minWidth: 320, maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <h3 className="gradient-text" style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>{title}</h3>
-                {labelLogic && <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, marginBottom: 8 }}>{labelLogic}</div>}
-                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Interpretation:</b> {interpretation}</div>
-                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Definition:</b> {definition}</div>
-                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>X Axis:</b> {xAxisExplanation}</div>
-                <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Y Axis:</b> {yAxisExplanation}</div>
-                {chartType === 'chords' ? (
-                    <>
-                        <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Major Chords Leaderboard</div>
-                        <div style={{ maxHeight: 140, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px', marginBottom: 12 }}>
-                            {majorLeaderboard.map(([label, val], i) => (
-                                <div key={label + '-maj'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== majorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
-                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}</span>
-                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(1)} %</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Minor Chords Leaderboard</div>
-                        <div style={{ maxHeight: 140, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px' }}>
-                            {minorLeaderboard.map(([label, val], i) => (
-                                <div key={label + '-min'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== minorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
-                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}m</span>
-                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(1)} %</span>
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Leaderboard</div>
-                        <div style={{ maxHeight: 180, overflowY: 'auto', borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: 8 }}>
-                            {leaderboard.map(([label, val], i) => (
-                                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '2px 0', borderBottom: i !== leaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
-                                    <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}</span>
-                                    <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500 }}>{val.toFixed(3)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                )}
+            <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0 }}>
+  <h3 className="gradient-text" style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>{title}</h3>
+  {labelLogic && <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, marginBottom: 8 }}>{labelLogic}</div>}
+
+  {/* --- NEW Two-Column Container --- */}
+  <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start' }}>
+
+    {/* --- Left Column: Text Content --- */}
+    <div style={{ flex: 2 }}>
+      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Interpretation:</b> {interpretation}</div>
+      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Definition:</b> {definition}</div>
+      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>X Axis:</b> {xAxisExplanation}</div>
+      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Y Axis:</b> {yAxisExplanation}</div>
+    </div>
+
+    {/* --- Right Column: Leaderboard --- */}
+    <div style={{ flex: 1 }}>
+      {chartType === 'chords' ? (
+        <div style={{ display: 'flex', gap: '1.5rem', width: '100%' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Major Chords Leaderboard</div>
+            <div style={{ borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px', width: 'fit-content' }}>
+              {majorLeaderboard.map(([label, val], i) => (
+                <div key={label + '-maj'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== majorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}</span>
+                  <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500, paddingLeft: '1.5rem' }}>{val.toFixed(1)} %</span>
+                </div>
+              ))}
             </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Minor Chords Leaderboard</div>
+            <div style={{ borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px', width: 'fit-content' }}>
+              {minorLeaderboard.map(([label, val], i) => (
+                <div key={label + '-min'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== minorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}m</span>
+                  <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500, paddingLeft: '1.5rem' }}>{val.toFixed(1)} %</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Leaderboard</div>
+          <div style={{ borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: 8, width: 'fit-content' }}>
+            {leaderboard.map(([label, val], i) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '2px 0', borderBottom: i !== leaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}</span>
+                <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500, paddingLeft: '1.5rem' }}>{val.toFixed(3)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+</div>
         </div>
     );
 };

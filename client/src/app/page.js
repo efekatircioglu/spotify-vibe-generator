@@ -1034,18 +1034,17 @@ const handleExploreContributions = async (track) => {
               }}>
                 <button
   onClick={handleGenerateFromPlaylist}
-  className={`${styles.analyzeButton} big-scalable-button`}
+  className={styles.mainActionButton}
   disabled={isAnalyzingPlaylists}
-  
 >
   {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
 </button>
                 
-                {/* Analyze Your Data Dropdown Button */}
+                {/* Analyze Your Listening History Dropdown Button */}
                 <div style={{ position: 'relative' }}>
                 <button
   ref={timeRangeButtonRef}
-  className={styles.analyzeButton}
+  className={styles.mainActionButton}
   onClick={(e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setTimeRangeDropdownPosition({
@@ -1056,7 +1055,7 @@ const handleExploreContributions = async (track) => {
   }}
   
 >
-  Analyze Your Data
+  Analyze Your Listening History
   <span style={{
     transform: timeRangeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
     transition: 'transform 0.2s ease',
@@ -1065,7 +1064,7 @@ const handleExploreContributions = async (track) => {
   </span>
 </button>
                 
-                {/* Analyze Your Data Dropdown */}
+                {/* Analyze Your Listening History Dropdown */}
                 {timeRangeDropdownOpen && (
                   <div
                     data-dropdown="time-range"
@@ -1197,44 +1196,64 @@ const handleExploreContributions = async (track) => {
                     align-items: center !important;
                     justify-content: center !important;
                   }
-                   
+                
                   .responsive-container > div {
                     width: 100% !important;
                     max-width: 300px !important;
                     display: flex !important;
                     justify-content: center !important;
                   }
-                  .responsive-container .actionButtons {
-                    flex-direction: column !important;
-                    align-items: center !important;
-                    width: 100% !important;
-                    gap: 12px !important;
-                  }
-                  .responsive-container .actionButtons button {
-                    width: 100% !important;
-                    max-width: 300px !important;
-                  }
-                  .responsive-container .actionButtons > div {
-                    width: 100% !important;
-                    max-width: 300px !important;
-                  }
-                  .responsive-container .actionButtons > div button {
-                    width: 100% !important;
-                    max-width: 300px !important;
-                  }
+
+                  .profileContainer {
+      /* Keep the container itself centered on the page */
+      text-align: left !important;
+    }
+
+    .profileContainer > div {
+      /* Align all content within the profile box to the left */
+      align-items: flex-start !important;
+      /* Add some space on the left for the profile image */
+      padding-left: 24px !important; 
+    }
+
+    .profileContainer > div > div:first-child {
+      /* This targets the row with the user image and name */
+      justify-content: flex-start !important; /* Align this row to the left */
+      flex-direction: row !important;
+      gap: 16px !important;
+      align-items: center !important;
+      width: 100% !important;
+    }
+    
+    .profileContainer > div > div:first-child > div:first-child {
+      justify-content: flex-start !important;
+    }
+
+    .profileContainer .prettyName {
+      /* Make the username bigger on mobile */
+      font-size: 1.6rem !important; 
+    }
+    
+    .profileContainer > div > div:first-child > div:last-child {
+      /* Reposition the logout button correctly */
+      position: absolute !important;
+      top: 16px !important;
+      right: 16px !important;
+    }
+                  
                 }
                 
                 /* Additional mobile-specific styles */
                 @media (max-width: 430px) {
-                  .actionButtons {
-                    flex-direction: column !important;
-                    gap: 12px !important;
-                  }
-                  .actionButtons button,
-                  .actionButtons > div {
-                    width: 100% !important;
-                    max-width: 300px !important;
-                  }
+                  // .actionButtons {
+                  //   flex-direction: column !important;
+                  //   gap: 12px !important;
+                  // }
+                  // .actionButtons button,
+                  // .actionButtons > div {
+                  //   width: 100% !important;
+                  //   max-width: 300px !important;
+                  // }
                   
                   /* Fix outer color elements for very small screens */
                   .profileContainer {
@@ -1421,10 +1440,10 @@ const handleExploreContributions = async (track) => {
                     font-weight: 600 !important;
                   }
                   
-                  .responsive-container .actionButtons button {
-                    font-size: 0.2rem !important;
-                    padding: 1px 2px !important;
-                  }
+                  // .responsive-container .actionButtons button {
+                  //   font-size: 0.2rem !important;
+                  //   padding: 1px 2px !important;
+                  // }
                   
                   /* Make Find Concerts section smaller */
                   .profileContainer > div > div:nth-child(4) {
@@ -1498,10 +1517,10 @@ const handleExploreContributions = async (track) => {
                     font-weight: 600 !important;
                   }
                   
-                  .responsive-container .actionButtons button {
-                    font-size: 0.65rem !important;
-                    padding: 4px 8px !important;
-                  }
+                  // .responsive-container .actionButtons button {
+                  //   font-size: 0.65rem !important;
+                  //   padding: 4px 8px !important;
+                  // }
                   
                   /* Make Find Concerts section smaller */
                   .profileContainer > div > div:nth-child(4) {
@@ -1571,10 +1590,10 @@ const handleExploreContributions = async (track) => {
                     padding: 3px 6px !important;
                   }
                   
-                  .responsive-container .actionButtons button {
-                    font-size: 0.55rem !important;
-                    padding: 3px 6px !important;
-                  }
+                  // .responsive-container .actionButtons button {
+                  //   font-size: 0.55rem !important;
+                  //   padding: 3px 6px !important;
+                  // }
                   
                   .profileContainer > div > div:nth-child(4) h3 {
                     font-size: 0.8rem !important;
@@ -1644,10 +1663,10 @@ const handleExploreContributions = async (track) => {
                     padding: 2px 4px !important;
                   }
                   
-                  .responsive-container .actionButtons button {
-                    font-size: 0.5rem !important;
-                    padding: 2px 4px !important;
-                  }
+                  // .responsive-container .actionButtons button {
+                  //   font-size: 0.5rem !important;
+                  //   padding: 2px 4px !important;
+                  // }
                   
                   .profileContainer > div > div:nth-child(4) h3 {
                     font-size: 0.7rem !important;
@@ -1664,77 +1683,77 @@ const handleExploreContributions = async (track) => {
                 }
                 
                 /* Extra narrow screens */
-                @media (max-width: 320px) {
-                  .profileContainer > div {
-                    min-height: 80px !important;
-                    padding: 2px !important;
-                    margin: 1px auto !important;
-                    max-width: 60% !important;
-                    width: 60% !important;
-                  }
+                // @media (max-width: 320px) {
+                //   .profileContainer > div {
+                //     min-height: 80px !important;
+                //     padding: 2px !important;
+                //     margin: 1px auto !important;
+                //     max-width: 60% !important;
+                //     width: 60% !important;
+                //   }
                   
-                  .profileContainer > div > div:first-child > div:first-child > img {
-                    width: 20px !important;
-                    height: 20px !important;
-                  }
+                //   .profileContainer > div > div:first-child > div:first-child > img {
+                //     width: 20px !important;
+                //     height: 20px !important;
+                //   }
                   
-                  .profileContainer > div > div:first-child > div:first-child > div {
-                    font-size: 0.5rem !important;
-                  }
+                //   .profileContainer > div > div:first-child > div:first-child > div {
+                //     font-size: 0.5rem !important;
+                //   }
                   
-                  .reportTitle {
-                    font-size: 0.65rem !important;
-                    margin-bottom: 3px !important;
-                  }
+                //   .reportTitle {
+                //     font-size: 0.65rem !important;
+                //     margin-bottom: 3px !important;
+                //   }
                   
-                  .reportSubtitle {
-                    font-size: 0.4rem !important;
-                    margin-bottom: 4px !important;
-                  }
+                //   .reportSubtitle {
+                //     font-size: 0.4rem !important;
+                //     margin-bottom: 4px !important;
+                //   }
                   
-                  .responsive-container {
-                    margin-top: 4px !important;
-                    gap: 3px !important;
-                  }
+                //   .responsive-container {
+                //     margin-top: 4px !important;
+                //     gap: 3px !important;
+                //   }
                   
-                  .responsive-container button {
-                    font-size: 0.35rem !important;
-                    padding: 1px 3px !important;
-                    min-width: 50px !important;
-                  }
+                //   .responsive-container button {
+                //     font-size: 0.35rem !important;
+                //     padding: 1px 3px !important;
+                //     min-width: 50px !important;
+                //   }
                   
-                  /* Time Range button and dropdown buttons */
-                  .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.6rem !important;
-                    padding: 6px 12px !important;
-                    min-width: 120px !important;
-                    min-height: 30px !important;
-                    font-weight: 600 !important;
-                  }
+                //   /* Time Range button and dropdown buttons */
+                //   .responsive-container button[class*="analyzeButton"] {
+                //     font-size: 0.6rem !important;
+                //     padding: 6px 12px !important;
+                //     min-width: 120px !important;
+                //     min-height: 30px !important;
+                //     font-weight: 600 !important;
+                //   }
                   
-                  .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 0.3rem !important;
-                    padding: 1px 2px !important;
-                  }
+                //   .responsive-container [data-dropdown="time-range"] button {
+                //     font-size: 0.3rem !important;
+                //     padding: 1px 2px !important;
+                //   }
                   
-                  .responsive-container .actionButtons button {
-                    font-size: 0.3rem !important;
-                    padding: 1px 2px !important;
-                  }
+                //   // .responsive-container .actionButtons button {
+                //   //   font-size: 0.3rem !important;
+                //   //   padding: 1px 2px !important;
+                //   // }
                   
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 0.5rem !important;
-                  }
+                //   .profileContainer > div > div:nth-child(4) h3 {
+                //     font-size: 0.5rem !important;
+                //   }
                   
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.3rem !important;
-                  }
+                //   .profileContainer > div > div:nth-child(4) p {
+                //     font-size: 0.3rem !important;
+                //   }
                   
-                  .profileContainer > div > div:nth-child(4) button {
-                    font-size: 0.35rem !important;
-                    padding: 1px 6px !important;
-                  }
-                }
+                //   .profileContainer > div > div:nth-child(4) button {
+                //     font-size: 0.35rem !important;
+                //     padding: 1px 6px !important;
+                //   }
+                // }
                 
                 /* Super compact for very small screens */
                 @media (max-width: 280px) {
@@ -1790,10 +1809,10 @@ const handleExploreContributions = async (track) => {
                     padding: 1px 1px !important;
                   }
                   
-                  .responsive-container .actionButtons button {
-                    font-size: 0.2rem !important;
-                    padding: 1px 1px !important;
-                  }
+                  // .responsive-container .actionButtons button {
+                  //   font-size: 0.2rem !important;
+                  //   padding: 1px 1px !important;
+                  // }
                   
                   .profileContainer > div > div:nth-child(4) h3 {
                     font-size: 0.4rem !important;
