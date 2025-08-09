@@ -1093,36 +1093,63 @@ if (isMobile) {
         )}
       </div>
       
+      {/* Contributor Modal */}
       {contributorModalOpen && (
-  <>
-    {/* Background Overlay */}
-    <div 
-      id="popup-overlay" 
-      className={contributorModalOpen ? 'visible' : ''} 
-      onClick={() => setContributorModalOpen(false)} 
-    />
-    
-    {/* Pop-up Container */}
-    <div 
-      id="contributors-popup" 
-      className={`${contributorModalOpen ? 'visible' : ''} ${isMobile ? 'is-mobile' : ''}`}
-      style={isMobile ? {} : { top: dropdownPosition.top, left: dropdownPosition.left }}
-    >
-      <div className="popup-content-box" onClick={e => e.stopPropagation()}>
-        <div className="popup-title">
-          Contributors for {selectedTrackInfo?.name}
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+        }} onClick={() => setContributorModalOpen(false)}>
+          <div style={{
+            background: '#232323',
+            borderRadius: 18,
+            padding: '40px',
+            maxWidth: '600px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            color: '#fff',
+            border: '2px solid #1db954',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>
+                Contributors for {selectedTrackInfo?.name}
+              </h2>
+              <button
+                onClick={() => setContributorModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginTop: -40,
+                  marginRight: -60,
+                  transition: 'color 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#1db954'}
+                onMouseLeave={e => e.currentTarget.style.color = '#fff'}
+              >
+                ×
+              </button>
+            </div>
+            {selectedTrackMBID ? (
+              <ContributorFinder mbid={selectedTrackMBID} />
+            ) : (
+              <p style={{ textAlign: 'center', color: '#f87171' }}>
+                Contributor information is not available for this track.
+              </p>
+            )}
+          </div>
         </div>
-        {selectedTrackMBID ? (
-          <ContributorFinder mbid={selectedTrackMBID} />
-        ) : (
-          <p style={{ textAlign: 'center', color: '#a1a1aa' }}>
-            Contributor information is not available for this track.
-          </p>
-        )}
-      </div>
-    </div>
-  </>
-)}
+      )}
       
       {showNewSongAnalysisModal && selectedTrackForNewAnalysis && (
         <NewSongAnalysisModal
@@ -1181,64 +1208,6 @@ if (isMobile) {
           }
         }
       `}</style>
-      <style jsx global>{`
-  /* --- Background Overlay --- */
-  #popup-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 40;
-    opacity: 0;
-    transition: opacity 200ms ease-out;
-    pointer-events: none;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-  }
-  #popup-overlay.visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  /* --- Main Pop-up Container --- */
-  #contributors-popup {
-    position: fixed;
-    z-index: 50;
-    opacity: 0;
-    transform: scale(0.95);
-    transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-  }
-  #contributors-popup.visible {
-    opacity: 1;
-    transform: scale(1);
-    pointer-events: auto;
-  }
-  /* Center on mobile */
-  #contributors-popup.is-mobile {
-    left: 50% !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) scale(1) !important;
-    width: 90%;
-  }
-  /* --- Content Box --- */
-  .popup-content-box {
-    background-color: rgba(24, 24, 27, 0.8);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid #3f3f46;
-    border-radius: 1rem;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    width: 100%;
-    max-width: 24rem;
-    padding: 1.5rem;
-  }
-  /* --- Title --- */
-  .popup-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-    color: #f4f4f5;
-  }
-`}</style>
     </div>
   );
 }
