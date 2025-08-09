@@ -103,7 +103,9 @@ export default function ConcertsList({
         fontWeight: 800, 
         fontSize: '2.4rem', 
         margin: '0 0 32px 50px', 
-        letterSpacing: 1 
+        letterSpacing: 1,
+        textAlign: 'center',
+        
       }}>
         Upcoming Concerts
       </h2>
@@ -408,7 +410,7 @@ export default function ConcertsList({
       {/* Tour Calendar below the concerts list */}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '48px 0 0 0' }}>
         <div style={{ width: '100%', maxWidth: '1600px', margin: '0 auto' }}>
-          <h2 style={{ color: '#fff', fontWeight: 800, fontSize: 'clamp(1.5rem, 3vw, 2.4rem)', margin: '0 0 32px 0', letterSpacing: 1, textAlign: 'left' }}>Tour Calendar</h2>
+          <h2 style={{ color: '#fff', fontWeight: 800, fontSize: 'clamp(1.5rem, 3vw, 2.4rem)', margin: '0 0 32px 0', letterSpacing: 1, textAlign: 'center' }}>Tour Calendar</h2>
         </div>
         <div style={{ width: '100%', maxWidth: '1600px', background: '#181818', borderRadius: 18, boxShadow: '0 2px 24px #0002', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 auto', padding: 0 }}>
           <CustomCalendar

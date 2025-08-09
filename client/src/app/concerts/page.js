@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
-import NewTrackTable from '../../components/NewTrackTable';
+// import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId } from '../../utils/artistCache';
 
@@ -50,6 +50,10 @@ export default function ConcertsPage() {
   
   // Ref for scrolling to concerts section
   const concertsSectionRef = useRef(null);
+
+  const lowerCaseFilters = useMemo(() => 
+  locationFilters.map(f => f.toLowerCase()), 
+[locationFilters]);
   
   // Fetch followed artists
   useEffect(() => {
@@ -956,7 +960,8 @@ export default function ConcertsPage() {
           <div style={{ 
             color: '#b3b3b3', 
             fontSize: '1.2rem', 
-            marginBottom: 8 
+            marginBottom: 8,
+
           }}>
             No upcoming concerts found
           </div>
@@ -1122,8 +1127,8 @@ export default function ConcertsPage() {
                             onClick={() => toggleLocationFilter(city)}
                             style={{
                               padding: '4px 8px',
-                              background: locationFilters.includes(city) ? '#1db954' : '#232323',
-                              color: locationFilters.includes(city) ? '#000' : '#fff',
+                             background: lowerCaseFilters.includes(city.toLowerCase()) ? '#1db954' : '#232323',
+color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
                               border: '1px solid #333',
                               borderRadius: 12,
                               cursor: 'pointer',
