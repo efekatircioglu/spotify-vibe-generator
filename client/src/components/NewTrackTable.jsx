@@ -40,6 +40,33 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(null); // index of open dropdown
   const mobileDropdownRef = useRef(null);
   const tableContainerRef = useRef(null);
+  const contributorModalRef = useRef(null);
+  const [isContribLoading, setIsContribLoading] = useState(false);
+const [contributorData, setContributorData] = useState(null);
+  // Add this new component at the top of NewTrackTable.jsx
+const NoContributorData = () => {
+  // An array of the standard roles to display
+  const roles = ["Performers", "Writers", "Producers", "Mixing", "Engineering", "Arrangers", "Remixers"];
+
+  return (
+    <div className="contrib-popup-body">
+      {roles.map(role => (
+        <div key={role} style={{ marginBottom: '1.5rem' }}>
+          <h3 className="contrib-popup-role-heading">{role}</h3>
+          <p style={{
+              color: '#a1a1aa',
+              fontSize: '0.9rem',
+              fontStyle: 'italic',
+              margin: '0.25rem 0 0 0.25rem',
+          }}>
+              No Information Found
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 
 
 
@@ -62,6 +89,25 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [dropdownOpen]);
+
+  useEffect(() => {
+  function handleClickOutside(event) {
+    // If the ref is attached and the click was outside the modal content
+    if (contributorModalRef.current && !contributorModalRef.current.contains(event.target)) {
+      setContributorModalOpen(false);
+    }
+  }
+
+  // Add the event listener when the modal is open
+  if (contributorModalOpen) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+
+  // Clean up the event listener when the component unmounts or modal closes
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [contributorModalOpen]); // This effect depends on the modal's open/close state
 
   // Close popover on outside click
   useEffect(() => {
@@ -150,12 +196,15 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
 
   // Handle contributions button click
   const handleContributionsClick = async (track) => {
-    setSelectedTrackInfo(track);
-    setContributorModalOpen(true);
-    // Always use track.id for MBID lookup
-    const mbid = await lookupTrackMBID(track.id);
-    setSelectedTrackMBID(mbid);
-  };
+  setSelectedTrackInfo(track);
+  setContributorModalOpen(true);
+  setIsContribLoading(true); // <-- Start loading
+
+  const mbid = await lookupTrackMBID(track.id);
+  setSelectedTrackMBID(mbid);
+
+  setIsContribLoading(false); // <-- Finish loading
+};
 
   const handleThirdGenreClick = (track) => {
     setSelectedTrackForNewAnalysis(track);
@@ -710,32 +759,66 @@ if (isMobile) {
             songInfo={selectedTrackForNewAnalysis}
           />
         )}
-        {contributorModalOpen && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0, 0, 0, 0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10000,
-          }} onClick={() => setContributorModalOpen(false)}>
-            <div style={{ background: '#232323', borderRadius: 18, padding: '40px', maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', color: '#fff', border: '2px solid #1db954' }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>
-                  Contributors for {selectedTrackInfo?.name}
-                </h2>
-                <button
-                  onClick={() => setContributorModalOpen(false)}
-                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer', padding: 0, marginTop: -40, marginRight: -60, transition: 'color 0.2s' }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#1db954'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#fff'}
-                >×</button>
+        {/* --- START OF NEW POP-UP CODE --- */}
+      {contributorModalOpen && (
+        <>
+          <style jsx global>{`
+            #contrib-popup-overlay {
+              position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
+              z-index: 40; opacity: 0; transition: opacity 200ms ease-out;
+              pointer-events: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            }
+            #contrib-popup-overlay.visible { opacity: 1; pointer-events: auto; }
+            #contrib-popup-container {
+              position: fixed; z-index: 50; opacity: 0; transform: scale(0.95);
+              transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+              pointer-events: none;
+            }
+            #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
+            #contrib-popup-container.is-mobile {
+              left: 50% !important; top: 50% !important;
+              transform: translate(-50%, -50%) scale(1) !important;
+              width: 90%;
+            }
+            .contrib-popup-content {
+              background-color: rgba(24, 24, 27, 0.8); backdrop-filter: blur(16px);
+              -webkit-backdrop-filter: blur(16px); border: 1px solid #3f3f46;
+              border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+              width: 100%; max-width: 24rem; padding: 1.5rem;
+            }
+            .contrib-popup-title {
+              font-size: 1.25rem; font-weight: 700;
+              margin-bottom: 1.5rem; color: #f4f4f5;
+            }
+          `}</style>
+
+          <div 
+            id="contrib-popup-overlay" 
+            className={contributorModalOpen ? 'visible' : ''} 
+            onClick={() => setContributorModalOpen(false)} 
+          />
+          
+          <div 
+  id="contrib-popup-container" 
+  className={contributorModalOpen ? 'visible' : ''}
+>
+            <div className="contrib-popup-content" onClick={e => e.stopPropagation()}>
+              
+              <div className="contrib-popup-title">
+                Contributors for {selectedTrackInfo?.name}
               </div>
               {selectedTrackMBID ? (
                 <ContributorFinder mbid={selectedTrackMBID} />
               ) : (
-                <p style={{ textAlign: 'center', color: '#f87171' }}>
+                <p style={{ textAlign: 'center', color: '#a1a1aa' }}>
                   Contributor information is not available for this track.
                 </p>
               )}
             </div>
           </div>
-        )}
+        </>
+      )}
+      {/* --- END OF NEW POP-UP CODE --- */}
       </div>
     );
   }
@@ -1093,63 +1176,71 @@ if (isMobile) {
         )}
       </div>
       
-      {/* Contributor Modal */}
+      {/* --- START OF NEW POP-UP CODE --- */}
       {contributorModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 10000,
-        }} onClick={() => setContributorModalOpen(false)}>
-          <div style={{
-            background: '#232323',
-            borderRadius: 18,
-            padding: '40px',
-            maxWidth: '600px',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            color: '#fff',
-            border: '2px solid #1db954',
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>
-                Contributors for {selectedTrackInfo?.name}
-              </h2>
-              <button
-                onClick={() => setContributorModalOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  padding: 0,
-                  marginTop: -40,
-                  marginRight: -60,
-                  transition: 'color 0.2s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = '#1db954'}
-                onMouseLeave={e => e.currentTarget.style.color = '#fff'}
-              >
-                ×
-              </button>
+        <>
+          <style jsx global>{`
+            #contrib-popup-overlay {
+              position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
+              z-index: 40; opacity: 0; transition: opacity 200ms ease-out;
+              pointer-events: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            }
+            #contrib-popup-overlay.visible { opacity: 1; pointer-events: auto; }
+            #contrib-popup-container {
+              position: fixed; z-index: 50; opacity: 0; transform: scale(0.95);
+              transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+              pointer-events: none;
+            }
+            #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
+            #contrib-popup-container.is-mobile {
+              left: 50% !important; top: 50% !important;
+              transform: translate(-50%, -50%) scale(1) !important;
+              width: 90%;
+            }
+            .contrib-popup-content {
+              background-color: rgba(24, 24, 27, 0.8); backdrop-filter: blur(16px);
+              -webkit-backdrop-filter: blur(16px); border: 1px solid #3f3f46;
+              border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+              width: 100%; max-width: 24rem; padding: 1.5rem;
+            }
+            .contrib-popup-title {
+              font-size: 1.25rem; font-weight: 700;
+              margin-bottom: 1.5rem; color: #f4f4f5;
+            }
+          `}</style>
+
+          <div 
+            id="contrib-popup-overlay" 
+            className={contributorModalOpen ? 'visible' : ''} 
+            // onClick={() => setContributorModalOpen(false)} 
+          />
+          
+          <div 
+  id="contrib-popup-container" 
+  className={contributorModalOpen ? 'visible' : ''}
+>
+            <div ref={contributorModalRef} className="contrib-popup-content">
+  <div className="contrib-popup-title">
+    Contributors for {selectedTrackInfo?.name}
+  </div>
+  {isContribLoading ? (
+  // State 1: Show a spinner while loading
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
+    <div style={{ width: 32, height: 32, border: '4px solid #1db954', borderTopColor: 'rgba(24, 24, 27, 0.8)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+) : contributorData && Object.values(contributorData).some(arr => arr.length > 0) ? (
+  // State 2: If data exists and is NOT empty, show the real contributor list
+  <ContributorFinder contributors={contributorData} />
+) : (
+  // State 3: For all other cases (no data, error), show your new "no data" table
+  <NoContributorData />
+)}
+</div>
             </div>
-            {selectedTrackMBID ? (
-              <ContributorFinder mbid={selectedTrackMBID} />
-            ) : (
-              <p style={{ textAlign: 'center', color: '#f87171' }}>
-                Contributor information is not available for this track.
-              </p>
-            )}
-          </div>
-        </div>
+        </>
       )}
+      {/* --- END OF NEW POP-UP CODE --- */}
       
       {showNewSongAnalysisModal && selectedTrackForNewAnalysis && (
         <NewSongAnalysisModal
