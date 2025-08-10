@@ -76,14 +76,13 @@ export default function Last6MonthsPage() {
           Last 12 Months
         </button>
       </div>
-      <h1 style={{ marginBottom: 24 }}>Your Spotify Stats (Last 6 Months)</h1>
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
         <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
           <NewTrackTable
             tracks={data.tracks}
-            title="Top Tracks in Last 4 Weeks"
+            title="Top Tracks Of Last 6 Months"
             playlistKey="last4weeks"
             loading={loading}
             error={error}

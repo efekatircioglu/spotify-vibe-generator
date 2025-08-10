@@ -195,84 +195,177 @@ const ContributorFinder = ({ mbid }) => {
         <ContributorSection title="Remixers" items={contributors.remixers} />
       </div>
 
-      <style jsx global>{`
-        /* --- Background Overlay --- */
-        #contrib-popup-overlay {
-          position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
-          z-index: 40; opacity: 0; transition: opacity 200ms ease-out;
-          pointer-events: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-        }
-        #contrib-popup-overlay.visible { opacity: 1; pointer-events: auto; }
+       <style jsx global>{` 
 
-        /* --- Main Pop-up Container --- */
-        #contrib-popup-container {
-          position: fixed; z-index: 50; opacity: 0;
-          left: 50%; top: 50%;
-          transform: translate(-50%, -50%) scale(0.95);
-          transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-          pointer-events: none;
-          width: 90%;
-        }
-        #contrib-popup-container.visible {
-          opacity: 1;
-          transform: translate(-50%, -50%) scale(1);
-          pointer-events: auto;
-        }
-        
-        /* --- Content Box --- */
-        .contrib-popup-content {
-          background-color: rgba(24, 24, 27, 0.8); backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px); border: 1px solid #3f3f46;
-          border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-          width: 100%;
-          max-width: 24rem;
-          padding: 1.5rem;
-          margin: 0 auto;
-        }
-        
-        @media (min-width: 768px) {
-          .contrib-popup-content {
-            max-width: 32rem;
-          }
-        }
+   /* --- Background Overlay --- */ 
 
-        /* --- Title --- */
-        .contrib-popup-title {
-          font-size: 1.25rem; font-weight: 700;
-          margin-bottom: 1.5rem; color: #f4f4f5;
-        }
+   #contrib-popup-overlay { 
 
-        .contrib-popup-body {
-          max-height: 50vh; overflow-y: auto; padding-right: 0.5rem;
-        }
-        
-        .contrib-popup-role-heading {
-          font-size: 0.75rem; /* text-xs */
-          font-weight: 600; /* font-semibold */
-          letter-spacing: 0.05em; /* tracking-wide */
-          text-transform: uppercase;
-          color: #a1a1aa; /* text-zinc-400 */
-          margin-bottom: 0.75rem;
-        }
+     position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5); 
 
-        /*
+     z-index: 40; opacity: 0; transition: opacity 200ms ease-out; 
+
+     pointer-events: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); 
+
+   } 
+
+   #contrib-popup-overlay.visible { opacity: 1; pointer-events: auto; } 
+
+
+
+   /* --- Main Pop-up Container (NOW ALWAYS CENTERED) --- */ 
+
+   #contrib-popup-container { 
+
+     position: fixed; z-index: 50; opacity: 0; 
+
+     left: 50%; 
+
+     top: 50%; 
+
+     transform: translate(-50%, -50%) scale(0.95); 
+
+     transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1); 
+
+     pointer-events: none; 
+
+     width: 90%; /* Take 90% of screen width on mobile */ 
+
+   } 
+
+   #contrib-popup-container.visible { 
+
+     opacity: 1; 
+
+     transform: translate(-50%, -50%) scale(1); 
+
+     pointer-events: auto; 
+
+   } 
+
+
+
+    
+
+    
+
+   /* --- Content Box (NOW HAS RESPONSIVE WIDTH) --- */ 
+
+   .contrib-popup-content { 
+
+     background-color: rgba(24, 24, 27, 0.8); backdrop-filter: blur(16px); 
+
+     -webkit-backdrop-filter: blur(16px); border: 1px solid #3f3f46; 
+
+     border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); 
+
+     width: 100%; 
+
+     max-width: 24rem; /* Default max-width for mobile */ 
+
+     padding: 1.5rem; 
+
+     margin: 0 auto; /* Ensure content box is centered within the container */ 
+
+   } 
+
+    
+
+   /* Media query to make it wider on larger screens */ 
+
+   @media (min-width: 768px) { 
+
+     .contrib-popup-content { 
+
+       max-width: 32rem; /* Wider on desktop */ 
+
+     } 
+
+   } 
+
+
+
+   /* --- Title --- */ 
+
+   .contrib-popup-title { 
+
+     font-size: 1.25rem; font-weight: 700; 
+
+     margin-bottom: 1.5rem; color: #f4f4f5; 
+
+   } 
+
+
+
+   .contrib-popup-role-heading { 
+
+     font-size: 0.75rem; /* text-xs */ 
+
+     font-weight: 600; /* font-semibold */ 
+
+     letter-spacing: 0.05em; /* tracking-wide */ 
+
+     text-transform: uppercase; 
+
+     color: #a1a1aa; /* text-zinc-400 */ 
+
+     margin-bottom: 0.75rem; /* MODIFIED: Increased space below heading */ 
+
+
+
+     .contrib-popup-role-detail { 
+
+     font-size: 0.85em; /* Makes it slightly smaller than the name */ 
+
+     color: #a1a1aa;  /* A lighter, secondary color */ 
+
+     font-weight: 400; 
+
+     margin-left: 0.25rem; 
+
+     } 
+
+
+
+     .contrib-popup-body { 
+
+       max-height: 50vh; overflow-y: auto; padding-right: 0.5rem; 
+
+   } /*
+
         * THIS IS THE STYLE FOR THE PERFORMER ROLE (e.g., "(guitar)")
+
         */
+
         .contrib-popup-role-detail {
+
           /* Makes the text 85% of the parent's font size */
+
           font-size: 0.85em; 
+
           
+
           /* A lighter, secondary gray color */
+
           color:#dedab4;
+
           
+
           /* Normal font weight to de-emphasize it */
+
           font-weight: 400;
 
+
+
           /* Adds a little space to the left */
+
           margin-left: 0.25rem;
+
         }
+
         
-      `}</style>
+
+ `}</style>
     </>
   );
 };
