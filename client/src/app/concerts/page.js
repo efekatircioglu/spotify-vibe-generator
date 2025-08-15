@@ -36,7 +36,7 @@ export default function ConcertsPage() {
   const [availableCountries, setAvailableCountries] = useState([]);
   
   // State for artist list type (followed or top)
-  const [artistListType, setArtistListType] = useState('followed'); // 'followed' or 'top'
+  const [artistListType, setArtistListType] = useState('top'); // 'followed' or 'top'
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,6 +50,10 @@ export default function ConcertsPage() {
   
   // Ref for scrolling to concerts section
   const concertsSectionRef = useRef(null);
+  
+  // State for screen size
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSmallMobile, setIsSmallMobile] = useState(false);
 
   const lowerCaseFilters = useMemo(() => 
   locationFilters.map(f => f.toLowerCase()), 
@@ -68,6 +72,23 @@ export default function ConcertsPage() {
         setFollowedArtists([]);
       })
       .finally(() => setLoadingFollowed(false));
+  }, []);
+  
+  // Handle screen size detection
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      setIsSmallMobile(window.innerWidth <= 680);
+    };
+    
+    // Set initial value
+    checkScreenSize();
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
   
   // Fetch all artists from all time periods (deduplicated)
@@ -557,22 +578,6 @@ export default function ConcertsPage() {
         {/* Toggle Buttons for Artist List Type */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
           <button
-            onClick={() => setArtistListType('followed')}
-            style={{
-              padding: '10px 24px',
-              background: artistListType === 'followed' ? '#1db954' : '#232323',
-              color: artistListType === 'followed' ? '#000' : '#fff',
-              border: 'none',
-              borderRadius: 12,
-              fontWeight: 700,
-              fontSize: '1rem',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            Your Followed Artists
-          </button>
-          <button
             onClick={() => setArtistListType('top')}
             style={{
               padding: '10px 24px',
@@ -587,6 +592,22 @@ export default function ConcertsPage() {
             }}
           >
             Your Top Artists
+          </button>
+          <button
+            onClick={() => setArtistListType('followed')}
+            style={{
+              padding: '10px 24px',
+              background: artistListType === 'followed' ? '#1db954' : '#232323',
+              color: artistListType === 'followed' ? '#000' : '#fff',
+              border: 'none',
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+          >
+            Your Followed Artists
           </button>
         </div>
         
@@ -630,31 +651,35 @@ export default function ConcertsPage() {
                 </button>
               )}
             </div>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: window.innerWidth <= 768 ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: window.innerWidth <= 768 ? 6 : 8,
-              maxHeight: 150,
-              overflowY: 'auto'
-            }}>
+            <div 
+              className="followed-artists-grid"
+              style={{ 
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(120px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: 12,
+                maxHeight: 290,
+                overflowY: 'auto'
+              }}
+            >
               {followedArtists.map(artist => (
                 <button
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: window.innerWidth <= 768 ? '6px 8px' : '8px 12px',
+                    padding: isMobile ? '12px 16px' : '16px 24px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
                     borderRadius: 20,
                     cursor: 'pointer',
-                    fontSize: window.innerWidth <= 768 ? '0.75rem' : '0.85rem',
+                    fontSize: isMobile ? '0.9rem' : '0.9rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     textAlign: 'center',
-                    minWidth: 0,
+                    minWidth: isMobile ? 120 : 100,
+                    height: isMobile ? '44px' : 'auto',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -710,31 +735,35 @@ export default function ConcertsPage() {
                 </button>
               )}
             </div>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: window.innerWidth <= 768 ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
-              gap: window.innerWidth <= 768 ? 6 : 8,
-              maxHeight: 150,
-              overflowY: 'auto'
-            }}>
+            <div 
+              className="top-artists-grid"
+              style={{ 
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(120px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+                gap: 12,
+                maxHeight: 290,
+                overflowY: 'auto'
+              }}
+            >
               {topArtists.map(artist => (
                 <button
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: window.innerWidth <= 768 ? '6px 8px' : '8px 12px',
+                    padding: isMobile ? '12px 16px' : '16px 24px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
                     borderRadius: 20,
                     cursor: 'pointer',
-                    fontSize: window.innerWidth <= 768 ? '0.75rem' : '0.85rem',
+                    fontSize: isMobile ? '0.9rem' : '0.9rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     textAlign: 'center',
-                    minWidth: 0,
+                    minWidth: isMobile ? 120 : 100,
+                    height: isMobile ? '44px' : 'auto',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -793,44 +822,47 @@ export default function ConcertsPage() {
             <div style={{ 
               display: 'flex', 
               flexWrap: 'wrap', 
-              gap: 12
+              gap: 12,
+              maxHeight: 240,
+              overflowY: 'auto'
             }}>
-              {selectedArtists.map(artist => (
+              {selectedArtists.map(selectedArtist => (
                 <div
-                  key={artist.id}
+                  key={selectedArtist.id}
+                  className="selected-artist-chip"
                   style={{
-                    padding: '12px 16px',
+                    padding: isSmallMobile ? '6px 10px' : '12px 16px',
                     background: '#1db954',
                     color: '#000',
                     border: '1px solid #1db954',
                     borderRadius: 20,
-                    fontSize: '0.9rem',
+                    fontSize: isSmallMobile ? '0.7rem' : '0.9rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
                     minWidth: 'fit-content',
-                    cursor: artist.spotifyId ? 'pointer' : 'default',
+                    cursor: selectedArtist.spotifyId ? 'pointer' : 'default',
                     transition: 'all 0.2s',
                   }}
-                  onClick={() => artist.spotifyId && navigateToArtist(artist)}
+                  onClick={() => selectedArtist.spotifyId && navigateToArtist(selectedArtist)}
                   onMouseEnter={(e) => {
-                    if (artist.spotifyId) {
+                    if (selectedArtist.spotifyId) {
                       e.currentTarget.style.background = '#1ed760';
                       e.currentTarget.style.transform = 'translateY(-1px)';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (artist.spotifyId) {
+                    if (selectedArtist.spotifyId) {
                       e.currentTarget.style.background = '#1db954';
                       e.currentTarget.style.transform = 'translateY(0)';
                     }
                   }}
                 >
                   {/* Artist Image */}
-                  {artist.images?.[0]?.url && (
+                  {selectedArtist.images?.[0]?.url && (
                     <img 
-                      src={artist.images[0].url} 
-                      alt={artist.name}
+                      src={selectedArtist.images[0].url} 
+                      alt={selectedArtist.name}
                       style={{ 
                         width: 24, 
                         height: 24, 
@@ -840,11 +872,11 @@ export default function ConcertsPage() {
                       }}
                     />
                   )}
-                  <span style={{ fontWeight: 600 }}>{artist.name}</span>
+                  <span style={{ fontWeight: 600 }}>{selectedArtist.name}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent triggering the parent click
-                      removeArtist(artist.id);
+                      removeArtist(selectedArtist.id);
                     }}
                     style={{
                       background: 'none',
@@ -924,15 +956,82 @@ export default function ConcertsPage() {
               Find All Concerts
             </span>
           )}
-        </button>
+                </button>
         
         <style jsx>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
+          
+          /* Basic styling for artist buttons - less restrictive */
+          .top-artists-grid button,
+          .followed-artists-grid button {
+            background: #232323;
+            color: #fff;
+            border: 1px solid #333;
+            border-radius: 20px;
+            transition: all 0.2s;
+          }
+          
+          .top-artists-grid button:hover,
+          .followed-artists-grid button:hover {
+            background: #1db954;
+            color: #000;
+          }
+          
+          /* Ensure consistent spacing and prevent overrides */
+          .top-artists-grid,
+          .followed-artists-grid {
+            gap: 12px !important;
+            display: grid !important;
+          }
+          
+          /* Force minimum button sizes to prevent cramping */
+          .top-artists-grid button,
+          .followed-artists-grid button {
+            min-width: 120px !important;
+            box-sizing: border-box !important;
+          }
+          
+
+          
+          /* Selected Artists styling */
+          .selected-artist-chip {
+            background: #1db954 !important;
+            color: #000 !important;
+            border: 1px solid #1db954 !important;
+            border-radius: 20px !important;
+            transition: all 0.2s !important;
+          }
+          
+          .selected-artist-chip:hover {
+            background: #1ed760 !important;
+            transform: translateY(-1px) !important;
+          }
+          
+          /* Responsive styling for small screens */
+          @media (max-width: 680px) {
+            .selected-artist-chip {
+              padding: 4px 8px !important;
+              font-size: 0.65rem !important;
+              gap: 6px !important;
+            }
+            
+            .selected-artist-chip img {
+              width: 18px !important;
+              height: 18px !important;
+            }
+            
+            .selected-artist-chip button {
+              width: 16px !important;
+              height: 16px !important;
+              font-size: 1rem !important;
+            }
+          }
         `}</style>
-      </div>
+        
+        </div>
       
       {/* Concerts Results */}
       {concertsError && (
