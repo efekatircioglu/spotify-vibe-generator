@@ -741,8 +741,41 @@ if (isMobile) {
                   </div>
                 )}
                 {track.id && (
-                  <a href={`https://open.spotify.com/track/${track.id}`} target="_blank" rel="noopener noreferrer">
-                    <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 24, height: 24, verticalAlign: 'middle' }} />
+                  <a 
+                    href={`https://open.spotify.com/track/${track.id}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#1db954',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      fontWeight: 700,
+                      width: 32,
+                      height: 32,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px #1db95433',
+                      transition: 'all 0.2s ease',
+                      textDecoration: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#1ed760';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#1db954';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
+                    }}
+                    title="Play on Spotify"
+                  >
+                    <svg role="img" height="18" width="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
+                    </svg>
                   </a>
                 )}
               </div>
@@ -1164,8 +1197,41 @@ if (isMobile) {
                   </td>
                   <td style={{ padding: '16px 0', paddingLeft: 'clamp(6px, 1vw, 18px)', paddingRight: 'clamp(6px, 1vw, 18px)' }}>
                     {track.id && (
-                      <a href={`https://open.spotify.com/track/${track.id}`} target="_blank" rel="noopener noreferrer">
-                        <img src="/spotify-logo-green.svg" alt="Open in Spotify" style={{ width: 28, height: 28, verticalAlign: 'middle' }} />
+                      <a 
+                        href={`https://open.spotify.com/track/${track.id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#1db954',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '50%',
+                          fontWeight: 700,
+                          width: 38,
+                          height: 38,
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px #1db95433',
+                          transition: 'all 0.2s ease',
+                          textDecoration: 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#1ed760';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#1db954';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
+                        }}
+                        title="Play on Spotify"
+                      >
+                        <svg role="img" height="24" width="24" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
+                        </svg>
                       </a>
                     )}
                   </td>
