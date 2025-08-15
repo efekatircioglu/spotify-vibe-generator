@@ -18,6 +18,7 @@ import {
 } from 'chart.js';
 import ContributorFinder from '../../components/ContributorFinder';
 import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
+import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -107,6 +108,15 @@ export default function Last4WeeksPage() {
       )}
       {data && data.artists && (
         <TopArtistsTable artists={data.artists} title="Top Artists" />
+      )}
+      
+      {/* Genre Leaderboard Chart */}
+      {data && data.genres && (
+        <GenreLeaderboardChart 
+          genres={data.genres} 
+          title="Genre Breakdown of Last Month" 
+          timeRange="Short Term (4 Weeks)"
+        />
       )}
       
       {/* Info Modal */}

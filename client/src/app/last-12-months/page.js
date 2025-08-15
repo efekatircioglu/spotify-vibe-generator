@@ -8,6 +8,7 @@ import NewTrackTable from '../../components/NewTrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
 import ContributorFinder from '../../components/ContributorFinder';
 import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
+import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
 export default function Last12MonthsPage() {
   const [data, setData] = useState(null);
@@ -95,6 +96,15 @@ export default function Last12MonthsPage() {
       )}
       {data && data.artists && (
         <TopArtistsTable artists={data.artists} title="Top Artists" />
+      )}
+      
+      {/* Genre Leaderboard Chart */}
+      {data && data.genres && (
+        <GenreLeaderboardChart 
+          genres={data.genres} 
+          title="Genre Breakdown of Last Year" 
+          timeRange="Long Term (12 Months)"
+        />
       )}
       
       {/* Info Modal */}
