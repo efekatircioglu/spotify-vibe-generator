@@ -671,8 +671,8 @@ body, .main {
   justify-content: flex-start;
   align-items: flex-start;
   width: 100%;
-  /* MODIFIED: Added 2rem of padding to the left and right */
-  padding: 28px;
+  /* Unified spacing: left/right padding equals gap between items */
+  padding: 0 28px;
   box-sizing: border-box; /* Ensures padding is included in the width */
   overflow-x: auto;
   overflow-y: hidden;
@@ -1239,6 +1239,7 @@ body, .main {
   /* Reduce the gap between cards in the scroller */
   .albumSelectorContainer {
     gap: 16px;
+    padding: 0 16px; /* Unified spacing: left/right padding equals gap between items */
   }
 
   /* Make the album card much smaller */

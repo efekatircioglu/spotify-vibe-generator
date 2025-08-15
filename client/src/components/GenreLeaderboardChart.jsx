@@ -1075,24 +1075,24 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
           }
         `}</style>
       
-                {/* Genre stats summary */}
-          <div className="genre-stats-container" style={{
-            display: 'flex',
-            flexDirection: 'column',
+      {/* Genre stats summary */}
+      <div className="genre-stats-container" style={{
+        display: 'flex',
+        flexDirection: 'column',
             gap: '8px',
-            marginTop: 20,
-            padding: '16px 20px',
+        marginTop: 20,
+        padding: '16px 20px',
             background: 'rgba(34, 202, 123, 0.1)',
-            borderRadius: 12,
+        borderRadius: 12,
             border: '1px solid rgba(34, 202, 123, 0.2)'
           }}>
             <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
               <strong style={{ color: '#e5e5e5' }}>Total Genres:</strong> {Object.keys(genres).length}
-            </div>
+          </div>
             <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
               <strong style={{ color: '#e5e5e5' }}>Top Genre:</strong> {sortedGenres[0]?.[0] || 'N/A'} ({sortedGenres[0]?.[1] || 0} artists)
-            </div>
           </div>
+        </div>
       </div>
 
       {/* Genre Artists Modal */}

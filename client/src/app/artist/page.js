@@ -83,6 +83,7 @@ export default function ArtistConcertsPage() {
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [artistImage, setArtistImage] = useState(null);
   const [artistFollowers, setArtistFollowers] = useState(null);
+  const [artistGenres, setArtistGenres] = useState([]);
   const [isFollowing, setIsFollowing] = useState(null);
   const [followLoading, setFollowLoading] = useState(false);
   const [discogsProfile, setDiscogsProfile] = useState(null);
@@ -193,7 +194,7 @@ export default function ArtistConcertsPage() {
     }
   }, [artistName, spotifyId]);
 
-  // Fetch artist image and followers from Spotify
+  // Fetch artist image, followers, and genres from Spotify
   useEffect(() => {
     if (!spotifyId) return;
     fetch(`http://127.0.0.1:8000/spotify/artist-details/${spotifyId}`)
@@ -204,6 +205,9 @@ export default function ArtistConcertsPage() {
         }
         if (data && data.followers && data.followers.total) {
           setArtistFollowers(data.followers.total);
+        }
+        if (data && data.genres && data.genres.length > 0) {
+          setArtistGenres(data.genres);
         }
       });
   }, [spotifyId]);
@@ -619,14 +623,29 @@ export default function ArtistConcertsPage() {
 }}>{selectedArtist.name}</span>
               </div>
               {artistFollowers !== null && (
-                <span style={{ 
-                  color: '#b3b3b3', 
-                  fontSize: 'clamp(0.9rem, 2vw, 1.25rem)', 
-                  fontWeight: 500, 
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 16, 
                   marginTop: 2 
                 }}>
-                  {artistFollowers.toLocaleString()} Followers
-                </span>
+                  <span style={{ 
+                    color: '#b3b3b3', 
+                    fontSize: 'clamp(0.9rem, 2vw, 1.25rem)', 
+                    fontWeight: 500
+                  }}>
+                    {artistFollowers.toLocaleString()} Followers
+                  </span>
+                  {artistGenres.length > 0 && (
+                    <span style={{ 
+                      color: '#b3b3b3', 
+                      fontSize: 'clamp(0.9rem, 2vw, 1.25rem)', 
+                      fontWeight: 500
+                    }}>
+                      {artistGenres.join(', ')}
+                    </span>
+                  )}
+                </div>
               )}
               <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
                 <button
@@ -697,6 +716,8 @@ export default function ArtistConcertsPage() {
             </div>
           </div>
 
+
+
           {/* Top track last year card */}
           <div style={{
             display: 'flex',
@@ -755,43 +776,49 @@ export default function ArtistConcertsPage() {
                   </span>
                   <span style={{ color: '#fff', fontWeight: 800, fontSize: isMobile ? 16 : 20 }}>{topTrackLastYear.name}</span>
                 </div>
-                <button
-                  onClick={() => window.open(`https://open.spotify.com/track/${topTrackLastYear.id}`, '_blank', 'noopener,noreferrer')}
+                <a 
+                  href={`https://open.spotify.com/track/${topTrackLastYear.id}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
                   style={{
                     marginLeft: 'auto',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: isMobile ? 48 : 56,
-                    height: isMobile ? 48 : 56,
-                    position: 'relative'
-                  }}
-                >
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '50%',
                     background: '#1db954',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 0 20px rgba(29, 185, 84, 0.4)',
-                    position: 'relative'
-                  }}>
-                    <div style={{
-                      width: 0,
-                      height: 0,
-                      borderLeft: `${isMobile ? 8 : 10}px solid #fff`,
-                      borderTop: `${isMobile ? 6 : 7}px solid transparent`,
-                      borderBottom: `${isMobile ? 6 : 7}px solid transparent`,
-                      marginLeft: 2
-                    }} />
-                  </div>
-                </button>
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '50%',
+                    fontWeight: 700,
+                    width: isMobile ? 40 : 45,
+                    height: isMobile ? 40 : 45,
+                    minWidth: isMobile ? 40 : 45,
+                    minHeight: isMobile ? 40 : 45,
+                    maxWidth: isMobile ? 40 : 45,
+                    maxHeight: isMobile ? 40 : 45,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px #1db95433',
+                    transition: 'all 0.2s ease',
+                    textDecoration: 'none',
+                    flexShrink: 0,
+                    boxSizing: 'border-box',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#1ed760';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#1db954';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
+                  }}
+                  title="Play on Spotify"
+                >
+                  <svg role="img" height="18" width="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
+                  </svg>
+                </a>
               </div>
             )}
             {!loadingTopTrack && !topTrackLastYear && topTrackError && (
