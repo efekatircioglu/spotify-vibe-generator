@@ -705,7 +705,27 @@ export default function ArtistConcertsPage() {
             marginTop: 12
           }}>
             {loadingTopTrack && (
-              <div style={{ color: '#b3b3b3', fontSize: '0.95rem' }}>Loading your top {selectedArtist?.name} song…</div>
+              <div style={{
+                background: '#181c24',
+                padding: '16px 24px',
+                borderRadius: 12,
+                color: '#b3b3b3',
+                fontSize: '0.95rem',
+                boxShadow: '0 2px 16px #0004',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12
+              }}>
+                <div style={{
+                  width: 20,
+                  height: 20,
+                  border: '2px solid #1db954',
+                  borderTop: '2px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Searching for your top {selectedArtist?.name} song...
+              </div>
             )}
             {!loadingTopTrack && topTrackLastYear && (
               <div style={{
@@ -775,7 +795,18 @@ export default function ArtistConcertsPage() {
               </div>
             )}
             {!loadingTopTrack && !topTrackLastYear && topTrackError && (
-              <div style={{ color: '#f87171', fontSize: '0.95rem' }}>{topTrackError}</div>
+              <div style={{
+                background: '#181c24',
+                padding: '16px 24px',
+                borderRadius: 12,
+                color: '#b3b3b3',
+                fontSize: '0.95rem',
+                boxShadow: '0 2px 16px #0004',
+                maxWidth: isMobile ? '95%' : '600px',
+                textAlign: 'center'
+              }}>
+                No top song found for this artist in your listening history
+              </div>
             )}
           </div>
 
@@ -984,6 +1015,14 @@ export default function ArtistConcertsPage() {
           )}
         </>
       )}
+      
+      {/* Add CSS for spinner animation */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </main>
   );
 } 

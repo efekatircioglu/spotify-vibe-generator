@@ -594,10 +594,12 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
         padding: 10,
         callbacks: {
           label: function(context) {
-            return `Number of Artists: ${context.parsed.x || 0}`;
+            // Get the actual count without the offset by finding the original data
+            const actualCount = sortedGenres[context.dataIndex]?.[1] || 0;
+            return `Number of Artists: ${actualCount}`;
           },
           title: function(context) {
-            const title = context[0].label;
+            const title = context.label;
             return title ? title.charAt(0).toUpperCase() + title.slice(1) : '';
           }
         }
