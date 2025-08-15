@@ -11,6 +11,7 @@ import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
 export default function Last6MonthsPage() {
   const [data, setData] = useState(null);
+  const [genreDetails, setGenreDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -22,12 +23,23 @@ export default function Last6MonthsPage() {
   const [showContributorModal, setShowContributorModal] = useState(false);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/last-6-months")
-      .then(res => res.json())
-      .then(setData)
-      .catch(() => setError("Failed to fetch data"))
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      try {
+        const [mainData, genreData] = await Promise.all([
+          fetch("http://127.0.0.1:8000/last-6-months").then(res => res.json()),
+          fetch("http://127.0.0.1:8000/genre-details/6-months").then(res => res.json())
+        ]);
+        
+        setData(mainData);
+        setGenreDetails(genreData.genres);
+      } catch (err) {
+        setError("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    };
     
+    fetchData();
   }, []);
 
   const handleExploreGenre = (track) => {
@@ -98,11 +110,15 @@ export default function Last6MonthsPage() {
       
       {/* Genre Leaderboard Chart */}
       {data && data.genres && (
-        <GenreLeaderboardChart 
-          genres={data.genres} 
-          title="Genre Breakdown of Last 6 Months" 
-          timeRange="Medium Term (6 Months)"
-        />
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <GenreLeaderboardChart 
+            genres={data.genres} 
+            title="Genre Breakdown of Last 6 Months" 
+            timeRange="Medium Term (6 Months)"
+            genreDetails={genreDetails}
+            mainArtistsData={data.artists}
+          />
+        </div>
       )}
       
       {/* Info Modal */}

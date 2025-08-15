@@ -12,6 +12,7 @@ import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
 export default function Last12MonthsPage() {
   const [data, setData] = useState(null);
+  const [genreDetails, setGenreDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -20,15 +21,26 @@ export default function Last12MonthsPage() {
   // Contributor modal state
   const [fetchingMbidForTrackId, setFetchingMbidForTrackId] = useState(null);
   const [selectedTrackForContributors, setSelectedTrackForContributors] = useState(null);
-  const [showContributorModal, setShowContributorModal] = useState(false);
+  const [showContributorModal] = useState(false);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/last-12-months")
-      .then(res => res.json())
-      .then(setData)
-      .catch(() => setError("Failed to fetch data"))
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      try {
+        const [mainData, genreData] = await Promise.all([
+          fetch("http://127.0.0.1:8000/last-12-months").then(res => res.json()),
+          fetch("http://127.0.0.1:8000/genre-details/12-months").then(res => res.json())
+        ]);
+        
+        setData(mainData);
+        setGenreDetails(genreData.genres);
+      } catch (err) {
+        setError("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    };
     
+    fetchData();
   }, []);
 
   const handleExploreGenre = (track) => {
@@ -100,11 +112,15 @@ export default function Last12MonthsPage() {
       
       {/* Genre Leaderboard Chart */}
       {data && data.genres && (
-        <GenreLeaderboardChart 
-          genres={data.genres} 
-          title="Genre Breakdown of Last Year" 
-          timeRange="Long Term (12 Months)"
-        />
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <GenreLeaderboardChart 
+            genres={data.genres} 
+            title="Genre Breakdown of Last Year" 
+            timeRange="Long Term (12 Months)"
+            genreDetails={genreDetails}
+            mainArtistsData={data.artists}
+          />
+        </div>
       )}
       
       {/* Info Modal */}

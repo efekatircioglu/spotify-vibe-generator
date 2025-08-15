@@ -345,14 +345,40 @@ async function getTopData(time_range) {
   ]);
   const tracks = tracksRes.body.items;
   const artists = artistsRes.body.items;
-  // Collect genres from top artists
-  let genreCounts = {};
+  
+  // Collect genres from top artists with artist details
+  let genreData = {};
   (artists || []).forEach(artist => {
     (artist.genres || []).forEach(genre => {
-      genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+      if (!genreData[genre]) {
+        genreData[genre] = {
+          count: 0,
+          artists: []
+        };
+      }
+      genreData[genre].count += 1;
+      genreData[genre].artists.push({
+        name: artist.name,
+        id: artist.id,
+        spotifyId: artist.id, // Add explicit spotifyId field
+        popularity: artist.popularity,
+        images: artist.images
+      });
     });
   });
-  return { tracks, artists, genres: genreCounts };
+  
+  // Convert to the format expected by frontend
+  let genreCounts = {};
+  Object.keys(genreData).forEach(genre => {
+    genreCounts[genre] = genreData[genre].count;
+  });
+  
+  return { 
+    tracks, 
+    artists, 
+    genres: genreCounts,
+    genreDetails: genreData  // New field with detailed genre information
+  };
 }
 
 app.get('/last-4-weeks', async (req, res) => {
@@ -382,6 +408,83 @@ app.get('/last-12-months', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch last 12 months data' });
+  }
+});
+
+// New endpoint to get detailed genre information with artists
+app.get('/genre-details/:timeRange', async (req, res) => {
+  try {
+    const { timeRange } = req.params;
+    let time_range;
+    
+    switch (timeRange) {
+      case '4-weeks':
+        time_range = 'short_term';
+        break;
+      case '6-months':
+        time_range = 'medium_term';
+        break;
+      case '12-months':
+        time_range = 'long_term';
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid time range. Use: 4-weeks, 6-months, or 12-months' });
+    }
+    
+    const data = await getTopData(time_range);
+    res.json({
+      genres: data.genreDetails,
+      timeRange: timeRange
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch genre details' });
+  }
+});
+
+// New endpoint to search for artist by name and get spotifyId
+app.get('/search-artist', async (req, res) => {
+  try {
+    const { name } = req.query;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Artist name is required' });
+    }
+    
+    console.log(`[search-artist] Searching for artist: ${name}`);
+    
+    // Search for the artist using Spotify API
+    const searchRes = await spotifyApi.searchArtists(name, { limit: 5 });
+    const artists = searchRes.body.artists.items;
+    
+    if (artists && artists.length > 0) {
+      // Find the best match (exact or closest)
+      let bestMatch = artists[0];
+      
+      // Try to find exact match first
+      const exactMatch = artists.find(artist => 
+        artist.name.toLowerCase() === name.toLowerCase()
+      );
+      
+      if (exactMatch) {
+        bestMatch = exactMatch;
+      }
+      
+      console.log(`[search-artist] Found artist: ${bestMatch.name} (ID: ${bestMatch.id})`);
+      
+      res.json({
+        spotifyId: bestMatch.id,
+        name: bestMatch.name,
+        popularity: bestMatch.popularity,
+        images: bestMatch.images
+      });
+    } else {
+      console.log(`[search-artist] No artists found for: ${name}`);
+      res.status(404).json({ error: 'Artist not found' });
+    }
+  } catch (err) {
+    console.error('[search-artist] Error:', err);
+    res.status(500).json({ error: 'Failed to search for artist' });
   }
 });
 

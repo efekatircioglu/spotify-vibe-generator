@@ -24,6 +24,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function Last4WeeksPage() {
   const [data, setData] = useState(null);
+  const [genreDetails, setGenreDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -61,12 +62,23 @@ export default function Last4WeeksPage() {
   };
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/last-4-weeks")
-      .then(res => res.json())
-      .then(setData)
-      .catch(() => setError("Failed to fetch data"))
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      try {
+        const [mainData, genreData] = await Promise.all([
+          fetch("http://127.0.0.1:8000/last-4-weeks").then(res => res.json()),
+          fetch("http://127.0.0.1:8000/genre-details/4-weeks").then(res => res.json())
+        ]);
+        
+        setData(mainData);
+        setGenreDetails(genreData.genres);
+      } catch (err) {
+        setError("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    };
     
+    fetchData();
   }, []);
 
   return (
@@ -112,11 +124,15 @@ export default function Last4WeeksPage() {
       
       {/* Genre Leaderboard Chart */}
       {data && data.genres && (
-        <GenreLeaderboardChart 
-          genres={data.genres} 
-          title="Genre Breakdown of Last Month" 
-          timeRange="Short Term (4 Weeks)"
-        />
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <GenreLeaderboardChart 
+            genres={data.genres} 
+            title="Genre Breakdown of Last Month" 
+            timeRange="Short Term (4 Weeks)"
+            genreDetails={genreDetails}
+            mainArtistsData={data.artists}
+          />
+        </div>
       )}
       
       {/* Info Modal */}
