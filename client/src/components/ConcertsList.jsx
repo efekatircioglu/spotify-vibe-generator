@@ -18,11 +18,33 @@ export default function ConcertsList({
 }) {
   const eventRefs = useRef({});
   const [animationKey, setAnimationKey] = useState(0);
+  const concertsListRef = useRef(null);
 
   // When concerts change, increment animation key to trigger animation
   useEffect(() => {
     setAnimationKey(k => k + 1);
   }, [concerts, currentPage]);
+  
+  // Scroll to top of concerts list when page changes
+  const scrollToConcertsTop = () => {
+    if (concertsListRef.current) {
+      concertsListRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  };
+  
+  // Handle page change with scroll
+  const handlePageChange = (newPage) => {
+    if (onPageChange) {
+      onPageChange(newPage);
+      // Scroll to top after page change
+      setTimeout(() => {
+        scrollToConcertsTop();
+      }, 100);
+    }
+  };
 
   // Helper to format date
   function getDateParts(dateStr) {
@@ -110,16 +132,19 @@ export default function ConcertsList({
         Upcoming Concerts
       </h2>
       
-      <div style={{ 
-        background: '#181818', 
-        borderRadius: 18, 
-        padding: 'clamp(16px, 3vw, 32px) 0', 
-        margin: '0 clamp(8px, 2vw, 16px)', 
-        boxShadow: '0 2px 24px #0002',
-        maxWidth: '1200px',
-        marginLeft: 'auto',
-        marginRight: 'auto'
-      }}>
+      <div 
+        ref={concertsListRef}
+        style={{ 
+          background: '#181818', 
+          borderRadius: 18, 
+          padding: 'clamp(16px, 3vw, 32px) 0', 
+          margin: '0 clamp(8px, 2vw, 16px)', 
+          boxShadow: '0 2px 24px #0002',
+          maxWidth: '1200px',
+          marginLeft: 'auto',
+          marginRight: 'auto'
+        }}
+      >
         {/* Concert Count Header - Inside the table container */}
         {totalConcerts > 0 && (
           <div style={{ 
@@ -360,7 +385,7 @@ export default function ConcertsList({
           padding: '20px 0'
         }}>
           <button
-            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
             style={{
               padding: '10px 20px',
@@ -388,7 +413,7 @@ export default function ConcertsList({
           </div>
           
           <button
-            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
             style={{
               padding: '10px 20px',

@@ -369,6 +369,16 @@ export default function ConcertsPage() {
     }
   };
   
+  // Scroll to top of concerts section
+  const scrollToConcertsTop = () => {
+    if (concertsSectionRef.current) {
+      concertsSectionRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  };
+  
   // Search concerts for selected artists (globally)
   const searchConcerts = async () => {
     if (selectedArtists.length === 0) {
@@ -994,6 +1004,46 @@ export default function ConcertsPage() {
             box-sizing: border-box !important;
           }
           
+          /* Ensure Cities and Countries sections maintain static height across ALL screen sizes */
+          .cities-section,
+          .countries-section {
+            max-height: 230px !important;
+            height: 230px !important;
+            overflow-y: auto !important;
+            padding-bottom: 16px !important;
+            box-shadow: inset 0 -16px 16px -16px #101114 !important;
+          }
+          
+          /* Prevent button slicing by ensuring proper grid layout */
+          .cities-section,
+          .countries-section {
+            grid-auto-rows: 32px !important;
+            align-content: start !important;
+          }
+          
+          /* Maintain consistent vertical spacing for location buttons - NO CHANGES on any screen size */
+          .cities-section button,
+          .countries-section button {
+            height: 32px !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+            padding: 6px 10px !important;
+            font-size: 0.8rem !important;
+            border-radius: 16px !important;
+            min-width: 80px !important;
+            line-height: 1.2 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          
+          /* Override any responsive vertical changes that might be applied */
+          .cities-section[style*="height"],
+          .countries-section[style*="height"] {
+            height: 230px !important;
+            max-height: 230px !important;
+          }
+          
 
           
           /* Selected Artists styling */
@@ -1211,33 +1261,37 @@ export default function ConcertsPage() {
                       }}>
                         Cities ({availableCities.length}):
                       </div>
-                      <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                        gap: 6,
-                        maxHeight: 220,
-                        overflowY: 'auto',
-                        paddingBottom: 16,
-                        boxShadow: 'inset 0 -16px 16px -16px #101114',
-                      }}>
-                        {availableCities.map(city => (
+                                             <div 
+                         className="cities-section"
+                         style={{ 
+                           display: 'grid', 
+                           gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+                           rowGap: 12,
+                           columnGap: isMobile ? 10 : 12,
+                           maxHeight: 230,
+                           overflowY: 'auto',
+                           paddingBottom: 16,
+                           boxShadow: 'inset 0 -16px 16px -16px #101114',
+                         }}
+                       >
+                          {availableCities.map(city => (
                           <button
                             key={city}
                             onClick={() => toggleLocationFilter(city)}
                             style={{
-                              padding: '4px 8px',
+                              padding: isMobile ? '6px 10px' : '8px 16px',
                              background: lowerCaseFilters.includes(city.toLowerCase()) ? '#1db954' : '#232323',
 color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
                               border: '1px solid #333',
-                              borderRadius: 12,
+                              borderRadius: isMobile ? 16 : 20,
                               cursor: 'pointer',
-                              fontSize: '0.7rem',
+                              fontSize: isMobile ? '0.8rem' : '0.9rem',
                               transition: 'all 0.2s',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               textAlign: 'center',
-                              minWidth: 0,
+                              minWidth: isMobile ? 80 : 120,
                             }}
                             onMouseEnter={(e) => {
                               if (!locationFilters.includes(city)) {
@@ -1268,33 +1322,37 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
                       }}>
                         Countries ({availableCountries.length}):
                       </div>
-                      <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                        gap: 6,
-                        maxHeight: 220,
-                        overflowY: 'auto',
-                        paddingBottom: 16,
-                        boxShadow: 'inset 0 -16px 16px -16px #101114',
-                      }}>
-                        {availableCountries.map(country => (
+                                             <div 
+                         className="countries-section"
+                         style={{ 
+                           display: 'grid', 
+                           gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(100px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
+                           rowGap: 12,
+                           columnGap: isMobile ? 10 : 12,
+                           maxHeight: 230,
+                           overflowY: 'auto',
+                           paddingBottom: 16,
+                           boxShadow: 'inset 0 -16px 16px -16px #101114',
+                         }}
+                       >
+                          {availableCountries.map(country => (
                           <button
                             key={country}
                             onClick={() => toggleLocationFilter(country)}
                             style={{
-                              padding: '4px 8px',
+                              padding: isMobile ? '6px 10px' : '8px 16px',
                               background: locationFilters.includes(country) ? '#fbbf24' : '#232323',
                               color: locationFilters.includes(country) ? '#000' : '#fff',
                               border: '1px solid #333',
-                              borderRadius: 12,
+                              borderRadius: isMobile ? 16 : 20,
                               cursor: 'pointer',
-                              fontSize: '0.7rem',
+                              fontSize: isMobile ? '0.8rem' : '0.9rem',
                               transition: 'all 0.2s',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               textAlign: 'center',
-                              minWidth: 0,
+                              minWidth: isMobile ? 80 : 120,
                             }}
                             onMouseEnter={(e) => {
                               if (!locationFilters.includes(country)) {
@@ -1344,7 +1402,10 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
               padding: '16px 0'
             }}>
               <button
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                onClick={() => {
+                  setCurrentPage(prev => Math.max(1, prev - 1));
+                  scrollToConcertsTop();
+                }}
                 disabled={currentPage === 1}
                 style={{
                   padding: '8px 16px',
@@ -1372,7 +1433,10 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
               </div>
               
               <button
-                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredConcerts.length / concertsPerPage), prev + 1))}
+                onClick={() => {
+                  setCurrentPage(prev => Math.min(Math.ceil(filteredConcerts.length / concertsPerPage), prev + 1));
+                  scrollToConcertsTop();
+                }}
                 disabled={currentPage === Math.ceil(filteredConcerts.length / concertsPerPage)}
                 style={{
                   padding: '8px 16px',
