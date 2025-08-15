@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import AlbumSelector from '../../components/AlbumSelector';
 import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
-import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../../utils/artistCache';
+import { getCachedArtistId, setArtistCache } from '../../utils/artistCache';
 
 // --- Add this entire helper function ---
 function useIsMobile(breakpoint = 768) {
@@ -70,8 +70,7 @@ export default function ArtistConcertsPage() {
   const [concerts, setConcerts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [tableZoomedOut, setTableZoomedOut] = useState(false);
-  const tableRef = useRef(null);
+  
 
   // New state for albums and tracks
   const [albums, setAlbums] = useState([]);
@@ -100,7 +99,7 @@ export default function ArtistConcertsPage() {
   
   // State for artist search
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
@@ -116,17 +115,7 @@ export default function ArtistConcertsPage() {
   const BIO_TRUNCATE_LENGTH = 300; // Characters to show before truncating
   
 
-  // Helper to format date as '20 April 2025'
-  function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const monthIndex = parseInt(month, 10) - 1;
-    return `${parseInt(day, 10)} ${monthNames[monthIndex]} ${year}`;
-  }
+  // (removed unused formatDate)
 
   // Fetch albums when artist or group changes
   useEffect(() => {
@@ -244,6 +233,58 @@ export default function ArtistConcertsPage() {
         console.error("Error fetching Discogs profile:", err);
       });
   }, [artistName]);
+
+  // Fetch user's long-term top tracks and find #1 track for this artist
+  const [topTrackLastYear, setTopTrackLastYear] = useState(null);
+  const [topTrackTimeRange, setTopTrackTimeRange] = useState(null); // 'long_term' | 'medium_term' | 'short_term'
+  const [loadingTopTrack, setLoadingTopTrack] = useState(false);
+  const [topTrackError, setTopTrackError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!spotifyId && !selectedArtist?.name) return;
+      setLoadingTopTrack(true);
+      setTopTrackError('');
+      setTopTrackTimeRange(null);
+      const endpoints = [
+        { url: 'http://127.0.0.1:8000/last-12-months', range: 'long_term' },
+        { url: 'http://127.0.0.1:8000/last-6-months', range: 'medium_term' },
+        { url: 'http://127.0.0.1:8000/last-4-weeks', range: 'short_term' },
+      ];
+      let found = null;
+      let foundRange = null;
+      for (const { url, range } of endpoints) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const data = await res.json();
+          const tracks = data?.tracks || [];
+          const match = tracks.find(t => (t?.artists || []).some(a => a?.id === spotifyId || (selectedArtist?.name && a?.name?.toLowerCase() === selectedArtist.name.toLowerCase())));
+          if (match) {
+            found = match;
+            foundRange = range;
+            break;
+          }
+        } catch (_) {
+          // Ignore and try next range
+        }
+      }
+      if (cancelled) return;
+      if (found) {
+        setTopTrackLastYear(found);
+        setTopTrackTimeRange(foundRange);
+        setTopTrackError('');
+      } else {
+        setTopTrackLastYear(null);
+        setTopTrackTimeRange(null);
+        setTopTrackError('No top song found for this artist in your top tracks.');
+      }
+      setLoadingTopTrack(false);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [spotifyId, selectedArtist?.name]);
 
   // Retry function for API calls (same as concerts page)
   const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
@@ -656,6 +697,88 @@ export default function ArtistConcertsPage() {
             </div>
           </div>
 
+          {/* Top track last year card */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 12
+          }}>
+            {loadingTopTrack && (
+              <div style={{ color: '#b3b3b3', fontSize: '0.95rem' }}>Loading your top {selectedArtist?.name} song…</div>
+            )}
+            {!loadingTopTrack && topTrackLastYear && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                background: '#181c24',
+                padding: 18,
+                borderRadius: 12,
+                width: isMobile ? '95%' : '80vw',
+                maxWidth: isMobile ? '95%' : '80vw',
+                minWidth: 320,
+                boxShadow: '0 2px 16px #0004'
+              }}>
+                {topTrackLastYear?.album?.images?.[0]?.url && (
+                  <img
+                    src={topTrackLastYear.album.images[0].url}
+                    alt={topTrackLastYear.name}
+                    style={{ width: isMobile ? 56 : 72, height: isMobile ? 56 : 72, borderRadius: 8, objectFit: 'cover' }}
+                  />
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ color: '#b3b3b3', fontSize: isMobile ? 12 : 14 }}>
+                    {topTrackTimeRange === 'long_term' && `Your most listened ${selectedArtist?.name} song last year`}
+                    {topTrackTimeRange === 'medium_term' && `Your most listened ${selectedArtist?.name} song in the last 6 months`}
+                    {topTrackTimeRange === 'short_term' && `Your most listened ${selectedArtist?.name} song in the last month`}
+                  </span>
+                  <span style={{ color: '#fff', fontWeight: 800, fontSize: isMobile ? 16 : 20 }}>{topTrackLastYear.name}</span>
+                </div>
+                <button
+                  onClick={() => window.open(`https://open.spotify.com/track/${topTrackLastYear.id}`, '_blank', 'noopener,noreferrer')}
+                  style={{
+                    marginLeft: 'auto',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: isMobile ? 48 : 56,
+                    height: isMobile ? 48 : 56,
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    background: '#1db954',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 20px rgba(29, 185, 84, 0.4)',
+                    position: 'relative'
+                  }}>
+                    <div style={{
+                      width: 0,
+                      height: 0,
+                      borderLeft: `${isMobile ? 8 : 10}px solid #fff`,
+                      borderTop: `${isMobile ? 6 : 7}px solid transparent`,
+                      borderBottom: `${isMobile ? 6 : 7}px solid transparent`,
+                      marginLeft: 2
+                    }} />
+                  </div>
+                </button>
+              </div>
+            )}
+            {!loadingTopTrack && !topTrackLastYear && topTrackError && (
+              <div style={{ color: '#f87171', fontSize: '0.95rem' }}>{topTrackError}</div>
+            )}
+          </div>
+
           {/* About (Discogs profile) block - show above albums if exists */}
           {discogsProfile && (
             <div style={{
@@ -694,8 +817,6 @@ export default function ArtistConcertsPage() {
                 // Drastically smaller font size for "About:" heading on mobile
                 fontSize: isMobile ? 16 : 22
               }}>About:</strong>
-
-                 <strong className={styles.aboutHeading}>About:</strong>
               <div 
                 className={`${styles.bioTextContainer} ${!isBioExpanded && discogsProfile.length > BIO_TRUNCATE_LENGTH ? styles.collapsed : ''}`}
               >
