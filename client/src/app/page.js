@@ -1544,72 +1544,6 @@ const handleExploreContributions = async (track) => {
                   }
                 }
                 
-                /* Even smaller for very small screens */
-                @media (max-width: 480px) {
-                  .profileContainer > div {
-                    min-height: 100px !important;
-                    padding: 6px !important;
-                    margin: 2px auto !important;
-                    max-width: 65% !important;
-                    width: 65% !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > img {
-                    width: 32px !important;
-                    height: 32px !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > div {
-                    font-size: 0.8rem !important;
-                  }
-                  
-                  .reportTitle {
-                    font-size: 0.95rem !important;
-                  }
-                  
-                  .reportSubtitle {
-                    font-size: 0.65rem !important;
-                  }
-                  
-                  .responsive-container button {
-                    font-size: 0.6rem !important;
-                    padding: 4px 8px !important;
-                    min-width: 80px !important;
-                  }
-                  
-                  /* Time Range button and dropdown buttons */
-                  .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.6rem !important;
-                    padding: 6px 12px !important;
-                    min-width: 120px !important;
-                    min-height: 30px !important;
-                    font-weight: 600 !important;
-                  }
-                  
-                  .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 0.55rem !important;
-                    padding: 3px 6px !important;
-                  }
-                  
-                  // .responsive-container .actionButtons button {
-                  //   font-size: 0.55rem !important;
-                  //   padding: 3px 6px !important;
-                  // }
-                  
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 0.8rem !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.55rem !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) button {
-                    font-size: 0.6rem !important;
-                    padding: 4px 12px !important;
-                  }
-                }
-                
                 /* Ultra compact for phones */
                 @media (max-width: 360px) {
                   .profileContainer > div {
@@ -1998,49 +1932,59 @@ const handleExploreContributions = async (track) => {
           >
             ×
           </span>
-          <div style={{
-            fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
-            fontWeight: 900,
-            color: '#f3f3f3',
-            letterSpacing: 1,
-            textShadow: '0 2px 8px #0008',
-            marginBottom: 24,
-          }}>Your Playlists</div>
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 'clamp(18px, 3vw, 36px)',
-            justifyContent: 'flex-start',
-            alignItems: 'flex-start',
-            width: '100%',
-            minHeight: 120,
-          }}>
+                     <div 
+             style={{
+               fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
+               fontWeight: 900,
+               color: '#f3f3f3',
+               letterSpacing: 1,
+               textShadow: '0 2px 8px #0008',
+               marginBottom: 24,
+             }}
+           >
+             Your Playlists
+           </div>
+           
+
+          <div 
+            className="playlist-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 'clamp(18px, 3vw, 36px)',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              width: '100%',
+              minHeight: 120,
+            }}
+          >
             {playlists.map((playlist, idx) => {
               const palette = ['#7c6fc9','#b86b4b','#4b8bb8','#000000','#c92b2b','#f7f7c2','#1db954','#f87171','#fbbf24','#818cf8'];
               const color = palette[idx % palette.length];
               return (
-                <div
-                  key={playlist.id || playlist.name || idx}
-                  style={{
-                    background: '#181818',
-                    borderRadius: 16,
-                    boxShadow:
-                      hoveredPlaylistIndex === idx
-                        ? `0 0 32px 4px ${color}88, 0 2px 16px #0006`
-                        : '0 2px 12px #0004',
-                    padding: 'clamp(14px, 2.5vw, 22px)',
-                    minWidth: 'clamp(150px, 26vw, 200px)',
-                    maxWidth: 'clamp(160px, 28vw, 240px)',
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    marginBottom: 16,
-                    transition: 'box-shadow 0.18s, transform 0.18s',
-                    cursor: playlist.external_urls?.spotify ? 'pointer' : 'default',
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
+                                    <div
+                      key={playlist.id || playlist.name || idx}
+                      className="playlist-node"
+                      style={{
+                        background: '#181818',
+                        borderRadius: 16,
+                        boxShadow:
+                          hoveredPlaylistIndex === idx
+                            ? `0 0 32px 4px ${color}88, 0 2px 16px #0006`
+                            : '0 2px 12px #0004',
+                        padding: 'clamp(16px, 2.5vw, 22px)',
+                        minWidth: 'clamp(160px, 24vw, 200px)',
+                        maxWidth: 'clamp(180px, 26vw, 240px)',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        marginBottom: 16,
+                        transition: 'box-shadow 0.18s, transform 0.18s',
+                        cursor: playlist.external_urls?.spotify ? 'pointer' : 'default',
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}
                   onClick={() => {
                     if (playlist.external_urls?.spotify) {
                       window.open(playlist.external_urls.spotify, '_blank');
@@ -2056,55 +2000,22 @@ const handleExploreContributions = async (track) => {
                         position: 'absolute',
                         inset: 0,
                         zIndex: 1,
-                        background: 'rgba(24,24,24,0.32)',
-                        backdropFilter: 'blur(2.5px)',
-                        WebkitBackdropFilter: 'blur(2.5px)',
+                        background: 'rgba(16,16,16,0.7)',
+                        backdropFilter: 'blur(4px)',
+                        WebkitBackdropFilter: 'blur(4px)',
                         borderRadius: 16,
                         pointerEvents: 'none',
                       }}
                     />
                   )}
-                  {/* More Options SVG button (top right) */}
+                  {/* Action buttons - show directly on hover */}
                   {hoveredPlaylistIndex === idx && (
-                    <button
-                      style={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 12,
-                        background: 'rgba(32,32,32,0.85)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: 28,
-                        height: 28,
-                        fontSize: 18,
-                        fontWeight: 900,
-                        cursor: 'pointer',
-                        zIndex: 3,
-                        boxShadow: '0 2px 8px #0004',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 0,
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setOpenDropdownIndex(openDropdownIndex === idx ? null : idx);
-                      }}
-                      onMouseEnter={() => setOpenDropdownIndex(idx)}
-                      onMouseLeave={() => setOpenDropdownIndex(null)}
-                      title="More options"
-                    >
-                      +
-                    </button>
-                  )}
-                  {/* Dropdown menu */}
-                  {openDropdownIndex === idx && (
                     <div
                       style={{
                         position: 'absolute',
-                        top: 34,
-                        right: 0,
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
                         background: '#232323',
                         borderRadius: 10,
                         boxShadow: '0 2px 16px #0003',
@@ -2115,65 +2026,71 @@ const handleExploreContributions = async (track) => {
                         flexDirection: 'column',
                         gap: 4,
                       }}
-                      onMouseEnter={() => setOpenDropdownIndex(idx)}
-                      onMouseLeave={() => setOpenDropdownIndex(null)}
                     >
                       <button
+                        className="playlist-action-btn"
                         style={{
-                          background: 'none',
+                          background: '#2a2a2a',
                           color: '#fff',
                           border: 'none',
-                          borderRadius: 6,
-                          fontWeight: 700,
-                          fontSize: '0.92rem',
-                          padding: '6px 12px',
-                          lineHeight: 1.1,
-                          textAlign: 'left',
+                          borderRadius: 12,
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          padding: '12px 20px',
+                          lineHeight: 1.2,
+                          textAlign: 'center',
                           cursor: 'pointer',
-                          transition: 'background 0.18s, color 0.18s',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                          minWidth: '100px',
                         }}
                         onClick={e => {
                           e.stopPropagation();
-                          setOpenDropdownIndex(null);
                           handleAnalyzeNewGenres(playlist);
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.background = '#404040';
-                          e.currentTarget.style.color = '#fff';
+                          e.currentTarget.style.background = '#3a3a3a';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.background = 'none';
-                          e.currentTarget.style.color = '#fff';
+                          e.currentTarget.style.background = '#2a2a2a';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
                         }}
                       >
                         Genres
                       </button>
                       <button
+                        className="playlist-action-btn"
                         style={{
-                          background: 'none',
+                          background: '#2a2a2a',
                           color: '#fff',
                           border: 'none',
-                          borderRadius: 6,
-                          fontWeight: 700,
-                          fontSize: '0.92rem',
-                          padding: '6px 12px',
-                          lineHeight: 1.1,
-                          textAlign: 'left',
+                          borderRadius: 12,
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          padding: '12px 20px',
+                          lineHeight: 1.2,
+                          textAlign: 'center',
                           cursor: 'pointer',
-                          transition: 'background 0.18s, color 0.18s',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                          minWidth: '100px',
                         }}
                         onClick={e => {
                           e.stopPropagation();
-                          setOpenDropdownIndex(null);
                           handleAnalyzeNewArtists(playlist);
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.background = '#404040';
-                          e.currentTarget.style.color = '#fff';
+                          e.currentTarget.style.background = '#3a3a3a';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.background = 'none';
-                          e.currentTarget.style.color = '#fff';
+                          e.currentTarget.style.background = '#3a3a3a';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
                         }}
                       >
                         Artists
@@ -2185,51 +2102,156 @@ const handleExploreContributions = async (track) => {
                     <img
                       src={playlist.images[0].url}
                       alt={playlist.name}
-                      style={{
-                        width: 'clamp(120px, 16vw, 180px)',
-                        height: 'clamp(120px, 16vw, 180px)',
-                        borderRadius: 10,
-                        objectFit: 'cover',
-                        marginBottom: 16,
-                        background: '#232323',
-                        boxShadow: '0 2px 8px #0003',
-                      }}
+                                              style={{
+                          width: 'clamp(120px, 14vw, 160px)',
+                          height: 'clamp(120px, 14vw, 160px)',
+                          borderRadius: 10,
+                          objectFit: 'cover',
+                          marginBottom: 16,
+                          background: '#232323',
+                          boxShadow: '0 2px 8px #0003',
+                        }}
                     />
                   ) : (
-                    <div style={{
-                      width: 'clamp(120px, 16vw, 180px)',
-                      height: 'clamp(120px, 16vw, 180px)',
-                      borderRadius: 10,
-                      background: color,
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 900,
-                      fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
-                      marginBottom: 16,
-                      boxShadow: '0 2px 8px #0003',
-                      textTransform: 'uppercase',
-                      letterSpacing: 2,
-                    }}>{playlist.name?.split(' ')[0]?.slice(0,8) || '?'}</div>
+                                          <div style={{
+                        width: 'clamp(120px, 14vw, 160px)',
+                        height: 'clamp(120px, 14vw, 160px)',
+                        borderRadius: 10,
+                        background: color,
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 900,
+                        fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
+                        marginBottom: 16,
+                        boxShadow: '0 2px 8px #0003',
+                        textTransform: 'uppercase',
+                        letterSpacing: 2,
+                      }}>{playlist.name?.split(' ')[0]?.slice(0,8) || '?'}</div>
                   )}
                   {/* Playlist name */}
-                  <div style={{
-                    fontWeight: 800,
-                    fontSize: 'clamp(1.15rem, 1.5vw, 1.35rem)',
-                    color: '#fff',
-                    marginBottom: 8,
-                    textAlign: 'center',
-                    width: '100%',
-                    textShadow: '0 2px 8px #0008',
-                  }}>{playlist.name}</div>
+                  <div 
+                    className="playlist-name"
+                    style={{
+                      fontWeight: 800,
+                      fontSize: 'clamp(1.35rem, 1.5vw, 1.35rem)',
+                      color: '#fff',
+                      marginBottom: 8,
+                      textAlign: 'center',
+                      width: '100%',
+                      textShadow: '0 2px 8px #0008',
+                    }}
+                  >{playlist.name}</div>
                   {/* Track count and duration */}
-                  <div style={{
-                    color: '#b3b3b3',
-                    fontSize: 'clamp(1rem, 1.2vw, 1.12rem)',
-                    marginBottom: 0,
-                    textAlign: 'center',
-                  }}>{playlist.trackCount} tracks • {playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h ${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</div>
+                  <div 
+                    className="playlist-details"
+                    style={{
+                      color: '#b3b3b3',
+                      fontSize: 'clamp(1.12rem, 1.2vw, 1.12rem)',
+                      marginBottom: 0,
+                      textAlign: 'center',
+                    }}
+                  >{playlist.trackCount} tracks • {playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h ${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</div>
+                  
+                  {/* Responsive text sizing CSS */}
+                  <style jsx>{`
+                    @media (max-width: 1000px) {
+                      .playlist-name {
+                        font-size: 0.9rem !important;
+                      }
+                      .playlist-details {
+                        font-size: 0.75rem !important;
+                      }
+                    }
+                    
+                    /* Below 750px - make nodes smaller to fit more */
+                    @media (max-width: 750px) {
+                      .playlist-node {
+                        min-width: 120px !important;
+                        max-width: 140px !important;
+                        padding: 12px !important;
+                      }
+                      
+                      .playlist-node img {
+                        width: 80px !important;
+                        height: 80px !important;
+                        margin-bottom: 12px !important;
+                      }
+                      
+                      .playlist-name {
+                        font-size: 0.85rem !important;
+                        margin-bottom: 6px !important;
+                      }
+                      
+                      .playlist-details {
+                        font-size: 0.7rem !important;
+                      }
+                      
+                      /* Adjust grid for smaller nodes */
+                      .playlist-grid {
+                        gap: 12px !important;
+                        grid-template-columns: repeat(4, 1fr) !important;
+                        justify-content: center !important;
+                      }
+                    }
+                    
+                    /* Below 600px - even smaller nodes */
+                    @media (max-width: 600px) {
+                      .playlist-node {
+                        min-width: 120px !important;
+                        max-width: 140px !important;
+                        padding: 10px !important;
+                      }
+                      
+                      .playlist-node img {
+                        width: 80px !important;
+                        height: 80px !important;
+                        margin-bottom: 10px !important;
+                      }
+                      
+                      .playlist-name {
+                        font-size: 0.8rem !important;
+                        margin-bottom: 4px !important;
+                      }
+                      
+                      .playlist-details {
+                        font-size: 0.65rem !important;
+                      }
+                      
+                      .playlist-grid {
+                        gap: 8px !important;
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        justify-content: center !important;
+                      }
+                    }
+                    
+                    @media (min-width: 501px) and (max-width: 900px) {
+                      .playlist-grid {
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        gap: 20px !important;
+                      }
+                      .playlist-node {
+                        min-width: 180px !important;
+                        max-width: 200px !important;
+                      }
+                    }
+                    
+                    @media (min-width: 901px) {
+                      .playlist-grid {
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        gap: 24px !important;
+                        justify-content: center !important;
+                      }
+                      .playlist-node {
+                        min-width: 200px !important;
+                        max-width: 240px !important;
+                      }
+                    }
+                  `}</style>
+                  
+
+                  
                   {/* Play SVG button (bottom center) */}
                   {hoveredPlaylistIndex === idx && (
                         <a
@@ -2267,6 +2289,8 @@ const handleExploreContributions = async (track) => {
               );
             })}
           </div>
+
+
         </div>
       )}
             </div>
@@ -2595,6 +2619,8 @@ const handleExploreContributions = async (track) => {
               <ContributorFinder mbid={selectedTrackForContributors.mbid} />
           </StyledModal>
       )}
+      
+
     </main>
       </div>
     </div>

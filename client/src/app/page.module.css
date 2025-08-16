@@ -1495,7 +1495,7 @@ body, .main {
   }
 
   /* Target the cover art images inside the table */
-  .resultsCard :global(img) {
+  .resultsCard :global(td img) {
     width: 32px !important;
     height: 32px !important;
     border-radius: 6px !important;
