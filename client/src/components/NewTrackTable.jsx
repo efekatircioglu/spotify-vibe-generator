@@ -22,6 +22,33 @@ function useIsMobile(breakpoint = 680) {
 }
 
 export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [] }) {
+  // Helper function to format listening time
+  const formatListeningTime = (playedAt) => {
+    if (!playedAt) return '--';
+    
+    const playedDate = new Date(playedAt);
+    const now = new Date();
+    const diffMs = now - playedDate;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffHours < 1) {
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      return `${diffMinutes}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    } else {
+      return playedDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  };
+
   const router = useRouter();
   const [showWrapped, setShowWrapped] = useState(false);
   const [tableKey, setTableKey] = useState(0);
@@ -699,7 +726,14 @@ if (isMobile) {
                 >
                   {track.album?.name || track.album}
                 </div>
-                <div style={{ color: '#b3b3b3', fontSize: 12 }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')} • {track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</div>
+                <div style={{ color: '#b3b3b3', fontSize: 12 }}>
+                  {track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')} • {track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}
+                  {playlistKey === 'last50' && track.played_at && (
+                    <span style={{ marginLeft: '8px' }}>
+                      • {formatListeningTime(track.played_at)}
+                    </span>
+                  )}
+                </div>
               </div>
               {/* 3rd Column: Actions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', position: 'relative' }}>
@@ -980,6 +1014,9 @@ if (isMobile) {
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Artist</th>
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Album</th>
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Year</th>
+                {playlistKey === 'last50' && (
+                  <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Listened At</th>
+                )}
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Duration</th>
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Analyze</th>
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Play</th>
@@ -1076,6 +1113,11 @@ if (isMobile) {
                     {track.album?.name || track.album}
                   </td>
                   <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')}</td>
+                  {playlistKey === 'last50' && (
+                    <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>
+                      {track.played_at ? formatListeningTime(track.played_at) : '--'}
+                    </td>
+                  )}
                   <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
                   <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{/* Analyze button remains as is for now */}
                     <div style={{ position: 'relative', display: 'inline-block' }}>

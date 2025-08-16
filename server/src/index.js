@@ -141,7 +141,7 @@ app.get('/recent-tracks', async (req, res) => {
         artistGenres[artist.id] = artist.genres && artist.genres.length > 0 ? artist.genres[0] : null;
       });
     }
-    // Map to array of { name, artist, uri, album, release_year, album_image, duration_ms, id, genre }
+    // Map to array of { name, artist, uri, album, release_year, album_image, duration_ms, id, genre, played_at }
     const tracks = body.items.map(item => ({
       name: item.track.name,
       artist: item.track.artists.map(a => a.name).join(', '),
@@ -151,7 +151,8 @@ app.get('/recent-tracks', async (req, res) => {
       album_image: item.track.album.images && item.track.album.images.length > 0 ? item.track.album.images[0].url : '',
       duration_ms: item.track.duration_ms,
       id: item.track.id,
-      genre: item.track.artists && item.track.artists[0] && artistGenres[item.track.artists[0].id] ? artistGenres[item.track.artists[0].id] : 'Unknown'
+      genre: item.track.artists && item.track.artists[0] && artistGenres[item.track.artists[0].id] ? artistGenres[item.track.artists[0].id] : 'Unknown',
+      played_at: item.played_at // Add the timestamp when the track was played
     }));
     res.json({ tracks });
   } catch (err) {
