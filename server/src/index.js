@@ -206,6 +206,7 @@ app.get('/playlist-genres/:id', async (req, res) => {
   try {
     const playlistId = req.params.id;
     if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
+    
     // Fetch all tracks in the playlist (handle >100 tracks if needed)
     let allTracks = [];
     let offset = 0;
@@ -220,23 +221,87 @@ app.get('/playlist-genres/:id', async (req, res) => {
       allTracks = allTracks.concat(tracksBody.items);
       offset += 100;
     }
-    // Get the first artist ID for each track
-    const artistIds = allTracks.map(item => item.track && item.track.artists && item.track.artists[0] && item.track.artists[0].id).filter(Boolean);
-    // Fetch artist genres in batches of 50 (Spotify API limit)
+    
+    // Get all artist IDs from all tracks (including multiple artists per track)
+    let artistTrackMap = new Map(); // artistId -> { tracks: [], genres: [] }
+    
+    allTracks.forEach((item, trackIndex) => {
+      if (item.track && item.track.artists) {
+        item.track.artists.forEach(artist => {
+          if (artist && artist.id) {
+            if (!artistTrackMap.has(artist.id)) {
+              artistTrackMap.set(artist.id, {
+                name: artist.name,
+                tracks: [],
+                genres: []
+              });
+            }
+            artistTrackMap.get(artist.id).tracks.push({
+              name: item.track.name,
+              id: item.track.id,
+              uri: item.track.uri,
+              album: item.track.album?.name || 'Unknown Album',
+              duration_ms: item.track.duration_ms || 0,
+              release_date: item.track.album?.release_date || null
+            });
+          }
+        });
+      }
+    });
+    
+    const artistIds = Array.from(artistTrackMap.keys());
+    
+    // Fetch artist details and genres in batches of 50 (Spotify API limit)
     let genres = {};
+    let genreDetails = {};
+    
     for (let i = 0; i < artistIds.length; i += 50) {
       const batch = artistIds.slice(i, i + 50);
       const { body } = await spotifyApi.getArtists(batch);
+      
       body.artists.forEach(artist => {
-        const genre = artist.genres && artist.genres.length > 0 ? artist.genres[0] : null;
-        if (genre) {
-          genres[genre] = (genres[genre] || 0) + 1;
-        } else {
-          genres['Unknown'] = (genres['Unknown'] || 0) + 1;
+        const artistData = artistTrackMap.get(artist.id);
+        if (artistData) {
+          // Update artist data with full details
+          artistData.spotifyId = artist.id;
+          artistData.popularity = artist.popularity;
+          artistData.images = artist.images;
+          artistData.genres = artist.genres;
+          
+          // Only process artists that have valid genres
+          if (artist.genres && artist.genres.length > 0) {
+            const primaryGenre = artist.genres[0];
+            
+            // Count for genres object
+            genres[primaryGenre] = (genres[primaryGenre] || 0) + 1;
+            
+            // Build detailed breakdown for genreDetails
+            if (!genreDetails[primaryGenre]) {
+              genreDetails[primaryGenre] = {
+                count: 0,
+                artists: []
+              };
+            }
+            
+            genreDetails[primaryGenre].count += 1;
+            genreDetails[primaryGenre].artists.push({
+              name: artist.name,
+              id: artist.id,
+              spotifyId: artist.id,
+              popularity: artist.popularity,
+              images: artist.images,
+              tracks: artistData.tracks
+            });
+          }
+          // Skip artists without genres - they won't be counted or included
         }
       });
     }
-    res.json({ genres });
+    
+    res.json({ 
+      genres,
+      genreDetails 
+    });
   } catch (err) {
     console.error('Error analyzing playlist genres:', err);
     res.status(500).json({ error: 'Failed to analyze playlist genres' });
@@ -283,6 +348,7 @@ app.get('/playlist-artists/:id', async (req, res) => {
   try {
     const playlistId = req.params.id;
     if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
+    
     // Fetch all tracks in the playlist (handle >100 tracks if needed)
     let allTracks = [];
     let offset = 0;
@@ -297,18 +363,45 @@ app.get('/playlist-artists/:id', async (req, res) => {
       allTracks = allTracks.concat(tracksBody.items);
       offset += 100;
     }
-    // Count songs per artist (all artists per track)
+    
+    // Build detailed artist breakdown with track information
     let artists = {};
+    let artistDetails = {};
+    
     allTracks.forEach(item => {
       if (item.track && item.track.artists) {
         item.track.artists.forEach(artist => {
           if (artist && artist.name) {
+            // Count for artists object
             artists[artist.name] = (artists[artist.name] || 0) + 1;
+            
+            // Build detailed breakdown for artistDetails
+            if (!artistDetails[artist.name]) {
+              artistDetails[artist.name] = {
+                count: 0,
+                tracks: [],
+                spotifyId: artist.id
+              };
+            }
+            
+            artistDetails[artist.name].count += 1;
+            artistDetails[artist.name].tracks.push({
+              name: item.track.name,
+              id: item.track.id,
+              uri: item.track.uri,
+              album: item.track.album?.name || 'Unknown Album',
+              duration_ms: item.track.duration_ms || 0,
+              release_date: item.track.album?.release_date || null
+            });
           }
         });
       }
     });
-    res.json({ artists });
+    
+    res.json({ 
+      artists,
+      artistDetails 
+    });
   } catch (err) {
     console.error('Error analyzing playlist artists:', err);
     res.status(500).json({ error: 'Failed to analyze playlist artists' });
@@ -911,6 +1004,80 @@ app.get('/spotify/search-artists', async (req, res) => {
     res.status(500).json({ error: 'Failed to search artists' });
   }
 });
+
+// Enhanced artist search endpoint for navigation (called from frontend)
+app.get('/api/artist-search-navigate', async (req, res) => {
+  const { artistName } = req.query;
+  if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
+  
+  try {
+    console.log(`[Artist Search Navigate] Searching for artist: ${artistName}`);
+    
+    // 1. Search Spotify for the artist
+    const { body } = await spotifyApi.searchArtists(artistName, { limit: 5 });
+    const spotifyArtists = body.artists.items;
+    
+    if (spotifyArtists.length === 0) {
+      console.log(`[Artist Search Navigate] No Spotify artists found for: ${artistName}`);
+      return res.json({ 
+        success: false, 
+        message: 'No artists found',
+        params: [`name=${encodeURIComponent(artistName)}`]
+      });
+    }
+    
+    // Get the most relevant artist (first result)
+    const bestMatch = spotifyArtists[0];
+    console.log(`[Artist Search Navigate] Best match: ${bestMatch.name} (ID: ${bestMatch.id})`);
+    
+    // 2. Try to get Ticketmaster ID for concerts
+    let ticketmasterId = null;
+    try {
+      const ticketmasterData = await ticketmasterService.searchArtist(artistName);
+      if (ticketmasterData._embedded?.attractions) {
+        const exactMatch = ticketmasterData._embedded.attractions.find(
+          a => a.name.toLowerCase() === artistName.toLowerCase()
+        );
+        if (exactMatch) {
+          ticketmasterId = exactMatch.id;
+          console.log(`[Artist Search Navigate] Found Ticketmaster ID: ${ticketmasterId}`);
+        }
+      }
+    } catch (ticketmasterErr) {
+      console.log(`[Artist Search Navigate] Ticketmaster search failed:`, ticketmasterErr.message);
+    }
+    
+    // 3. Build navigation parameters
+    const params = [`name=${encodeURIComponent(artistName)}`];
+    
+    if (bestMatch.id) {
+      params.push(`spotifyId=${encodeURIComponent(bestMatch.id)}`);
+    }
+    
+    if (ticketmasterId) {
+      params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
+    }
+    
+    console.log(`[Artist Search Navigate] Navigation params: ${params.join('&')}`);
+    
+    res.json({ 
+      success: true,
+      artist: bestMatch,
+      ticketmasterId,
+      params: params,
+      navigationUrl: `/artist?${params.join('&')}`
+    });
+    
+  } catch (err) {
+    console.error(`[Artist Search Navigate] Error searching for artist ${artistName}:`, err);
+    res.status(500).json({ 
+      error: 'Failed to search artist',
+      fallbackParams: [`name=${encodeURIComponent(artistName)}`]
+    });
+  }
+});
+
+
 
 // Search artists on Ticketmaster
 app.get('/ticketmaster/search-artist', async (req, res) => {

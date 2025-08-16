@@ -10,14 +10,43 @@ import UserProfile from '../components/UserProfile';
 import ArtistSearch from '../components/ArtistSearch';
 import ConcertsList from '../components/ConcertsList';
 
-import { StyledModal, StyledAnalysisChart } from '../components/Charts';
+
 import ContributorFinder from '../components/ContributorFinder';
+import GenreLeaderboardChart from '../components/GenreLeaderboardChart';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 
 
 
 
 export default function Home() {
+  /*
+   * MOBILE DETECTION & PLAYLIST CONTROLS
+   * 
+   * This app automatically detects if the user is on a mobile device or desktop:
+   * 
+   * 1. Screen Size Detection: Devices with width <= 768px are considered small screens
+   * 2. Touch Capability Detection: Checks if device supports touch events
+   * 3. Pointer Capability Detection: Checks if device has fine pointer (mouse) vs coarse pointer (touch)
+   * 
+   * Mobile devices are identified as:
+   * - Small screens (<= 768px) OR
+   * - Devices with touch but no mouse
+   * 
+   * On mobile devices:
+   * - Playlist controls (Genres, Artists, Play buttons) are hidden by default
+   * - Tapping a playlist shows controls for 3 seconds
+   * - Controls automatically hide after 3 seconds
+   * 
+   * On desktop devices:
+   * - Playlist controls appear on hover
+   * - No automatic hiding
+   * 
+   * Usage:
+   * - Use `isMobile` state variable to check current device type
+   * - Use `isDeviceMobile()` function for real-time device detection
+   * - Use `mobilePlaylistControlsIndex` to track which playlist controls are visible
+   */
+  
   const [fetchingMbidForTrackId, setFetchingMbidForTrackId] = useState(null);
 
   const [user, setUser] = useState(null);
@@ -31,9 +60,6 @@ export default function Home() {
   const [selectedSongMetrics, setSelectedSongMetrics] = useState(null);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [genreAnalysis, setGenreAnalysis] = useState(null);
-  const [showGenreModal, setShowGenreModal] = useState(false);
-  const [genreChartStart, setGenreChartStart] = useState(0);
-  const GENRES_PER_PAGE = 7;
   const [analyzingPlaylistId, setAnalyzingPlaylistId] = useState(null);
   const [isAnalyzingRecents, setIsAnalyzingRecents] = useState(false);
   const [isAnalyzingPlaylists, setIsAnalyzingPlaylists] = useState(false);
@@ -52,9 +78,6 @@ export default function Home() {
   const [showSongsTable, setShowSongsTable] = useState(false);
   const [showPlaylistsTable, setShowPlaylistsTable] = useState(true);
   const [artistAnalysis, setArtistAnalysis] = useState(null);
-  const [showArtistModal, setShowArtistModal] = useState(false);
-  const [artistChartStart, setArtistChartStart] = useState(0);
-  const ARTISTS_PER_PAGE = 7;
   const [analyzingArtistPlaylistId, setAnalyzingArtistPlaylistId] = useState(null);
   const [topData, setTopData] = useState(null);
   const [showTopModal, setShowTopModal] = useState(false);
@@ -92,6 +115,49 @@ export default function Home() {
   const [timeRangeDropdownOpen, setTimeRangeDropdownOpen] = useState(false);
   const [timeRangeDropdownPosition, setTimeRangeDropdownPosition] = useState({ top: 0, left: 0 });
   const timeRangeButtonRef = useRef(null);
+  
+  // Mobile playlist controls state
+  const [mobilePlaylistControlsIndex, setMobilePlaylistControlsIndex] = useState(null);
+  const mobileControlsTimerRef = useRef(null);
+
+  // Mobile detection state
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Handle mobile playlist press to show controls for 3 seconds
+  const handleMobilePlaylistPress = (idx) => {
+    // Clear any existing timer
+    if (mobileControlsTimerRef.current) {
+      clearTimeout(mobileControlsTimerRef.current);
+    }
+    
+    // Show controls
+    setMobilePlaylistControlsIndex(idx);
+    
+    // Add haptic feedback on mobile devices (if supported)
+    if (navigator.vibrate && isMobile) {
+      navigator.vibrate(50); // Short vibration
+    }
+    
+    // Hide controls after 3 seconds
+    mobileControlsTimerRef.current = setTimeout(() => {
+      setMobilePlaylistControlsIndex(null);
+    }, 3000);
+  };
+
+  // Utility function to check if device is mobile (can be used throughout the app)
+  const isDeviceMobile = () => {
+    // Check screen width
+    const isSmallScreen = window.innerWidth <= 768;
+    
+    // Check for touch capabilities
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // Check for pointer capabilities (mouse vs touch)
+    const hasMouse = window.matchMedia('(pointer: fine)').matches;
+    
+    // Consider mobile if small screen OR has touch but no mouse
+    return isSmallScreen || (hasTouch && !hasMouse);
+  };
 
   const handleAnalyzeNewGenres = async (playlist) => {
     try {
@@ -99,11 +165,12 @@ export default function Home() {
         const res = await fetch(`http://127.0.0.1:8000/playlist-genres/${playlist.id}`);
         if (!res.ok) throw new Error('Failed to analyze playlist genres');
         const data = await res.json();
-        const formattedData = Object.entries(data.genres).map(([name, count]) => ({
-            name: name,
-            'Number of Songs': count,
-        }));
-        setNewGenreAnalysis({ name: playlist.name, genres: formattedData });
+        // GenreLeaderboardChart expects: { genreName: count, ... }
+        setNewGenreAnalysis({ 
+            name: playlist.name, 
+            genres: data.genres,
+            genreDetails: data.genreDetails || {}
+        });
         setShowNewGenreModal(true);
     } catch (error) {
         alert('Could not analyze playlist genres. Please try again.');
@@ -118,11 +185,12 @@ const handleAnalyzeNewArtists = async (playlist) => {
         const res = await fetch(`http://127.0.0.1:8000/playlist-artists/${playlist.id}`);
         if (!res.ok) throw new Error('Failed to analyze playlist artists');
         const data = await res.json();
-        const formattedData = Object.entries(data.artists).map(([name, count]) => ({
-            name: name,
-            'Number of Songs': count,
-        }));
-        setNewArtistAnalysis({ name: playlist.name, artists: formattedData });
+        // GenreLeaderboardChart expects: { artistName: count, ... }
+        setNewArtistAnalysis({ 
+            name: playlist.name, 
+            artists: data.artists,
+            artistDetails: data.artistDetails || {}
+        });
         setShowNewArtistModal(true);
     } catch (error) {
         alert('Could not analyze playlist artists. Please try again.');
@@ -289,12 +357,11 @@ const handleExploreContributions = async (track) => {
   const handleAnalyzeGenres = async (playlist) => {
     try {
       setAnalyzingPlaylistId(playlist.id);
-      setGenreChartStart(0);
       const res = await fetch(`http://127.0.0.1:8000/playlist-genres/${playlist.id}`);
       if (!res.ok) throw new Error('Failed to analyze playlist genres');
       const data = await res.json();
       setGenreAnalysis({ name: playlist.name, genres: data.genres });
-      setShowGenreModal(true);
+      // Don't show the old modal - let the GenreLeaderboardChart appear in the main page
     } catch (error) {
       alert('Could not analyze playlist genres. Please try again.');
     } finally {
@@ -306,12 +373,15 @@ const handleExploreContributions = async (track) => {
   const handleAnalyzeArtists = async (playlist) => {
     try {
       setAnalyzingArtistPlaylistId(playlist.id);
-      setArtistChartStart(0);
       const res = await fetch(`http://127.0.0.1:8000/playlist-artists/${playlist.id}`);
       if (!res.ok) throw new Error('Failed to analyze playlist artists');
       const data = await res.json();
-      setArtistAnalysis({ name: playlist.name, artists: data.artists });
-      setShowArtistModal(true);
+      setArtistAnalysis({ 
+        name: playlist.name, 
+        artists: data.artists,
+        artistDetails: data.artistDetails || {}
+      });
+      // Don't show the old modal - let the GenreLeaderboardChart appear in the main page
     } catch (error) {
       alert('Could not analyze playlist artists. Please try again.');
     } finally {
@@ -319,33 +389,7 @@ const handleExploreContributions = async (track) => {
     }
   };
 
-  // Helper for paginated genres
-  const getPaginatedGenres = () => {
-    if (!genreAnalysis) return { labels: [], data: [] };
-    const allLabels = Object.keys(genreAnalysis.genres);
-    const allData = Object.values(genreAnalysis.genres).map(v => Math.round(v));
-    const start = genreChartStart;
-    const end = Math.min(start + GENRES_PER_PAGE, allLabels.length);
-    return {
-      labels: allLabels.slice(start, end),
-      data: allData.slice(start, end),
-      total: allLabels.length
-    };
-  };
 
-  // Helper for paginated artists
-  const getPaginatedArtists = () => {
-    if (!artistAnalysis) return { labels: [], data: [] };
-    const allLabels = Object.keys(artistAnalysis.artists);
-    const allData = Object.values(artistAnalysis.artists).map(v => Math.round(v));
-    const start = artistChartStart;
-    const end = Math.min(start + ARTISTS_PER_PAGE, allLabels.length);
-    return {
-      labels: allLabels.slice(start, end),
-      data: allData.slice(start, end),
-      total: allLabels.length
-    };
-  };
 
   const handleConcertSearch = async (artistNameParam) => {
     setConcertError('');
@@ -424,6 +468,57 @@ const handleExploreContributions = async (track) => {
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
+  }, []);
+  
+  // Cleanup mobile controls timer on unmount
+  useEffect(() => {
+    return () => {
+      if (mobileControlsTimerRef.current) {
+        clearTimeout(mobileControlsTimerRef.current);
+      }
+    };
+  }, []);
+  
+  // Enhanced mobile detection effect
+  useEffect(() => {
+    const checkMobile = () => {
+      // Check screen width
+      const isSmallScreen = window.innerWidth <= 768;
+      
+      // Check for touch capabilities
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      
+      // Check for pointer capabilities (mouse vs touch)
+      const hasMouse = window.matchMedia('(pointer: fine)').matches;
+      
+      // Consider mobile if small screen OR has touch but no mouse
+      const isMobileDevice = isSmallScreen || (hasTouch && !hasMouse);
+      
+      setIsMobile(isMobileDevice);
+      
+      // Log for debugging
+      console.log('Mobile detection:', {
+        screenWidth: window.innerWidth,
+        isSmallScreen,
+        hasTouch,
+        hasMouse,
+        isMobileDevice
+      });
+    };
+    
+    // Check on mount
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Add orientation change listener for mobile devices
+    window.addEventListener('orientationchange', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('orientationchange', checkMobile);
+    };
   }, []);
 
   const handleSearchInputFocus = () => {
@@ -1948,6 +2043,18 @@ const handleExploreContributions = async (track) => {
                        width: '100%',
                        minHeight: 120,
                      }}>
+            {/* 
+             * PLAYLIST GRID WITH MOBILE SUPPORT
+             * 
+             * Desktop: Controls appear on hover
+             * Mobile: Controls appear on tap for 3 seconds
+             * 
+             * Each playlist shows:
+             * - Cover image or colored placeholder
+             * - Name and track count
+             * - Overlay with Genres, Artists, and Play buttons
+             * - Mobile indicator showing "3s" countdown
+             */}
             {playlists.map((playlist, idx) => {
               const palette = ['#7c6fc9','#b86b4b','#4b8bb8','#000000','#c92b2b','#f7f7c2','#1db954','#f87171','#fbbf24','#818cf8'];
               const color = palette[idx % palette.length];
@@ -1964,6 +2071,12 @@ const handleExploreContributions = async (track) => {
                         overflow: 'hidden',
                       }}
                   onClick={() => {
+                    // Handle mobile press to show controls (only on mobile)
+                    if (isMobile) {
+                      handleMobilePlaylistPress(idx);
+                    }
+                    
+                    // Open Spotify playlist if available
                     if (playlist.external_urls?.spotify) {
                       window.open(playlist.external_urls.spotify, '_blank');
                     }
@@ -2011,7 +2124,8 @@ const handleExploreContributions = async (track) => {
                       fontWeight: 700,
                       fontSize: '0.875rem',
                       color: '#fff',
-                      marginBottom: 4,
+                      marginTop: 8,
+                      marginBottom: 8,
                       textAlign: 'left',
                       width: '100%',
                       overflow: 'hidden',
@@ -2023,6 +2137,9 @@ const handleExploreContributions = async (track) => {
                       fontSize: '0.75rem',
                       marginBottom: 0,
                       textAlign: 'left',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}>{playlist.trackCount} tracks • {playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h ${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</p>
                   </div>
                   
@@ -2030,15 +2147,17 @@ const handleExploreContributions = async (track) => {
                   <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center rounded-md overlay" style={{
                     position: 'absolute',
                     inset: 0,
-                    background: 'rgba(0, 0, 0, 0.5)',
+                    background: mobilePlaylistControlsIndex === idx ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 6,
-                    opacity: hoveredPlaylistIndex === idx ? 1 : 0,
+                    opacity: (hoveredPlaylistIndex === idx || mobilePlaylistControlsIndex === idx) ? 1 : 0,
                     transition: 'opacity 0.3s ease',
-                    pointerEvents: hoveredPlaylistIndex === idx ? 'auto' : 'none',
+                    pointerEvents: (hoveredPlaylistIndex === idx || mobilePlaylistControlsIndex === idx) ? 'auto' : 'none',
+                    // Add a subtle glow effect when mobile controls are active
+                    boxShadow: mobilePlaylistControlsIndex === idx ? '0 0 20px rgba(29, 185, 84, 0.3)' : 'none',
                   }}>
                     <button 
                       className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
@@ -2048,8 +2167,8 @@ const handleExploreContributions = async (track) => {
                         border: 'none',
                         borderRadius: '9999px',
                         fontWeight: 600,
-                        fontSize: '0.75rem',
-                        padding: '4px 12px',
+                        fontSize: isMobile ? '0.9rem' : '0.75rem',
+                        padding: isMobile ? '8px 16px' : '4px 12px',
                         marginBottom: 8,
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
@@ -2069,8 +2188,8 @@ const handleExploreContributions = async (track) => {
                         border: 'none',
                         borderRadius: '9999px',
                         fontWeight: 600,
-                        fontSize: '0.75rem',
-                        padding: '4px 12px',
+                        fontSize: isMobile ? '0.9rem' : '0.75rem',
+                        padding: isMobile ? '8px 16px' : '4px 12px',
                         marginBottom: 8,
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
@@ -2088,8 +2207,8 @@ const handleExploreContributions = async (track) => {
                       rel="noopener noreferrer"
                       className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center transform transition-transform duration-200 hover:scale-110"
                       style={{
-                        width: 40,
-                        height: 40,
+                        width: isMobile ? 48 : 40,
+                        height: isMobile ? 48 : 40,
                         background: '#1db954',
                         borderRadius: '50%',
                         display: 'flex',
@@ -2102,29 +2221,37 @@ const handleExploreContributions = async (track) => {
                       title="Play on Spotify"
                       onClick={e => e.stopPropagation()}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 20, height: 20, color: '#000' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: isMobile ? 24 : 20, height: isMobile ? 24 : 20, color: '#000' }}>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3l14 9-14 9V3z" />
                       </svg>
                     </a>
+                    
+
                   </div>
                   
-                  {/* Responsive text sizing CSS */}
-                  <style jsx>{`
-                    @media (max-width: 1000px) {
-                      .playlist-name {
-                        font-size: 0.9rem !important;
+                    {/* Responsive text sizing CSS */}
+                    <style jsx>{`
+                      @keyframes pulse {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.1); }
+                        100% { transform: scale(1); }
                       }
-                      .playlist-details {
-                        font-size: 0.75rem !important;
+                      
+                      @media (max-width: 1000px) {
+                        .playlist-name {
+                          font-size: 0.9rem !important;
+                        }
+                        .playlist-details {
+                          font-size: 0.75rem !important;
+                        }
                       }
-                    }
-                    
-                    /* Below 750px - make nodes smaller to fit more */
-                    @media (max-width: 750px) {
-                      .playlist-node {
-                        min-width: 120px !important;
-                        max-width: 140px !important;
-                        padding: 12px !important;
+                      
+                      /* Below 750px - make nodes smaller to fit more */
+                      @media (max-width: 750px) {
+                        .playlist-node {
+                          min-width: 120px !important;
+                          max-width: 140px !important;
+                          padding: 12px !important;
                       }
                       
                       .playlist-node img {
@@ -2288,6 +2415,34 @@ const handleExploreContributions = async (track) => {
       )}
             </div>
           </div>
+
+          {/* Genre Analysis Results - Displayed directly in main page */}
+          {genreAnalysis && (
+            <div style={{ marginTop: '40px', marginBottom: '40px', position: 'relative' }}>
+              <GenreLeaderboardChart
+                genres={genreAnalysis.genres}
+                title={`Genre Analysis for ${genreAnalysis.name}`}
+                timeRange=""
+                genreDetails={{}}
+                mainArtistsData={[]}
+                onClose={() => setGenreAnalysis(null)}
+              />
+            </div>
+          )}
+
+          {/* Artist Analysis Results - Displayed directly in main page */}
+          {artistAnalysis && (
+            <div style={{ marginTop: '40px', marginBottom: '40px', position: 'relative' }}>
+              <GenreLeaderboardChart
+                genres={artistAnalysis.artists}
+                title={`Artist Analysis for ${artistAnalysis.name}`}
+                timeRange=""
+                genreDetails={artistAnalysis.artistDetails || {}}
+                mainArtistsData={[]}
+                onClose={() => setArtistAnalysis(null)}
+              />
+            </div>
+          )}
       {/* Metrics Modal Overlay */}
       {showMetricsModal && selectedSongMetrics && (
         <div className={styles.metricsModalOverlay} onClick={() => setShowMetricsModal(false)}>
@@ -2307,130 +2462,8 @@ const handleExploreContributions = async (track) => {
           </div>
         </div>
       )}
-      {/* Genre Analysis Modal Overlay */}
-      {showGenreModal && genreAnalysis && (
-        <div className={styles.metricsModalOverlay} onClick={() => setShowGenreModal(false)}>
-          <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
-            <h2>Genre Analysis for <span style={{color:'#1db954'}}>{genreAnalysis.name}</span></h2>
-            <div className={styles.chartScrollContainer}>
-              <button
-                className={styles.chartNavButton}
-                onClick={() => setGenreChartStart(Math.max(0, genreChartStart - GENRES_PER_PAGE))}
-                disabled={genreChartStart === 0}
-                style={{ marginRight: 16 }}
-              >
-                &#8592;
-              </button>
-              <div style={{ flex: 1, minWidth: 600 }}>
-                <Line
-                  data={{
-                    labels: getPaginatedGenres().labels,
-                    datasets: [
-                      {
-                        label: 'Number of Songs',
-                        data: getPaginatedGenres().data,
-                        borderColor: '#1db954',
-                        backgroundColor: 'rgba(30,185,84,0.2)',
-                        tension: 0.3,
-                        fill: true,
-                        pointBackgroundColor: '#1db954',
-                        pointBorderColor: '#fff',
-                        pointRadius: 5,
-                      }
-                    ]
-                  }}
-                  options={{
-                    responsive: true,
-                    plugins: {
-                      legend: { display: false },
-                      title: { display: false },
-                    },
-                    scales: {
-                      x: {
-                        title: { display: true, text: 'Genre' },
-                        ticks: { maxRotation: 0, minRotation: 0, autoSkip: false, padding: 10 },
-                        grid: { display: false },
-                      },
-                      y: { title: { display: true, text: 'Number of Songs' }, beginAtZero: true, precision: 0 }
-                    }
-                  }}
-                />
-              </div>
-              <button
-                className={styles.chartNavButton}
-                onClick={() => setGenreChartStart(Math.min(getPaginatedGenres().total - GENRES_PER_PAGE, genreChartStart + GENRES_PER_PAGE))}
-                disabled={genreChartStart + GENRES_PER_PAGE >= getPaginatedGenres().total}
-                style={{ marginLeft: 16 }}
-              >
-                &#8594;
-              </button>
-            </div>
-            <button className={styles.closeModalButton} onClick={() => setShowGenreModal(false)}>Close</button>
-          </div>
-        </div>
-      )}
-      {/* Artist Analysis Modal Overlay */}
-      {showArtistModal && artistAnalysis && (
-        <div className={styles.metricsModalOverlay} onClick={() => setShowArtistModal(false)}>
-          <div className={styles.metricsModal} onClick={e => e.stopPropagation()}>
-            <h2>Artist Analysis for <span style={{color:'#1db954'}}>{artistAnalysis.name}</span></h2>
-            <div className={styles.chartScrollContainer}>
-              <button
-                className={styles.chartNavButton}
-                onClick={() => setArtistChartStart(Math.max(0, artistChartStart - ARTISTS_PER_PAGE))}
-                disabled={artistChartStart === 0}
-                style={{ marginRight: 16 }}
-              >
-                &#8592;
-              </button>
-              <div style={{ flex: 1, minWidth: 600 }}>
-                <Line
-                  data={{
-                    labels: getPaginatedArtists().labels,
-                    datasets: [
-                      {
-                        label: 'Number of Songs',
-                        data: getPaginatedArtists().data,
-                        borderColor: '#1db954',
-                        backgroundColor: 'rgba(30,185,84,0.2)',
-                        tension: 0.3,
-                        fill: true,
-                        pointBackgroundColor: '#1db954',
-                        pointBorderColor: '#fff',
-                        pointRadius: 5,
-                      }
-                    ]
-                  }}
-                  options={{
-                    responsive: true,
-                    plugins: {
-                      legend: { display: false },
-                      title: { display: false },
-                    },
-                    scales: {
-                      x: {
-                        title: { display: true, text: 'Artist' },
-                        ticks: { maxRotation: 0, minRotation: 0, autoSkip: false, padding: 10 },
-                        grid: { display: false },
-                      },
-                      y: { title: { display: true, text: 'Number of Songs' }, beginAtZero: true, precision: 0 }
-                    }
-                  }}
-                />
-              </div>
-              <button
-                className={styles.chartNavButton}
-                onClick={() => setArtistChartStart(Math.min(getPaginatedArtists().total - ARTISTS_PER_PAGE, artistChartStart + ARTISTS_PER_PAGE))}
-                disabled={artistChartStart + ARTISTS_PER_PAGE >= getPaginatedArtists().total}
-                style={{ marginLeft: 16 }}
-              >
-                &#8594;
-              </button>
-            </div>
-            <button className={styles.closeModalButton} onClick={() => setShowArtistModal(false)}>Close</button>
-          </div>
-        </div>
-      )}
+
+
       {/* Top Data Modal */}
       {showTopModal && (
         <div className={styles.metricsModalOverlay} onClick={() => setShowTopModal(false)}>
@@ -2574,43 +2607,126 @@ const handleExploreContributions = async (track) => {
 
             {/* New Artist Analysis Modal */}
       {showNewArtistModal && newArtistAnalysis && (
-          <StyledModal
-              isOpen={showNewArtistModal}
-              onClose={() => setShowNewArtistModal(false)}
-              title={`Artist Analysis for ${newArtistAnalysis.name}`}
-          >
-              <StyledAnalysisChart
-                  data={newArtistAnalysis.artists}
-                  xAxisKey="name"
-                  yAxisLabel="Number of Songs"
-              />
-          </StyledModal>
+          <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1000,
+              padding: '20px'
+          }}>
+
+
+                  {/* Use GenreLeaderboardChart component for artists */}
+                  <GenreLeaderboardChart
+                      genres={newArtistAnalysis.artists}
+                      title={`Artist Analysis for ${newArtistAnalysis.name}`}
+                      timeRange=""
+                      genreDetails={newArtistAnalysis.artistDetails || {}}
+                      mainArtistsData={[]}
+                      onClose={() => setShowNewArtistModal(false)}
+                  />
+          </div>
       )}
 
       {/* New Genre Analysis Modal */}
       {showNewGenreModal && newGenreAnalysis && (
-          <StyledModal
-              isOpen={showNewGenreModal}
-              onClose={() => setShowNewGenreModal(false)}
-              title={`Genre Analysis for ${newGenreAnalysis.name}`}
-          >
-              <StyledAnalysisChart
-                  data={newGenreAnalysis.genres}
-                  xAxisKey="name"
-                  yAxisLabel="Number of Songs"
-              />
-          </StyledModal>
+          <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1000,
+              padding: '20px'
+          }}>
+
+
+                  {/* Use GenreLeaderboardChart component for genres */}
+                  <GenreLeaderboardChart
+                      genres={newGenreAnalysis.genres}
+                      title={`Genre Analysis for ${newGenreAnalysis.name}`}
+                      timeRange=""
+                      genreDetails={newGenreAnalysis.genreDetails || {}}
+                      mainArtistsData={[]}
+                      onClose={() => setShowNewGenreModal(false)}
+                  />
+          </div>
       )}
 
       {/* Add the Contributor Modal here */}
       {showContributorModal && selectedTrackForContributors && (
-          <StyledModal
-              isOpen={showContributorModal}
-              onClose={() => setShowContributorModal(false)}
-              title={`Contributors for ${selectedTrackForContributors.name}`}
-          >
-              <ContributorFinder mbid={selectedTrackForContributors.mbid} />
-          </StyledModal>
+          <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1000,
+              padding: '20px'
+          }}>
+              <div style={{
+                  background: '#1e1e1e',
+                  borderRadius: 18,
+                  padding: '24px',
+                  maxWidth: 'min(95vw, 800px)',
+                  width: '100%',
+                  maxHeight: '90vh',
+                  overflow: 'auto',
+                  boxShadow: '0 8px 32px #0006',
+                  position: 'relative'
+              }}>
+                  {/* Close button */}
+                  <button
+                      onClick={() => setShowContributorModal(false)}
+                      style={{
+                          position: 'absolute',
+                          top: '16px',
+                          right: '16px',
+                          background: 'none',
+                          border: 'none',
+                          color: '#a0a0a0',
+                          fontSize: '24px',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          borderRadius: '4px',
+                          transition: 'all 0.2s',
+                          zIndex: 10
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                      ×
+                  </button>
+
+                  {/* Modal title */}
+                  <h2 style={{
+                      color: '#f3f3f3',
+                      fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
+                      fontWeight: '700',
+                      marginBottom: '24px',
+                      textAlign: 'center'
+                  }}>
+                      Contributors for {selectedTrackForContributors.name}
+                  </h2>
+
+                  {/* Contributor content */}
+                  <ContributorFinder mbid={selectedTrackForContributors.mbid} />
+              </div>
+          </div>
       )}
       
 

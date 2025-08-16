@@ -1,33 +1,317 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Line, Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+// Shared utility function for navigating to artist page with server-side search
+const navigateToArtistPage = async (router, artistName, genreDetails) => {
+  try {
+    console.log(`[View Full Profile] Searching for artist: ${artistName}`);
+    
+    // Make server-side API call for enhanced artist search
+    const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`[View Full Profile] Server search successful for: ${artistName}`, data);
+        
+        // Navigate using server-provided parameters
+        router.push(data.navigationUrl);
+        return;
+      } else {
+        console.log(`[View Full Profile] Server search failed for: ${artistName}`, data.message);
+      }
+    } else {
+      console.log(`[View Full Profile] Server search failed for: ${artistName}`, response.status);
+    }
+  } catch (error) {
+    console.error(`[View Full Profile] Error during server search for: ${artistName}`, error);
+  }
+  
+  // Fallback to basic navigation if server search fails
+  console.log(`[View Full Profile] Using fallback navigation for: ${artistName}`);
+  
+  const params = [`name=${encodeURIComponent(artistName)}`];
+  
+  // Try to get spotifyId from genreDetails if available
+  if (genreDetails && genreDetails[artistName]) {
+    const spotifyId = genreDetails[artistName].spotifyId;
+    if (spotifyId) {
+      params.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+    }
+  }
+  
+  // Check localStorage for ticketmasterId
+  try {
+    const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
+    const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+    if (cachedArtist?.ticketmasterId) {
+      params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+    }
+  } catch (err) {
+    console.log('Error checking localStorage cache:', err);
+  }
+  
+  // Navigate to artist page
+  router.push(`/artist?${params.join('&')}`);
+};
+
+// Artist Songs Modal Component
+function ArtistSongsModal({ isOpen, onClose, artist, artistCount, songs, loading, genreDetails, mainArtistsData }) {
+  const router = useRouter();
+  
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.8)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    }}>
+      <div style={{
+        background: '#1e1e1e',
+        borderRadius: '18px',
+        padding: '32px',
+        maxWidth: '800px',
+        width: '100%',
+        maxHeight: '80vh',
+        overflow: 'hidden',
+        position: 'relative',
+        border: '1px solid rgba(34, 202, 123, 0.3)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+      }}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'transparent',
+            border: 'none',
+            color: '#ffffff',
+            fontSize: '24px',
+            cursor: 'pointer',
+            padding: '8px',
+            borderRadius: '50%',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = 'transparent';
+          }}
+        >
+          ✕
+        </button>
+
+        {/* Title */}
+        <div style={{
+          fontSize: '2rem',
+          fontWeight: '700',
+          color: '#ffffff',
+          marginBottom: '8px',
+          textAlign: 'center'
+        }}>
+          Songs by {artist}
+        </div>
+
+        {/* Subtitle */}
+        <div style={{
+          fontSize: '1rem',
+          color: '#a0a0a0',
+          marginBottom: '24px',
+          textAlign: 'center'
+        }}>
+          {songs.length} tracks from playlist
+        </div>
+
+        {/* Songs Table */}
+        <div style={{
+          maxHeight: '400px',
+          overflowY: 'auto',
+          border: '1px solid rgba(34, 202, 123, 0.2)',
+          borderRadius: '12px',
+          background: '#2a2a2a'
+        }}>
+          {loading ? (
+            <div style={{
+              padding: '40px',
+              textAlign: 'center',
+              color: '#a0a0a0'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                border: '3px solid #22ca7b',
+                borderTop: '3px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto 16px'
+              }} />
+              Loading songs...
+            </div>
+          ) : songs.length > 0 ? (
+            <>
+              {/* Table Header */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '3fr 2fr 1fr 1fr',
+                gap: '16px',
+                padding: '16px 20px',
+                background: 'rgba(34, 202, 123, 0.15)',
+                borderBottom: '1px solid rgba(34, 202, 123, 0.3)',
+                fontWeight: '600',
+                color: '#ffffff',
+                fontSize: '0.9rem'
+              }}>
+                <div>Song Name</div>
+                <div>Album</div>
+                <div>Year</div>
+                <div>Duration</div>
+              </div>
+
+              {/* Table Body */}
+              <div style={{
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}>
+                {songs.map((song, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '3fr 2fr 1fr 1fr',
+                      gap: '16px',
+                      padding: '16px 20px',
+                      borderBottom: index < songs.length - 1 ? '1px solid rgba(34, 202, 123, 0.1)' : 'none',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(34, 202, 123, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{
+                      color: '#ffffff',
+                      fontWeight: '500',
+                      fontSize: '0.95rem'
+                    }}>
+                      {song.name}
+                    </div>
+                    <div style={{
+                      color: '#a0a0a0',
+                      fontSize: '0.9rem'
+                    }}>
+                      {song.album}
+                    </div>
+                    <div style={{
+                      color: '#a0a0a0',
+                      fontSize: '0.9rem',
+                      textAlign: 'center'
+                    }}>
+                      {song.year}
+                    </div>
+                    <div style={{
+                      color: '#a0a0a0',
+                      fontSize: '0.9rem',
+                      textAlign: 'center'
+                    }}>
+                      {song.duration}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{
+              padding: '40px',
+              textAlign: 'center',
+              color: '#a0a0a0'
+            }}>
+              No songs found for this artist.
+            </div>
+          )}
+        </div>
+
+        {/* Summary and Actions */}
+        <div style={{
+          marginTop: '20px',
+          padding: '16px 20px',
+          background: 'rgba(34, 202, 123, 0.1)',
+          borderRadius: '12px',
+          border: '1px solid rgba(34, 202, 123, 0.2)',
+          textAlign: 'center'
+        }}>
+          <div style={{ color: '#a0a0a0', fontSize: '0.9rem', marginBottom: '16px' }}>
+            <strong style={{ color: '#ffffff' }}>Total Songs:</strong> {songs.length}
+          </div>
+          
+          {/* Action Buttons */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={async () => {
+                // Navigate to artist page using the shared function with server-side search
+                await navigateToArtistPage(router, artist, genreDetails);
+                onClose(); // Close the modal after navigation
+              }}
+              style={{
+                padding: '10px 20px',
+                background: 'rgba(34, 202, 123, 0.2)',
+                border: '1px solid rgba(34, 202, 123, 0.4)',
+                borderRadius: '8px',
+                color: '#22ca7b',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(34, 202, 123, 0.3)';
+                e.target.style.borderColor = 'rgba(34, 202, 123, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(34, 202, 123, 0.2)';
+                e.target.style.borderColor = 'rgba(34, 202, 123, 0.4)';
+              }}
+            >
+              🎵 View Full Artist Profile
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Genre Artists Modal Component
 function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genreDetails, mainArtistsData }) {
   const router = useRouter();
-  const [loadingArtist, setLoadingArtist] = useState(null);
+
+
+
 
   // Lock/unlock body scroll when modal opens/closes
   useEffect(() => {
@@ -70,188 +354,9 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
     };
   }, [isOpen]);
 
-  // Helper to get ticketmasterId from localStorage
-  function getTicketmasterIdFromLocalStorage(artistName) {
-    try {
-      const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-      const found = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-      return found?.ticketmasterId || null;
-    } catch {
-      return null;
-    }
-  }
 
-  // Helper to update ticketmasterId in localStorage
-  function updateTicketmasterIdInLocalStorage(artistName, ticketmasterId, artistObj) {
-    try {
-      let recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-      let foundIdx = recents.findIndex(a => a.name.toLowerCase() === artistName.toLowerCase());
-      // Always build the full structure
-      const entry = {
-        name: artistName,
-        spotifyId: artistObj.spotifyId || artistObj.id || null,
-        image: artistObj.image || (artistObj.images && artistObj.images[0] && artistObj.images[0].url) || null,
-        ticketmasterId: ticketmasterId || null,
-      };
-      if (foundIdx !== -1) {
-        recents[foundIdx] = entry;
-      } else {
-        recents.unshift(entry);
-      }
-      localStorage.setItem('recent_artist_searches', JSON.stringify(recents));
-    } catch {}
-  }
 
-  // Handle artist click with the same logic as TopArtistsTable
-  const handleArtistClick = async (artist, artistName) => {
-    console.log('[GenreArtistsModal] Clicked artist:', artistName);
-    const params = [`name=${encodeURIComponent(artistName)}`];
-    
-    // Get artist object from genreDetails
-    const artistObj = genreDetails?.[genre]?.artists?.find(a => a.name === artistName);
-    console.log('[GenreArtistsModal] Artist object from genreDetails:', artistObj);
-    
-    // Try to get spotifyId from multiple sources
-    let spotifyId = artistObj?.spotifyId || artistObj?.id;
-    
-    // If no spotifyId found, try to find it in the main data
-    if (!spotifyId && mainArtistsData) {
-      console.log('[GenreArtistsModal] No spotifyId found in genreDetails, checking main data...');
-      console.log('[GenreArtistsModal] Main artists data available:', mainArtistsData?.length || 0, 'artists');
-      
-      // Try exact match first
-      let mainArtist = mainArtistsData.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-      
-      // If no exact match, try partial match
-      if (!mainArtist) {
-        console.log('[GenreArtistsModal] No exact match, trying partial match...');
-        mainArtist = mainArtistsData.find(a => 
-          a.name.toLowerCase().includes(artistName.toLowerCase()) || 
-          artistName.toLowerCase().includes(a.name.toLowerCase())
-        );
-      }
-      
-      // If still no match, try fuzzy matching (check if names are similar)
-      if (!mainArtist) {
-        console.log('[GenreArtistsModal] No partial match, trying fuzzy match...');
-        mainArtist = mainArtistsData.find(a => {
-          const nameA = a.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const nameB = artistName.toLowerCase().replace(/[^a-z0-9]/g, '');
-          return nameA === nameB || 
-                 nameA.includes(nameB) || 
-                 nameB.includes(nameA);
-        });
-      }
-      
-      if (mainArtist) {
-        spotifyId = mainArtist.spotifyId || mainArtist.id;
-        console.log('[GenreArtistsModal] Found spotifyId in main data:', spotifyId, 'for artist:', mainArtist.name);
-      } else {
-        console.log('[GenreArtistsModal] No match found in main data for:', artistName);
-        console.log('[GenreArtistsModal] Available artists in main data:', mainArtistsData.map(a => a.name).slice(0, 10));
-      }
-    }
-    
-    // If still no spotifyId, try to search for the artist by name
-    if (!spotifyId) {
-      console.log('[GenreArtistsModal] No spotifyId found in any data, attempting to search for artist...');
-      try {
-        // Try to find artist in localStorage first
-        const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-        const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-        if (cachedArtist?.spotifyId) {
-          spotifyId = cachedArtist.spotifyId;
-          console.log('[GenreArtistsModal] Found spotifyId in localStorage cache:', spotifyId);
-        }
-      } catch (err) {
-        console.log('[GenreArtistsModal] Error checking localStorage cache:', err);
-      }
-    }
-    
-    if (spotifyId) {
-      params.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
-      console.log('[GenreArtistsModal] Added spotifyId to params:', spotifyId);
-    } else {
-      console.log('[GenreArtistsModal] No spotifyId available for:', artistName);
-      console.log('[GenreArtistsModal] Will proceed with name-only navigation');
-    }
-    
-    // 1. Check localStorage for ticketmasterId
-    console.log('[GenreArtistsModal] Checking localStorage for ticketmasterId for:', artistName);
-    let ticketmasterId = getTicketmasterIdFromLocalStorage(artistName) || artistObj?.ticketmasterId;
-    
-    if (ticketmasterId) {
-      console.log('[GenreArtistsModal] Found ticketmasterId in localStorage:', ticketmasterId);
-      params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
-      console.log('[GenreArtistsModal] Navigating to /artist with params:', params.join('&'));
-      router.push(`/artist?${params.join('&')}`);
-      return;
-    }
-    
-    // 2. If not found, fetch it and show spinner
-    console.log('[GenreArtistsModal] ticketmasterId not found in localStorage, fetching from server for:', artistName);
-    setLoadingArtist(artistName);
-    
-    try {
-      const backendBase = 'http://127.0.0.1:8000';
-      const res = await fetch(`${backendBase}/concerts/artist-search?name=${encodeURIComponent(artistName)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const attractions = data?._embedded?.attractions || [];
-        const exact = attractions.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-        if (exact && exact.id) {
-          ticketmasterId = exact.id;
-          params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
-          console.log('[GenreArtistsModal] Found ticketmasterId from server:', ticketmasterId);
-          // Update localStorage for future
-          updateTicketmasterIdInLocalStorage(artistName, ticketmasterId, artistObj);
-          console.log('[GenreArtistsModal] Updated ticketmasterId in localStorage for:', artistName);
-        } else {
-          console.log('[GenreArtistsModal] No ticketmasterId found from server for:', artistName);
-        }
-      } else {
-        console.log('[GenreArtistsModal] Server returned error for ticketmasterId fetch:', res.status);
-      }
-    } catch (err) {
-      console.log('[GenreArtistsModal] Error fetching ticketmasterId from server:', err);
-    }
-    
-    setLoadingArtist(null);
-    
-    // Final fallback: if we still don't have spotifyId, try to search for it
-    if (!spotifyId) {
-      console.log('[GenreArtistsModal] Attempting final fallback: searching for artist spotifyId...');
-      try {
-        // Make API call to search for artist by name
-        const backendBase = 'http://127.0.0.1:8000';
-        const searchRes = await fetch(`${backendBase}/search-artist?name=${encodeURIComponent(artistName)}`);
-        
-        if (searchRes.ok) {
-          const searchData = await searchRes.json();
-          if (searchData.spotifyId) {
-            spotifyId = searchData.spotifyId;
-            params.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
-            console.log('[GenreArtistsModal] Found spotifyId from backend search:', spotifyId);
-            
-            // Cache this result for future use
-            updateTicketmasterIdInLocalStorage(artistName, null, { 
-              name: artistName, 
-              spotifyId: spotifyId 
-            });
-          } else {
-            console.log('[GenreArtistsModal] Backend search returned no spotifyId');
-          }
-        } else {
-          console.log('[GenreArtistsModal] Backend search failed:', searchRes.status);
-        }
-      } catch (err) {
-        console.log('[GenreArtistsModal] Final fallback error:', err);
-      }
-    }
-    
-    console.log('[GenreArtistsModal] Final navigation params:', params.join('&'));
-    router.push(`/artist?${params.join('&')}`);
-  };
+
 
   if (!isOpen) return null;
 
@@ -341,7 +446,6 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
             }}>
               {artists.map((artistName, index) => {
                 const artistObj = genreDetails?.[genre]?.artists?.find(a => a.name === artistName);
-                const isLoading = loadingArtist === artistName;
                 
                 return (
                   <div
@@ -373,7 +477,103 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    onClick={() => handleArtistClick(artistObj, artistName)}
+                    onClick={async () => {
+                      // Make server-side API call for artist search (just like View Full Artist Profile)
+                      try {
+                        console.log(`[Genre Modal] Searching for artist: ${artistName}`);
+                        
+                        const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          
+                          if (data.success) {
+                            console.log(`[Genre Modal] Server search successful for: ${artistName}`, data);
+                            
+                            // Navigate using server-provided parameters
+                            router.push(data.navigationUrl);
+                          } else {
+                            console.log(`[Genre Modal] Server search failed for: ${artistName}`, data.message);
+                            
+                            // Fallback to basic navigation
+                            const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
+                            
+                            // Try to get spotifyId from genreDetails if available
+                            if (genreDetails && genreDetails[artistName]) {
+                              const spotifyId = genreDetails[artistName].spotifyId;
+                              if (spotifyId) {
+                                fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+                              }
+                            }
+                            
+                            // Check localStorage for ticketmasterId
+                            try {
+                              const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
+                              const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                              if (cachedArtist?.ticketmasterId) {
+                                fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+                              }
+                            } catch (err) {
+                              console.log('Error checking localStorage cache:', err);
+                            }
+                            
+                            router.push(`/artist?${fallbackParams.join('&')}`);
+                          }
+                        } else {
+                          console.log(`[Genre Modal] Server search failed for: ${artistName}`, response.status);
+                          
+                          // Fallback to basic navigation
+                          const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
+                          
+                          // Try to get spotifyId from genreDetails if available
+                          if (genreDetails && genreDetails[artistName]) {
+                            const spotifyId = genreDetails[artistName].spotifyId;
+                            if (spotifyId) {
+                              fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+                            }
+                          }
+                          
+                          // Check localStorage for ticketmasterId
+                          try {
+                            const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
+                            const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                            if (cachedArtist?.ticketmasterId) {
+                              fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+                            }
+                          } catch (err) {
+                            console.log('Error checking localStorage cache:', err);
+                          }
+                          
+                          router.push(`/artist?${fallbackParams.join('&')}`);
+                        }
+                      } catch (error) {
+                        console.error(`[Genre Modal] Error during server search for: ${artistName}`, error);
+                        
+                        // Fallback to basic navigation
+                        const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
+                        
+                        // Try to get spotifyId from genreDetails if available
+                        if (genreDetails && genreDetails[artistName]) {
+                          const spotifyId = genreDetails[artistName].spotifyId;
+                          if (spotifyId) {
+                            fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+                          }
+                        }
+                        
+                        // Check localStorage for ticketmasterId
+                        try {
+                          const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
+                          const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                          if (cachedArtist?.ticketmasterId) {
+                            fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+                          }
+                        } catch (err) {
+                          console.log('Error checking localStorage cache:', err);
+                        }
+                        
+                        router.push(`/artist?${fallbackParams.join('&')}`);
+                      }
+                    }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       {/* Artist image or placeholder */}
@@ -408,25 +608,14 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                       <span>{artistName}</span>
                     </div>
                     
-                    {/* Loading spinner or arrow */}
-                    {isLoading ? (
-                      <div style={{
-                        width: '20px',
-                        height: '20px',
-                        border: '2px solid #22ca7b',
-                        borderTop: '2px solid transparent',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }} />
-                    ) : (
-                      <div style={{
-                        color: '#22ca7b',
-                        fontSize: '18px',
-                        transition: 'transform 0.2s ease'
-                      }}>
-                        →
-                      </div>
-                    )}
+                    {/* Arrow indicator */}
+                    <div style={{
+                      color: '#22ca7b',
+                      fontSize: '18px',
+                      transition: 'transform 0.2s ease'
+                    }}>
+                      →
+                    </div>
                   </div>
                 );
               })}
@@ -484,13 +673,14 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
   );
 }
 
-export default function GenreLeaderboardChart({ genres, title, timeRange, genreDetails, mainArtistsData }) {
-  const chartRef = useRef(null);
-  const leftYAxisLabelsRef = useRef(null);
-  const rightYAxisLabelsRef = useRef(null);
-  const [isMobile, setIsMobile] = useState(false);
+export default function GenreLeaderboardChart({ genres, title, timeRange, genreDetails, mainArtistsData, onClose }) {
+  const router = useRouter();
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [showGenreModal, setShowGenreModal] = useState(false);
+  const [selectedArtist, setSelectedArtist] = useState(null);
+  const [showSongsModal, setShowSongsModal] = useState(false);
+  const [artistSongs, setArtistSongs] = useState([]);
+  const [loadingSongs, setLoadingSongs] = useState(false);
 
   // Handle cases where genres might be undefined, null, or empty
   if (!genres || typeof genres !== 'object' || Object.keys(genres).length === 0) {
@@ -526,22 +716,14 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
   const sortedGenres = Object.entries(genres)
     .sort(([,a], [,b]) => b - a);
 
-  // Calculate dynamic width based on number of genres
-  const spacePerGenre = 120; // pixels per genre, increased for more spacing
-  const totalGenres = sortedGenres.length;
-  const chartWidth = totalGenres * spacePerGenre;
+  // Determine if this is genre or artist data based on title
+  const isGenreData = title.toLowerCase().includes('genre');
+  const isArtistData = title.toLowerCase().includes('artist');
+  const headerLabel = isGenreData ? 'Genre' : isArtistData ? 'Artist' : 'Item';
 
-  // Mobile detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+
+
+
 
   // Handle genre click
   const handleGenreClick = (genre, count) => {
@@ -549,380 +731,87 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
     setShowGenreModal(true);
   };
 
-  // Mobile bar chart data with click events
-  const mobileChartData = {
-    labels: sortedGenres.map(([genre]) => genre),
-    datasets: [{
-      label: 'Number of Artists',
-      data: sortedGenres.map(([, count], index) => count + (index * 0.001)), // Add tiny offset for unique positioning
-      backgroundColor: 'rgba(34, 202, 123, 0.8)', // Same green as desktop
-      borderColor: '#22ca7b', // Same green border as desktop
-      borderWidth: 2,
-      borderRadius: 4,
-      borderSkipped: false,
-    }]
-  };
-
-  // Mobile bar chart options with click events
-  const mobileOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y', // Horizontal bars
-    onClick: (event, elements) => {
-      if (elements.length > 0) {
-        const element = elements[0];
-        const genreIndex = element.index;
-        const genre = sortedGenres[genreIndex][0];
-        const count = sortedGenres[genreIndex][1];
-        handleGenreClick(genre, count);
-      }
-    },
-    onHover: (event, elements) => {
-      // Change cursor to pointer when hovering over bars
-      event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
-    },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: '#000000',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#22ca7b',
-        borderWidth: 1,
-        cornerRadius: 8,
-        displayColors: false,
-        padding: 10,
-        callbacks: {
-          label: function(context) {
-            // Get the actual count without the offset by finding the original data
-            const actualCount = sortedGenres[context.dataIndex]?.[1] || 0;
-            return `Number of Artists: ${actualCount}`;
-          },
-          title: function(context) {
-            const title = context.label;
-            return title ? title.charAt(0).toUpperCase() + title.slice(1) : '';
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
-          drawBorder: false,
-        },
-        ticks: {
-          color: '#a0a0a0',
-          font: { size: 12, weight: '500' },
-          stepSize: 1
-        }
-      },
-      y: {
-        grid: { display: false },
-        ticks: {
-          color: '#a0a0a0',
-          font: { size: 11, weight: '500' },
-          maxRotation: 0,
-          minRotation: 0,
-          //padding: 10,
-        }
-      }
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index',
-      axis: 'y' // Ensure interaction works along Y-axis for horizontal bars
-    },
-    elements: {
-      bar: {
-        borderSkipped: false,
-      }
-    },
-    layout: {
-      padding: {
-        top: 20,
-        bottom: 20
-      }
-    },
-    // Add spacing between bars
-    datasets: {
-      bar: {
-        barPercentage: 0.8, // Increase bar width to 80% for better visibility
-        categoryPercentage: 0.5 // Use 60% of category space for more spacing between bars
-      }
+  // Handle artist click to show songs
+  const handleArtistClick = async (artistName, count) => {
+    setSelectedArtist({ name: artistName, count });
+    setLoadingSongs(true);
+    setShowSongsModal(true);
+    
+    try {
+      // Fetch songs for the artist
+      const songs = await fetchArtistSongs(artistName);
+      setArtistSongs(songs);
+    } catch (error) {
+      console.error('Error fetching artist songs:', error);
+      setArtistSongs([]);
+    } finally {
+      setLoadingSongs(false);
     }
   };
 
-  const chartData = {
-    labels: sortedGenres.map(([genre]) => genre),
-    datasets: [
-      {
-        label: 'Number of Artists',
-        data: sortedGenres.map(([, count]) => count),
-        borderColor: '#22ca7b',
-        backgroundColor: 'rgba(34, 202, 123, 0.1)',
-        tension: 0.4,
-        fill: true,
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#22ca7b',
-        pointHoverBackgroundColor: '#ffffff',
-        pointHoverBorderColor: '#1db954',
-        pointRadius: 5,
-        pointHoverRadius: 8,
-        borderWidth: 3,
-      }
-    ]
+  // Helper function to format duration from milliseconds to MM:SS
+  const formatDuration = (durationMs) => {
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    onClick: (event, elements) => {
-      if (elements.length > 0) {
-        const element = elements[0];
-        const genreIndex = element.index;
-        const genre = sortedGenres[genreIndex][0];
-        const count = sortedGenres[genreIndex][1];
-        handleGenreClick(genre, count);
-      }
-    },
-    plugins: {
-      legend: { 
-        display: false 
-      },
-      title: { 
-        display: false
-      },
-      tooltip: {
-        backgroundColor: '#000000',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#22ca7b',
-        borderWidth: 1,
-        cornerRadius: 8,
-        displayColors: false,
-        padding: 10,
-        callbacks: {
-          label: function(context) {
-            return `Number of Artists: ${context.parsed.y || 0}`;
-          },
-          title: function(context) {
-            const title = context[0].label;
-            return title ? title.charAt(0).toUpperCase() + title.slice(1) : '';
-          }
-        }
-      }
-    },
-    layout: {
-      padding: {
-        left: 0,
-        right: 0,
-        top: 20,
-        bottom: 20
-      }
-    },
-    scales: {
-      x: {
-        title: { 
-          display: false
-        },
-        ticks: { 
-          color: '#a0a0a0',
-          maxRotation: 0,
-          minRotation: 0,
-          autoSkip: false,
-          padding: 10,
-          font: {
-            size: 12,
-            weight: '500'
-          }
-        },
-        grid: { 
-          display: false
-        }
-      },
-      y: { 
-        title: { 
-          display: false
-        },
-        ticks: { 
-          display: false, // Hide default labels since we'll render them externally
-          beginAtZero: true,
-          stepSize: 1
-        },
-        grid: { 
-          color: 'rgba(255, 255, 255, 0.1)',
-          drawBorder: false
-        },
-        min: 0 // Ensure y-axis starts at 0
-      }
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index',
-    },
-    elements: {
-      point: {
-        hoverBorderWidth: 3,
-        radius: 5
-      }
-    }
-  };
-
-  // Custom plugin to render Y-axis labels externally (only for desktop line chart)
-  const yAxisLabelsPlugin = {
-    id: 'yAxisLabelsPlugin',
-    afterDraw: (chart) => {
-      if (isMobile) return; // Don't run on mobile
-      
-      const yAxis = chart.scales.y;
-      const leftLabelsContainer = leftYAxisLabelsRef.current;
-      const rightLabelsContainer = rightYAxisLabelsRef.current;
-      
-      if (!leftLabelsContainer || !rightLabelsContainer) return;
-
-      // Clear previous labels on both sides
-      leftLabelsContainer.innerHTML = '';
-      rightLabelsContainer.innerHTML = '';
-      
-      // For each tick, create labels for both left and right sides
-      yAxis.ticks.forEach((tick, index) => {
-        const pixelY = yAxis.getPixelForTick(index);
+  // Fetch songs for a specific artist from the playlist data
+  const fetchArtistSongs = async (artistName) => {
+    try {
+      // Check if we have the artist data in genreDetails (which contains the playlist data)
+      if (genreDetails && genreDetails[artistName] && genreDetails[artistName].tracks) {
+        console.log(`Found ${genreDetails[artistName].tracks.length} tracks for artist: ${artistName}`);
         
-        // Left side label
-        const leftLabelDiv = document.createElement('div');
-        leftLabelDiv.style.cssText = `
-          position: absolute;
-          right: 2px;
-          top: ${pixelY}px;
-          transform: translateY(-50%);
-          color: #a0a0c0;
-          font-size: 12px;
-          font-weight: 'bold';
-          z-index: 10;
-          pointer-events: none;
-        `;
-        leftLabelDiv.innerText = tick.label;
-        leftLabelsContainer.appendChild(leftLabelDiv);
+        const tracks = genreDetails[artistName].tracks;
         
-        // Right side label
-        const rightLabelDiv = document.createElement('div');
-        rightLabelDiv.style.cssText = `
-          position: absolute;
-          left: 2px;
-          top: ${pixelY}px;
-          transform: translateY(-50%);
-          color: #a0a0c0;
-          font-size: 12px;
-          font-weight: 'bold';
-          z-index: 10;
-          pointer-events: none;
-        `;
-        rightLabelDiv.innerText = tick.label;
-        rightLabelsContainer.appendChild(rightLabelDiv);
-      });
+        // Now we have enhanced track data with album, duration, and release date
+        const songsWithDetails = tracks.map(track => ({
+          name: track.name,
+          id: track.id,
+          uri: track.uri,
+          album: track.album || 'Unknown Album',
+          duration: track.duration_ms ? formatDuration(track.duration_ms) : 'Unknown',
+          year: track.release_date ? track.release_date.split('-')[0] : 'Unknown',
+          release_date: track.release_date || '1900-01-01' // For sorting
+        }));
+        
+        // Sort songs by release date (newest first)
+        return songsWithDetails.sort((a, b) => {
+          if (a.release_date === '1900-01-01' && b.release_date === '1900-01-01') return 0;
+          if (a.release_date === '1900-01-01') return 1; // Unknown dates go to the end
+          if (b.release_date === '1900-01-01') return -1;
+          return new Date(b.release_date) - new Date(a.release_date); // Newest first
+        });
+      } else {
+        console.log(`No track data found for artist: ${artistName}`);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching artist songs:', error);
+      return [];
     }
   };
 
-  // Add the plugin to options
-  options.plugins = {
-    ...options.plugins,
-    yAxisLabelsPlugin
-  };
 
-  // Mobile view - horizontal bar chart
-  if (isMobile) {
-  return (
-      <>
-        <div className="genre-chart-container" style={{
-          background: '#1e1e1e',
-      borderRadius: 18,
-      padding: 'clamp(20px, 3vw, 32px)',
-      margin: 'clamp(20px, 3vw, 32px) auto',
-          maxWidth: 'min(95vw, 1200px)',
-          width: 'min(95vw, 1200px)',
-      boxShadow: '0 4px 32px #0003',
-      position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-    }}>
-      <div className="genre-chart-title" style={{
-        fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
-            fontWeight: 700,
-        color: '#f3f3f3',
-        letterSpacing: 1,
-        textShadow: '0 2px 8px #0008',
-        marginBottom: 16,
-        textAlign: 'center'
-      }}>
-        {title}
-      </div>
-      
-      {/* Click hint - moved above chart */}
-      <div style={{
-        color: '#a0a0a0',
-        fontSize: '0.85rem',
-        textAlign: 'center',
-        marginBottom: 20,
-        padding: '8px 16px',
-        background: 'rgba(34, 202, 123, 0.1)',
-        borderRadius: '8px',
-        border: '1px solid rgba(34, 202, 123, 0.2)'
-      }}>
-        💡 Tap on any genre bar to see the artists
-      </div>
-      
-          {/* Mobile bar chart */}
-      <div style={{
-        width: '100%',
-            height: 'clamp(800px, 90vh, 1200px)',
-            position: 'relative',
-            overflow: 'auto',
-            touchAction: 'pan-y', // Enable vertical scrolling on touch devices
-            WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
-            display: 'flex',
-            justifyContent: 'center'
-          }}>
-            <Bar data={mobileChartData} options={mobileOptions} />
-          </div>
-          
-          {/* Genre stats summary */}
-          <div className="genre-stats-container" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            marginTop: 20,
-            padding: '16px 20px',
-            background: 'rgba(34, 202, 123, 0.1)',
-            borderRadius: 12,
-            border: '1px solid rgba(34, 202, 123, 0.2)'
-          }}>
-            <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
-              <strong style={{ color: '#e5e5e5' }}>Total Genres:</strong> {Object.keys(genres).length}
-            </div>
-            <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
-              <strong style={{ color: '#e5e5e5' }}>Top Genre:</strong> {sortedGenres[0]?.[0] || 'N/A'} ({sortedGenres[0]?.[1] || 0} artists)
-            </div>
-          </div>
-        </div>
 
-        {/* Genre Artists Modal */}
-              <GenreArtistsModal
-        isOpen={showGenreModal}
-        onClose={() => setShowGenreModal(false)}
-        genre={selectedGenre?.name}
-        artistCount={selectedGenre?.count}
-        artists={genreDetails?.[selectedGenre?.name]?.artists?.map(a => a.name) || []}
-        genreDetails={genreDetails}
-        mainArtistsData={mainArtistsData}
-      />
-      </>
-    );
-  }
 
-  // Desktop view - line chart with sticky Y-axis
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // Unified table view - same structure for all screen sizes
   return (
     <>
       <div className="genre-chart-container" style={{
@@ -936,7 +825,8 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center'
+        alignItems: 'center',
+        overflow: 'hidden'
       }}>
         <div className="genre-chart-title" style={{
           fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
@@ -945,9 +835,49 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
           letterSpacing: 1,
           textShadow: '0 2px 8px #0008',
           marginBottom: 24,
-          textAlign: 'center'
+          textAlign: 'center',
+          position: 'relative'
         }}>
           {title}
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                position: 'fixed',
+                top: '20px',
+                right: '20px',
+                background: '#1e1e1e',
+                border: '2px solid #374151',
+                color: '#ffffff',
+                fontSize: '24px',
+                cursor: 'pointer',
+                padding: '12px 16px',
+                borderRadius: '50%',
+                transition: 'all 0.3s ease',
+                zIndex: 1001,
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '48px',
+                minHeight: '48px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#374151';
+                e.target.style.borderColor = '#4b5563';
+                e.target.style.transform = 'scale(1.1)';
+                e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.7)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#1e1e1e';
+                e.target.style.borderColor = '#374151';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
         
         {/* Click hint */}
@@ -961,121 +891,101 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
           borderRadius: '8px',
           border: '1px solid rgba(34, 202, 123, 0.2)'
         }}>
-          💡 Click on any data point to see the artists
+          💡 Click on any {isGenreData ? 'genre' : 'artist'} to explore further
         </div>
         
-        {/* New structure for sticky Y-axis */}
+        {/* Table structure (same as mobile) */}
         <div style={{ 
-          position: 'relative', 
           width: '100%',
-          display: 'flex',
-          justifyContent: 'center'
-        }}>
-          {/* Inner container that centers the Y-axis and chart */}
-          <div style={{
-            display: 'flex',
-            position: 'relative',
-            maxWidth: '100%'
-          }}>
-            {/* Y-Axis Container (Stays Fixed) */}
-            <div style={{ 
-              width: '60px', 
-              flexShrink: 0, 
-              position: 'relative',
-              zIndex: 2
-            }}>
-              {/* Left side - Number of Artists text */}
-              <div style={{
-                position: 'absolute',
-                left: 8,
-                top: '50%',
-                transform: 'translateY(-50%) rotate(180deg)',
-                writingMode: 'vertical-rl',
-                transformOrigin: 'center',
-                color: '#c0c0c0',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                lineHeight: '1.2'
-              }}>
-                Number of Artists
-              </div>
-              {/* Left side Y-axis numbers */}
-              <div 
-                ref={leftYAxisLabelsRef}
-                style={{ 
-                  height: 'clamp(400px, 60vh, 700px)', 
-                  position: 'relative' 
-                }}
-              />
-            </div>
-
-            {/* Chart container with horizontal scrolling */}
-            <div style={{
-              height: 'clamp(400px, 60vh, 700px)',
-              position: 'relative',
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              minWidth: 0
-            }}>
-              <div style={{
-          width: `${chartWidth}px`,
-          height: '100%',
+          maxWidth: '800px',
+          marginBottom: 20,
+          background: '#1e1e1e',
+          borderRadius: '12px',
+          border: '1px solid rgba(34, 202, 123, 0.2)',
+          overflow: 'hidden',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
           position: 'relative'
         }}>
-                <Line 
-                  ref={chartRef}
-                  data={chartData} 
-                  options={options}
-                  plugins={[yAxisLabelsPlugin]}
-                />
-              </div>
-            </div>
-
-            {/* Right side Y-axis numbers container */}
+          {/* Table header */}
+          <div style={{
+            display: 'flex',
+            padding: '16px 20px',
+            background: 'rgba(34, 202, 123, 0.15)',
+            borderBottom: '1px solid rgba(34, 202, 123, 0.3)',
+            fontWeight: '700',
+            fontSize: '1rem',
+            color: '#ffffff'
+          }}>
+            <div style={{ flex: 1, textAlign: 'left' }}>{headerLabel}</div>
+            <div style={{ flex: 0, minWidth: '80px', textAlign: 'center' }}>Count</div>
+          </div>
+          
+          {/* Table body */}
             <div style={{ 
-              width: '40px', 
-              flexShrink: 0, 
-              position: 'relative',
-              zIndex: 2
-            }}>
-              {/* Right side - Number of Artists text */}
-              <div style={{
-                position: 'absolute',
-                right: 8,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                writingMode: 'vertical-rl',
-                transformOrigin: 'center',
-                color: '#c0c0c0',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                lineHeight: '1.2'
-              }}>
-                Number of Artists
-              </div>
-              <div 
-                ref={rightYAxisLabelsRef}
+            maxHeight: sortedGenres.length > 8 ? '400px' : 'auto',
+            overflowY: sortedGenres.length > 8 ? 'auto' : 'visible',
+            overflowX: 'hidden',
+            padding: '8px 0',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#22ca7b #1e1e1e',
+            position: 'relative',
+            WebkitOverflowScrolling: 'touch'
+          }}>
+            {sortedGenres.map(([name, count], index) => (
+              <div
+                key={index}
                 style={{ 
-                  height: 'clamp(400px, 60vh, 700px)', 
-                  position: 'relative' 
+                  display: 'flex',
+                  padding: '12px 20px',
+                  borderBottom: index < sortedGenres.length - 1 ? '1px solid rgba(34, 202, 123, 0.1)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: 'transparent'
                 }}
-              />
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(34, 202, 123, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+                onClick={() => {
+                  if (isGenreData) {
+                    handleGenreClick(name, count);
+                  } else if (isArtistData) {
+                    // For artist analysis, show songs modal
+                    handleArtistClick(name, count);
+                  }
+                }}
+              >
+            <div style={{
+                  flex: 1,
+                  color: '#e5e5e5',
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  textTransform: 'capitalize',
+                  textAlign: 'left'
+                }}>
+                  {name}
+              </div>
+            <div style={{ 
+                  flex: 0,
+                  minWidth: '80px',
+                  color: '#22ca7b',
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  background: 'rgba(34, 202, 123, 0.2)',
+                  padding: '6px 12px',
+                  borderRadius: '16px'
+                }}>
+                  {count}
+              </div>
             </div>
+            ))}
         </div>
       </div>
         
-        {/* Hide scrollbar for cleaner look */}
-        <style jsx>{`
-          .genre-chart-container ::-webkit-scrollbar {
-            display: none;
-          }
-          .genre-chart-container {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-        `}</style>
-      
-      {/* Genre stats summary */}
+        {/* Dynamic stats summary */}
       <div className="genre-stats-container" style={{
         display: 'flex',
         flexDirection: 'column',
@@ -1087,10 +997,10 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
             border: '1px solid rgba(34, 202, 123, 0.2)'
           }}>
             <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
-              <strong style={{ color: '#e5e5e5' }}>Total Genres:</strong> {Object.keys(genres).length}
+            <strong style={{ color: '#e5e5e5' }}>Total {headerLabel}s:</strong> {Object.keys(genres).length}
           </div>
             <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
-              <strong style={{ color: '#e5e5e5' }}>Top Genre:</strong> {sortedGenres[0]?.[0] || 'N/A'} ({sortedGenres[0]?.[1] || 0} artists)
+            <strong style={{ color: '#e5e5e5' }}>Top {headerLabel}:</strong> {sortedGenres[0]?.[0] || 'N/A'} ({sortedGenres[0]?.[1] || 0})
           </div>
         </div>
       </div>
@@ -1105,6 +1015,54 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
           genreDetails={genreDetails}
           mainArtistsData={mainArtistsData}
         />
+
+      {/* Artist Songs Modal */}
+      <ArtistSongsModal
+        isOpen={showSongsModal}
+        onClose={() => setShowSongsModal(false)}
+        artist={selectedArtist?.name}
+        artistCount={selectedArtist?.count}
+        songs={artistSongs}
+        loading={loadingSongs}
+        genreDetails={genreDetails}
+        mainArtistsData={mainArtistsData}
+      />
+        
+        {/* Custom CSS for table scrolling */}
+        <style jsx>{`
+          .genre-chart-container {
+            overflow: hidden !important;
+          }
+          
+          .genre-chart-container > div:last-child {
+            overflow: hidden !important;
+          }
+          
+          /* Custom scrollbar styling for webkit browsers */
+          .genre-chart-container div::-webkit-scrollbar {
+            width: 8px;
+          }
+          
+          .genre-chart-container div::-webkit-scrollbar-track {
+            background: #1e1e1e;
+            border-radius: 4px;
+          }
+          
+          .genre-chart-container div::-webkit-scrollbar-thumb {
+            background: #22ca7b;
+            border-radius: 4px;
+          }
+          
+          .genre-chart-container div::-webkit-scrollbar-thumb:hover {
+            background: #1db954;
+          }
+          
+          /* Spinner animation for loading states */
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
     </>
   );
 }
