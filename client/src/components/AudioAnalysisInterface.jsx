@@ -4,7 +4,6 @@ import '../../public/styles.css' ;
 
 
 const tooltips = { danceability: "Classifies whether a track is suitable for dancing based on rhythmic patterns.", 
-    gender: "Identifies the gender of the primary vocalist.",
      genre_dortmund: "Classifies the track into one of nine broad genres based on the Dortmund model.",
       genre_electronic: "Classifies the track into sub-genres of electronic music.", 
       genre_rosamerica: "Classifies the track based on the Rosamerica genre taxonomy.", 
@@ -28,13 +27,12 @@ const tooltips = { danceability: "Classifies whether a track is suitable for dan
               chords_histogram: "Shows the relative presence of each of the 12 major and 12 minor chords.", 
               key: "The estimated musical key of the track, consisting of a tonic (e.g., C, G#) and a scale (major or minor).", thpcp: "Tonal Harmonic Pitch Class Profile (THPCP) shows the strength of each of the 12 musical pitch classes, providing a detailed view of the track's harmonic content." };
               
-const interpretations = { danceability: { not_danceable: "The track's rhythm is more suited for listening than dancing, likely due to its complexity or lack of a strong, regular beat." }, gender: { female: "A female vocalist is identified as the primary voice in this track.", male: "A male vocalist is identified as the primary voice in this track." }, genre_dortmund: { electronic: "The track is predominantly electronic, characterized by synthesized sounds and programmed beats." }, genre_electronic: { ambient: "This piece falls into the ambient sub-genre, suggesting a focus on atmosphere and texture over rhythm." }, genre_rosamerica: { hip: "The song aligns with the Hip-Hop genre, likely featuring rhythmic speech and strong basslines." }, genre_tzanetakis: { jaz: "Elements of Jazz are prominent, possibly including improvisation, swing rhythms, or characteristic instrumentation." }, ismir04_rhythm: { ChaChaCha: "The rhythm has characteristics of a Cha-Cha-Cha, with a syncopated 4/4 time signature." }, mood_acoustic: { not_acoustic: "The sound is primarily driven by electronic or amplified instruments, not acoustic ones." }, mood_aggressive: { not_aggressive: "The track lacks harsh, driving elements, creating a non-aggressive and likely smoother listening experience." }, mood_electronic: { electronic: "The sonic palette is dominated by synthesizers, drum machines, or other electronic sources." }, mood_happy: { not_happy: "The musical cues suggest a mood that is not overtly happy, possibly neutral, sad, or tense." }, mood_party: { not_party: "This track is not optimized for a high-energy party setting; it may be more introspective or relaxed." }, mood_relaxed: { relaxed: "The song's tempo, instrumentation, and dynamics create a soothing and relaxed atmosphere." }, mood_sad: { sad: "The track conveys a sense of sadness or melancholy, likely through a slow tempo, minor key, and somber instrumentation." }, timbre: { dark: "The sound is characterized by lower-frequency content, giving the track a warm, deep, or mellow feel." }, tonal_atonal: { atonal: "The track avoids a traditional key center, creating a sense of tension or abstraction." }, voice_instrumental: { instrumental: "The piece is primarily instrumental, with human voice being absent or non-focal." }, default: "This classification contributes to the overall sonic profile of the track." };
+const interpretations = { danceability: { not_danceable: "The track's rhythm is more suited for listening than dancing, likely due to its complexity or lack of a strong, regular beat." }, genre_dortmund: { electronic: "The track is predominantly electronic, characterized by synthesized sounds and programmed beats." }, genre_electronic: { ambient: "This piece falls into the ambient sub-genre, suggesting a focus on atmosphere and texture over rhythm." }, genre_rosamerica: { hip: "The song aligns with the Hip-Hop genre, likely featuring rhythmic speech and strong basslines." }, genre_tzanetakis: { jaz: "Elements of Jazz are prominent, possibly including improvisation, swing rhythms, or characteristic instrumentation." }, ismir04_rhythm: { ChaChaCha: "The rhythm has characteristics of a Cha-Cha-Cha, with a syncopated 4/4 time signature." }, mood_acoustic: { not_acoustic: "The sound is primarily driven by electronic or amplified instruments, not acoustic ones." }, mood_aggressive: { not_aggressive: "The track lacks harsh, driving elements, creating a non-aggressive and likely smoother listening experience." }, mood_electronic: { electronic: "The sonic palette is dominated by synthesizers, drum machines, or other electronic sources." }, mood_happy: { not_happy: "The musical cues suggest a mood that is not overtly happy, possibly neutral, sad, or tense." }, mood_party: { not_party: "This track is not optimized for a high-energy party setting; it may be more introspective or relaxed." }, mood_relaxed: { relaxed: "The song's tempo, instrumentation, and dynamics create a soothing and relaxed atmosphere." }, mood_sad: { sad: "The track conveys a sense of sadness or melancholy, likely through a slow tempo, minor key, and somber instrumentation." }, timbre: { dark: "The sound is characterized by lower-frequency content, giving the track a warm, deep, or mellow feel." }, tonal_atonal: { atonal: "The track avoids a traditional key center, creating a sense of tension or abstraction." }, voice_instrumental: { instrumental: "The piece is primarily instrumental, with human voice being absent or non-focal." }, default: "This classification contributes to the overall sonic profile of the track." };
 
 // --- Metric Definitions and Label Functions ---
 const METRIC_DEFINITIONS = {
     // High-level classifiers (from tooltips)
   danceability_classifier: 'Classifies whether a track is suitable for dancing based on rhythmic patterns.',
-  gender: 'Identifies the gender of the primary and other vocalists in the track.',
   genre_dortmund: 'Classifies the track into one of nine broad genres based on the Dortmund model.',
   genre_electronic: 'Classifies the track into sub-genres of electronic music.',
   genre_rosamerica: 'Classifies the track based on the Rosamerica genre taxonomy.',
@@ -367,17 +365,61 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                             {/* High-Level Classifiers */}
                             <h3 className="section-title" style={{ textAlign: 'left' }}>High-Level Classifiers</h3>
                             <div className="grid grid-cols-4 section-container">
-                                {high && Object.entries(high).map(([key, feature]) => (
-                                    <HighLevelCard
-                                        key={key}
-                                        featureKey={key}
-                                        feature={feature}
-                                        onCardClick={() => openFocusView({ type: 'classifier', data: key })}
-                                        onMouseMove={handleMouseMove}
-                                        onMouseLeave={handleMouseLeave}
-                                    />
-                                ))}
+                                {high && Object.entries(high)
+                                    .filter(([key]) => key !== 'gender') // Filter out gender classifier
+                                    .map(([key, feature]) => (
+                                        <HighLevelCard
+                                            key={key}
+                                            featureKey={key}
+                                            feature={feature}
+                                            onCardClick={() => openFocusView({ type: 'classifier', data: key })}
+                                            onMouseMove={handleMouseMove}
+                                            onMouseLeave={handleMouseLeave}
+                                        />
+                                    ))}
                             </div>
+                            
+                            {/* Responsive styling for high-level classifier nodes */}
+                            <style jsx>{`
+                                @media (min-width: 1500px) {
+                                    .section-container .high-level-card {
+                                        padding: 1rem !important;
+                                        min-height: 140px !important;
+                                    }
+                                    
+                                    .section-container .high-level-card .card-title {
+                                        font-size: 0.9rem !important;
+                                        margin-bottom: 0.5rem !important;
+                                    }
+                                    
+                                    .section-container .high-level-card .card-main-value {
+                                        font-size: 1.5rem !important;
+                                        margin-bottom: 0.25rem !important;
+                                    }
+                                    
+                                    .section-container .high-level-card .card-confidence {
+                                        font-size: 0.75rem !important;
+                                        margin-bottom: 0.5rem !important;
+                                    }
+                                    
+                                    .section-container .high-level-card .chart-container {
+                                        height: 60px !important;
+                                    }
+                                    
+                                    .section-container .high-level-card .card-footer {
+                                        font-size: 0.7rem !important;
+                                        padding: 0.5rem !important;
+                                    }
+                                    
+                                    .section-container .high-level-card .card-impact-text-strong {
+                                        font-size: 0.7rem !important;
+                                    }
+                                    
+                                    .section-container .high-level-card .card-impact-text {
+                                        font-size: 0.7rem !important;
+                                    }
+                                }
+                            `}</style>
                             {/* Key Metrics */}
                             <h3 className="section-title" style={{ textAlign: 'left' }}>Key Metrics</h3>
                             <div className="grid grid-cols-4 section-container">
