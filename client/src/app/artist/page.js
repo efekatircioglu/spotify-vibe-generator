@@ -24,16 +24,49 @@ function useIsMobile(breakpoint = 768) {
 }
 
 // Add this helper function at the top-level (outside the component)
-function discogsProfileToLinks(profile) {
+async function discogsProfileToLinks(profile) {
   if (!profile) return '';
+  
   // [a=Name] or [l=Name] → just the name
   let result = profile
     .replace(/\[a=([^\]]+)\]/g, '$1')
     .replace(/\[l=([^\]]+)\]/g, '$1');
-  // [a12345] → link to artist
-  result = result.replace(/\[a(\d+)\]/g, (match, id) =>
-    `<a href="https://www.discogs.com/artist/${id}" target="_blank" rel="noopener noreferrer" title="View artist on Discogs">Artist #${id}</a>`
-  );
+  
+  // [a12345] → link to artist with real name
+  const artistMatches = result.match(/\[a(\d+)\]/g);
+  if (artistMatches) {
+    // Extract all unique artist IDs
+    const artistIds = [...new Set(artistMatches.map(match => match.match(/\[a(\d+)\]/)[1]))];
+    
+    // Make all API calls in parallel
+    const artistPromises = artistIds.map(async (id) => {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/discogs/artist-id/${id}`);
+        if (response.ok) {
+          const artistData = await response.json();
+          return { id, name: artistData.name || `Artist #${id}` };
+        } else {
+          return { id, name: `Artist #${id}` };
+        }
+      } catch (error) {
+        console.error('Error fetching artist name:', error);
+        return { id, name: `Artist #${id}` };
+      }
+    });
+    
+    // Wait for all API calls to complete
+    const artistResults = await Promise.all(artistPromises);
+    
+    // Create a map for quick lookup
+    const artistNameMap = Object.fromEntries(artistResults.map(r => [r.id, r.name]));
+    
+    // Replace all artist links with real names
+    result = result.replace(/\[a(\d+)\]/g, (match, id) => {
+      const artistName = artistNameMap[id] || `Artist #${id}`;
+      return `<a href="https://www.discogs.com/artist/${id}" target="_blank" rel="noopener noreferrer" title="View ${artistName} on Discogs">${artistName}</a>`;
+    });
+  }
+  
   // [l67890] → link to label
   result = result.replace(/\[l(\d+)\]/g, (match, id) =>
     `<a href="https://www.discogs.com/label/${id}" target="_blank" rel="noopener noreferrer" title="View label on Discogs">Label #${id}</a>`
@@ -88,6 +121,10 @@ export default function ArtistConcertsPage() {
   const [followLoading, setFollowLoading] = useState(false);
   const [discogsProfile, setDiscogsProfile] = useState(null);
   const [discogsRealName, setDiscogsRealName] = useState(null);
+  // New state for processed Discogs profile with resolved artist names
+  const [processedDiscogsProfile, setProcessedDiscogsProfile] = useState('');
+  // New state for loading Discogs profile processing
+  const [processingDiscogsProfile, setProcessingDiscogsProfile] = useState(false);
   // New state for genre/style map
   const [albumGenreStyleMap, setAlbumGenreStyleMap] = useState({});
   
@@ -268,6 +305,30 @@ export default function ArtistConcertsPage() {
         console.error("Error fetching Discogs profile:", err);
       });
   }, [artistName]);
+
+  // Process Discogs profile and update state
+  useEffect(() => {
+    const processProfile = async () => {
+      if (!discogsProfile) {
+        setProcessedDiscogsProfile('');
+        setProcessingDiscogsProfile(false);
+        return;
+      }
+      
+      setProcessingDiscogsProfile(true);
+      try {
+        const processed = await discogsProfileToLinks(discogsProfile);
+        setProcessedDiscogsProfile(processed);
+      } catch (error) {
+        console.error('Error processing Discogs profile:', error);
+        // Fallback to original profile if processing fails
+        setProcessedDiscogsProfile(discogsProfile);
+      } finally {
+        setProcessingDiscogsProfile(false);
+      }
+    };
+    processProfile();
+  }, [discogsProfile]);
 
   // Fetch user's long-term top tracks and find #1 track for this artist
   const [topTrackLastYear, setTopTrackLastYear] = useState(null);
@@ -1044,8 +1105,15 @@ export default function ArtistConcertsPage() {
                 <div 
                   style={{ marginTop: 8 }}
                   className="discogs-profile-links"
-                  dangerouslySetInnerHTML={{ __html: discogsProfileToLinks(discogsProfile) }}
-                />
+                >
+                  {processingDiscogsProfile ? (
+                    <div style={{ color: '#b3b3b3', fontStyle: 'italic' }}>
+                      Processing artist links...
+                    </div>
+                  ) : (
+                    <div dangerouslySetInnerHTML={{ __html: processedDiscogsProfile }} />
+                  )}
+                </div>
               </div>
 
               {/* Only show the button if the text is long enough to be truncated */}
@@ -1215,4 +1283,4 @@ export default function ArtistConcertsPage() {
       `}</style>
     </main>
   );
-} 
+}

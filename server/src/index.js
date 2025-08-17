@@ -1246,6 +1246,35 @@ app.get('/discogs/artist/:name/primary-genre', async (req, res) => {
   }
 });
 
+// --- Discogs: Get artist name by ID ---
+app.get('/discogs/artist-id/:id', async (req, res) => {
+  const artistId = req.params.id;
+  if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
+  try {
+    const authHeaders = {
+      'User-Agent': process.env.DISCOGS_USER_AGENT,
+      'Authorization': `Discogs key=${process.env.DISCOGS_CONSUMER_KEY}, secret=${process.env.DISCOGS_CONSUMER_SECRET}`,
+    };
+    
+    const artistUrl = `https://api.discogs.com/artists/${artistId}`;
+    const artistResponse = await axios.get(artistUrl, { headers: authHeaders });
+    
+    if (artistResponse.status !== 200) {
+      return res.status(404).json({ error: 'Artist not found' });
+    }
+    
+    const artistData = artistResponse.data;
+    res.json({ 
+      id: artistId,
+      name: artistData.name,
+      realName: artistData.realname || null
+    });
+  } catch (err) {
+    console.error('Discogs API Error:', err);
+    res.status(500).json({ error: 'Failed to fetch artist by ID', details: err.message });
+  }
+});
+
 // Optimized batch endpoint using single Ticketmaster API call
 app.post('/concerts/events/optimized-batch', async (req, res) => {
   const artistIds = req.body.artistIds;
