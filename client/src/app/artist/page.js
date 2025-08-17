@@ -91,6 +91,10 @@ export default function ArtistConcertsPage() {
   // New state for genre/style map
   const [albumGenreStyleMap, setAlbumGenreStyleMap] = useState({});
   
+  // State for extracted Discogs genres and styles
+  const [discogsGenres, setDiscogsGenres] = useState([]);
+  const [discogsStyles, setDiscogsStyles] = useState([]);
+  
   // Pagination state for concerts
   const [currentPage, setCurrentPage] = useState(1);
   const concertsPerPage = 20;
@@ -148,10 +152,17 @@ export default function ArtistConcertsPage() {
       .then(data => {
         console.log('Fetched genre/style map:', data.map);
         setAlbumGenreStyleMap(data.map || {});
+        
+        // Extract and set unique genres and styles
+        const { genres, styles } = extractDiscogsGenresAndStyles(data.map || {});
+        setDiscogsGenres(genres);
+        setDiscogsStyles(styles);
       })
       .catch((err) => {
         console.error('Error fetching genre/style map:', err);
         setAlbumGenreStyleMap({});
+        setDiscogsGenres([]);
+        setDiscogsStyles([]);
       });
   }, [selectedArtist, albumGroup]);
 
@@ -160,6 +171,26 @@ export default function ArtistConcertsPage() {
     const genreStyle = albumGenreStyleMap[album.name] || [[], []];
     return { ...album, genre: genreStyle[0], style: genreStyle[1] };
   });
+
+  // Extract unique Discogs genres and styles from all albums
+  const extractDiscogsGenresAndStyles = (genreStyleMap) => {
+    const allGenres = new Set();
+    const allStyles = new Set();
+    
+    Object.values(genreStyleMap).forEach(([genres, styles]) => {
+      if (Array.isArray(genres)) {
+        genres.forEach(genre => allGenres.add(genre));
+      }
+      if (Array.isArray(styles)) {
+        styles.forEach(style => allStyles.add(style));
+      }
+    });
+    
+    return {
+      genres: Array.from(allGenres).sort(),
+      styles: Array.from(allStyles).sort()
+    };
+  };
 
   // Fetch tracks for selected album
   useEffect(() => {
@@ -636,17 +667,9 @@ export default function ArtistConcertsPage() {
                   }}>
                     {artistFollowers.toLocaleString()} Followers
                   </span>
-                  {artistGenres.length > 0 && (
-                    <span style={{ 
-                      color: '#b3b3b3', 
-                      fontSize: 'clamp(0.9rem, 2vw, 1.25rem)', 
-                      fontWeight: 500
-                    }}>
-                      {artistGenres.join(', ')}
-                    </span>
-                  )}
                 </div>
               )}
+              
               <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
                 <button
                   style={{
@@ -861,20 +884,160 @@ export default function ArtistConcertsPage() {
               <style>{`.discogs-profile-links a { text-decoration: underline !important; }`}</style>
               {discogsRealName && (
                 <div style={{
-                  color: '#fff',
+                  color: '#ffffff',
                   fontWeight: 600,
-                  // Drastically smaller font size for "Real Name" on mobile
-                  fontSize: isMobile ? 14 : 20,
-                  marginBottom: 8
+                  fontSize: isMobile ? 16 : 22,
+                  marginBottom: 12
                 }}>
-                  Real Name: <span style={{ color: '#38bdf8' }}>{discogsRealName}</span>
+                  Real Name <span style={{ color: '#38bdf8' }}>{discogsRealName}</span>
                 </div>
               )}
+              
+              {/* Discogs Genres */}
+              {(discogsGenres.length > 0 || artistGenres.length > 0) && (
+                <div style={{
+                  marginBottom: 16
+                }}>
+                  <div style={{
+                    color: '#ffffff',
+                    fontSize: isMobile ? 16 : 22,
+                    fontWeight: 600,
+                    marginBottom: 12
+                  }}>
+                    Genres
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    {/* Spotify Genres */}
+                    {artistGenres.map((genre, index) => (
+                      <span
+                        key={`spotify-${genre}`}
+                        style={{
+                          background: 'linear-gradient(135deg, #1f2937, #374151)',
+                          color: '#ffffff',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontSize: isMobile ? 11 : 13,
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                          border: '1px solid #4b5563',
+                          transition: 'all 0.2s ease',
+                          cursor: 'default'
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.background = 'linear-gradient(135deg, #1f2937, #374151)';
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+                        }}
+                        title="Spotify Genre"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                    
+                    {/* Discogs Genres */}
+                    {discogsGenres.map((genre, index) => (
+                      <span
+                        key={`discogs-${genre}`}
+                        style={{
+                          background: 'linear-gradient(135deg, #1f2937, #374151)',
+                          color: '#ffffff',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontSize: isMobile ? 11 : 13,
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                          border: '1px solid #4b5563',
+                          transition: 'all 0.2s ease',
+                          cursor: 'default'
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.background = 'linear-gradient(135deg, #1f2937, #374151)';
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+                        }}
+                        title="Discogs Genre"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Discogs Styles */}
+              {discogsStyles.length > 0 && (
+                <div style={{
+                  marginBottom: 16
+                }}>
+                  <div style={{
+                    color: '#ffffff',
+                    fontSize: isMobile ? 16 : 22,
+                    fontWeight: 600,
+                    marginBottom: 12
+                  }}>
+                    Styles
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    {discogsStyles.map((style, index) => (
+                      <span
+                        key={style}
+                        style={{
+                          background: '#374151',
+                          color: '#ffffff',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontSize: isMobile ? 11 : 13,
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                          border: '1px solid #6b7280',
+                          transition: 'all 0.2s ease',
+                          cursor: 'default'
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.background = '#4b5563';
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.background = '#374151';
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+                        }}
+                      >
+                        {style}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <strong style={{
-                color: '#fff',
-                // Drastically smaller font size for "About:" heading on mobile
-                fontSize: isMobile ? 16 : 22
-              }}>About:</strong>
+                color: '#ffffff',
+                fontSize: isMobile ? 16 : 22,
+                fontWeight: 600,
+                marginBottom: 12
+              }}>About</strong>
               <div 
                 className={`${styles.bioTextContainer} ${!isBioExpanded && discogsProfile.length > BIO_TRUNCATE_LENGTH ? styles.collapsed : ''}`}
               >
