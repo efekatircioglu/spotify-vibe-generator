@@ -69,27 +69,16 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const tableContainerRef = useRef(null);
   const contributorModalRef = useRef(null);
   const [isContribLoading, setIsContribLoading] = useState(false);
-const [contributorData, setContributorData] = useState(null);
   // Add this new component at the top of NewTrackTable.jsx
 const NoContributorData = () => {
-  // An array of the standard roles to display
-  const roles = ["Performers", "Writers", "Producers", "Mixing", "Engineering", "Arrangers", "Remixers"];
-
   return (
-    <div className="contrib-popup-body">
-      {roles.map(role => (
-        <div key={role} style={{ marginBottom: '1.5rem' }}>
-          <h3 className="contrib-popup-role-heading">{role}</h3>
-          <p style={{
-              color: '#a1a1aa',
-              fontSize: '0.9rem',
-              fontStyle: 'italic',
-              margin: '0.25rem 0 0 0.25rem',
-          }}>
-              No Information Found
-          </p>
-        </div>
-      ))}
+    <div style={{ 
+      textAlign: 'center', 
+      color: '#a1a1aa', 
+      padding: '2rem',
+      fontSize: '1rem'
+    }}>
+      No contributor information available for this track.
     </div>
   );
 };
@@ -885,16 +874,16 @@ if (isMobile) {
             songInfo={selectedTrackForNewAnalysis}
           />
         )}
-        {/* --- START OF NEW POP-UP CODE --- */}
+        {/* --- START OF MOBILE POP-UP CODE --- */}
       {contributorModalOpen && (
         <>
           <style jsx global>{`
-            #contrib-popup-overlay {
+            #contrib-popup-overlay-mobile {
               position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
               z-index: 40; opacity: 0; transition: opacity 200ms ease-out;
               pointer-events: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
             }
-            #contrib-popup-overlay.visible { opacity: 1; pointer-events: auto; }
+            #contrib-popup-overlay-mobile.visible { opacity: 1; pointer-events: auto; }
             #contrib-popup-container {
               position: fixed; z-index: 50; opacity: 0; transform: scale(0.95);
               transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -902,13 +891,15 @@ if (isMobile) {
             }
             #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
             #contrib-popup-container.is-mobile {
-              left: 50% !important; top: 50% !important;
+              left: 50% !important; 
+              top: 50% !important; 
               transform: translate(-50%, -50%) scale(1) !important;
               width: 90%;
+              max-width: 90vw;
+              position: fixed !important;
             }
             .contrib-popup-content {
-              background-color: rgba(24, 24, 27, 0.8); backdrop-filter: blur(16px);
-              -webkit-backdrop-filter: blur(16px); border: 1px solid #3f3f46;
+              background-color: #181818; border: 1px solid #3f3f46;
               border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
               width: 100%; max-width: 24rem; padding: 1.5rem;
             }
@@ -919,21 +910,42 @@ if (isMobile) {
           `}</style>
 
           <div 
-            id="contrib-popup-overlay" 
+            id="contrib-popup-overlay-mobile" 
             className={contributorModalOpen ? 'visible' : ''} 
-            onClick={() => setContributorModalOpen(false)} 
+            onClick={(e) => {
+              // Only close if clicking on the overlay itself, not on modal content
+              if (e.target.id === 'contrib-popup-overlay-mobile') {
+                setContributorModalOpen(false);
+              }
+            }} 
           />
           
           <div 
-  id="contrib-popup-container" 
-  className={contributorModalOpen ? 'visible' : ''}
->
+            id="contrib-popup-container" 
+            className={`${contributorModalOpen ? 'visible' : ''} is-mobile`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="contrib-popup-content" onClick={e => e.stopPropagation()}>
               
-              <div className="contrib-popup-title">
-                Contributors for {selectedTrackInfo?.name}
+              <button 
+                className="mobile-close-button"
+                onClick={() => setContributorModalOpen(false)}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
+              
+              <div className="contrib-popup-header">
+                <div className="contrib-popup-title">
+                  Contributors for {selectedTrackInfo?.name}
+                </div>
               </div>
-              {selectedTrackMBID ? (
+              {isContribLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
+                  <div style={{ width: 32, height: 32, border: '4px solid #1db954', borderTopColor: 'rgba(24, 24, 27, 0.8)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              ) : selectedTrackMBID ? (
                 <ContributorFinder mbid={selectedTrackMBID} />
               ) : (
                 <p style={{ textAlign: 'center', color: '#a1a1aa' }}>
@@ -1210,9 +1222,10 @@ if (isMobile) {
                             setDropdownOpen(null);
                           } else {
                             const rect = e.currentTarget.getBoundingClientRect();
+                            // Calculate position relative to document (like mobile version)
                             setDropdownPosition({
-                              top: rect.bottom + 4, // Position below the button
-                              left: rect.left,      // Align with the button's left edge
+                              top: rect.bottom + window.scrollY + 4, // Position below the button
+                              left: rect.left + window.scrollX,      // Align with the button's left edge
                             });
                             setDropdownOpen(idx);
                           }
@@ -1225,7 +1238,7 @@ if (isMobile) {
                           <div
                             ref={dropdownRef}
                             style={{
-                              position: 'fixed',
+                              position: 'absolute',
                               top: dropdownPosition.top,
                               left: dropdownPosition.left,
                               background: '#232323',
@@ -1360,13 +1373,20 @@ if (isMobile) {
             }
             #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
             #contrib-popup-container.is-mobile {
-              left: 50% !important; top: 50% !important;
+              left: 50% !important; 
+              top: 50% !important; 
               transform: translate(-50%, -50%) scale(1) !important;
               width: 90%;
+              max-width: 90vw;
+              position: fixed !important;
+            }
+            #contrib-popup-container.is-mobile.visible { 
+              opacity: 1; 
+              transform: translate(-50%, -50%) scale(1) !important; 
+              pointer-events: auto; 
             }
             .contrib-popup-content {
-              background-color: rgba(24, 24, 27, 0.8); backdrop-filter: blur(16px);
-              -webkit-backdrop-filter: blur(16px); border: 1px solid #3f3f46;
+              background-color: #181818; border: 1px solid #3f3f46;
               border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
               width: 100%; max-width: 24rem; padding: 1.5rem;
             }
@@ -1379,30 +1399,30 @@ if (isMobile) {
           <div 
             id="contrib-popup-overlay" 
             className={contributorModalOpen ? 'visible' : ''} 
-            // onClick={() => setContributorModalOpen(false)} 
+            onClick={() => setContributorModalOpen(false)} 
           />
           
           <div 
-  id="contrib-popup-container" 
-  className={contributorModalOpen ? 'visible' : ''}
->
+            id="contrib-popup-container" 
+            className={`${contributorModalOpen ? 'visible' : ''} desktop-modal`}
+          >
             <div ref={contributorModalRef} className="contrib-popup-content">
   <div className="contrib-popup-title">
     Contributors for {selectedTrackInfo?.name}
   </div>
   {isContribLoading ? (
-  // State 1: Show a spinner while loading
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
-    <div style={{ width: 32, height: 32, border: '4px solid #1db954', borderTopColor: 'rgba(24, 24, 27, 0.8)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-  </div>
-) : contributorData && Object.values(contributorData).some(arr => arr.length > 0) ? (
-  // State 2: If data exists and is NOT empty, show the real contributor list
-  <ContributorFinder contributors={contributorData} />
-) : (
-  // State 3: For all other cases (no data, error), show your new "no data" table
-  <NoContributorData />
-)}
+    // State 1: Show a spinner while loading
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
+      <div style={{ width: 32, height: 32, border: '4px solid #1db954', borderTopColor: 'rgba(24, 24, 27, 0.8)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  ) : selectedTrackMBID ? (
+    // State 2: If we have an MBID, show the ContributorFinder
+    <ContributorFinder mbid={selectedTrackMBID} />
+  ) : (
+    // State 3: No MBID available, show no data message
+    <NoContributorData />
+  )}
 </div>
             </div>
         </>
@@ -1429,6 +1449,95 @@ if (isMobile) {
         }
         .${styles.animatedRow}[style*='animation-name'] {
           opacity: 1;
+        }
+        
+        /* Desktop modal positioning */
+        #contrib-popup-container.desktop-modal {
+          left: 50% !important; 
+          top: 50% !important; 
+          transform: translate(-50%, -50%) scale(0.95) !important;
+        }
+        #contrib-popup-container.desktop-modal.visible {
+          transform: translate(-50%, -50%) scale(1) !important;
+        }
+        
+        /* Desktop modal content sizing */
+        #contrib-popup-container.desktop-modal .contrib-popup-content {
+          max-width: 32rem !important;
+          background-color: #181818 !important;
+        }
+        
+        /* Mobile modal positioning - ensure it's always centered */
+        #contrib-popup-container.is-mobile {
+          position: fixed !important;
+          left: 50% !important; 
+          top: 50% !important; 
+          transform: translate(-50%, -50%) scale(1) !important;
+          width: 90% !important;
+          max-width: 90vw !important;
+          z-index: 50 !important;
+        }
+        
+        /* Override any conflicting transforms for mobile */
+        #contrib-popup-container.is-mobile.visible {
+          transform: translate(-50%, -50%) scale(1) !important;
+        }
+        
+        /* Ensure mobile modal content is properly sized */
+        #contrib-popup-container.is-mobile .contrib-popup-content {
+          width: 100% !important;
+          max-width: 90vw !important;
+          margin: 0 auto !important;
+        }
+        
+        /* Mobile modal close button and header */
+        .contrib-popup-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 1.5rem;
+          position: relative;
+        }
+        
+        .contrib-popup-title {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #f4f4f5;
+          margin: 0;
+          flex: 1;
+          padding-right: 3rem;
+        }
+        
+        .mobile-close-button {
+          background: rgba(24, 24, 24, 0.9);
+          border: 1px solid #3f3f46;
+          color: #ffffff;
+          font-size: 1.5rem;
+          font-weight: 700;
+          cursor: pointer;
+          padding: 0.5rem;
+          border-radius: 50%;
+          transition: all 0.2s ease;
+          min-width: 2.5rem;
+          height: 2.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          top: 0.75rem;
+          right: 0.75rem;
+          z-index: 100;
+        }
+        
+        .mobile-close-button:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+          transform: scale(1.1);
+        }
+        
+        .mobile-close-button:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
         }
 
          @media (min-width: 651px) {
