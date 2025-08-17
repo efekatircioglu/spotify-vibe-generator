@@ -232,7 +232,25 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
     // --- TOOLTIP HANDLERS ---
     const handleMouseMove = (e, content) => {
         if (content) {
-            setTooltip({ visible: true, content: content, x: e.pageX + 15, y: e.pageY + 15 });
+            // Get viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Calculate tooltip position
+            let x = e.clientX + 15;
+            let y = e.clientY + 15;
+            
+            // Prevent tooltip from going off-screen to the right
+            if (x + 300 > viewportWidth) {
+                x = e.clientX - 315; // Position to the left of cursor
+            }
+            
+            // Prevent tooltip from going off-screen to the bottom
+            if (y + 100 > viewportHeight) {
+                y = e.clientY - 115; // Position above cursor
+            }
+            
+            setTooltip({ visible: true, content: content, x: x, y: y });
         }
     };
     const handleMouseLeave = () => {
@@ -358,7 +376,21 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
 
             {/* Tooltip Element */}
             {tooltip.visible && (
-                <div id="tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
+                <div id="tooltip" style={{ 
+                    position: 'fixed',
+                    left: tooltip.x, 
+                    top: tooltip.y,
+                    zIndex: 10000,
+                    backgroundColor: '#1f2937',
+                    color: '#f9fafb',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    maxWidth: '300px',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.5)',
+                    border: '1px solid #374151',
+                    pointerEvents: 'none'
+                }}>
                     {tooltip.content}
                 </div>
             )}
@@ -366,7 +398,7 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
             {/* Main Modal */}
             {isModalOpen && (
                 <div className="modal-overlay">
-                    <div id="modal-container" className={`modal-container${focusViewData.isOpen ? ' blurred' : ''}`}> 
+                    <div id="modal-container" className={`modal-container${focusViewData.isOpen ? ' blurred' : ''}`} style={{ maxWidth: '100vw', overflowX: 'hidden' }}> 
                         <div className="modal-header" style={{ position: 'relative' }}>
                             <h2 className="modal-title">Comprehensive Audio Analysis</h2>
                             {onClose && (
@@ -415,7 +447,7 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
 })()}
                             {/* High-Level Classifiers */}
                             <h3 className="section-title" style={{ textAlign: 'left' }}>High-Level Classifiers</h3>
-                            <div className="grid grid-cols-4 section-container">
+                            <div className="high-level-grid section-container">
                                 {high && Object.entries(high)
                                     .filter(([key]) => key !== 'gender') // Filter out gender classifier
                                     .map(([key, feature]) => (
@@ -430,12 +462,43 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                                     ))}
                             </div>
                             
-                            {/* Responsive styling for high-level classifier nodes */}
+                            {/* Responsive styling for all grid layouts */}
                             <style jsx>{`
+                                /* Base grid layouts */
+                                .high-level-grid {
+                                    display: grid;
+                                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                                    gap: 1rem;
+                                    width: 100%;
+                                    max-width: 100%;
+                                    overflow-x: hidden;
+                                }
+                                
+                                .key-metrics-grid {
+                                    display: grid;
+                                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                                    gap: 1rem;
+                                    width: 100%;
+                                    max-width: 100%;
+                                    overflow-x: hidden;
+                                }
+                                
+                                .detailed-analysis-grid {
+                                    display: grid;
+                                    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                                    gap: 1rem;
+                                    width: 100%;
+                                    max-width: 100%;
+                                    overflow-x: hidden;
+                                }
+                                
+                                /* Card styling */
                                 .section-container .high-level-card {
                                     padding: 0.75rem !important;
                                     min-height: 120px !important;
                                     max-height: 140px !important;
+                                    width: 100% !important;
+                                    box-sizing: border-box !important;
                                 }
                                 
                                 .section-container .high-level-card .card-title {
@@ -475,7 +538,81 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                                     font-size: 0.65rem !important;
                                 }
 
-                                @media (min-width: 1500px) {
+                                /* Responsive breakpoints */
+                                @media (max-width: 350px) {
+                                    .high-level-grid {
+                                        grid-template-columns: 1fr;
+                                        gap: 0.75rem;
+                                    }
+                                    
+                                    .key-metrics-grid {
+                                        grid-template-columns: 1fr;
+                                        gap: 0.75rem;
+                                    }
+                                    
+                                    .detailed-analysis-grid {
+                                        grid-template-columns: 1fr;
+                                        gap: 0.75rem;
+                                    }
+                                    
+                                    .section-container .high-level-card {
+                                        padding: 0.6rem !important;
+                                        min-height: 110px !important;
+                                    }
+                                }
+                                
+                                @media (min-width: 601px) and (max-width: 900px) {
+                                    .high-level-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                                        gap: 0.85rem;
+                                    }
+                                    
+                                    .key-metrics-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                                        gap: 0.85rem;
+                                    }
+                                    
+                                    .detailed-analysis-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                                        gap: 0.85rem;
+                                    }
+                                }
+                                
+                                @media (min-width: 901px) and (max-width: 1200px) {
+                                    .high-level-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                                        gap: 0.9rem;
+                                    }
+                                    
+                                    .key-metrics-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                                        gap: 0.9rem;
+                                    }
+                                    
+                                    .detailed-analysis-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                                        gap: 0.9rem;
+                                    }
+                                }
+                                
+                                @media (min-width: 1201px) and (max-width: 1500px) {
+                                    .high-level-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                                        gap: 1rem;
+                                    }
+                                    
+                                    .key-metrics-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                                        gap: 1rem;
+                                    }
+                                    
+                                    .detailed-analysis-grid {
+                                        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                                        gap: 1rem;
+                                    }
+                                }
+
+                                @media (min-width: 1501px) {
                                     .section-container .high-level-card {
                                         padding: 0.85rem !important;
                                         min-height: 130px !important;
@@ -496,11 +633,11 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                             `}</style>
                             {/* Key Metrics */}
                             <h3 className="section-title" style={{ textAlign: 'left' }}>Key Metrics</h3>
-                            <div className="grid grid-cols-4 section-container">
+                            <div className="key-metrics-grid section-container">
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'metric', data: 'bpm' })}>
                                     <div className="card-title" style={{ textAlign: 'left' }}>BPM</div>
                                     <div className="card-main-value-container">
-                                        <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{analysisData.rhythm?.bpm?.toFixed(1)}</div>
+                                        <div className="card-main-value" style={{ color: '#fff', fontSize: '2.5rem', fontWeight: 700 }}>{Math.round(analysisData.rhythm?.bpm || 0)}</div>
                                         <div className="card-confidence">Beats Per Minute</div>
                                         {getBpmLabel(analysisData.rhythm?.bpm) && (
                                             <div style={{ fontSize: '1.1rem', color: '#38bdf8', fontWeight: 600, margin: '6px 0 0 0' }}>{getBpmLabel(analysisData.rhythm?.bpm)}</div>
@@ -620,7 +757,7 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                             </div>
                             {/* Detailed Analysis */}
                             <h3 className="section-title" style={{ textAlign: 'left' }}>Detailed Analysis</h3>
-                            <div className="grid grid-cols-3 section-container">
+                            <div className="detailed-analysis-grid section-container">
                                 <div className="high-level-card card-hover" style={{ cursor: 'pointer' }} onClick={() => openFocusView({ type: 'chart', data: 'tonality' })}>
                                     <div className="card-title" style={{ textAlign: 'left' }}>Tonality Profile</div>
                                     <div className="card-main-value-container">
@@ -833,7 +970,7 @@ const FocusMetricView = ({ metricKey, analysisData, tooltips }) => {
     let value, title, interpretation, definition, labelComment;
     switch (metricKey) {
         case 'bpm':
-            value = analysisData.rhythm.bpm.toFixed(1);
+            value = Math.round(analysisData.rhythm.bpm);
             title = 'BPM (Beats Per Minute)';
             interpretation = `A tempo of ${value} BPM is moderately paced, common in genres like hip-hop and pop. It provides a steady foundation without being overly energetic or slow.`;
             definition = METRIC_DEFINITIONS.bpm;
@@ -927,28 +1064,45 @@ const FocusMetricView = ({ metricKey, analysisData, tooltips }) => {
             return <p>Unknown Metric</p>;
     }
     return (
-        <div style={{ padding: '2rem', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#d1d5db', marginBottom: '0.5rem' }}>{title}</h3>
-            <p className="gradient-text" style={{ fontSize: '4.5rem', fontWeight: '800', margin: '1.5rem 0' }}>{value}</p>
-            {labelComment && (
-                <div style={{
-                    fontSize: '2rem',
-                    fontWeight: 700,
-                    color: '#38bdf8',
-                    marginBottom: 18,
-                    letterSpacing: 0.5,
-                    textShadow: '0 2px 12px #0ea5e9cc',
-                }}>{labelComment}</div>
-            )}
-            <div style={{ maxWidth: '36rem', margin: '0 auto' }}>
-                <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Interpretation</h4>
-                <p style={{ color: '#9ca3af' }}>{interpretation}</p>
-                <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Definition</h4>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>{METRIC_DEFINITIONS[metricKey]}</p>
-            </div>
+                 <div style={{ padding: '2rem', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+             <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#d1d5db', marginBottom: '0.5rem' }}>{title}</h3>
+             <p className="gradient-text" style={{ fontSize: '4.5rem', fontWeight: '800', margin: '1.5rem 0' }}>{value}</p>
+             {labelComment && (
+                 <div style={{
+                     fontSize: '2rem',
+                     fontWeight: 700,
+                     color: '#38bdf8',
+                     marginBottom: 18,
+                     letterSpacing: 0.5,
+                     textShadow: '0 2px 12px #0ea5e9cc',
+                 }}>{labelComment}</div>
+             )}
+             <div style={{ maxWidth: '36rem', margin: '0 auto' }}>
+                 <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Interpretation</h4>
+                 <p style={{ color: '#9ca3af' }}>{interpretation}</p>
+                 <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Definition</h4>
+                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>{METRIC_DEFINITIONS[metricKey]}</p>
+             </div>
 
-            
-        </div>
+                           <style jsx>{`
+                  /* Mobile-first responsive design */
+                  @media (max-width: 680px) {
+                      p.gradient-text {
+                          font-size: 3rem !important;
+                          text-align: center !important;
+                          width: 100% !important;
+                          display: block !important;
+                      }
+                  }
+                  
+                  @media (min-width: 901px) {
+                      p.gradient-text {
+                          font-size: 4.5rem !important;
+                      }
+                  }
+              `}</style>
+             
+         </div>
     );
 };
 
@@ -1018,7 +1172,7 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
                 </ul>
                 <div style={{ marginTop: '1rem', flexShrink: 0 }}>
                     <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginBottom: '0.5rem' }}>Definition</h4>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }} dangerouslySetInnerHTML={{ __html: tooltips[featureKey] }} />
+                    <div style={{ fontSize: '0.875rem', color: '#9ca3af' }} dangerouslySetInnerHTML={{ __html: tooltips[featureKey] }} />
                     <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginTop: '1rem', marginBottom: '0.5rem' }}>Interpretation</h4>
                     <p style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{interpretationText}</p>
                 </div>

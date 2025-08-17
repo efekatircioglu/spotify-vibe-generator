@@ -9,7 +9,7 @@ import NewSongAnalysisModal from './NewSongAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 import { useRouter } from 'next/navigation';
 
-function useIsMobile(breakpoint = 680) {
+function useIsMobile(breakpoint = 760) {
   const [isMobile, setIsMobile] = React.useState(
     typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
   );
@@ -178,7 +178,7 @@ const NoContributorData = () => {
     };
 
     // Check if the popover is open AND if the screen width is mobile-sized
-    if (showPopover !== null && window.innerWidth <= 680) {
+    if (showPopover !== null && window.innerWidth <= 760) {
       window.addEventListener('scroll', handleScroll, { passive: true });
     }
 
@@ -199,7 +199,7 @@ const NoContributorData = () => {
     const scrollContainer = tableContainerRef.current;
 
     // Check if the popover is open on a mobile-sized screen
-    if (showPopover !== null && window.innerWidth <= 680) {
+    if (showPopover !== null && window.innerWidth <= 760) {
       // Listen to scroll on the main window
       window.addEventListener('scroll', handleScroll, { passive: true });
       
@@ -683,7 +683,7 @@ const NoContributorData = () => {
 
 
 
-  const isMobile = useIsMobile(680);
+  const isMobile = useIsMobile(760);
 
   useEffect(() => {
     if (mobileDropdownOpen === null) return;

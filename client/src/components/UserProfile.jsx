@@ -3,7 +3,7 @@ import styles from '../app/page.module.css';
 import { useRouter } from 'next/navigation';
 
 // Same useIsMobile hook as in NewTrackTable
-function useIsMobile(breakpoint = 680) {
+function useIsMobile(breakpoint = 600) {
   const [isMobile, setIsMobile] = React.useState(
     typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
   );
@@ -19,7 +19,7 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const isMobile = useIsMobile(680); // Use the same breakpoint as NewTrackTable
+  const isMobile = useIsMobile(600); // Use the same breakpoint as NewTrackTable
 
   useEffect(() => {
     function handleClickOutside(event) {
