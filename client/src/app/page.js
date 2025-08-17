@@ -495,15 +495,6 @@ const handleExploreContributions = async (track) => {
       const isMobileDevice = isSmallScreen || (hasTouch && !hasMouse);
       
       setIsMobile(isMobileDevice);
-      
-      // Log for debugging
-      console.log('Mobile detection:', {
-        screenWidth: window.innerWidth,
-        isSmallScreen,
-        hasTouch,
-        hasMouse,
-        isMobileDevice
-      });
     };
     
     // Check on mount

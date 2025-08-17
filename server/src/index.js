@@ -321,6 +321,47 @@ app.get('/artist-genre/:id', async (req, res) => {
   }
 });
 
+// New endpoint to get artist genre by name (following /artist page pattern)
+app.get('/artist-genre-by-name', async (req, res) => {
+  try {
+    const { artistName } = req.query;
+    if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
+    
+    // Search for the artist using Spotify API (same as /artist page)
+    const searchRes = await spotifyApi.searchArtists(artistName, { limit: 5 });
+    const artists = searchRes.body.artists.items;
+    
+    if (artists && artists.length > 0) {
+      // Find the best match (exact or closest)
+      let bestMatch = artists[0];
+      
+      // Try to find exact match first
+      const exactMatch = artists.find(artist => 
+        artist.name.toLowerCase() === artistName.toLowerCase()
+      );
+      
+      if (exactMatch) {
+        bestMatch = exactMatch;
+      }
+      
+      // Get the primary genre (first one in the array)
+      const primaryGenre = bestMatch.genres && bestMatch.genres.length > 0 ? bestMatch.genres[0] : null;
+      
+      res.json({
+        artistName: bestMatch.name,
+        spotifyId: bestMatch.id,
+        primaryGenre: primaryGenre,
+        allGenres: bestMatch.genres || []
+      });
+    } else {
+      res.status(404).json({ error: 'Artist not found' });
+    }
+  } catch (err) {
+    console.error('Error fetching artist genre by name:', err);
+    res.status(500).json({ error: 'Failed to fetch artist genre' });
+  }
+});
+
 // Search for artist by name (Ticketmaster)
 app.get('/concerts/artist-search', async (req, res) => {
   const { name } = req.query;

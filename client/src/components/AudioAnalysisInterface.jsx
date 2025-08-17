@@ -209,6 +209,9 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
     const [isModalOpen, setIsModalOpen] = useState(!!mbid);
     const [focusViewData, setFocusViewData] = useState({ isOpen: false });
     const [tooltip, setTooltip] = useState({ visible: false, content: '', x: 0, y: 0 });
+    const [artistGenre, setArtistGenre] = useState(null);
+    const [fallbackMode, setFallbackMode] = useState(false);
+    const [fallbackData, setFallbackData] = useState(null);
 
     const activeCharts = useRef([]);
     const activeFocusChart = useRef(null);
@@ -252,6 +255,35 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
     // --- DATA ---
     const meta = analysisData?.metadata.tags;
     const high = analysisData?.highlevel;
+    
+    // Function to handle fallback when no MBID is found
+    const handleNoMbidFallback = async (artistName, songName, albumName) => {
+        try {
+            // Try to get artist genre from Spotify
+            const response = await fetch(`http://127.0.0.1:8000/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.primaryGenre) {
+                    // We have a genre, show fallback table
+                    setFallbackMode(true);
+                    setFallbackData({
+                        songName,
+                        artistName,
+                        albumName,
+                        genre: data.primaryGenre
+                    });
+                    return;
+                }
+            }
+            // No genre found, show error
+            setError('No MBID found and no artist genre available on Spotify.');
+        } catch (err) {
+            console.log('Could not fetch artist genre for fallback:', err);
+            setError('No MBID found and unable to fetch artist genre.');
+        }
+    };
+    
+
 
     useEffect(() => {
         if (!mbid) return;
@@ -274,14 +306,32 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                 metadata: highLevel.metadata || lowLevel.metadata
             });
             setLoading(false);
+            
+            // Fetch artist genre after analysis data is loaded (following /artist page pattern)
+            const artistName = highLevel?.metadata?.tags?.artist?.[0] || lowLevel?.metadata?.tags?.artist?.[0];
+            
+            if (artistName) {
+                // Use the same pattern as /artist page - search for artist and get genre
+                fetch(`http://127.0.0.1:8000/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`)
+                    .then(res => res.ok ? res.json() : null)
+                    .then(data => {
+                        if (data && data.primaryGenre) {
+                            setArtistGenre(data.primaryGenre);
+                        }
+                    })
+                    .catch(err => console.log('Could not fetch artist genre:', err));
+            }
         }).catch(err => {
             setError('Could not fetch analysis data.');
             setLoading(false);
         });
     }, [mbid]);
 
-    // Remove all code and JSX for the launch full analysis landing page. Only render the modal/dashboard if mbid is present, otherwise render null.
-    if (!mbid) return null;
+    // Handle the three scenarios: MBID exists, no MBID but has genre, no MBID and no genre
+    if (!mbid) {
+        // No MBID provided, check if we have song info to try fallback
+        return null; // For now, return null - we'll handle this in the parent component
+    }
 
     if (loading) {
         return <div style={{ color: '#fff', textAlign: 'center', padding: 40 }}>Loading analysis...</div>;
@@ -360,6 +410,9 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
       <div style={{ color: '#d1d5db', fontSize: 16, fontWeight: 400, textAlign: 'center' }}>
         {meta.artist?.[0]}{albumName ? ` — ${albumName}` : ''}
       </div>
+      <div style={{ color: '#9ca3af', fontSize: 14, fontWeight: 400, textAlign: 'center', fontStyle: 'italic', marginTop: 2 }}>
+        {artistGenre ? artistGenre : 'No genre found'}
+      </div>
                             </div>
                         );})()}
                             {/* High-Level Classifiers */}
@@ -381,42 +434,65 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                             
                             {/* Responsive styling for high-level classifier nodes */}
                             <style jsx>{`
+                                .section-container .high-level-card {
+                                    padding: 0.75rem !important;
+                                    min-height: 120px !important;
+                                    max-height: 140px !important;
+                                }
+                                
+                                .section-container .high-level-card .card-title {
+                                    font-size: 0.8rem !important;
+                                    margin-bottom: 0.4rem !important;
+                                    line-height: 1.2 !important;
+                                }
+                                
+                                .section-container .high-level-card .card-main-value {
+                                    font-size: 1.2rem !important;
+                                    margin-bottom: 0.2rem !important;
+                                    line-height: 1.1 !important;
+                                }
+                                
+                                .section-container .high-level-card .card-confidence {
+                                    font-size: 0.7rem !important;
+                                    margin-bottom: 0.4rem !important;
+                                    line-height: 1.1 !important;
+                                }
+                                
+                                .section-container .high-level-card .chart-container {
+                                    height: 50px !important;
+                                    margin: 0.2rem 0 !important;
+                                }
+                                
+                                .section-container .high-level-card .card-footer {
+                                    font-size: 0.65rem !important;
+                                    padding: 0.4rem !important;
+                                    line-height: 1.3 !important;
+                                }
+                                
+                                .section-container .high-level-card .card-impact-text-strong {
+                                    font-size: 0.65rem !important;
+                                }
+                                
+                                .section-container .high-level-card .card-impact-text {
+                                    font-size: 0.65rem !important;
+                                }
+
                                 @media (min-width: 1500px) {
                                     .section-container .high-level-card {
-                                        padding: 1rem !important;
-                                        min-height: 140px !important;
+                                        padding: 0.85rem !important;
+                                        min-height: 130px !important;
                                     }
                                     
                                     .section-container .high-level-card .card-title {
-                                        font-size: 0.9rem !important;
-                                        margin-bottom: 0.5rem !important;
+                                        font-size: 0.85rem !important;
                                     }
                                     
                                     .section-container .high-level-card .card-main-value {
-                                        font-size: 1.5rem !important;
-                                        margin-bottom: 0.25rem !important;
-                                    }
-                                    
-                                    .section-container .high-level-card .card-confidence {
-                                        font-size: 0.75rem !important;
-                                        margin-bottom: 0.5rem !important;
+                                        font-size: 1.3rem !important;
                                     }
                                     
                                     .section-container .high-level-card .chart-container {
-                                        height: 60px !important;
-                                    }
-                                    
-                                    .section-container .high-level-card .card-footer {
-                                        font-size: 0.7rem !important;
-                                        padding: 0.5rem !important;
-                                    }
-                                    
-                                    .section-container .high-level-card .card-impact-text-strong {
-                                        font-size: 0.7rem !important;
-                                    }
-                                    
-                                    .section-container .high-level-card .card-impact-text {
-                                        font-size: 0.7rem !important;
+                                        height: 55px !important;
                                     }
                                 }
                             `}</style>
