@@ -16,7 +16,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import ContributorFinder from '../../components/ContributorFinder';
+import NewContributorFinder from '../../components/NewContributorFinder';
 import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
 import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
@@ -144,7 +144,7 @@ export default function Last4WeeksPage() {
         <SongAnalysisModal open={false} onClose={() => {}} songInfo={null} /> /* keep modal tree stable */
       )}
       {showContributorModal && selectedTrackForContributors && (
-        <ContributorFinder mbid={selectedTrackForContributors.mbid} />
+        <NewContributorFinder mbid={selectedTrackForContributors.mbid} track={selectedTrackForContributors} />
       )}
     </main>
   );

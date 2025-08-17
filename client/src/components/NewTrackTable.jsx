@@ -3,7 +3,7 @@ import PlaylistActions from './PlaylistActions';
 import styles from '../app/page.module.css';
 import WrappedAnalysisModal from './WrappedAnalysisModal';
 import DropdownPortal from './DropdownPortal';
-import ContributorFinder from './ContributorFinder';
+import NewContributorFinder from './NewContributorFinder';
 import { lookupTrackMBID } from '../utils/trackAnalysisCache';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
@@ -894,14 +894,14 @@ if (isMobile) {
               left: 50% !important; 
               top: 50% !important; 
               transform: translate(-50%, -50%) scale(1) !important;
-              width: 90%;
-              max-width: 90vw;
+              width: 95% !important;
+              max-width: 100vw !important;
               position: fixed !important;
             }
             .contrib-popup-content {
               background-color: #181818; border: 1px solid #3f3f46;
               border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-              width: 100%; max-width: 24rem; padding: 1.5rem;
+              width: 100%; max-width: none; padding: 1.5rem;
             }
             .contrib-popup-title {
               font-size: 1.25rem; font-weight: 700;
@@ -927,18 +927,7 @@ if (isMobile) {
           >
             <div className="contrib-popup-content" onClick={e => e.stopPropagation()}>
               
-              <button 
-                className="mobile-close-button"
-                onClick={() => setContributorModalOpen(false)}
-                aria-label="Close modal"
-              >
-                ✕
-              </button>
-              
               <div className="contrib-popup-header">
-                <div className="contrib-popup-title">
-                  Contributors for {selectedTrackInfo?.name}
-                </div>
               </div>
               {isContribLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
@@ -946,7 +935,11 @@ if (isMobile) {
                   <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </div>
               ) : selectedTrackMBID ? (
-                <ContributorFinder mbid={selectedTrackMBID} />
+                <NewContributorFinder 
+                  mbid={selectedTrackMBID} 
+                  track={selectedTrackInfo} 
+                  closeButton={() => setContributorModalOpen(false)}
+                />
               ) : (
                 <p style={{ textAlign: 'center', color: '#a1a1aa' }}>
                   Contributor information is not available for this track.
@@ -1388,7 +1381,7 @@ if (isMobile) {
             .contrib-popup-content {
               background-color: #181818; border: 1px solid #3f3f46;
               border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-              width: 100%; max-width: 24rem; padding: 1.5rem;
+              width: 100%; max-width: none; padding: 1.5rem;
             }
             .contrib-popup-title {
               font-size: 1.25rem; font-weight: 700;
@@ -1407,9 +1400,6 @@ if (isMobile) {
             className={`${contributorModalOpen ? 'visible' : ''} desktop-modal`}
           >
             <div ref={contributorModalRef} className="contrib-popup-content">
-  <div className="contrib-popup-title">
-    Contributors for {selectedTrackInfo?.name}
-  </div>
   {isContribLoading ? (
     // State 1: Show a spinner while loading
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
@@ -1417,8 +1407,8 @@ if (isMobile) {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   ) : selectedTrackMBID ? (
-    // State 2: If we have an MBID, show the ContributorFinder
-    <ContributorFinder mbid={selectedTrackMBID} />
+            // State 2: If we have an MBID, show the NewContributorFinder
+        <NewContributorFinder mbid={selectedTrackMBID} track={selectedTrackInfo} />
   ) : (
     // State 3: No MBID available, show no data message
     <NoContributorData />
@@ -1463,8 +1453,11 @@ if (isMobile) {
         
         /* Desktop modal content sizing */
         #contrib-popup-container.desktop-modal .contrib-popup-content {
-          max-width: 32rem !important;
+          max-width: 80rem !important;
           background-color: #181818 !important;
+          padding: 1rem !important;
+          max-height: 85vh !important;
+          overflow-y: auto !important;
         }
         
         /* Mobile modal positioning - ensure it's always centered */
@@ -1473,8 +1466,8 @@ if (isMobile) {
           left: 50% !important; 
           top: 50% !important; 
           transform: translate(-50%, -50%) scale(1) !important;
-          width: 90% !important;
-          max-width: 90vw !important;
+          width: 95% !important;
+          max-width: 100vw !important;
           z-index: 50 !important;
         }
         
@@ -1486,8 +1479,13 @@ if (isMobile) {
         /* Ensure mobile modal content is properly sized */
         #contrib-popup-container.is-mobile .contrib-popup-content {
           width: 100% !important;
-          max-width: 90vw !important;
-          margin: 0 auto !important;
+          max-width: 100vw !important;
+          margin: 0 !important;
+          padding: 1rem !important;
+          max-height: 70vh !important;
+          overflow-y: auto !important;
+          display: block !important;
+          align-items: stretch !important;
         }
         
         /* Mobile modal close button and header */
@@ -1495,7 +1493,7 @@ if (isMobile) {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 1.5rem;
+          margin-bottom: 0.5rem;
           position: relative;
         }
         

@@ -11,7 +11,7 @@ import ArtistSearch from '../components/ArtistSearch';
 import ConcertsList from '../components/ConcertsList';
 
 
-import ContributorFinder from '../components/ContributorFinder';
+import NewContributorFinder from '../components/NewContributorFinder';
 import GenreLeaderboardChart from '../components/GenreLeaderboardChart';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 
@@ -2715,7 +2715,7 @@ const handleExploreContributions = async (track) => {
                   </h2>
 
                   {/* Contributor content */}
-                  <ContributorFinder mbid={selectedTrackForContributors.mbid} />
+                                     <NewContributorFinder mbid={selectedTrackForContributors.mbid} track={selectedTrackForContributors} />
               </div>
           </div>
       )}

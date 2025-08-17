@@ -3,7 +3,7 @@ import PlaylistActions from './PlaylistActions';
 import styles from '../app/page.module.css';
 import WrappedAnalysisModal from './WrappedAnalysisModal';
 import DropdownPortal from './DropdownPortal';
-import ContributorFinder from './ContributorFinder';
+import NewContributorFinder from './NewContributorFinder';
 import { lookupTrackMBID } from '../utils/trackAnalysisCache';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
 
@@ -309,7 +309,7 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
               </button>
             </div>
             {selectedTrackMBID ? (
-              <ContributorFinder mbid={selectedTrackMBID} />
+              <NewContributorFinder mbid={selectedTrackMBID} track={selectedTrackInfo} />
             ) : (
               <p style={{ textAlign: 'center', color: '#f87171' }}>
                 Contributor information is not available for this track.
