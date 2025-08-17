@@ -109,4 +109,60 @@ async function getAlbumGenreStyleMapByArtistName(artistName) {
   return map;
 }
 
-module.exports = { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName };
+/**
+ * Get the primary genre for an artist from Discogs by analyzing their albums.
+ * @param {string} artistName
+ * @returns {Promise<Object>} { primaryGenre: string, confidence: number } or { error: string }
+ */
+async function getArtistPrimaryGenre(artistName) {
+  try {
+    const albums = await getAllAlbumsByArtistName(artistName);
+    if (!albums || albums.length === 0) {
+      return { error: 'No albums found for artist' };
+    }
+
+    // Count genre occurrences across all albums
+    const genreCounts = {};
+    let totalAlbumsWithGenres = 0;
+
+    for (const album of albums) {
+      if (album.genre && Array.isArray(album.genre) && album.genre.length > 0) {
+        totalAlbumsWithGenres++;
+        for (const genre of album.genre) {
+          if (genre && genre.trim()) {
+            const cleanGenre = genre.trim().toLowerCase();
+            genreCounts[cleanGenre] = (genreCounts[cleanGenre] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    if (totalAlbumsWithGenres === 0) {
+      return { error: 'No genre information available for artist' };
+    }
+
+    // Find the most common genre
+    let primaryGenre = null;
+    let maxCount = 0;
+
+    for (const [genre, count] of Object.entries(genreCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        primaryGenre = genre;
+      }
+    }
+
+    // Calculate confidence based on how dominant the primary genre is
+    const confidence = maxCount / totalAlbumsWithGenres;
+
+    return {
+      primaryGenre: primaryGenre.charAt(0).toUpperCase() + primaryGenre.slice(1), // Capitalize first letter
+      confidence: Math.round(confidence * 100) / 100
+    };
+  } catch (error) {
+    console.error('Discogs API Error getting primary genre:', error);
+    return { error: error.message };
+  }
+}
+
+module.exports = { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName, getArtistPrimaryGenre };

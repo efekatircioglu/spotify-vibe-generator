@@ -9,14 +9,15 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [artistGenre, setArtistGenre] = useState(null);
-  const [showGenreModal, setShowGenreModal] = useState(false);
+  const [genreSource, setGenreSource] = useState('spotify');
+
 
   useEffect(() => {
     if (open && songInfo) {
       setLoading(true);
       setError(null);
       setArtistGenre(null);
-      setShowGenreModal(false);
+      setGenreSource('spotify');
       
       const fetchMbid = async () => {
         try {
@@ -44,9 +45,25 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
       setLoading(false);
       setError(null);
       setArtistGenre(null);
-      setShowGenreModal(false);
+      setGenreSource('spotify');
     }
   }, [open, songInfo]);
+
+  // Effect to handle body scrolling - prevent background scrolling when modal is open
+  useEffect(() => {
+    if (open) {
+      // Lock body scroll when modal is open (prevents desktop background scrolling)
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Restore body scroll when modal is closed
+      document.body.style.overflow = 'auto';
+    }
+
+    // Cleanup function to restore scroll when component unmounts
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [open]);
 
   const checkArtistGenre = async () => {
     try {
@@ -78,9 +95,34 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
       }
       
       if (!mainArtistSpotifyId) {
-        // No Spotify artist ID available - this is a real error
-        console.error('[Genre Check] No Spotify artist ID found in song data:', songInfo);
-        setError('No MBID found and no Spotify artist ID available for genre lookup.');
+        // No Spotify artist ID available - try Discogs with artist name as fallback
+        console.log('[Genre Check] No Spotify artist ID found, attempting Discogs fallback with artist name');
+        
+        try {
+          const artistName = songInfo.artists ? songInfo.artists[0]?.name : songInfo.artist;
+          if (artistName) {
+            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            
+            if (discogsResponse.ok) {
+              const discogsData = await discogsResponse.json();
+                              if (discogsData && discogsData.primaryGenre) {
+                  // No MBID, no Spotify ID, but Discogs has genre
+                  console.log(`[Genre Check] Found Discogs genre "${discogsData.primaryGenre}" for artist "${artistName}"`);
+                  setArtistGenre(discogsData.primaryGenre);
+                  setGenreSource('discogs');
+                  setError(null);
+                  setLoading(false);
+                  return;
+                }
+            }
+          }
+        } catch (discogsErr) {
+          console.log('[Genre Check] Discogs fallback failed:', discogsErr);
+        }
+        
+        // No genre found from either source
+        console.error('[Genre Check] No Spotify artist ID or Discogs genre found in song data:', songInfo);
+        setError('No MBID found and no artist genre available on Spotify or Discogs.');
         setLoading(false);
         return;
       }
@@ -93,16 +135,40 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
       if (response.ok) {
         const data = await response.json();
         if (data.genres && data.genres.length > 0) {
-          // Scenario 2: No MBID but main artist has genre
+          // Scenario 2: No MBID but main artist has Spotify genre
           const primaryGenre = data.genres[0];
-          console.log(`[Genre Check] Found genre "${primaryGenre}" for artist ID "${mainArtistSpotifyId}"`);
+          console.log(`[Genre Check] Found Spotify genre "${primaryGenre}" for artist ID "${mainArtistSpotifyId}"`);
           setArtistGenre(primaryGenre);
+          setGenreSource('spotify');
           setError(null);
           setLoading(false);
         } else {
-          // Scenario 3: No MBID and main artist has no genre
-          console.log(`[Genre Check] No genre found for artist ID "${mainArtistSpotifyId}"`);
-          setError('No MBID found and no artist genre available on Spotify.');
+          // Spotify genre not found, try Discogs as fallback
+          console.log(`[Genre Check] No Spotify genre found, attempting Discogs fallback for artist: ${songInfo.artists ? songInfo.artists[0]?.name : songInfo.artist}`);
+          
+          try {
+            const artistName = songInfo.artists ? songInfo.artists[0]?.name : songInfo.artist;
+            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            
+            if (discogsResponse.ok) {
+              const discogsData = await discogsResponse.json();
+                              if (discogsData && discogsData.primaryGenre) {
+                  // Scenario 2b: No MBID, no Spotify genre, but Discogs has genre
+                  console.log(`[Genre Check] Found Discogs genre "${discogsData.primaryGenre}" for artist "${artistName}"`);
+                  setArtistGenre(discogsData.primaryGenre);
+                  setGenreSource('discogs');
+                  setError(null);
+                  setLoading(false);
+                  return;
+                }
+            }
+          } catch (discogsErr) {
+            console.log('[Genre Check] Discogs fallback failed:', discogsErr);
+          }
+          
+          // Scenario 3: No MBID and no genre from either source
+          console.log(`[Genre Check] No genre found from Spotify or Discogs for artist ID "${mainArtistSpotifyId}"`);
+          setError('No MBID found and no artist genre available on Spotify or Discogs.');
           setLoading(false);
         }
       } else {
@@ -113,14 +179,12 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
       }
     } catch (err) {
       console.error('Error checking artist genre:', err);
-      setError('No MBID found and unable to fetch artist genre from Spotify.');
+      setError('No MBID found and unable to fetch artist genre from Spotify or Discogs.');
       setLoading(false);
     }
   };
 
-  const handleGenreButtonClick = () => {
-    setShowGenreModal(true);
-  };
+
 
   if (!open) return null;
 
@@ -132,72 +196,39 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
             <div style={{ color: 'white', textAlign: 'center', padding: '50px' }}>Loading Analysis...</div>
           ) : error ? (
             <div style={{ padding: '50px', textAlign: 'center' }}>
-              <div style={{ color: '#f87171', marginBottom: '20px' }}>{error}</div>
-              {artistGenre && (
-                <button
-                  onClick={handleGenreButtonClick}
-                  style={{
-                    padding: '12px 24px',
-                    background: 'linear-gradient(90deg, #60a5fa, #a855f7)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'opacity 0.2s'
-                  }}
-                  onMouseOver={(e) => e.target.style.opacity = '0.8'}
-                  onMouseOut={(e) => e.target.style.opacity = '1'}
-                >
-                  View Genre Analysis
-                </button>
+              {artistGenre ? (
+                // If we have genre data, show genre analysis directly instead of error
+                <GenreBasedAnalysisModal
+                  open={true}
+                  onClose={onClose}
+                  songInfo={songInfo}
+                  artistGenre={artistGenre}
+                  genreSource={genreSource}
+                />
+              ) : (
+                // Only show error if no genre data available
+                <div style={{ color: '#f87171', marginBottom: '20px' }}>{error}</div>
               )}
             </div>
           ) : mbid ? (
             // Scenario 1: MBID exists - show detailed analysis
-            <AudioAnalysisInterface mbid={mbid} onClose={onClose} />
+            <AudioAnalysisInterface mbid={mbid} onClose={onClose} songInfo={songInfo} />
           ) : artistGenre ? (
-            // Scenario 2: No MBID but has genre - show genre info and button
-            <div style={{ padding: '50px', textAlign: 'center' }}>
-              <div style={{ color: '#60a5fa', fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
-                Genre-Based Analysis Available
-              </div>
-              <div style={{ color: '#d1d5db', marginBottom: '24px' }}>
-                While we couldn't find a MusicBrainz ID for this track, we can provide analysis based on the artist's genre: <span style={{ color: '#ffffff', fontSize: '18px', fontWeight: 600 }}>{artistGenre}</span>
-              </div>
-              <button
-                onClick={handleGenreButtonClick}
-                style={{
-                  padding: '12px 24px',
-                  background: 'linear-gradient(90deg, #60a5fa, #a855f7)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'opacity 0.2s'
-                }}
-                onMouseOver={(e) => e.target.style.opacity = '0.8'}
-                onMouseOut={(e) => e.target.style.opacity = '1'}
-              >
-                View Genre Analysis
-              </button>
-            </div>
+            // Scenario 2: No MBID but has genre - show genre analysis directly
+            <GenreBasedAnalysisModal
+              open={true}
+              onClose={onClose}
+              songInfo={songInfo}
+              artistGenre={artistGenre}
+              genreSource={genreSource}
+            />
           ) : (
             <div style={{ color: '#f87171', textAlign: 'center', padding: '50px' }}>No analysis available for this track.</div>
           )}
         </div>
       </div>
 
-      {/* Genre Analysis Modal */}
-      <GenreBasedAnalysisModal
-        open={showGenreModal}
-        onClose={() => setShowGenreModal(false)}
-        songInfo={songInfo}
-        artistGenre={artistGenre}
-      />
+
     </>
   );
 }

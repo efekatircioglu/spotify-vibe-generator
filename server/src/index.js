@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const pool = new Pool(); // Uses .env variables automatically
 const axios = require('axios');
 const { getDiscogsArtistProfile } = require('./services/discogsService');
-const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName } = require('./services/discogsService');
+const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName, getArtistPrimaryGenre } = require('./services/discogsService');
 
 const app = express();
 const PORT = 8000;
@@ -1227,6 +1227,22 @@ app.get('/discogs/artist/:name/genre-style-map', async (req, res) => {
     res.json({ map });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch genre/style map', details: err.message });
+  }
+});
+
+// --- Discogs: Get artist's primary genre ---
+app.get('/discogs/artist/:name/primary-genre', async (req, res) => {
+  const artistName = req.params.name;
+  if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
+  try {
+    const result = await getArtistPrimaryGenre(artistName);
+    if (result.error) {
+      res.status(404).json({ error: result.error });
+    } else {
+      res.json(result);
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch primary genre', details: err.message });
   }
 });
 

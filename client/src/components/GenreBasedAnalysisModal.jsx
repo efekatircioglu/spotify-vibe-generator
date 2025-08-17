@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { getGenreData, formatEnergyLevel, formatTempo, formatFocus, formatDanceability } from '../utils/genreAnalysisData';
 
-export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artistGenre }) {
+export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artistGenre, genreSource = 'spotify' }) {
   const [isVisible, setIsVisible] = useState(false);
   const [genreAnalysis, setGenreAnalysis] = useState(null);
 
@@ -17,6 +17,22 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
       setGenreAnalysis(null);
     }
   }, [open, songInfo, artistGenre]);
+
+  // Effect to handle body scrolling - prevent background scrolling when modal is open
+  useEffect(() => {
+    if (isVisible) {
+      // Lock body scroll when modal is open (prevents desktop background scrolling)
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Restore body scroll when modal is closed
+      document.body.style.overflow = 'auto';
+    }
+
+    // Cleanup function to restore scroll when component unmounts
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isVisible]);
 
   if (!isVisible) return null;
 
@@ -53,6 +69,39 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
           padding: 'clamp(20px, 4vw, 32px)'
         }}
       >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: 'clamp(16px, 3vw, 20px)',
+            right: 'clamp(16px, 3vw, 20px)',
+            background: 'none',
+            border: 'none',
+            color: '#9ca3af',
+            fontSize: 'clamp(24px, 5vw, 28px)',
+            cursor: 'pointer',
+            zIndex: 1001,
+            width: 'clamp(32px, 6vw, 40px)',
+            height: 'clamp(32px, 6vw, 40px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '50%',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.color = '#ffffff';
+            e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseOut={(e) => {
+            e.target.style.color = '#9ca3af';
+            e.target.style.background = 'none';
+          }}
+          aria-label="Close Modal"
+        >
+          ×
+        </button>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 'clamp(20px, 4vw, 32px)' }}>
           <h1 
@@ -117,7 +166,7 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
             fontSize: 'clamp(13px, 3vw, 14px)', 
             lineHeight: 1.5 
           }}>
-            While we couldn't find a MusicBrainz ID for this track, we can provide analysis based on the artist's genre classification from Spotify. This gives you insights into the typical characteristics of music in this genre.
+            While we couldn't find a MusicBrainz ID for this track, we can provide analysis based on the artist's genre classification from {genreSource === 'discogs' ? 'Discogs' : 'Spotify'}. This gives you insights into the typical characteristics of music in this genre.
           </div>
         </div>
 
@@ -319,28 +368,7 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: 'clamp(10px, 2.5vw, 12px) clamp(20px, 4vw, 24px)',
-              background: '#374151',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 'clamp(6px, 1.5vw, 8px)',
-              fontSize: 'clamp(13px, 3vw, 14px)',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background-color 0.2s',
-              minHeight: 'clamp(40px, 8vw, 44px)'
-            }}
-            onMouseOver={(e) => e.target.style.background = '#4b5563'}
-            onMouseOut={(e) => e.target.style.background = '#374151'}
-          >
-            Close
-          </button>
-        </div>
+
       </div>
     </div>
   );
@@ -350,5 +378,6 @@ GenreBasedAnalysisModal.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   songInfo: PropTypes.object,
-  artistGenre: PropTypes.string
+  artistGenre: PropTypes.string,
+  genreSource: PropTypes.oneOf(['spotify', 'discogs'])
 };

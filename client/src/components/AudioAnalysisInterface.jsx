@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import '../../public/styles.css' ;
+import GenreBasedAnalysisModal from './GenreBasedAnalysisModal';
 
 
 const tooltips = { danceability: "Classifies whether a track is suitable for dancing based on rhythmic patterns.", 
@@ -202,7 +203,7 @@ const tzanetakisMap = {
   blu: 'Blues', cla: 'Classical', cou: 'Country', dis: 'Disco', hip: 'Hip-Hop', jaz: 'Jazz', met: 'Metal', pop: 'Pop', reg: 'Reggae', roc: 'Rock', '': ''
 };
 
-const AudioAnalysisInterface = ({ mbid, onClose }) => {
+const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
     const [analysisData, setAnalysisData] = useState(null);
     const [loading, setLoading] = useState(!!mbid);
     const [error, setError] = useState(null);
@@ -210,8 +211,10 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
     const [focusViewData, setFocusViewData] = useState({ isOpen: false });
     const [tooltip, setTooltip] = useState({ visible: false, content: '', x: 0, y: 0 });
     const [artistGenre, setArtistGenre] = useState(null);
+    const [genreSource, setGenreSource] = useState('spotify');
     const [fallbackMode, setFallbackMode] = useState(false);
     const [fallbackData, setFallbackData] = useState(null);
+    const [showGenreModal, setShowGenreModal] = useState(false);
 
     const activeCharts = useRef([]);
     const activeFocusChart = useRef(null);
@@ -274,6 +277,60 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
     const meta = analysisData?.metadata.tags;
     const high = analysisData?.highlevel;
     
+    // Function to handle fallback when analysis fails
+    const handleAnalysisFailure = async () => {
+        if (!songInfo) {
+            setError('Could not fetch analysis data and no song information available for fallback.');
+            return;
+        }
+
+        try {
+            // Try to get artist genre from Spotify first
+            const artistName = songInfo.artists ? songInfo.artists[0]?.name : songInfo.artist;
+            if (!artistName) {
+                setError('Could not fetch analysis data and no artist name available for fallback.');
+                return;
+            }
+
+            console.log('Analysis failed, attempting Spotify genre fallback for:', artistName);
+            
+            const spotifyResponse = await fetch(`http://127.0.0.1:8000/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`);
+            if (spotifyResponse.ok) {
+                const data = await spotifyResponse.json();
+                if (data && data.primaryGenre) {
+                    // We have a Spotify genre, show genre-based modal
+                    console.log('Found Spotify genre:', data.primaryGenre);
+                    setArtistGenre(data.primaryGenre);
+                    setGenreSource('spotify');
+                    setShowGenreModal(true);
+                    return;
+                }
+            }
+
+            // Spotify genre not found, try Discogs as second fallback
+            console.log('Spotify genre not found, attempting Discogs genre fallback for:', artistName);
+            
+            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            if (discogsResponse.ok) {
+                const discogsData = await discogsResponse.json();
+                if (discogsData && discogsData.primaryGenre) {
+                    // We have a Discogs genre, show genre-based modal
+                    console.log('Found Discogs genre:', discogsData.primaryGenre);
+                    setArtistGenre(discogsData.primaryGenre);
+                    setGenreSource('discogs');
+                    setShowGenreModal(true);
+                    return;
+                }
+            }
+
+            // No genre found from either source, show error
+            setError('Could not fetch analysis data and no artist genre available on Spotify or Discogs.');
+        } catch (err) {
+            console.log('Could not fetch artist genre for fallback:', err);
+            setError('Could not fetch analysis data and unable to fetch artist genre from Spotify or Discogs.');
+        }
+    };
+
     // Function to handle fallback when no MBID is found
     const handleNoMbidFallback = async (artistName, songName, albumName) => {
         try {
@@ -307,6 +364,9 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
         if (!mbid) return;
         setLoading(true);
         setError(null);
+        setShowGenreModal(false); // Reset genre modal state
+        setGenreSource('spotify'); // Reset genre source
+        
         Promise.all([
             fetch(`https://acousticbrainz.org/${mbid}/high-level`).then(res => res.ok ? res.json() : Promise.reject('Failed to fetch high-level')),
             fetch(`http://127.0.0.1:8000/${mbid}/low-level`).then(res => res.ok ? res.json() : Promise.reject('Failed to fetch low-level'))
@@ -340,10 +400,12 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
                     .catch(err => console.log('Could not fetch artist genre:', err));
             }
         }).catch(err => {
-            setError('Could not fetch analysis data.');
+            console.log('Analysis failed, attempting genre fallback:', err);
+            // Instead of setting error immediately, try genre fallback
+            handleAnalysisFailure();
             setLoading(false);
         });
-    }, [mbid]);
+    }, [mbid, songInfo]);
 
     // Handle the three scenarios: MBID exists, no MBID but has genre, no MBID and no genre
     if (!mbid) {
@@ -354,6 +416,23 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
     if (loading) {
         return <div style={{ color: '#fff', textAlign: 'center', padding: 40 }}>Loading analysis...</div>;
     }
+
+    // Show genre-based modal if analysis failed but we have genre data
+    if (showGenreModal && artistGenre && songInfo) {
+        return (
+            <GenreBasedAnalysisModal
+                open={true}
+                onClose={() => {
+                    setShowGenreModal(false);
+                    if (onClose) onClose();
+                }}
+                songInfo={songInfo}
+                artistGenre={artistGenre}
+                genreSource={genreSource}
+            />
+        );
+    }
+
     if (error) {
         return <div style={{ color: '#f87171', textAlign: 'center', padding: 40 }}>{error}</div>;
     }
