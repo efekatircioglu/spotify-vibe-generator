@@ -327,37 +327,91 @@ app.get('/artist-genre-by-name', async (req, res) => {
     const { artistName } = req.query;
     if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
     
+    console.log(`[Artist Genre API] Searching for artist: "${artistName}"`);
+    
     // Search for the artist using Spotify API (same as /artist page)
-    const searchRes = await spotifyApi.searchArtists(artistName, { limit: 5 });
+    const searchRes = await spotifyApi.searchArtists(artistName, { limit: 10 });
     const artists = searchRes.body.artists.items;
     
     if (artists && artists.length > 0) {
-      // Find the best match (exact or closest)
-      let bestMatch = artists[0];
+      console.log(`[Artist Genre API] Found ${artists.length} potential matches`);
       
-      // Try to find exact match first
-      const exactMatch = artists.find(artist => 
-        artist.name.toLowerCase() === artistName.toLowerCase()
-      );
+      // Find the best match with improved logic
+      let bestMatch = null;
+      let bestScore = 0;
       
-      if (exactMatch) {
-        bestMatch = exactMatch;
-      }
-      
-      // Get the primary genre (first one in the array)
-      const primaryGenre = bestMatch.genres && bestMatch.genres.length > 0 ? bestMatch.genres[0] : null;
-      
-      res.json({
-        artistName: bestMatch.name,
-        spotifyId: bestMatch.id,
-        primaryGenre: primaryGenre,
-        allGenres: bestMatch.genres || []
+      artists.forEach((artist, index) => {
+        const artistNameLower = artistName.toLowerCase();
+        const spotifyArtistNameLower = artist.name.toLowerCase();
+        
+        // Calculate match score
+        let score = 0;
+        
+        // Exact match gets highest score
+        if (spotifyArtistNameLower === artistNameLower) {
+          score = 100;
+        }
+        // Starts with gets high score
+        else if (spotifyArtistNameLower.startsWith(artistNameLower)) {
+          score = 80;
+        }
+        // Contains gets medium score
+        else if (spotifyArtistNameLower.includes(artistNameLower)) {
+          score = 60;
+        }
+        // Partial match gets lower score
+        else if (artistNameLower.includes(spotifyArtistNameLower)) {
+          score = 40;
+        }
+        
+        // Bonus for higher popularity (more likely to be the main artist)
+        if (artist.popularity) {
+          score += Math.min(artist.popularity / 10, 20); // Max 20 bonus points
+        }
+        
+        // Bonus for having genres (more established artist)
+        if (artist.genres && artist.genres.length > 0) {
+          score += 10;
+        }
+        
+        console.log(`[Artist Genre API] Artist "${artist.name}" (popularity: ${artist.popularity}) - Score: ${score}`);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = artist;
+        }
       });
+      
+      if (bestMatch) {
+        console.log(`[Artist Genre API] Best match: "${bestMatch.name}" with score ${bestScore}`);
+        
+        // Get the primary genre (first one in the array)
+        const primaryGenre = bestMatch.genres && bestMatch.genres.length > 0 ? bestMatch.genres[0] : null;
+        
+        if (primaryGenre) {
+          console.log(`[Artist Genre API] Found genre: "${primaryGenre}" for "${bestMatch.name}"`);
+        } else {
+          console.log(`[Artist Genre API] No genres found for "${bestMatch.name}"`);
+        }
+        
+        res.json({
+          artistName: bestMatch.name,
+          spotifyId: bestMatch.id,
+          primaryGenre: primaryGenre,
+          allGenres: bestMatch.genres || [],
+          matchScore: bestScore,
+          popularity: bestMatch.popularity
+        });
+      } else {
+        console.log(`[Artist Genre API] No suitable match found for "${artistName}"`);
+        res.status(404).json({ error: 'No suitable artist match found' });
+      }
     } else {
+      console.log(`[Artist Genre API] No artists found for "${artistName}"`);
       res.status(404).json({ error: 'Artist not found' });
     }
   } catch (err) {
-    console.error('Error fetching artist genre by name:', err);
+    console.error('[Artist Genre API] Error fetching artist genre:', err);
     res.status(500).json({ error: 'Failed to fetch artist genre' });
   }
 });

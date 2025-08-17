@@ -410,11 +410,9 @@ const AudioAnalysisInterface = ({ mbid, onClose }) => {
       <div style={{ color: '#d1d5db', fontSize: 16, fontWeight: 400, textAlign: 'center' }}>
         {meta.artist?.[0]}{albumName ? ` — ${albumName}` : ''}
       </div>
-      <div style={{ color: '#9ca3af', fontSize: 14, fontWeight: 400, textAlign: 'center', fontStyle: 'italic', marginTop: 2 }}>
-        {artistGenre ? artistGenre : 'No genre found'}
-      </div>
-                            </div>
-                        );})()}
+    </div>
+  );
+})()}
                             {/* High-Level Classifiers */}
                             <h3 className="section-title" style={{ textAlign: 'left' }}>High-Level Classifiers</h3>
                             <div className="grid grid-cols-4 section-container">

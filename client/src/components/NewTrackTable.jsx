@@ -233,9 +233,68 @@ const NoContributorData = () => {
   setIsContribLoading(false); // <-- Finish loading
 };
 
-  const handleThirdGenreClick = (track) => {
-    setSelectedTrackForNewAnalysis(track);
-    setShowNewSongAnalysisModal(true);
+  const handleThirdGenreClick = async (track) => {
+    try {
+      console.log('[Genre Click] Preparing track data for modal:', track);
+      
+      // Prepare the track data with proper artist structure
+      let preparedTrack = { ...track };
+      
+      // If the track doesn't have artists array with IDs, we need to create it
+      if (!track.artists || !Array.isArray(track.artists) || !track.artists[0]?.id) {
+        console.log('[Genre Click] Track missing artists array with IDs, preparing data...');
+        
+        // Extract artist name from track.artist (string) or track.artists
+        let artistName = null;
+        if (track.artist && typeof track.artist === 'string') {
+          // Handle comma-separated artist names - take the first one as main artist
+          artistName = track.artist.split(',')[0].trim();
+        } else if (track.artists && Array.isArray(track.artists)) {
+          artistName = track.artists[0]?.name || track.artists[0];
+        }
+        
+        if (artistName) {
+          console.log(`[Genre Click] Searching for artist: "${artistName}"`);
+          
+          try {
+            // Search Spotify API for the artist to get their ID
+            const spData = await fetchWithRetry(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+            const spotifyArtists = spData.artists || [];
+            
+            // Find exact match
+            const exactSpotify = spotifyArtists.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+            if (exactSpotify && exactSpotify.id) {
+              console.log(`[Genre Click] Found Spotify artist ID: ${exactSpotify.id} for "${artistName}"`);
+              
+              // Create the proper artists array structure
+              preparedTrack.artists = [{
+                name: exactSpotify.name,
+                id: exactSpotify.id,
+                images: exactSpotify.images || []
+              }];
+              
+              console.log('[Genre Click] Prepared track data:', preparedTrack);
+            } else {
+              console.log(`[Genre Click] No exact match found for "${artistName}"`);
+            }
+          } catch (err) {
+            console.error('[Genre Click] Error searching Spotify API:', err);
+          }
+        }
+      } else {
+        console.log('[Genre Click] Track already has proper artists array with IDs');
+      }
+      
+      // Set the prepared track data and open modal
+      setSelectedTrackForNewAnalysis(preparedTrack);
+      setShowNewSongAnalysisModal(true);
+      
+    } catch (error) {
+      console.error('[Genre Click] Error preparing track data:', error);
+      // Fallback: use original track data
+      setSelectedTrackForNewAnalysis(track);
+      setShowNewSongAnalysisModal(true);
+    }
   };
 
 

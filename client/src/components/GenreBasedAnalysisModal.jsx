@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { getGenreData, formatEnergyLevel, formatTempo, formatFocus, formatDanceability } from '../utils/genreAnalysisData';
 
 export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artistGenre }) {
   const [isVisible, setIsVisible] = useState(false);
+  const [genreAnalysis, setGenreAnalysis] = useState(null);
 
   useEffect(() => {
     if (open && songInfo && artistGenre) {
       setIsVisible(true);
+      // Get genre analysis data
+      const analysis = getGenreData(artistGenre);
+      setGenreAnalysis(analysis);
     } else {
       setIsVisible(false);
+      setGenreAnalysis(null);
     }
   }, [open, songInfo, artistGenre]);
 
@@ -26,7 +32,8 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
         zIndex: 1000, 
         display: 'flex', 
         alignItems: 'center', 
-        justifyContent: 'center' 
+        justifyContent: 'center',
+        padding: '16px'
       }} 
       onClick={onClose}
     >
@@ -34,39 +41,57 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
         onClick={e => e.stopPropagation()} 
         style={{ 
           maxHeight: '90vh', 
-          width: '90vw', 
-          maxWidth: '800px',
+          width: '100%',
+          maxWidth: '95vw',
           overflowY: 'auto', 
           scrollbarWidth: 'thin', 
           scrollbarColor: '#444 #232323', 
           background: '#18181b', 
-          borderRadius: 24, 
+          borderRadius: 20, 
           boxShadow: '0 8px 48px #000b', 
           position: 'relative',
-          padding: '32px'
+          padding: 'clamp(20px, 4vw, 32px)'
         }}
       >
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(20px, 4vw, 32px)' }}>
           <h1 
             className="gradient-text"
             style={{
-              fontSize: '2rem',
+              fontSize: 'clamp(1.5rem, 5vw, 2rem)',
               fontWeight: 700,
-              marginBottom: '8px',
+              marginBottom: 'clamp(6px, 2vw, 8px)',
               lineHeight: 1.2,
               background: 'linear-gradient(90deg, #60a5fa, #a855f7)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
+              backgroundClip: 'text',
+              wordBreak: 'break-word'
             }}
           >
             {songInfo.name}
           </h1>
-          <div style={{ color: '#d1d5db', fontSize: '16px', fontWeight: 400 }}>
-            {songInfo.artists ? songInfo.artists.map(a => a.name).join(', ') : songInfo.artist} — {songInfo.album?.name || 'Unknown Album'}
+          <div style={{ 
+            color: '#d1d5db', 
+            fontSize: 'clamp(14px, 3.5vw, 16px)', 
+            fontWeight: 400,
+            lineHeight: 1.3,
+            wordBreak: 'break-word'
+          }}>
+            {songInfo.artists ? songInfo.artists.map(a => a.name).join(', ') : songInfo.artist} — {(() => {
+              // Try multiple possible album name sources
+              if (songInfo.album?.name) return songInfo.album.name;
+              if (songInfo.album) return songInfo.album;
+              if (songInfo.album_name) return songInfo.album_name;
+              return 'Unknown Album';
+            })()}
           </div>
-          <div style={{ color: '#9ca3af', fontSize: '14px', fontWeight: 400, fontStyle: 'italic', marginTop: '8px' }}>
+          <div style={{ 
+            color: '#ffffff', 
+            fontSize: 'clamp(16px, 4vw, 18px)', 
+            fontWeight: 600, 
+            marginTop: 'clamp(8px, 2vw, 12px)' 
+          }}>
             {artistGenre}
           </div>
         </div>
@@ -74,26 +99,35 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
         {/* Info Box */}
         <div style={{ 
           background: '#232b39', 
-          borderRadius: '12px', 
-          padding: '20px', 
-          marginBottom: '24px',
+          borderRadius: 'clamp(10px, 2.5vw, 12px)', 
+          padding: 'clamp(16px, 3.5vw, 20px)', 
+          marginBottom: 'clamp(20px, 4vw, 24px)',
           border: '1px solid #374151'
         }}>
-          <div style={{ color: '#60a5fa', fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
+          <div style={{ 
+            color: '#60a5fa', 
+            fontSize: 'clamp(14px, 3.5vw, 16px)', 
+            fontWeight: 600, 
+            marginBottom: 'clamp(6px, 2vw, 8px)' 
+          }}>
             ℹ️ Genre-Based Analysis Available
           </div>
-          <div style={{ color: '#d1d5db', fontSize: '14px', lineHeight: 1.5 }}>
+          <div style={{ 
+            color: '#d1d5db', 
+            fontSize: 'clamp(13px, 3vw, 14px)', 
+            lineHeight: 1.5 
+          }}>
             While we couldn't find a MusicBrainz ID for this track, we can provide analysis based on the artist's genre classification from Spotify. This gives you insights into the typical characteristics of music in this genre.
           </div>
         </div>
 
         {/* Genre Analysis Table */}
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: 'clamp(20px, 4vw, 24px)' }}>
           <h3 style={{ 
             color: '#ffffff', 
-            fontSize: '18px', 
+            fontSize: 'clamp(16px, 4vw, 18px)', 
             fontWeight: 600, 
-            marginBottom: '16px',
+            marginBottom: 'clamp(12px, 3vw, 16px)',
             textAlign: 'center'
           }}>
             Genre Characteristics: {artistGenre}
@@ -101,142 +135,187 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
           
           <div style={{ 
             background: '#232b39', 
-            borderRadius: '12px', 
+            borderRadius: 'clamp(10px, 2.5vw, 12px)', 
             overflow: 'hidden',
             border: '1px solid #374151'
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#1f2937' }}>
-                  <th style={{ 
-                    padding: '16px', 
-                    textAlign: 'left', 
-                    color: '#ffffff', 
-                    fontWeight: 600,
-                    borderBottom: '1px solid #374151'
-                  }}>
-                    Characteristic
-                  </th>
-                  <th style={{ 
-                    padding: '16px', 
-                    textAlign: 'left', 
-                    color: '#ffffff', 
-                    fontWeight: 600,
-                    borderBottom: '1px solid #374151'
-                  }}>
-                    Typical Range
-                  </th>
-                  <th style={{ 
-                    padding: '16px', 
-                    textAlign: 'left', 
-                    color: '#ffffff', 
-                    fontWeight: 600,
-                    borderBottom: '1px solid #374151'
-                  }}>
-                    Description
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: '1px solid #374151' }}>
-                  <td style={{ padding: '16px', color: '#d1d5db', fontWeight: 500 }}>Energy Level</td>
-                  <td style={{ padding: '16px', color: '#60a5fa' }}>Medium-High</td>
-                  <td style={{ padding: '16px', color: '#9ca3af' }}>
-                    {artistGenre === 'rock' || artistGenre === 'metal' ? 'High energy with driving rhythms' :
-                     artistGenre === 'pop' ? 'Dynamic energy with catchy hooks' :
-                     artistGenre === 'jazz' ? 'Varied energy with improvisational elements' :
-                     artistGenre === 'classical' ? 'Controlled energy with structured dynamics' :
-                     artistGenre === 'electronic' ? 'Consistent energy with electronic beats' :
-                     artistGenre === 'hip hop' ? 'Rhythmic energy with strong beats' :
-                     'Balanced energy typical of this genre'}
-                  </td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #374151' }}>
-                  <td style={{ padding: '16px', color: '#d1d5db', fontWeight: 500 }}>Tempo</td>
-                  <td style={{ padding: '16px', color: '#60a5fa' }}>
-                    {artistGenre === 'rock' ? '120-140 BPM' :
-                     artistGenre === 'pop' ? '100-130 BPM' :
-                     artistGenre === 'jazz' ? '80-160 BPM' :
-                     artistGenre === 'classical' ? '60-180 BPM' :
-                     artistGenre === 'electronic' ? '120-140 BPM' :
-                     artistGenre === 'hip hop' ? '80-100 BPM' :
-                     'Variable tempo range'}
-                  </td>
-                  <td style={{ padding: '16px', color: '#9ca3af' }}>
-                    {artistGenre === 'rock' ? 'Moderate to fast tempo with driving beats' :
-                     artistGenre === 'pop' ? 'Danceable tempo with catchy rhythms' :
-                     artistGenre === 'jazz' ? 'Wide tempo range for expression' :
-                     artistGenre === 'classical' ? 'Diverse tempo for emotional impact' :
-                     artistGenre === 'electronic' ? 'Consistent dance tempo' :
-                     artistGenre === 'hip hop' ? 'Slower tempo for lyrical delivery' :
-                     'Tempo varies based on mood and style'}
-                  </td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #374151' }}>
-                  <td style={{ padding: '16px', color: '#d1d5db', fontWeight: 500 }}>Instrumentation</td>
-                  <td style={{ padding: '16px', color: '#60a5fa' }}>
-                    {artistGenre === 'rock' ? 'Electric guitars, drums, bass' :
-                     artistGenre === 'pop' ? 'Synths, drums, vocals' :
-                     artistGenre === 'jazz' ? 'Sax, piano, drums, bass' :
-                     artistGenre === 'classical' ? 'Orchestral instruments' :
-                     artistGenre === 'electronic' ? 'Synthesizers, drum machines' :
-                     artistGenre === 'hip hop' ? 'Beats, samples, vocals' :
-                     'Genre-typical instruments'}
-                  </td>
-                  <td style={{ padding: '16px', color: '#9ca3af' }}>
-                    {artistGenre === 'rock' ? 'Powerful electric sound with strong rhythm section' :
-                     artistGenre === 'pop' ? 'Modern production with electronic elements' :
-                     artistGenre === 'jazz' ? 'Acoustic instruments with improvisation' :
-                     artistGenre === 'classical' ? 'Traditional orchestral arrangements' :
-                     artistGenre === 'electronic' ? 'Digital and synthesized sounds' :
-                     artistGenre === 'hip hop' ? 'Rhythm-focused with vocal delivery' :
-                     'Characteristic instrumentation for this style'}
-                  </td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #374151' }}>
-                  <td style={{ padding: '16px', color: '#d1d5db', fontWeight: 500 }}>Mood</td>
-                  <td style={{ padding: '16px', color: '#60a5fa' }}>
-                    {artistGenre === 'rock' ? 'Energetic, powerful' :
-                     artistGenre === 'pop' ? 'Upbeat, catchy' :
-                     artistGenre === 'jazz' ? 'Sophisticated, relaxed' :
-                     artistGenre === 'classical' ? 'Emotional, dramatic' :
-                     artistGenre === 'electronic' ? 'Hypnotic, energetic' :
-                     artistGenre === 'hip hop' ? 'Confident, rhythmic' :
-                     'Genre-typical mood'}
-                  </td>
-                  <td style={{ padding: '16px', color: '#9ca3af' }}>
-                    {artistGenre === 'rock' ? 'High energy with rebellious spirit' :
-                     artistGenre === 'pop' ? 'Positive and accessible emotions' :
-                     artistGenre === 'jazz' ? 'Complex emotions with artistic depth' :
-                     artistGenre === 'classical' ? 'Rich emotional palette' :
-                     artistGenre === 'electronic' ? 'Hypnotic and dance-oriented' :
-                     artistGenre === 'hip hop' ? 'Strong and confident expression' :
-                     'Emotional characteristics typical of this genre'}
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ padding: '16px', color: '#d1d5db', fontWeight: 500 }}>Complexity</td>
-                  <td style={{ padding: '16px', color: '#60a5fa' }}>
-                    {artistGenre === 'rock' ? 'Medium' :
-                     artistGenre === 'pop' ? 'Low-Medium' :
-                     artistGenre === 'jazz' ? 'High' :
-                     artistGenre === 'classical' ? 'Very High' :
-                     artistGenre === 'electronic' ? 'Medium-High' :
-                     artistGenre === 'hip hop' ? 'Medium' :
-                     'Variable complexity'}
-                  </td>
-                  <td style={{ padding: '16px', color: '#9ca3af' }}>
-                    {artistGenre === 'rock' ? 'Balanced complexity with memorable structures' :
-                     artistGenre === 'pop' ? 'Accessible complexity for wide appeal' :
-                     artistGenre === 'jazz' ? 'High complexity with improvisation' :
-                     artistGenre === 'classical' ? 'Maximum complexity and sophistication' :
-                     artistGenre === 'electronic' ? 'Technical complexity in production' :
-                     artistGenre === 'hip hop' ? 'Rhythmic complexity with lyrical depth' :
-                     'Complexity level typical of this genre'}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            {/* Mobile-optimized table layout */}
+            <div style={{ padding: 'clamp(12px, 3vw, 16px)' }}>
+              {/* Energy Level */}
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 20px)' }}>
+                <div style={{ 
+                  color: '#ffffff', 
+                  fontSize: 'clamp(14px, 3.5vw, 16px)', 
+                  fontWeight: 600, 
+                  marginBottom: 'clamp(4px, 1.5vw, 6px)' 
+                }}>
+                  Energy Level
+                </div>
+                <div style={{ 
+                  color: '#60a5fa', 
+                  fontSize: 'clamp(13px, 3vw, 14px)', 
+                  fontWeight: 500,
+                  marginBottom: 'clamp(6px, 2vw, 8px)'
+                }}>
+                  {genreAnalysis ? formatEnergyLevel(genreAnalysis.energy) : 'Medium'}
+                </div>
+                <div style={{ 
+                  color: '#9ca3af', 
+                  fontSize: 'clamp(12px, 2.8vw, 13px)', 
+                  lineHeight: 1.4 
+                }}>
+                  {genreAnalysis ? 
+                    `This genre typically features ${genreAnalysis.energy} energy levels, creating a ${genreAnalysis.energy === 'low' ? 'calm and relaxed' : 
+                     genreAnalysis.energy === 'low-to-mid' ? 'gentle and soothing' :
+                     genreAnalysis.energy === 'medium' ? 'balanced and moderate' :
+                     genreAnalysis.energy === 'mid-to-high' ? 'energetic and engaging' :
+                     genreAnalysis.energy === 'high' ? 'intense and powerful' :
+                     'varied and dynamic'} musical experience.` :
+                    'Energy level varies based on the specific style and mood of the music.'
+                  }
+                </div>
+              </div>
+
+              {/* Tempo */}
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 20px)' }}>
+                <div style={{ 
+                  color: '#ffffff', 
+                  fontSize: 'clamp(14px, 3.5vw, 16px)', 
+                  fontWeight: 600, 
+                  marginBottom: 'clamp(4px, 1.5vw, 6px)' 
+                }}>
+                  Tempo
+                </div>
+                <div style={{ 
+                  color: '#60a5fa', 
+                  fontSize: 'clamp(13px, 3vw, 14px)', 
+                  fontWeight: 500,
+                  marginBottom: 'clamp(6px, 2vw, 8px)'
+                }}>
+                  {genreAnalysis ? formatTempo(genreAnalysis.tempo) : 'Variable tempo range'}
+                </div>
+                <div style={{ 
+                  color: '#9ca3af', 
+                  fontSize: 'clamp(12px, 2.8vw, 13px)', 
+                  lineHeight: 1.4 
+                }}>
+                  {genreAnalysis ? 
+                    `The tempo in this genre is typically ${genreAnalysis.tempo}, which ${genreAnalysis.tempo === 'low' ? 'creates a relaxed, contemplative atmosphere' :
+                     genreAnalysis.tempo === 'low-to-mid' ? 'provides a gentle, flowing rhythm' :
+                     genreAnalysis.tempo === 'medium' ? 'offers a balanced, accessible pace' :
+                     genreAnalysis.tempo === 'mid-to-high' ? 'delivers an energetic, engaging feel' :
+                     genreAnalysis.tempo === 'high' ? 'creates an intense, driving experience' :
+                     'varies widely to match different emotional expressions'}.` :
+                    'Tempo varies based on the specific style and mood of the music.'
+                  }
+                </div>
+              </div>
+
+              {/* Musical Focus */}
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 20px)' }}>
+                <div style={{ 
+                  color: '#ffffff', 
+                  fontSize: 'clamp(14px, 3.5vw, 16px)', 
+                  fontWeight: 600, 
+                  marginBottom: 'clamp(4px, 1.5vw, 6px)' 
+                }}>
+                  Musical Focus
+                </div>
+                <div style={{ 
+                  color: '#60a5fa', 
+                  fontSize: 'clamp(13px, 3vw, 14px)', 
+                  fontWeight: 500,
+                  marginBottom: 'clamp(6px, 2vw, 8px)'
+                }}>
+                  {genreAnalysis ? formatFocus(genreAnalysis.focus) : 'Balanced'}
+                </div>
+                <div style={{ 
+                  color: '#9ca3af', 
+                  fontSize: 'clamp(12px, 2.8vw, 13px)', 
+                  lineHeight: 1.4 
+                }}>
+                  {genreAnalysis ? 
+                    `This genre ${genreAnalysis.focus === 'balanced' ? 'maintains an equal balance between vocals and instruments' :
+                     genreAnalysis.focus === 'towards instrumental' ? 'emphasizes instrumental performance and arrangement' :
+                     genreAnalysis.focus === 'towards vocal' ? 'prioritizes vocal expression and lyrical content' :
+                     'features variable focus depending on the specific style'}.` :
+                    'Musical focus varies based on the specific style and arrangement.'
+                  }
+                </div>
+              </div>
+
+              {/* Mood */}
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 20px)' }}>
+                <div style={{ 
+                  color: '#ffffff', 
+                  fontSize: 'clamp(14px, 3.5vw, 16px)', 
+                  fontWeight: 600, 
+                  marginBottom: 'clamp(4px, 1.5vw, 6px)' 
+                }}>
+                  Mood
+                </div>
+                <div style={{ 
+                  color: '#60a5fa', 
+                  fontSize: 'clamp(13px, 3vw, 14px)', 
+                  fontWeight: 500,
+                  marginBottom: 'clamp(6px, 2vw, 8px)',
+                  wordBreak: 'break-word'
+                }}>
+                  {genreAnalysis && genreAnalysis.mood ? 
+                    genreAnalysis.mood.join(', ') :
+                    'Genre-typical mood'
+                  }
+                </div>
+                <div style={{ 
+                  color: '#9ca3af', 
+                  fontSize: 'clamp(12px, 2.8vw, 13px)', 
+                  lineHeight: 1.4 
+                }}>
+                  {genreAnalysis && genreAnalysis.mood ? 
+                    `This genre typically conveys ${genreAnalysis.mood.join(', ')} emotions, creating a ${genreAnalysis.mood.includes('melancholic') ? 'thoughtful and reflective' :
+                     genreAnalysis.mood.includes('energetic') ? 'vibrant and uplifting' :
+                     genreAnalysis.mood.includes('dark') ? 'mysterious and intense' :
+                     genreAnalysis.mood.includes('relaxed') ? 'calm and peaceful' :
+                     'distinctive and characteristic'} musical atmosphere.` :
+                    'Mood varies based on the specific style and emotional expression.'
+                  }
+                </div>
+              </div>
+
+              {/* Danceability */}
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 20px)' }}>
+                <div style={{ 
+                  color: '#ffffff', 
+                  fontSize: 'clamp(14px, 3.5vw, 16px)', 
+                  fontWeight: 600, 
+                  marginBottom: 'clamp(4px, 1.5vw, 6px)' 
+                }}>
+                  Danceability
+                </div>
+                <div style={{ 
+                  color: '#60a5fa', 
+                  fontSize: 'clamp(13px, 3vw, 14px)', 
+                  fontWeight: 500,
+                  marginBottom: 'clamp(6px, 2vw, 8px)'
+                }}>
+                  {genreAnalysis ? formatDanceability(genreAnalysis.danceability) : 'Medium'}
+                </div>
+                <div style={{ 
+                  color: '#9ca3af', 
+                  fontSize: 'clamp(12px, 2.8vw, 13px)', 
+                  lineHeight: 1.4 
+                }}>
+                  {genreAnalysis ? 
+                    `This genre has ${genreAnalysis.danceability} danceability, making it ${genreAnalysis.danceability === 'low' ? 'more suitable for listening and contemplation' :
+                     genreAnalysis.danceability === 'low-to-mid' ? 'moderately danceable with some rhythmic elements' :
+                     genreAnalysis.danceability === 'medium' ? 'reasonably danceable with clear rhythmic patterns' :
+                     genreAnalysis.danceability === 'high' ? 'highly danceable with strong rhythmic drive' :
+                     'variably danceable depending on the specific style'}.` :
+                    'Danceability varies based on the specific style and rhythmic elements.'
+                  }
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -245,15 +324,16 @@ export default function GenreBasedAnalysisModal({ open, onClose, songInfo, artis
           <button
             onClick={onClose}
             style={{
-              padding: '12px 24px',
+              padding: 'clamp(10px, 2.5vw, 12px) clamp(20px, 4vw, 24px)',
               background: '#374151',
               color: '#ffffff',
               border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
+              borderRadius: 'clamp(6px, 1.5vw, 8px)',
+              fontSize: 'clamp(13px, 3vw, 14px)',
               fontWeight: 500,
               cursor: 'pointer',
-              transition: 'background-color 0.2s'
+              transition: 'background-color 0.2s',
+              minHeight: 'clamp(40px, 8vw, 44px)'
             }}
             onMouseOver={(e) => e.target.style.background = '#4b5563'}
             onMouseOut={(e) => e.target.style.background = '#374151'}
