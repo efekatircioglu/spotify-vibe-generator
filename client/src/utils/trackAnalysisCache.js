@@ -1,7 +1,43 @@
 // Persistent cache for ISRC/MBID mapping, using localStorage
 
 const CACHE_KEY = 'trackAnalysisCache';
+const MAX_CACHE_SIZE = 10 * 1024 * 1024; // 10MB limit (tracks can have more data)
+const MAX_CACHE_ENTRIES = 2000; // Maximum number of cached tracks
 let cache = {};
+
+// Helper function to estimate cache size
+const estimateCacheSize = (cache) => {
+  try {
+    return new Blob([JSON.stringify(cache)]).size;
+  } catch (error) {
+    // Fallback: rough estimation based on string length
+    return JSON.stringify(cache).length * 2; // UTF-16 characters
+  }
+};
+
+// Helper function to clean old cache entries
+const cleanCache = (cache) => {
+  const entries = Object.entries(cache);
+  if (entries.length <= MAX_CACHE_ENTRIES / 2) return cache; // Don't clean if cache is small
+  
+  // Sort by timestamp (if available) or keep most recent entries
+  const sortedEntries = entries.sort((a, b) => {
+    const aTime = a[1].timestamp || 0;
+    const bTime = b[1].timestamp || 0;
+    return bTime - aTime;
+  });
+  
+  // Keep only the most recent entries
+  const cleanedCache = {};
+  const entriesToKeep = Math.floor(MAX_CACHE_ENTRIES * 0.7); // Keep 70% of max
+  
+  for (let i = 0; i < Math.min(entriesToKeep, sortedEntries.length); i++) {
+    const [key, value] = sortedEntries[i];
+    cleanedCache[key] = value;
+  }
+  
+  return cleanedCache;
+};
 
 function isValidSpotifyId(id) {
   return typeof id === 'string' && id.length === 22 && /^[A-Za-z0-9]+$/.test(id);
@@ -19,15 +55,72 @@ function loadCache() {
       }
     }
   } catch (e) {
+    console.error('Error loading track analysis cache:', e);
+    // If loading fails, try to clear and start fresh
+    try {
+      localStorage.removeItem(CACHE_KEY);
+    } catch (clearError) {
+      console.error('Error clearing corrupted track cache:', clearError);
+    }
     cache = {};
   }
 }
 
 function saveCache() {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {
-    // Ignore write errors
+    // Check if cache is getting too large before saving
+    const estimatedSize = estimateCacheSize(cache);
+    
+    if (estimatedSize > MAX_CACHE_SIZE || Object.keys(cache).length > MAX_CACHE_ENTRIES) {
+      console.warn('Track cache size limit reached, cleaning old entries...');
+      const cleanedCache = cleanCache(cache);
+      
+      // Try to save the cleaned cache
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
+        console.log('Track cache cleaned and saved successfully');
+        // Update the in-memory cache to the cleaned version
+        cache = cleanedCache;
+      } catch (cleanError) {
+        console.error('Error saving cleaned track cache:', cleanError);
+        // If even the cleaned cache fails, clear everything
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          console.log('Track cache cleared due to storage issues');
+          cache = {};
+        } catch (clearError) {
+          console.error('Error clearing track cache:', clearError);
+        }
+        return;
+      }
+    } else {
+      // Normal save operation
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    }
+  } catch (error) {
+    if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+      console.warn('localStorage quota exceeded for track cache, attempting to clean...');
+      
+      try {
+        // Try to clean the cache and save again
+        const cleanedCache = cleanCache(cache);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
+        console.log('Track cache cleaned and saved after quota error');
+        cache = cleanedCache;
+      } catch (cleanError) {
+        console.error('Failed to clean track cache after quota error:', cleanError);
+        // Last resort: clear everything
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          console.log('Track cache cleared due to persistent quota issues');
+          cache = {};
+        } catch (clearError) {
+          console.error('Error clearing track cache:', clearError);
+        }
+      }
+    } else {
+      console.error('Error saving track analysis cache:', error);
+    }
   }
 }
 
@@ -37,7 +130,7 @@ export function getTrackISRC(spotifyId) {
 
 export function setTrackISRC(spotifyId, isrc) {
   if (!isValidSpotifyId(spotifyId)) return;
-  cache[spotifyId] = { ...cache[spotifyId], isrc };
+  cache[spotifyId] = { ...cache[spotifyId], isrc, timestamp: Date.now() };
   saveCache();
 }
 
@@ -47,7 +140,7 @@ export function getTrackMBID(spotifyId) {
 
 export function setTrackMBID(spotifyId, mbid) {
   if (!isValidSpotifyId(spotifyId)) return;
-  cache[spotifyId] = { ...cache[spotifyId], mbid };
+  cache[spotifyId] = { ...cache[spotifyId], mbid, timestamp: Date.now() };
   saveCache();
 }
 
@@ -58,7 +151,7 @@ export function getTrackAnalysis(spotifyId) {
 
 export function setTrackAnalysis(spotifyId, analysis) {
   if (!isValidSpotifyId(spotifyId)) return;
-  cache[spotifyId] = { ...cache[spotifyId], analysis };
+  cache[spotifyId] = { ...cache[spotifyId], analysis, timestamp: Date.now() };
   saveCache();
 }
 

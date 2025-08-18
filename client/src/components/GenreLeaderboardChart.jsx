@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getRecentSearches } from '../utils/recentSearchesCache';
 
 // Shared utility function for navigating to artist page with server-side search
 const navigateToArtistPage = async (router, artistName, genreDetails) => {
@@ -41,15 +42,11 @@ const navigateToArtistPage = async (router, artistName, genreDetails) => {
     }
   }
   
-  // Check localStorage for ticketmasterId
-  try {
-    const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-    const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-    if (cachedArtist?.ticketmasterId) {
-      params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
-    }
-  } catch (err) {
-    console.log('Error checking localStorage cache:', err);
+  // Check localStorage for ticketmasterId (now protected)
+  const recents = getRecentSearches();
+  const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+  if (cachedArtist?.ticketmasterId) {
+    params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
   }
   
   // Navigate to artist page
@@ -506,15 +503,11 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                               }
                             }
                             
-                            // Check localStorage for ticketmasterId
-                            try {
-                              const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-                              const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-                              if (cachedArtist?.ticketmasterId) {
-                                fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
-                              }
-                            } catch (err) {
-                              console.log('Error checking localStorage cache:', err);
+                            // Check localStorage for ticketmasterId (now protected)
+                            const recents = getRecentSearches();
+                            const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                            if (cachedArtist?.ticketmasterId) {
+                              fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
                             }
                             
                             router.push(`/artist?${fallbackParams.join('&')}`);
@@ -533,15 +526,11 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                             }
                           }
                           
-                          // Check localStorage for ticketmasterId
-                          try {
-                            const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-                            const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-                            if (cachedArtist?.ticketmasterId) {
-                              fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
-                            }
-                          } catch (err) {
-                            console.log('Error checking localStorage cache:', err);
+                          // Check localStorage for ticketmasterId (now protected)
+                          const recents = getRecentSearches();
+                          const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                          if (cachedArtist?.ticketmasterId) {
+                            fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
                           }
                           
                           router.push(`/artist?${fallbackParams.join('&')}`);
@@ -560,15 +549,11 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                           }
                         }
                         
-                        // Check localStorage for ticketmasterId
-                        try {
-                          const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-                          const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-                          if (cachedArtist?.ticketmasterId) {
-                            fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
-                          }
-                        } catch (err) {
-                          console.log('Error checking localStorage cache:', err);
+                        // Check localStorage for ticketmasterId (now protected)
+                        const recents = getRecentSearches();
+                        const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                        if (cachedArtist?.ticketmasterId) {
+                          fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
                         }
                         
                         router.push(`/artist?${fallbackParams.join('&')}`);

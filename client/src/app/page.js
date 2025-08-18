@@ -15,6 +15,8 @@ import ContributorFinder from '../components/ContributorFinder';
 import GenreLeaderboardChart from '../components/GenreLeaderboardChart';
 import WrappedAnalysisModal from '../components/WrappedAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
+import { getRecentSearches, saveRecentSearch } from '../utils/recentSearchesCache';
+import '../utils/storageMonitor'; // Import storage monitoring utilities
 
 
 
@@ -486,35 +488,8 @@ export default function Home() {
   };
 
   // Utility functions for artist ID cache and recent searches
-  const RECENT_SEARCHES_KEY = 'recent_artist_searches';
-  function getRecentSearches() {
-    try {
-      return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || [];
-    } catch {
-      return [];
-    }
-  }
-  function saveRecentSearch(artistObj) {
-    const spotifyId = artistObj.spotifyId || artistObj.id;
-    const name = artistObj.name;
-    if (!spotifyId || !name) {
-      // Do not add entry if no valid Spotify ID or name
-      return;
-    }
-    let searches = getRecentSearches();
-    // Remove any previous entry with the same name or spotifyId
-    searches = searches.filter(
-      s => s.name !== name && s.spotifyId !== spotifyId
-    );
-    const entry = {
-      name,
-      spotifyId,
-      image: artistObj.image || (artistObj.images && artistObj.images[0]?.url) || null,
-      ticketmasterId: artistObj.ticketmasterId || null,
-    };
-    searches = [entry, ...searches];
-    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
-  }
+  // Note: getRecentSearches and saveRecentSearch are now imported from recentSearchesCache.js
+  // These functions include localStorage quota protection and automatic cleanup
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());

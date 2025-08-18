@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../app/page.module.css';
 import { useRouter } from 'next/navigation';
+import { getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../utils/recentSearchesCache';
 
 function useIsMobile(breakpoint = 600) {
   const [isMobile, setIsMobile] = useState(
@@ -31,36 +32,14 @@ export default function TopArtistsTable({ artists, title }) {
   // Track loading state for each artist node
   const [loadingIdx, setLoadingIdx] = useState(null);
 
-  // Helper to get ticketmasterId from localStorage
+  // Helper to get ticketmasterId from localStorage (now protected)
   function getTicketmasterIdFromLocalStorage(artistName) {
-    try {
-      const recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-      const found = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-      return found?.ticketmasterId || null;
-    } catch {
-      return null;
-    }
+    return getTicketmasterIdFromRecentSearch(artistName);
   }
 
-  // Helper to update ticketmasterId in localStorage
+  // Helper to update ticketmasterId in localStorage (now protected)
   function updateTicketmasterIdInLocalStorage(artistName, ticketmasterId, artistObj) {
-    try {
-      let recents = JSON.parse(localStorage.getItem('recent_artist_searches')) || [];
-      let foundIdx = recents.findIndex(a => a.name.toLowerCase() === artistName.toLowerCase());
-      // Always build the full structure
-      const entry = {
-        name: artistName,
-        spotifyId: artistObj.spotifyId || artistObj.id || null,
-        image: artistObj.image || (artistObj.images && artistObj.images[0] && artistObj.images[0].url) || null,
-        ticketmasterId: ticketmasterId || null,
-      };
-      if (foundIdx !== -1) {
-        recents[foundIdx] = entry;
-      } else {
-        recents.unshift(entry);
-      }
-      localStorage.setItem('recent_artist_searches', JSON.stringify(recents));
-    } catch {}
+    return updateTicketmasterIdInRecentSearch(artistName, ticketmasterId, artistObj);
   }
 
   // Split into rows of 5
