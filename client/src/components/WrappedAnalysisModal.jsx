@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchTrackMetrics } from '../utils/fetchTrackMetrics';
-import { lookupTrackMBID, getTrackISRC, setTrackISRC, setTrackMBID, getTrackMBID } from '../utils/trackAnalysisCache';
+import { lookupTrackMBID, getTrackISRC, setTrackISRC, setTrackMBID, getTrackMBID, getTrackAnalysis, setTrackAnalysis, hasValidAnalysis } from '../utils/trackAnalysisCache';
 import styles from './WrappedAnalysisModal.module.css'; // Import the CSS module
 import WrappedResultsModal from './WrappedResultsModal';
 
@@ -23,6 +23,9 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
   const [loading, setLoading] = useState(false);
   const [statuses, setStatuses] = useState([]);
   const [showResults, setShowResults] = useState(false);
+  const [currentStep, setCurrentStep] = useState('');
+  const [stepDetails, setStepDetails] = useState('');
+  const [expandedStatuses, setExpandedStatuses] = useState(new Set());
   const isMobile = useIsMobile(760);
 
   useEffect(() => {
@@ -32,6 +35,10 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       setLoading(true);
       setResults(null);
       setShowResults(false);
+      
+      // Step 1: Explain the process and filter unique tracks
+      setCurrentStep('Initializing Analysis');
+      setStepDetails('Filtering out duplicate tracks and preparing for analysis...');
       
       // Filter out duplicate tracks based on Spotify track ID
       const uniqueTracks = [];
@@ -62,98 +69,288 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         name: track.name,
         artist: track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : ''),
         status: 'Queued',
+        details: 'Waiting to start analysis...'
       }));
       setStatuses(initialStatuses);
 
-      // Step 1: MBID lookup
-      const tracksWithMbids = await Promise.all(
-        uniqueTracks.map(async (track, index) => {
-          const newStatuses = [...initialStatuses];
-          newStatuses[index].status = 'Checking cache...';
-          setStatuses(newStatuses);
+            // Step 2: Sequential MBID lookup - get ALL MBIDs before proceeding
+      setCurrentStep('MBID Lookup Phase');
+      setStepDetails('Looking up MusicBrainz IDs (MBIDs) for each track. This is required to fetch acoustic analysis data.');
+      
+      const tracksWithMbids = [];
+      
+      // Process tracks sequentially to get all MBIDs
+      for (let i = 0; i < uniqueTracks.length; i++) {
+        const track = uniqueTracks[i];
+        const newStatuses = [...initialStatuses];
+        
+        newStatuses[i].status = 'Checking cache...';
+        newStatuses[i].details = 'Looking for cached MBID...';
+        setStatuses(newStatuses);
 
-          let mbid = getTrackMBID(track.id);
-          let mbidWasCached = !!mbid && mbid !== 'Not Found';
-          if (!mbidWasCached) {
-            mbid = await lookupTrackMBID(track.id);
-            if (mbid) {
-              let isrc = getTrackISRC(track.id);
-              if (!isrc || isrc === 'Not found') {
-                try {
-                  const isrcRes = await fetch(`http://127.0.0.1:8000/track-isrc/${track.id}`);
-                  if (isrcRes.ok) {
-                    const isrcData = await isrcRes.json();
-                    isrc = isrcData.isrc || 'Not found';
-                    setTrackISRC(track.id, isrc);
-                  }
-                } catch {}
-              }
-              setTrackMBID(track.id, mbid);
-            }
-          }
-
+        let mbid = getTrackMBID(track.id);
+        let mbidWasCached = !!mbid && mbid !== 'Not Found';
+        
+        if (!mbidWasCached) {
+          newStatuses[i].status = 'Fetching MBID...';
+          newStatuses[i].details = 'MBID not in cache, fetching from MusicBrainz...';
+          setStatuses([...newStatuses]);
+          
+          mbid = await lookupTrackMBID(track.id);
           if (mbid) {
-            newStatuses[index].status = 'MBID Found';
-            setStatuses([...newStatuses]);
-            return { ...track, mbid };
-          } else {
-            newStatuses[index].status = 'Skipped (no MBID)';
-            setStatuses([...newStatuses]);
-            return { ...track, mbid: null };
+            let isrc = getTrackISRC(track.id);
+            if (!isrc || isrc === 'Not found') {
+              newStatuses[i].details = 'MBID found! Now fetching ISRC from Spotify...';
+              setStatuses([...newStatuses]);
+              
+              try {
+                const isrcRes = await fetch(`http://127.0.0.1:8000/track-isrc/${track.id}`);
+                if (isrcRes.ok) {
+                  const isrcData = await isrcRes.json();
+                  isrc = isrcData.isrc || 'Not found';
+                  setTrackISRC(track.id, isrc);
+                }
+              } catch {}
+            }
+            setTrackMBID(track.id, mbid);
           }
-        })
-      );
+        }
 
-      // Step 2: Fetch high-level and low-level data for tracks with MBID
+        if (mbid) {
+          newStatuses[i].status = 'MBID Found';
+          newStatuses[i].details = mbidWasCached ? 'MBID found in cache' : 'MBID successfully fetched';
+          setStatuses([...newStatuses]);
+          tracksWithMbids.push({ ...track, mbid });
+        } else {
+          newStatuses[i].status = 'Skipped (no MBID)';
+          newStatuses[i].details = 'No MBID available';
+          setStatuses([...newStatuses]);
+          tracksWithMbids.push({ ...track, mbid: null });
+        }
+        
+        // Update progress for MBID phase
+        const mbidProgress = i + 1;
+        setProgress({ done: mbidProgress, total: uniqueTracks.length });
+        
+        // Wait between tracks (except for the last one)
+        if (i < uniqueTracks.length - 1) {
+          setCurrentStep('MBID Lookup Phase');
+          setStepDetails(`Waiting 50ms before next MBID lookup... (${mbidProgress}/${uniqueTracks.length} complete)`);
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
+      // Log summary of MBID lookup results
+      const successfulMbids = tracksWithMbids.filter(t => t.mbid).length;
+      const failedMbids = tracksWithMbids.filter(t => !t.mbid).length;
+      console.log(`MBID Lookup Complete: ${successfulMbids} successful, ${failedMbids} failed`);
+      
+      setCurrentStep('MBID Lookup Complete');
+      setStepDetails(`MBID lookup finished! Found ${successfulMbids} MBIDs, ${failedMbids} tracks skipped. Proceeding to analysis phase...`);
+      
+      // Wait a moment before starting analysis
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Step 3: Analysis phase with detailed explanations
       const tracksToFetch = tracksWithMbids.filter(t => t.mbid);
+      setCurrentStep('Analysis Phase');
+      setStepDetails(`Starting acoustic analysis for ${tracksToFetch.length} tracks with MBIDs. This involves fetching high-level and low-level acoustic features from AcousticBrainz.`);
+      
+      // Reset progress for analysis phase
+      let done = 0;
+      const total = tracksWithMbids.length;
+      setProgress({ done, total });
+      
       let finalStatuses = tracksWithMbids.map(track => ({
         name: track.name,
         artist: track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : ''),
-        status: track.mbid ? 'Fetching Analysis...' : 'Skipped (no MBID)',
+        status: track.mbid ? 'Checking Analysis Cache...' : 'Skipped (no MBID)',
+        details: track.mbid ? 'Looking for cached analysis data...' : 'No MBID available'
       }));
       setStatuses(finalStatuses);
 
-      let done = 0;
-      const total = uniqueTracks.length;
-      setProgress({ done, total });
+      // Step 4: Sequential analysis with wait times and retry logic
+      const analysisResults = [];
+      
+      for (let i = 0; i < tracksWithMbids.length; i++) {
+        const track = tracksWithMbids[i];
+        
+        if (!track.mbid) {
+          analysisResults.push({ track, highLevel: null, lowLevel: null, success: false, reason: 'No MBID' });
+          continue;
+        }
 
-      const fetchAllAnalysis = async () => {
-        const analysisResults = await Promise.all(
-          tracksWithMbids.map(async (track, idx) => {
-            if (!track.mbid) return { track, highLevel: null, lowLevel: null };
-            let highLevel = null;
-            let lowLevel = null;
-            let error = null;
-            try {
-              const highRes = await fetch(`https://acousticbrainz.org/${track.mbid}/high-level`);
-              if (highRes.ok) {
-                highLevel = await highRes.json();
-              }
-              const lowRes = await fetch(`http://127.0.0.1:8000/${track.mbid}/low-level`);
-              if (lowRes.ok) {
-                lowLevel = await lowRes.json();
-              }
-            } catch (e) {
-              error = e.message || 'Error fetching analysis';
-            }
-            done++;
-            const newStatuses = [...finalStatuses];
-            if (!track.mbid) {
-              newStatuses[idx].status = 'Skipped (no MBID)';
-            } else if (!highLevel || !lowLevel) {
-              newStatuses[idx].status = 'Skipped (no analysis data)';
+        // Check if we have cached analysis - NO WAIT TIME when using cache
+        const cachedAnalysis = getTrackAnalysis(track.id);
+        if (hasValidAnalysis(track.id)) {
+          finalStatuses[i].status = 'Done (from cache)';
+          finalStatuses[i].details = 'Analysis data found in cache';
+          setStatuses([...finalStatuses]);
+          analysisResults.push({
+            track,
+            highLevel: cachedAnalysis.highLevel,
+            lowLevel: cachedAnalysis.lowLevel,
+            success: true,
+            fromCache: true
+          });
+          done++;
+          setProgress({ done, total });
+          continue;
+        }
+
+        // Update status to show we're fetching analysis
+        finalStatuses[i].status = 'Fetching Analysis...';
+        finalStatuses[i].details = 'Making API calls to AcousticBrainz (high-level + low-level)';
+        setStatuses([...finalStatuses]);
+
+        try {
+          // Use the new server endpoint for analysis
+          const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tracks: [track] })
+          });
+
+          if (analysisRes.ok) {
+            const analysisData = await analysisRes.json();
+            const result = analysisData.results[0];
+            
+            if (result.success) {
+              // Cache the successful analysis
+              setTrackAnalysis(track.id, {
+                highLevel: result.highLevel,
+                lowLevel: result.lowLevel,
+                timestamp: Date.now()
+              });
+              
+              finalStatuses[i].status = 'Done';
+              finalStatuses[i].details = 'Analysis completed successfully';
+              analysisResults.push({
+                track,
+                highLevel: result.highLevel,
+                lowLevel: result.lowLevel,
+                success: true
+              });
             } else {
-              newStatuses[idx].status = 'Done';
+              finalStatuses[i].status = 'Skipped (no analysis data)';
+              finalStatuses[i].details = 'Analysis Request Failed';
+              analysisResults.push({
+                track,
+                highLevel: null,
+                lowLevel: null,
+                success: false,
+                reason: result.error || 'Analysis failed'
+              });
             }
-            setStatuses(newStatuses);
-            setProgress({ done, total });
-            return { track, highLevel, lowLevel, error };
-          })
-        );
-        setResults(analysisResults);
-        setLoading(false);
-      };
-      await fetchAllAnalysis();
+          } else {
+            finalStatuses[i].status = 'Skipped (API error)';
+            finalStatuses[i].details = 'Analysis Request Failed';
+            analysisResults.push({
+              track,
+              highLevel: null,
+              lowLevel: null,
+              success: false,
+              reason: 'Server error'
+            });
+          }
+        } catch (error) {
+          finalStatuses[i].status = 'Skipped (network error)';
+          finalStatuses[i].details = 'Analysis Request Failed';
+          analysisResults.push({
+            track,
+            highLevel: null,
+            lowLevel: null,
+            success: false,
+            reason: `Network error: ${error.message}`
+          });
+        }
+
+        done++;
+        setStatuses([...finalStatuses]);
+        setProgress({ done, total });
+
+        // No client-side wait times - server handles all timing
+        if (i < tracksWithMbids.length - 1) {
+          setCurrentStep('Analysis Phase');
+          setStepDetails(`Processing next track... (${i + 1}/${tracksWithMbids.length} complete)`);
+        }
+      }
+
+      // Step 5: Simple retry for tracks that failed analysis (only once, same wait time)
+      const failedTracks = analysisResults.filter(r => r.mbid && !r.success);
+      if (failedTracks.length > 0) {
+        setCurrentStep('Retry Phase');
+        setStepDetails(`Retrying analysis for ${failedTracks.length} tracks that failed initially. This helps catch tracks that may have been temporarily unavailable.`);
+        
+        for (let i = 0; i < failedTracks.length; i++) {
+          const failedTrack = failedTracks[i];
+          const trackIndex = tracksWithMbids.findIndex(t => t.id === failedTrack.track.id);
+          
+          if (trackIndex === -1) continue;
+          
+          finalStatuses[trackIndex].status = 'Retrying Analysis...';
+          finalStatuses[trackIndex].details = 'Retrying analysis once with same wait time...';
+          setStatuses([...finalStatuses]);
+          
+          try {
+            // Simple retry with same wait time as regular API calls
+            setStepDetails(`Retrying analysis for track ${i + 1}/${failedTracks.length}...`);
+            
+            const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tracks: [failedTrack.track] })
+            });
+
+            if (analysisRes.ok) {
+              const analysisData = await analysisRes.json();
+              const result = analysisData.results[0];
+              
+              if (result.success) {
+                // Cache the successful analysis
+                setTrackAnalysis(failedTrack.track.id, {
+                  highLevel: result.highLevel,
+                  lowLevel: result.lowLevel,
+                  timestamp: Date.now()
+                });
+                
+                finalStatuses[trackIndex].status = 'Done (retry success)';
+                finalStatuses[trackIndex].details = 'Analysis completed successfully';
+                
+                // Update the result
+                const resultIndex = analysisResults.findIndex(r => r.track.id === failedTrack.track.id);
+                if (resultIndex !== -1) {
+                  analysisResults[resultIndex] = {
+                    track: failedTrack.track,
+                    highLevel: result.highLevel,
+                    lowLevel: result.lowLevel,
+                    success: true,
+                    fromRetry: true
+                  };
+                }
+              } else {
+                finalStatuses[trackIndex].status = 'Skipped (retry failed)';
+                finalStatuses[trackIndex].details = 'Analysis Request Failed';
+              }
+            } else {
+              finalStatuses[trackIndex].status = 'Skipped (retry failed)';
+              finalStatuses[trackIndex].details = 'Analysis Request Failed';
+            }
+          } catch (error) {
+            finalStatuses[trackIndex].status = 'Skipped (retry failed)';
+            finalStatuses[trackIndex].details = 'Analysis Request Failed';
+          }
+          
+          setStatuses([...finalStatuses]);
+        }
+      }
+
+      // Final step: Complete
+      setCurrentStep('Analysis Complete');
+      setStepDetails(`Analysis finished! Successfully analyzed ${analysisResults.filter(r => r.success).length}/${total} tracks.`);
+      
+      setResults(analysisResults);
+      setLoading(false);
     };
 
     analyzeTracks();
@@ -163,17 +360,43 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'Done': return styles.statusDone;
+      case 'Done':
+      case 'Done (from cache)':
+      case 'Done (retry success)':
+        return styles.statusDone;
       case 'Skipped (no MBID)':
       case 'Skipped (no analysis data)':
+      case 'Skipped (API error)':
+      case 'Skipped (network error)':
+      case 'Skipped (retry failed)':
         return styles.statusError ? styles.statusError : styles.statusSkipped;
-      case 'Fetching Analysis...': return styles.statusFetching;
+      case 'Fetching Analysis...':
+      case 'Retrying Analysis...':
+        return styles.statusFetching;
       default: return styles.statusDefault;
     }
   };
 
+  const toggleStatusExpansion = (trackIndex) => {
+    const newExpanded = new Set(expandedStatuses);
+    if (newExpanded.has(trackIndex)) {
+      newExpanded.delete(trackIndex);
+    } else {
+      newExpanded.add(trackIndex);
+      // Auto-hide after 2 seconds
+      setTimeout(() => {
+        setExpandedStatuses(prev => {
+          const updated = new Set(prev);
+          updated.delete(trackIndex);
+          return updated;
+        });
+      }, 2000);
+    }
+    setExpandedStatuses(newExpanded);
+  };
+
   // Calculate number of successfully analyzed tracks
-  const numDone = statuses.filter(s => s.status === 'Done').length;
+  const numDone = statuses.filter(s => s.status.includes('Done')).length;
   const totalTracks = statuses.length;
 
   return (
@@ -192,6 +415,34 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         }}>
           {!showResults && (
             <>
+              {/* Current Step Display */}
+              {loading && (
+                <div style={{ 
+                  background: 'rgba(56, 189, 248, 0.1)', 
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: 8,
+                  padding: 16,
+                  marginBottom: 20,
+                  textAlign: 'center'
+                }}>
+                  <div style={{ 
+                    fontWeight: 700, 
+                    color: '#38bdf8', 
+                    fontSize: isMobile ? 16 : 18,
+                    marginBottom: 8
+                  }}>
+                    {currentStep}
+                  </div>
+                  <div style={{ 
+                    color: '#94a3b8', 
+                    fontSize: isMobile ? 14 : 16,
+                    lineHeight: 1.4
+                  }}>
+                    {stepDetails}
+                  </div>
+                </div>
+              )}
+
               {!loading && numDone > 0 && (
                 <button
                   style={{ 
@@ -239,11 +490,11 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
               
               {loading ? (
                 <div className={styles.progressText} style={{ fontSize: isMobile ? 14 : 16 }}>
-                  Fetching metrics... {progress.done} / {progress.total}
+                  Processing tracks... {progress.done} / {progress.total}
                 </div>
               ) : (
                 <div className={styles.progressText} style={{ fontSize: isMobile ? 14 : 16 }}>
-                  {numDone === 0 ? 'No songs analyzed successfully.' : `${numDone} songs have analysed successfully`}
+                  {numDone === 0 ? 'No songs analyzed successfully.' : `${numDone} songs have been analyzed successfully`}
                 </div>
               )}
               <div className={styles.progressBarContainer}>
@@ -300,24 +551,31 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                       // Image
                       let img = track.album_image || track.album?.images?.[0]?.url || track.images?.[0]?.url || track.cover || null;
                       
-                      // Status styling
+                      // Status styling and text formatting for mobile
                       let statusStyle = {};
                       let statusText = s.status;
+                      let isClickable = false;
                       
-                      if (s.status === 'Skipped (no MBID)' || s.status === 'Skipped (no analysis data)') {
+                      // For mobile, show simplified status that can be clicked for details
+                      if (s.status.includes('Skipped')) {
                         statusStyle = {
                           background: 'rgba(239, 68, 68, 0.2)',
                           color: '#f87171',
-                          border: '1px solid rgba(239, 68, 68, 0.4)'
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          cursor: 'pointer'
                         };
-                        statusText = s.status.includes('no MBID') ? 'Skipped (no MBID)' : 'Skipped (no data)';
-                      } else if (s.status === 'Done') {
+                        statusText = 'Failed';
+                        isClickable = true;
+                      } else if (s.status.includes('Done')) {
                         statusStyle = {
                           background: 'rgba(34, 197, 94, 0.2)',
                           color: '#22c55e',
-                          border: '1px solid rgba(34, 197, 94, 0.4)'
+                          border: '1px solid rgba(34, 197, 94, 0.4)',
+                          cursor: 'pointer'
                         };
-                      } else if (s.status.includes('Fetching') || s.status.includes('Checking')) {
+                        statusText = 'Done';
+                        isClickable = true;
+                      } else if (s.status.includes('Fetching') || s.status.includes('Checking') || s.status.includes('Retrying')) {
                         statusStyle = {
                           background: 'rgba(56, 189, 248, 0.2)',
                           color: '#38bdf8',
@@ -394,15 +652,18 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                             alignItems: 'flex-end',
                             gap: 4
                           }}>
-                            <div style={{
-                              padding: '6px 12px',
-                              borderRadius: 8,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              textAlign: 'center',
-                              minWidth: 70,
-                              ...statusStyle
-                            }}>
+                            <div 
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: 8,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                minWidth: 70,
+                                ...statusStyle
+                              }}
+                              onClick={isClickable ? () => toggleStatusExpansion(i) : undefined}
+                            >
                               {statusText}
                             </div>
                             <div style={{
@@ -412,6 +673,39 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                             }}>
                               #{i + 1}
                             </div>
+                            
+                            {/* Expanded details when status is clicked */}
+                            {isClickable && expandedStatuses.has(i) && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                background: 'rgba(0, 0, 0, 0.95)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                borderRadius: 8,
+                                padding: 12,
+                                marginTop: 8,
+                                minWidth: 200,
+                                zIndex: 10,
+                                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.8)'
+                              }}>
+                                <div style={{
+                                  color: '#fff',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  marginBottom: 8
+                                }}>
+                                  {s.status}
+                                </div>
+                                <div style={{
+                                  color: '#9ca3af',
+                                  fontSize: 11,
+                                  lineHeight: 1.4
+                                }}>
+                                  {s.details}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -440,6 +734,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                         <th className={styles.tableHeader}>Year</th>
                         <th className={styles.tableHeader}>Duration</th>
                         <th className={`${styles.tableHeader} ${styles.statusCell}`}>Status</th>
+                        <th className={styles.tableHeader}>Details</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -463,22 +758,18 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                         // Image
                         let img = track.album_image || track.album?.images?.[0]?.url || track.images?.[0]?.url || track.cover || null;
                         let statusCell;
-                        if (s.status === 'Skipped (no MBID)') {
+                        if (s.status.includes('Skipped')) {
+                          // On desktop, show "Failed" - explanation is in Details column
                           statusCell = (
                             <span className={styles.statusError}>
-                              Skipped
-                              <span style={{ display: 'block', fontSize: 13, marginTop: 2 }} className={styles.statusError}>
-                                (no MBID)
-                              </span>
+                              Failed
                             </span>
                           );
-                        } else if (s.status === 'Skipped (no analysis data)') {
+                        } else if (s.status.includes('Done')) {
+                          // On desktop, show "Done" - explanation is in Details column
                           statusCell = (
-                            <span className={styles.statusError}>
-                              Skipped
-                              <span style={{ display: 'block', fontSize: 13, marginTop: 2 }} className={styles.statusError}>
-                                (no analysis data found)
-                              </span>
+                            <span className={styles.statusDone}>
+                              Done
                             </span>
                           );
                         } else {
@@ -502,6 +793,15 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                             <td className={styles.tableCell}>{year}</td>
                             <td className={styles.tableCell}>{duration}</td>
                             <td className={`${styles.tableCell} ${styles.statusCell}`}>{statusCell}</td>
+                            <td className={styles.tableCell} style={{ 
+                              fontSize: 12, 
+                              color: '#9ca3af', 
+                              fontStyle: 'italic',
+                              maxWidth: 200,
+                              wordWrap: 'break-word'
+                            }}>
+                              {s.details}
+                            </td>
                           </tr>
                         );
                       })}

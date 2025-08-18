@@ -776,8 +776,9 @@ if (isMobile) {
                 </div>
                 <div style={{ color: '#b3b3b3', fontSize: 12 }}>
                   {track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')} • {track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}
+                  
                   {playlistKey === 'last50' && track.played_at && (
-                    <span style={{ marginLeft: '8px' }}>
+                    <span style={{ marginLeft: '8px' , whiteSpace: 'nowrap'}}>
                       • {formatListeningTime(track.played_at)}
                     </span>
                   )}

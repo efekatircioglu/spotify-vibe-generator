@@ -235,6 +235,78 @@ app.get('/playlists', async (req, res) => {
   }
 });
 
+// New endpoint to get playlists with duration information
+app.get('/playlists-with-duration', async (req, res) => {
+  try {
+    // Refresh access token if needed
+    const tokenValid = await refreshAccessTokenIfNeeded();
+    if (!tokenValid) {
+      console.error('Could not obtain valid access token');
+      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
+    }
+    
+    // Get the current user's Spotify ID
+    const me = await spotifyApi.getMe();
+    const userId = me.body.id;
+
+    // Fetch all playlists (max 50 per request)
+    const { body } = await spotifyApi.getUserPlaylists({ limit: 50 });
+
+    // Filter to only playlists where the owner is the current user and fetch duration
+    const playlists = await Promise.all(
+      body.items
+        .filter(item => item.owner.id === userId)
+        .map(async item => {
+          try {
+            // Fetch playlist tracks to calculate total duration
+            let allTracks = [];
+            let offset = 0;
+            let total = 1;
+            let first = true;
+            
+            while (first || allTracks.length < total) {
+              const { body: tracksBody } = await spotifyApi.getPlaylistTracks(item.id, { offset, limit: 100 });
+              if (first) {
+                total = tracksBody.total;
+                first = false;
+              }
+              allTracks = allTracks.concat(tracksBody.items);
+              offset += 100;
+            }
+            
+            // Calculate total duration
+            const totalDurationMs = allTracks.reduce((total, item) => {
+              return total + (item.track?.duration_ms || 0);
+            }, 0);
+            
+            return {
+              name: item.name,
+              id: item.id,
+              trackCount: item.tracks.total,
+              totalDurationMs: totalDurationMs,
+              images: item.images
+            };
+          } catch (error) {
+            console.error(`Error fetching tracks for playlist ${item.name}:`, error);
+            // Return playlist without duration if there's an error
+            return {
+              name: item.name,
+              id: item.id,
+              trackCount: item.tracks.total,
+              totalDurationMs: 0,
+              images: item.images
+            };
+          }
+        })
+    );
+
+    res.json({ playlists });
+  } catch (err) {
+    console.error('Error fetching playlists with duration:', err);
+    res.status(500).json({ error: 'Failed to fetch playlists with duration' });
+  }
+});
+
 app.get('/playlist-genres/:id', async (req, res) => {
   try {
     const playlistId = req.params.id;
@@ -1521,6 +1593,280 @@ app.get('/test-batch', async (req, res) => {
   } catch (err) {
     console.error('Batch test error:', err);
     res.status(500).json({ error: 'Batch test failed', details: err.message });
+  }
+});
+
+// MBID lookup endpoint with wait times between API calls
+app.post('/mbid-lookup', async (req, res) => {
+  try {
+    const { tracks } = req.body;
+    
+    if (!tracks || !Array.isArray(tracks)) {
+      return res.status(400).json({ error: 'Missing tracks array' });
+    }
+
+    console.log(`[MBID Lookup] Starting MBID lookup for ${tracks.length} tracks`);
+    
+    // Helper function to add wait time between API calls
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    const results = [];
+    
+    // Process tracks sequentially with wait times between API calls
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      console.log(`[MBID Lookup] Processing track ${i + 1}/${tracks.length}: ${track.name} by ${track.artist || 'Unknown Artist'}`);
+      
+      // Check if we have Spotify ID for this track
+      if (!track.id) {
+        console.log(`[MBID Lookup] Skipping track ${track.name} - no Spotify ID`);
+        results.push({
+          track,
+          mbid: null,
+          success: false,
+          reason: 'No Spotify ID'
+        });
+        continue;
+      }
+      
+      let mbid = null;
+      let mbidWasCached = false;
+      
+      try {
+        // Step 1: Get ISRC from Spotify (if we don't have it)
+        let isrc = null;
+        console.log(`[MBID Lookup] Fetching ISRC for track ${track.name}`);
+        
+        try {
+          const { body } = await spotifyApi.getTrack(track.id);
+          isrc = body && body.external_ids && body.external_ids.isrc ? body.external_ids.isrc : null;
+          console.log(`[MBID Lookup] ISRC for ${track.name}: ${isrc}`);
+        } catch (spotifyError) {
+          console.log(`[MBID Lookup] Failed to get ISRC for ${track.name}:`, spotifyError.message);
+        }
+        
+        // Wait 500ms after ISRC fetch
+        await wait(500);
+        
+        // Step 2: Use ISRC to find MBID from MusicBrainz
+        if (isrc) {
+          console.log(`[MBID Lookup] Searching MusicBrainz for ISRC: ${isrc}`);
+          
+          try {
+            const mbidRes = await axios.get(`https://musicbrainz.org/ws/2/recording?query=isrc:${isrc}&fmt=json`, {
+              headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+            });
+            
+            if (mbidRes.ok) {
+              const mbidData = mbidRes.data;
+              mbid = mbidData.recordings && mbidData.recordings.length > 0 ? mbidData.recordings[0].id : null;
+              
+              if (mbid) {
+                console.log(`[MBID Lookup] Found MBID for ${track.name}: ${mbid}`);
+                mbidWasCached = false;
+              } else {
+                console.log(`[MBID Lookup] No MBID found for ISRC: ${isrc}`);
+              }
+            }
+          } catch (mbidError) {
+            console.log(`[MBID Lookup] MusicBrainz lookup failed for ${track.name}:`, mbidError.message);
+          }
+        } else {
+          console.log(`[MBID Lookup] No ISRC available for ${track.name}`);
+        }
+        
+        // Wait 500ms after MBID lookup
+        await wait(500);
+        
+        if (mbid) {
+          results.push({
+            track,
+            mbid,
+            success: true,
+            fromCache: mbidWasCached
+          });
+        } else {
+          results.push({
+            track,
+            mbid: null,
+            success: false,
+            reason: 'No MBID found'
+          });
+        }
+        
+      } catch (error) {
+        console.log(`[MBID Lookup] MBID lookup failed for track ${track.name}:`, error.message);
+        results.push({
+          track,
+          mbid: null,
+          success: false,
+          reason: error.message
+        });
+      }
+      
+      // Wait between tracks (except for the last one)
+      if (i < tracks.length - 1) {
+        const trackWaitTime = 500; // 500ms between tracks
+        console.log(`[MBID Lookup] Waiting ${trackWaitTime}ms before next track`);
+        await wait(trackWaitTime);
+      }
+    }
+    
+    console.log(`[MBID Lookup] MBID lookup complete. Successfully found: ${results.filter(r => r.success).length}/${tracks.length}`);
+    
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: tracks.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length
+      }
+    });
+    
+  } catch (error) {
+    console.error('[MBID Lookup] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to perform MBID lookup',
+      details: error.message 
+    });
+  }
+});
+
+// Wrapped analysis endpoint with optimized wait times
+app.post('/wrapped-analysis', async (req, res) => {
+  try {
+    const { tracks } = req.body;
+    
+    if (!tracks || !Array.isArray(tracks)) {
+      return res.status(400).json({ error: 'Missing tracks array' });
+    }
+
+    console.log(`[Wrapped Analysis] Starting analysis for ${tracks.length} tracks`);
+    
+    // Helper function to add wait time between API calls
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    // Helper function to fetch analysis with simple retry
+    const fetchAnalysisWithRetry = async (mbid) => {
+      const baseWaitTime = 500; // 500ms between API calls
+      
+      try {
+        // Fetch high-level analysis from AcousticBrainz
+        console.log(`[Wrapped Analysis] Fetching high-level analysis for MBID: ${mbid}`);
+        const highRes = await axios.get(`https://acousticbrainz.org/${mbid}/high-level`, {
+          headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+        });
+        
+        // Wait between API calls
+        await wait(baseWaitTime);
+        
+        // Fetch low-level analysis from AcousticBrainz
+        console.log(`[Wrapped Analysis] Fetching low-level analysis for MBID: ${mbid}`);
+        const lowRes = await axios.get(`https://acousticbrainz.org/${mbid}/low-level`, {
+          headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+        });
+        
+        return {
+          highLevel: highRes.data,
+          lowLevel: lowRes.data,
+          success: true
+        };
+      } catch (error) {
+        console.log(`[Wrapped Analysis] Analysis fetch failed for MBID ${mbid}:`, error.message);
+        
+        // Simple retry once with same wait time
+        console.log(`[Wrapped Analysis] Retrying analysis for MBID ${mbid}...`);
+        await wait(baseWaitTime);
+        
+        try {
+          const highRes = await axios.get(`https://acousticbrainz.org/${mbid}/high-level`, {
+            headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+          });
+          
+          await wait(baseWaitTime);
+          
+          const lowRes = await axios.get(`https://acousticbrainz.org/${mbid}/low-level`, {
+            headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
+          });
+          
+          return {
+            highLevel: highRes.data,
+            lowLevel: lowRes.data,
+            success: true
+          };
+        } catch (retryError) {
+          console.log(`[Wrapped Analysis] Retry failed for MBID ${mbid}:`, retryError.message);
+          return {
+            highLevel: null,
+            lowLevel: null,
+            success: false,
+            error: retryError.message
+          };
+        }
+      }
+    };
+
+    const results = [];
+    
+    // Process tracks sequentially with minimal wait times
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      console.log(`[Wrapped Analysis] Processing track ${i + 1}/${tracks.length}: ${track.name} by ${track.artist || 'Unknown Artist'}`);
+      
+      // Check if we have MBID for this track
+      if (!track.mbid) {
+        console.log(`[Wrapped Analysis] Skipping track ${track.name} - no MBID available`);
+        results.push({
+          track,
+          highLevel: null,
+          lowLevel: null,
+          success: false,
+          reason: 'No MBID available'
+        });
+        continue;
+      }
+      
+      // Fetch analysis for this track
+      const analysis = await fetchAnalysisWithRetry(track.mbid);
+      
+      results.push({
+        track,
+        ...analysis
+      });
+      
+      // Wait between tracks (except for the last one and when next track has no MBID)
+      if (i < tracks.length - 1) {
+        const nextTrack = tracks[i + 1];
+        // Only add wait time if next track has MBID (will be processed)
+        if (nextTrack && nextTrack.mbid) {
+          const trackWaitTime = 200; // 200ms between tracks
+          console.log(`[Wrapped Analysis] Waiting ${trackWaitTime}ms before next track`);
+          await wait(trackWaitTime);
+        } else {
+          console.log(`[Wrapped Analysis] Next track has no MBID, skipping wait time`);
+        }
+      }
+    }
+    
+    console.log(`[Wrapped Analysis] Analysis complete. Successfully analyzed: ${results.filter(r => r.success).length}/${tracks.length}`);
+    
+    res.json({
+      success: true,
+      results,
+      summary: {
+        total: tracks.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length
+      }
+    });
+    
+  } catch (error) {
+    console.error('[Wrapped Analysis] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to perform wrapped analysis',
+      details: error.message 
+    });
   }
 });
 

@@ -51,6 +51,22 @@ export function setTrackMBID(spotifyId, mbid) {
   saveCache();
 }
 
+// New functions for caching analysis data
+export function getTrackAnalysis(spotifyId) {
+  return cache[spotifyId]?.analysis;
+}
+
+export function setTrackAnalysis(spotifyId, analysis) {
+  if (!isValidSpotifyId(spotifyId)) return;
+  cache[spotifyId] = { ...cache[spotifyId], analysis };
+  saveCache();
+}
+
+export function hasValidAnalysis(spotifyId) {
+  const analysis = getTrackAnalysis(spotifyId);
+  return analysis && analysis.highLevel && analysis.lowLevel;
+}
+
 export async function lookupTrackMBID(spotifyId) {
   if (!spotifyId) {
     console.warn('No Spotify ID provided for MBID lookup');

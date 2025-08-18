@@ -111,7 +111,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
             height: 48,
             minWidth: 0,
             fontWeight: 700,
-            fontSize: window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
+            fontSize: window.innerWidth <= 400 ? '0.65rem' : window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
             border: 'none',
             boxShadow: 'none',
             transition: 'background 0.18s, color 0.18s',
@@ -133,7 +133,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           height: 48,
           minWidth: 0,
           fontWeight: 700,
-          fontSize: window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
+          fontSize: window.innerWidth <= 400 ? '0.65rem' : window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -141,7 +141,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           border: 'none',
           boxShadow: 'none',
           transition: 'background 0.18s, color 0.18s',
-          padding: window.innerWidth <= 768 ? '6px 10px' : undefined,
+          padding: window.innerWidth <= 768 ? '8px 16px' : undefined,
           whiteSpace: window.innerWidth <= 768 ? 'normal' : 'nowrap',
         }}
         onClick={() => onWrapped && onWrapped()}

@@ -167,18 +167,16 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
           }}>
             {children}
           </div>
-          <style jsx global>{`
-  
-
-  /* --- Paragraph Styles (p) --- */
-  p {
-    color: #d1d5db !important;
-    line-height: 1.625 !important;
-    margin-bottom: 2rem !important;
-    text-align: left !important;
-    font-size: 1rem !important; /* A readable base size for paragraphs */
-  }
-`}</style>
+          <style jsx>{`
+            /* --- Paragraph Styles (p) - Scoped to UserProfile only --- */
+            .profileContainer p {
+              color: #d1d5db !important;
+              line-height: 1.625 !important;
+              margin-bottom: 2rem !important;
+              text-align: left !important;
+              font-size: 1rem !important; /* A readable base size for paragraphs */
+            }
+          `}</style>
         </div>
       </div>
     );

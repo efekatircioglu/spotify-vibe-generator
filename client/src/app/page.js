@@ -135,6 +135,9 @@ export default function Home() {
       clearTimeout(mobileControlsTimerRef.current);
     }
     
+    // Clear any existing hover state to prevent conflicts
+    setHoveredPlaylistIndex(null);
+    
     // Show controls
     setMobilePlaylistControlsIndex(idx);
     
@@ -146,6 +149,8 @@ export default function Home() {
     // Hide controls after 3 seconds
     mobileControlsTimerRef.current = setTimeout(() => {
       setMobilePlaylistControlsIndex(null);
+      // Also clear hover state to ensure clean transition
+      setHoveredPlaylistIndex(null);
     }, 3000);
   };
 
@@ -369,7 +374,7 @@ export default function Home() {
     setIsAnalyzingPlaylists(true);
     setShowPlaylistsTable(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/playlists`);
+      const res = await fetch(`${getApiBaseUrl()}/playlists-with-duration`);
       if (!res.ok) throw new Error('Failed to fetch playlists');
       const data = await res.json();
       setPlaylists(data.playlists || []);
@@ -523,6 +528,16 @@ export default function Home() {
       }
     };
   }, []);
+  
+
+  
+  // Clear mobile controls when component unmounts or when manually clearing
+  useEffect(() => {
+    if (mobilePlaylistControlsIndex === null) {
+      // Ensure hover state is also cleared when mobile controls are hidden
+      setHoveredPlaylistIndex(null);
+    }
+  }, [mobilePlaylistControlsIndex]);
   
   // Enhanced mobile detection effect
   useEffect(() => {
@@ -1369,19 +1384,6 @@ export default function Home() {
     }
                   
                 }
-                
-                /* Additional mobile-specific styles */
-                @media (max-width: 430px) {
-                  // .actionButtons {
-                  //   flex-direction: column !important;
-                  //   gap: 12px !important;
-                  // }
-                  // .actionButtons button,
-                  // .actionButtons > div {
-                  //   width: 100% !important;
-                  //   max-width: 300px !important;
-                  // }
-                  
                   /* Fix outer color elements for very small screens */
                   .profileContainer {
                     min-width: 280px !important;
@@ -1567,11 +1569,6 @@ export default function Home() {
                     font-weight: 600 !important;
                   }
                   
-                  // .responsive-container .actionButtons button {
-                  //   font-size: 0.2rem !important;
-                  //   padding: 1px 2px !important;
-                  // }
-                  
                   /* Make Find Concerts section smaller */
                   .profileContainer > div > div:nth-child(4) {
                     margin-top: 8px !important;
@@ -1644,11 +1641,6 @@ export default function Home() {
                     font-weight: 600 !important;
                   }
                   
-                  // .responsive-container .actionButtons button {
-                  //   font-size: 0.65rem !important;
-                  //   padding: 4px 8px !important;
-                  // }
-                  
                   /* Make Find Concerts section smaller */
                   .profileContainer > div > div:nth-child(4) {
                     margin-top: 12px !important;
@@ -1679,7 +1671,7 @@ export default function Home() {
                     max-width: 60% !important;
                     width: 60% !important;
                   }
-                  
+                    
                   .profileContainer > div > div:first-child > div:first-child > img {
                     width: 28px !important;
                     height: 28px !important;
@@ -1724,11 +1716,6 @@ export default function Home() {
                     padding: 2px 4px !important;
                   }
                   
-                  // .responsive-container .actionButtons button {
-                  //   font-size: 0.5rem !important;
-                  //   padding: 2px 4px !important;
-                  // }
-                  
                   .profileContainer > div > div:nth-child(4) h3 {
                     font-size: 0.7rem !important;
                   }
@@ -1742,79 +1729,6 @@ export default function Home() {
                     padding: 3px 10px !important;
                   }
                 }
-                
-                /* Extra narrow screens */
-                // @media (max-width: 320px) {
-                //   .profileContainer > div {
-                //     min-height: 80px !important;
-                //     padding: 2px !important;
-                //     margin: 1px auto !important;
-                //     max-width: 60% !important;
-                //     width: 60% !important;
-                //   }
-                  
-                //   .profileContainer > div > div:first-child > div:first-child > img {
-                //     width: 20px !important;
-                //     height: 20px !important;
-                //   }
-                  
-                //   .profileContainer > div > div:first-child > div:first-child > div {
-                //     font-size: 0.5rem !important;
-                //   }
-                  
-                //   .reportTitle {
-                //     font-size: 0.65rem !important;
-                //     margin-bottom: 3px !important;
-                //   }
-                  
-                //   .reportSubtitle {
-                //     font-size: 0.4rem !important;
-                //     margin-bottom: 4px !important;
-                //   }
-                  
-                //   .responsive-container {
-                //     margin-top: 4px !important;
-                //     gap: 3px !important;
-                //   }
-                  
-                //   .responsive-container button {
-                //     font-size: 0.35rem !important;
-                //     padding: 1px 3px !important;
-                //     min-width: 50px !important;
-                //   }
-                  
-                //   /* Time Range button and dropdown buttons */
-                //   .responsive-container button[class*="analyzeButton"] {
-                //     font-size: 0.6rem !important;
-                //     padding: 6px 12px !important;
-                //     min-width: 120px !important;
-                //     min-height: 30px !important;
-                //     font-weight: 600 !important;
-                //   }
-                  
-                //   .responsive-container [data-dropdown="time-range"] button {
-                //     font-size: 0.3rem !important;
-                //     padding: 1px 2px !important;
-                //   }
-                  
-                //   // .responsive-container .actionButtons button {
-                //   //   font-size: 0.3rem !important;
-                //   //   padding: 1px 2px !important;
-                //   // }
-                  
-                //   .profileContainer > div > div:nth-child(4) h3 {
-                //     font-size: 0.5rem !important;
-                //   }
-                  
-                //   .profileContainer > div > div:nth-child(4) p {
-                //     font-size: 0.3rem !important;
-                //   }
-                  
-                //   .profileContainer > div > div:nth-child(4) button {
-                //     font-size: 0.35rem !important;
-                //     padding: 1px 6px !important;
-                //   }
-                // }
                 
                 /* Super compact for very small screens */
                 @media (max-width: 280px) {
@@ -2110,15 +2024,15 @@ export default function Home() {
                     // Handle mobile press to show controls (only on mobile)
                     if (isMobile) {
                       handleMobilePlaylistPress(idx);
-                    }
-                    
-                    // Open Spotify playlist if available
-                    if (playlist.external_urls?.spotify) {
-                      window.open(playlist.external_urls.spotify, '_blank');
+                    } else {
+                      // On desktop, open Spotify playlist if available
+                      if (playlist.external_urls?.spotify) {
+                        window.open(playlist.external_urls.spotify, '_blank');
+                      }
                     }
                   }}
-                  onMouseEnter={() => setHoveredPlaylistIndex(idx)}
-                  onMouseLeave={() => setHoveredPlaylistIndex(null)}
+                  onMouseEnter={() => !isMobile && setHoveredPlaylistIndex(idx)}
+                  onMouseLeave={() => !isMobile && setHoveredPlaylistIndex(null)}
                 >
 
                   {/* Cover */}
@@ -2129,7 +2043,7 @@ export default function Home() {
                         alt={playlist.name}
                         className="w-full h-auto rounded-md transition-all duration-300"
                         style={{
-                          width: '100%',
+                          width: '120px',
                           height: '120px',
                           borderRadius: 6,
                           objectFit: 'cover',
@@ -2138,7 +2052,7 @@ export default function Home() {
                       />
                     ) : (
                       <div className="w-full h-auto rounded-md transition-all duration-300" style={{
-                        width: '100%',
+                        width: '120px',
                         height: '120px',
                         borderRadius: 6,
                         background: color,
@@ -2146,7 +2060,7 @@ export default function Home() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontWeight: 900,
+                        fontWeight: '900',
                         fontSize: '1.5rem',
                         transition: 'all 0.3s',
                         textTransform: 'uppercase',
@@ -2168,7 +2082,7 @@ export default function Home() {
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                     }}>{playlist.name}</h3>
-                    <p className="text-xs text-gray-400" style={{
+                    <p style={{
                       color: '#9ca3af',
                       fontSize: '0.75rem',
                       marginBottom: 0,
@@ -2176,6 +2090,10 @@ export default function Home() {
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
+                      fontWeight: '400',
+                      lineHeight: '1.2',
+                      letterSpacing: '0.025em',
+                      fontFamily: 'inherit',
                     }}>{playlist.trackCount} tracks • {playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h ${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</p>
                   </div>
                   
@@ -2189,12 +2107,13 @@ export default function Home() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 6,
-                    opacity: (hoveredPlaylistIndex === idx || mobilePlaylistControlsIndex === idx) ? 1 : 0,
+                    opacity: (mobilePlaylistControlsIndex === idx || (!isMobile && hoveredPlaylistIndex === idx)) ? 1 : 0,
                     transition: 'opacity 0.3s ease',
-                    pointerEvents: (hoveredPlaylistIndex === idx || mobilePlaylistControlsIndex === idx) ? 'auto' : 'none',
+                    pointerEvents: (mobilePlaylistControlsIndex === idx || (!isMobile && hoveredPlaylistIndex === idx)) ? 'auto' : 'none',
                     // Add a subtle glow effect when mobile controls are active
                     boxShadow: mobilePlaylistControlsIndex === idx ? '0 0 20px rgba(29, 185, 84, 0.3)' : 'none',
                   }}>
+
                     <button 
                       className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
                       style={{
@@ -2287,177 +2206,14 @@ export default function Home() {
                   </div>
                   
                     {/* Responsive text sizing CSS */}
+                    {/* Essential CSS only */}
                     <style jsx>{`
                       @keyframes pulse {
                         0% { transform: scale(1); }
                         50% { transform: scale(1.1); }
                         100% { transform: scale(1); }
                       }
-                      
-                      @media (max-width: 1000px) {
-                        .playlist-name {
-                          font-size: 0.9rem !important;
-                        }
-                        .playlist-details {
-                          font-size: 0.75rem !important;
-                        }
-                      }
-                      
-                      /* Below 750px - make nodes smaller to fit more */
-                      @media (max-width: 750px) {
-                        .playlist-node {
-                          min-width: 120px !important;
-                          max-width: 140px !important;
-                          padding: 12px !important;
-                      }
-                      
-                      .playlist-node img {
-                        width: 80px !important;
-                        height: 80px !important;
-                        margin-bottom: 12px !important;
-                      }
-                      
-                      .playlist-name {
-                        font-size: 0.85rem !important;
-                        margin-bottom: 6px !important;
-                      }
-                      
-                      .playlist-details {
-                        font-size: 0.7rem !important;
-                      }
-                      
-                      /* Adjust grid for smaller nodes */
-                      .playlist-grid {
-                        gap: 12px !important;
-                        grid-template-columns: repeat(4, 1fr) !important;
-                      }
-                    }
-                    
-                    /* Below 600px - even smaller nodes */
-                    @media (max-width: 600px) {
-                      .playlist-node {
-                        min-width: 120px !important;
-                        max-width: 140px !important;
-                        padding: 10px !important;
-                      }
-                      
-                      .playlist-node img {
-                        width: 80px !important;
-                        height: 80px !important;
-                        margin-bottom: 10px !important;
-                      }
-                      
-                      .playlist-name {
-                        font-size: 0.8rem !important;
-                        margin-bottom: 4px !important;
-                      }
-                      
-                      .playlist-details {
-                        font-size: 0.65rem !important;
-                      }
-                      
-                      .playlist-grid {
-                        gap: 8px !important;
-                        grid-template-columns: repeat(3, 1fr) !important;
-                      }
-                    }
-                    
-                    /* Below 750px - make nodes smaller to fit more */
-                    @media (max-width: 750px) {
-                      .playlist-node {
-                        min-width: 100px !important;
-                        max-width: 120px !important;
-                        padding: 8px !important;
-                      }
-                      
-                      .playlist-node img {
-                        width: 70px !important;
-                        height: 70px !important;
-                        margin-bottom: 8px !important;
-                      }
-                      
-                      .playlist-name {
-                        font-size: 0.8rem !important;
-                        margin-bottom: 4px !important;
-                      }
-                      
-                      .playlist-details {
-                        font-size: 0.65rem !important;
-                      }
-                      
-                      /* Adjust grid for smaller nodes */
-                      .playlist-grid {
-                        gap: 10px !important;
-                        grid-template-columns: repeat(4, 1fr) !important;
-                        justify-content: center !important;
-                        justify-items: center !important;
-                      }
-                    }
-                    
-                    /* Below 499px - ensure minimum 2 columns */
-                    @media (max-width: 499px) {
-                      .playlist-node {
-                        min-width: 80px !important;
-                        max-width: 100px !important;
-                        padding: 6px !important;
-                        width: 80px !important;
-                      }
-                      
-                      .playlist-node img {
-                        width: 60px !important;
-                        height: 60px !important;
-                        margin-bottom: 6px !important;
-                      }
-                      
-                      .playlist-name {
-                        font-size: 0.7rem !important;
-                        margin-bottom: 3px !important;
-                      }
-                      
-                      .playlist-details {
-                        font-size: 0.55rem !important;
-                      }
-                      
-                      .playlist-grid {
-                        gap: 6px !important;
-                        grid-template-columns: repeat(3, 1fr) !important;
-                        justify-content: center !important;
-                        justify-items: center !important;
-                        max-width: 300px !important;
-                        margin: 0 auto !important;
-                      }
-                      
-                      /* Force override inline styles */
-                      .playlist-node[style*="minWidth"] {
-                        min-width: 80px !important;
-                        max-width: 100px !important;
-                        width: 80px !important;
-                      }
-                    }
-                    
-                    @media (min-width: 501px) and (max-width: 900px) {
-                      .playlist-grid {
-                        grid-template-columns: repeat(3, 1fr) !important;
-                        gap: 20px !important;
-                      }
-                      .playlist-node {
-                        min-width: 180px !important;
-                        max-width: 200px !important;
-                      }
-                    }
-                    
-                    @media (min-width: 901px) {
-                      .playlist-grid {
-                        grid-template-columns: repeat(3, 1fr) !important;
-                        gap: 24px !important;
-                        justify-content: center !important;
-                      }
-                      .playlist-node {
-                        min-width: 200px !important;
-                        max-width: 240px !important;
-                      }
-                    }
-                  `}</style>
+                    `}</style>
                   
 
                   
