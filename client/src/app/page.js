@@ -11,8 +11,9 @@ import ArtistSearch from '../components/ArtistSearch';
 import ConcertsList from '../components/ConcertsList';
 
 
-import NewContributorFinder from '../components/NewContributorFinder';
+import ContributorFinder from '../components/ContributorFinder';
 import GenreLeaderboardChart from '../components/GenreLeaderboardChart';
+import WrappedAnalysisModal from '../components/WrappedAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 
 
@@ -123,6 +124,10 @@ export default function Home() {
   // Mobile detection state
   const [isMobile, setIsMobile] = useState(false);
   
+  // Wrapped modal state
+  const [showWrappedModal, setShowWrappedModal] = useState(false);
+  const [selectedPlaylistForWrapped, setSelectedPlaylistForWrapped] = useState(null);
+
   // Handle mobile playlist press to show controls for 3 seconds
   const handleMobilePlaylistPress = (idx) => {
     // Clear any existing timer
@@ -179,27 +184,67 @@ export default function Home() {
     }
 };
 
-const handleAnalyzeNewArtists = async (playlist) => {
+  const handleAnalyzeNewArtists = async (playlist) => {
     try {
-        setAnalyzingArtistPlaylistId(playlist.id);
-        const res = await fetch(`http://127.0.0.1:8000/playlist-artists/${playlist.id}`);
-        if (!res.ok) throw new Error('Failed to analyze playlist artists');
-        const data = await res.json();
-        // GenreLeaderboardChart expects: { artistName: count, ... }
-        setNewArtistAnalysis({ 
-            name: playlist.name, 
-            artists: data.artists,
-            artistDetails: data.artistDetails || {}
-        });
-        setShowNewArtistModal(true);
+      setAnalyzingArtistPlaylistId(playlist.id);
+      const res = await fetch(`http://127.0.0.1:8000/playlist-artists/${playlist.id}`);
+      if (!res.ok) throw new Error('Failed to analyze playlist artists');
+      const data = await res.json();
+      // GenreLeaderboardChart expects: { artistName: count, ... }
+      setNewArtistAnalysis({ 
+          name: playlist.name, 
+          artists: data.artists,
+          artistDetails: data.artistDetails || {}
+      });
+      setShowNewArtistModal(true);
     } catch (error) {
-        alert('Could not analyze playlist artists. Please try again.');
+      alert('Could not analyze playlist artists. Please try again.');
     } finally {
-        setAnalyzingArtistPlaylistId(null);
+      setAnalyzingArtistPlaylistId(null);
     }
-};
+  };
 
-const handleExploreContributions = async (track) => {
+  const handleCreatePlaylistWrapped = async (playlist) => {
+    try {
+      console.log('Creating wrapped for playlist:', playlist);
+      console.log('Playlist ID:', playlist.id);
+      
+      // Fetch playlist tracks for wrapped analysis (same pattern as Genres feature)
+      const res = await fetch(`http://127.0.0.1:8000/playlist-tracks-for-wrapped/${playlist.id}`);
+      console.log('Response status:', res.status);
+      console.log('Response ok:', res.ok);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Failed to fetch playlist tracks for wrapped: ${res.status} ${res.statusText}`);
+      }
+      
+      const data = await res.json();
+      console.log('Response data:', data);
+      const tracks = data.tracks || [];
+      
+      if (tracks.length === 0) {
+        console.log('No tracks found in playlist');
+        alert('No tracks found in this playlist.');
+        return;
+      }
+      
+      console.log(`Found ${tracks.length} tracks for wrapped analysis`);
+      
+      // Open the wrapped analysis modal with the playlist tracks
+      setSelectedPlaylistForWrapped({
+        ...playlist,
+        tracks: tracks
+      });
+      setShowWrappedModal(true);
+    } catch (error) {
+      console.error('Error creating playlist wrapped:', error);
+      alert(`Could not create playlist wrapped: ${error.message}`);
+    }
+  };
+
+  const handleExploreContributions = async (track) => {
   if (!track || !track.id) return;
 
   setFetchingMbidForTrackId(track.id);
@@ -2153,6 +2198,27 @@ const handleExploreContributions = async (track) => {
                     <button 
                       className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
                       style={{
+                        background: '#1db954',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '9999px',
+                        fontWeight: 600,
+                        fontSize: isMobile ? '0.9rem' : '0.75rem',
+                        padding: isMobile ? '8px 16px' : '4px 12px',
+                        marginBottom: 8,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleCreatePlaylistWrapped(playlist);
+                      }}
+                    >
+                      Create Wrapped
+                    </button>
+                    <button 
+                      className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
+                      style={{
                         background: '#374151',
                         color: '#fff',
                         border: 'none',
@@ -2715,11 +2781,19 @@ const handleExploreContributions = async (track) => {
                   </h2>
 
                   {/* Contributor content */}
-                                     <NewContributorFinder mbid={selectedTrackForContributors.mbid} track={selectedTrackForContributors} />
+                  <ContributorFinder mbid={selectedTrackForContributors.mbid} />
               </div>
           </div>
       )}
       
+      {/* Wrapped Analysis Modal for Playlists */}
+      {showWrappedModal && selectedPlaylistForWrapped && (
+        <WrappedAnalysisModal
+          open={showWrappedModal}
+          onClose={() => setShowWrappedModal(false)}
+          tracks={selectedPlaylistForWrapped.tracks}
+        />
+      )}
 
     </main>
       </div>

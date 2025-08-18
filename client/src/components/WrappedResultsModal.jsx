@@ -1,6 +1,620 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 
+// --- Responsive styling helper ---
+const getResponsiveStyles = (isMobile) => {
+  if (isMobile) {
+    return {
+      // Modal container
+      modalContainer: {
+        background: '#181c24',
+        borderRadius: 16,
+        padding: 24,
+        minWidth: 'auto',
+        minHeight: 'auto',
+        boxShadow: '0 12px 64px #000b',
+        color: '#fff',
+        position: 'relative',
+        maxWidth: '95vw',
+        width: '95vw',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        boxSizing: 'border-box'
+      },
+      // Close button
+      closeButton: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        background: 'none',
+        border: 'none',
+        color: 'rgb(255, 255, 255)',
+        fontSize: 24,
+        cursor: 'pointer',
+        zIndex: 10
+      },
+      // Main title
+      mainTitle: {
+        fontSize: '2rem',
+        fontWeight: 900,
+        marginBottom: 20,
+        letterSpacing: 1
+      },
+      // Stats text
+      statsText: {
+        fontSize: '1.1rem',
+        color: '#38bdf8',
+        fontWeight: 800,
+        marginBottom: 8,
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        maxWidth: '100%'
+      },
+      // Stats value
+      statsValue: {
+        fontSize: '1rem',
+        color: '#fff',
+        fontWeight: 700,
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        maxWidth: '100%'
+      },
+      // Stats year
+      statsYear: {
+        fontSize: '0.9rem',
+        color: '#d1d5db',
+        fontWeight: 500
+      },
+      // Songs list container
+      songsListContainer: {
+        margin: '24px 0 0 0',
+        textAlign: 'left',
+        maxHeight: 280,
+        overflowY: 'auto',
+        background: 'rgba(255,255,255,0.06)',
+        borderRadius: 12,
+        padding: '20px 0 20px 20px',
+        boxShadow: '0 2px 16px #0003',
+        transition: 'scrollTop 0.5s',
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        maxWidth: '100%',
+        boxSizing: 'border-box'
+      },
+      // Songs list title
+      songsListTitle: {
+        fontWeight: 900,
+        color: '#fff',
+        marginBottom: 14,
+        fontSize: '1.2rem',
+        letterSpacing: 0.5
+      },
+      // Song list item
+      songListItem: {
+        color: '#d1d5db',
+        fontSize: 14,
+        marginBottom: 6,
+        lineHeight: 1.25,
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        maxWidth: '100%'
+      },
+      // Call to action
+      callToAction: {
+        marginTop: 32,
+        fontSize: 18,
+        color: '#38bdf8',
+        fontWeight: 900
+      },
+      // Page title
+      pageTitle: {
+        color: '#fff',
+        fontSize: '1.8rem',
+        fontWeight: 900,
+        marginBottom: 24,
+        textAlign: 'center',
+        letterSpacing: 1
+      },
+      // Page container
+      pageContainer: {
+        padding: 24,
+        background: 'linear-gradient(120deg, #232b39 0%, #181c24 100%)',
+        borderRadius: 16,
+        minHeight: 400,
+        maxWidth: '100%',
+        margin: '0 auto',
+        boxShadow: '0 8px 48px #000b',
+        boxSizing: 'border-box',
+        overflow: 'hidden'
+      },
+      // Navigation buttons
+      navButton: {
+        background: 'none',
+        border: '1.5px solid #38bdf8',
+        color: '#38bdf8',
+        borderRadius: 6,
+        padding: '8px 20px',
+        fontWeight: 700,
+        fontSize: 14,
+        cursor: 'pointer',
+        transition: 'background 0.18s'
+      },
+      navButtonPrimary: {
+        background: '#38bdf8',
+        color: '#fff',
+        border: 'none',
+        borderRadius: 6,
+        padding: '8px 20px',
+        fontWeight: 700,
+        fontSize: 14,
+        cursor: 'pointer',
+        boxShadow: '0 4px 24px #000a',
+        transition: 'background 0.18s'
+      },
+      // Metric bar chart
+      metricBarChart: {
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: 20
+      },
+      metricLabel: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 16,
+        width: 120
+      },
+      metricBar: {
+        flex: 1,
+        margin: '0 12px',
+        background: '#2d3142',
+        borderRadius: 12,
+        height: 12,
+        position: 'relative',
+        overflow: 'hidden'
+      },
+      metricValue: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 16,
+        width: 40,
+        textAlign: 'right'
+      },
+      // Binary bar chart
+      binaryBarChart: {
+        marginBottom: 24
+      },
+      binaryBarLabel: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 16
+      },
+      binaryBarLabelSecondary: {
+        color: '#b0b6be',
+        fontWeight: 500,
+        fontSize: 16
+      },
+      binaryBarContainer: {
+        flex: 1,
+        margin: '0 0px',
+        background: '#1e293b',
+        borderRadius: 12,
+        height: 14,
+        position: 'relative',
+        overflow: 'hidden'
+      },
+      // Genre leaderboard
+      genreLeaderboard: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20
+      },
+      genreSection: {
+        marginBottom: 16
+      },
+      genreSectionTitle: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 20,
+        marginBottom: 6
+      },
+      genreTags: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 12
+      },
+      genreTag: {
+        background: '#232b39',
+        color: '#38bdf8',
+        fontWeight: 700,
+        fontSize: 13,
+        borderRadius: 6,
+        padding: '3px 10px'
+      },
+      // Chords histogram
+      chordsHistogram: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 24,
+        justifyContent: 'center'
+      },
+      chordSection: {
+        flex: 1
+      },
+      chordSectionTitle: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 16,
+        marginBottom: 8,
+        textAlign: 'center'
+      },
+      chordItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#232b39',
+        color: '#38bdf8',
+        fontWeight: 700,
+        fontSize: 13,
+        borderRadius: 6,
+        padding: '3px 10px',
+        marginBottom: 4
+      },
+      chordSummary: {
+        marginTop: 14
+      },
+      chordSummaryTitle: {
+        color: '#b0b6be',
+        fontWeight: 600,
+        fontSize: 13,
+        marginBottom: 3
+      },
+      chordSummaryItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#181c24',
+        borderRadius: 4,
+        padding: '2px 8px',
+        fontSize: 13
+      },
+      // Animated beats page
+      beatsPageTitle: {
+        fontSize: '2rem',
+        fontWeight: 900,
+        marginBottom: 14,
+        letterSpacing: 1
+      },
+      beatsPageText: {
+        fontSize: '1.5rem',
+        color: '#e5e7eb',
+        fontWeight: 700,
+        marginBottom: 12,
+        width: '100%'
+      },
+      beatsPageNumber: {
+        fontSize: '3rem',
+        fontWeight: 900,
+        color: '#38bdf8',
+        margin: '14px 0 0 0',
+        textShadow: '0 2px 24px #38bdf8aa',
+        width: '100%'
+      },
+      beatsPageSubtext: {
+        fontSize: '1.3rem',
+        color: '#b0b6be',
+        fontWeight: 600,
+        marginBottom: 12,
+        width: '100%'
+      },
+      beatsPageFooter: {
+        marginTop: 24,
+        fontSize: 16,
+        color: '#38bdf8',
+        fontWeight: 700
+      }
+    };
+  } else {
+    // Desktop styles (original)
+    return {
+      modalContainer: {
+        background: '#181c24',
+        borderRadius: 24,
+        padding: 72,
+        minWidth: 600,
+        minHeight: 700,
+        boxShadow: '0 12px 64px #000b',
+        color: '#fff',
+        position: 'relative',
+        maxWidth: 900,
+        width: '100%'
+      },
+      closeButton: {
+        position: 'absolute',
+        top: 1,
+        right: 1,
+        background: 'none',
+        border: 'none',
+        color: 'rgb(255, 255, 255)',
+        fontSize: 32,
+        cursor: 'pointer',
+        zIndex: 10
+      },
+      mainTitle: {
+        fontSize: '2.8rem',
+        fontWeight: 900,
+        marginBottom: 28,
+        letterSpacing: 1
+      },
+      statsText: {
+        fontSize: '1.4rem',
+        color: '#38bdf8',
+        fontWeight: 800,
+        marginBottom: 10
+      },
+      statsValue: {
+        fontSize: '1.4rem',
+        color: '#fff',
+        fontWeight: 700
+      },
+      statsYear: {
+        fontSize: '1.4rem',
+        color: '#d1d5db',
+        fontWeight: 500
+      },
+      songsListContainer: {
+        margin: '32px 0 0 0',
+        textAlign: 'left',
+        maxHeight: 340,
+        overflowY: 'auto',
+        background: 'rgba(255,255,255,0.06)',
+        borderRadius: 16,
+        padding: '28px 0 28px 28px',
+        boxShadow: '0 2px 16px #0003',
+        transition: 'scrollTop 0.5s'
+      },
+      songsListTitle: {
+        fontWeight: 900,
+        color: '#fff',
+        marginBottom: 18,
+        fontSize: '1.5rem',
+        letterSpacing: 0.5
+      },
+      songListItem: {
+        color: '#d1d5db',
+        fontSize: 18,
+        marginBottom: 8,
+        lineHeight: 1.25
+      },
+      callToAction: {
+        marginTop: 48,
+        fontSize: 22,
+        color: '#38bdf8',
+        fontWeight: 900
+      },
+      pageTitle: {
+        color: '#fff',
+        fontSize: '2.2rem',
+        fontWeight: 900,
+        marginBottom: 32,
+        textAlign: 'center',
+        letterSpacing: 1
+      },
+      pageContainer: {
+        padding: 36,
+        background: 'linear-gradient(120deg, #232b39 0%, #181c24 100%)',
+        borderRadius: 24,
+        minHeight: 500,
+        maxWidth: 600,
+        margin: '0 auto',
+        boxShadow: '0 8px 48px #000b'
+      },
+      navButton: {
+        background: 'none',
+        border: '1.5px solid #38bdf8',
+        color: '#38bdf8',
+        borderRadius: 8,
+        padding: '10px 28px',
+        fontWeight: 700,
+        fontSize: 18,
+        cursor: 'pointer',
+        transition: 'background 0.18s'
+      },
+      navButtonPrimary: {
+        background: '#38bdf8',
+        color: '#fff',
+        border: 'none',
+        borderRadius: 8,
+        padding: '10px 28px',
+        fontWeight: 700,
+        fontSize: 18,
+        cursor: 'pointer',
+        boxShadow: '0 4px 24px #000a',
+        transition: 'background 0.18s'
+      },
+      metricBarChart: {
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: 28
+      },
+      metricLabel: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 20,
+        width: 170
+      },
+      metricBar: {
+        flex: 1,
+        margin: '0 18px',
+        background: '#2d3142',
+        borderRadius: 16,
+        height: 16,
+        position: 'relative',
+        overflow: 'hidden'
+      },
+      metricValue: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 20,
+        width: 48,
+        textAlign: 'right'
+      },
+      binaryBarChart: {
+        marginBottom: 32
+      },
+      binaryBarLabel: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 18
+      },
+      binaryBarLabelSecondary: {
+        color: '#b0b6be',
+        fontWeight: 500,
+        fontSize: 18
+      },
+      binaryBarContainer: {
+        flex: 1,
+        margin: '0 0px',
+        background: '#1e293b',
+        borderRadius: 16,
+        height: 18,
+        position: 'relative',
+        overflow: 'hidden'
+      },
+      genreLeaderboard: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 28
+      },
+      genreSection: {
+        marginBottom: 20
+      },
+      genreSectionTitle: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 20,
+        marginBottom: 6
+      },
+      genreTags: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 12
+      },
+      genreTag: {
+        background: '#232b39',
+        color: '#38bdf8',
+        fontWeight: 700,
+        fontSize: 16,
+        borderRadius: 8,
+        padding: '4px 14px'
+      },
+      chordsHistogram: {
+        display: 'flex',
+        flexDirection: 'row',
+        gap: 32,
+        justifyContent: 'center'
+      },
+      chordSection: {
+        flex: 1
+      },
+      chordSectionTitle: {
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 18,
+        marginBottom: 10,
+        textAlign: 'center'
+      },
+      chordItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#232b39',
+        color: '#38bdf8',
+        fontWeight: 700,
+        fontSize: 16,
+        borderRadius: 8,
+        padding: '4px 14px',
+        marginBottom: 6
+      },
+      chordSummary: {
+        marginTop: 18
+      },
+      chordSummaryTitle: {
+        color: '#b0b6be',
+        fontWeight: 600,
+        fontSize: 15,
+        marginBottom: 4
+      },
+      chordSummaryItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#181c24',
+        borderRadius: 6,
+        padding: '2px 10px',
+        fontSize: 15
+      },
+      beatsPageTitle: {
+        fontSize: '2.5rem',
+        fontWeight: 900,
+        marginBottom: 18,
+        letterSpacing: 1
+      },
+      beatsPageText: {
+        fontSize: '2rem',
+        color: '#e5e7eb',
+        fontWeight: 700,
+        marginBottom: 16,
+        width: '100%'
+      },
+      beatsPageNumber: {
+        fontSize: '4rem',
+        fontWeight: 900,
+        color: '#38bdf8',
+        margin: '18px 0 0 0',
+        textShadow: '0 2px 24px #38bdf8aa',
+        width: '100%'
+      },
+      beatsPageSubtext: {
+        fontSize: '1.6rem',
+        color: '#b0b6be',
+        fontWeight: 600,
+        marginBottom: 16,
+        width: '100%'
+      },
+      beatsPageFooter: {
+        marginTop: 32,
+        fontSize: 18,
+        color: '#38bdf8',
+        fontWeight: 700
+      }
+    };
+  }
+};
+
+// --- Window size hook ---
+const useWindowSize = () => {
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+
+  return windowSize;
+};
+
 // --- Animation styles ---
 const fadeIn = {
   opacity: 1,
@@ -48,6 +662,15 @@ if (typeof window !== 'undefined') {
 
 export default function WrappedResultsModal({ open, onClose, results, tracks }) {
   const [page, setPage] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const { width } = useWindowSize();
+  
+  // Update mobile state when width changes
+  useEffect(() => {
+    setIsMobile(width < 600);
+  }, [width]);
+  
+  const styles = getResponsiveStyles(isMobile);
 
   // Aggregate data for all analyzed tracks
   const { analyzedTracks, skippedTracks, totalBeats, avgBeats } = useMemo(() => {
@@ -76,6 +699,15 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
 
   // --- Auto-scroll logic for songs list ---
   const songsListRef = useRef(null);
+  const modalContainerRef = useRef(null);
+  
+  // Scroll to top when page changes (especially important for mobile)
+  useEffect(() => {
+    if (modalContainerRef.current && isMobile) {
+      modalContainerRef.current.scrollTop = 0;
+    }
+  }, [page, isMobile]);
+  
   useEffect(() => {
     if (page !== 0) return;
     const container = songsListRef.current;
@@ -109,12 +741,24 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
   }, [analyzedTracks, page]);
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#181c24', borderRadius: 24, padding: 72, minWidth: 600, minHeight: 700, boxShadow: '0 12px 64px #000b', color: '#fff', position: 'relative', maxWidth: 900, width: '100%' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 1, right: 1, background: 'none', border: 'none', color: 'rgb(255, 255, 255)', fontSize: 32, cursor: 'pointer', zIndex: 10 }}>&times;</button>
+    <div style={{ 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh', 
+      background: 'rgba(0,0,0,0.85)', 
+      zIndex: 9999, 
+      display: 'flex', 
+      alignItems: isMobile ? 'flex-start' : 'center', 
+      justifyContent: 'center',
+      padding: isMobile ? '20px 10px' : '0'
+    }}>
+      <div style={styles.modalContainer} ref={modalContainerRef}>
+        <button onClick={onClose} style={styles.closeButton}>&times;</button>
         {page === 0 && (
           <div style={{ textAlign: 'center', padding: '0 24px' }}>
-            <h2 style={{ fontSize: '2.8rem', fontWeight: 900, marginBottom: 28, letterSpacing: 1 }}>Your Songs Wrapped</h2>
+            <h2 style={styles.mainTitle}>Your Songs Wrapped</h2>
             {/* Calculate earliest/latest and total duration */}
             {(() => {
               if (analyzedTracks.length === 0) return null;
@@ -141,80 +785,213 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
               const totalMins = Math.floor((totalDurationMs % 3600000) / 60000);
               const totalSecs = Math.floor((totalDurationMs % 60000) / 1000).toString().padStart(2, '0');
               const formattedTime = `${totalHours}:${totalMins.toString().padStart(2, '0')}:${totalSecs}`;
-              return (
-                <div style={{ marginBottom: 32 }}>
-                  <div style={{ fontSize: '1.4rem', color: '#38bdf8', fontWeight: 800, marginBottom: 10 }}>
-                    First published: <span style={{ color: '#fff', fontWeight: 700 }}>{earliest.track?.name}</span> <span style={{ color: '#d1d5db', fontWeight: 500 }}>({minYear || 'N/A'})</span>
+              
+              if (isMobile) {
+                // Mobile layout - display stats in a more compact, mobile-friendly way
+                return (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ 
+                      background: 'rgba(56, 189, 248, 0.1)', 
+                      borderRadius: 12, 
+                      padding: 16, 
+                      marginBottom: 12,
+                      border: '1px solid rgba(56, 189, 248, 0.3)'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 700, marginBottom: 6 }}>
+                        First published
+                      </div>
+                      <div style={{ fontSize: '1rem', color: '#fff', fontWeight: 700, marginBottom: 4 }}>
+                        {earliest.track?.name}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#d1d5db', fontWeight: 500 }}>
+                        {minYear || 'N/A'}
+                      </div>
+                    </div>
+                    
+                    <div style={{ 
+                      background: 'rgba(56, 189, 248, 0.1)', 
+                      borderRadius: 12, 
+                      padding: 16, 
+                      marginBottom: 12,
+                      border: '1px solid rgba(56, 189, 248, 0.3)'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 700, marginBottom: 6 }}>
+                        Most recent
+                      </div>
+                      <div style={{ fontSize: '1rem', color: '#fff', fontWeight: 700, marginBottom: 4 }}>
+                        {latest.track?.name}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#d1d5db', fontWeight: 500 }}>
+                        {maxYear || 'N/A'}
+                      </div>
+                    </div>
+                    
+                    <div style={{ 
+                      background: 'rgba(56, 189, 248, 0.1)', 
+                      borderRadius: 12, 
+                      padding: 16, 
+                      marginBottom: 12,
+                      border: '1px solid rgba(56, 189, 248, 0.3)'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 700, marginBottom: 6 }}>
+                        Total listening time
+                      </div>
+                      <div style={{ fontSize: '1.2rem', color: '#fff', fontWeight: 700 }}>
+                        {formattedTime}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.4rem', color: '#38bdf8', fontWeight: 800, marginBottom: 10 }}>
-                    Most recent: <span style={{ color: '#fff', fontWeight: 700 }}>{latest.track?.name}</span> <span style={{ color: '#d1d5db', fontWeight: 500 }}>({maxYear || 'N/A'})</span>
+                );
+              } else {
+                // Desktop layout - original design
+                return (
+                  <div style={{ marginBottom: 32 }}>
+                    <div style={styles.statsText}>
+                      First published: <span style={styles.statsValue}>{earliest.track?.name}</span> <span style={styles.statsYear}>({minYear || 'N/A'})</span>
+                    </div>
+                    <div style={styles.statsText}>
+                      Most recent: <span style={styles.statsValue}>{latest.track?.name}</span> <span style={styles.statsYear}>({maxYear || 'N/A'})</span>
+                    </div>
+                    <div style={styles.statsText}>
+                      Total listening time: <span style={styles.statsValue}>{formattedTime}</span>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.4rem', color: '#38bdf8', fontWeight: 800, marginBottom: 10 }}>
-                    Total listening time: <span style={{ color: '#fff', fontWeight: 700 }}>{formattedTime}</span>
-                  </div>
-                </div>
-              );
+                );
+              }
             })()}
-            <div
-              ref={songsListRef}
-              style={{ margin: '32px 0 0 0', textAlign: 'left', maxHeight: 340, overflowY: 'auto', background: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: '28px 0 28px 28px', boxShadow: '0 2px 16px #0003', transition: 'scrollTop 0.5s' }}>
-              <div style={{ fontWeight: 900, color: '#fff', marginBottom: 18, fontSize: '1.5rem', letterSpacing: 0.5 }}>Included Songs:</div>
-              <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
-                {analyzedTracks.map((r, i) => (
-                  <li key={r.track?.id || i} style={{ color: '#d1d5db', fontSize: 18, marginBottom: 8, lineHeight: 1.25 }}>
-                    <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div style={{ marginTop: 48, fontSize: 22, color: '#38bdf8', fontWeight: 900 }}>
+            
+            {/* Songs list - mobile vs desktop layout */}
+            {isMobile ? (
+              // Mobile songs list - identical to desktop design
+              <div
+                ref={songsListRef}
+                style={{
+                  ...styles.songsListContainer,
+                  padding: isMobile ? '20px 0 20px 20px' : styles.songsListContainer.padding,
+                  maxHeight: isMobile ? 300 : styles.songsListContainer.maxHeight
+                }}>
+                <div style={styles.songsListTitle}>Included Songs:</div>
+                <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+                  {analyzedTracks.map((r, i) => (
+                    <li key={r.track?.id || i} style={styles.songListItem}>
+                      <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              // Desktop songs list - original design
+              <div
+                ref={songsListRef}
+                style={styles.songsListContainer}>
+                <div style={styles.songsListTitle}>Included Songs:</div>
+                <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+                  {analyzedTracks.map((r, i) => (
+                    <li key={r.track?.id || i} style={styles.songListItem}>
+                      <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <div style={styles.callToAction}>
               Ready to see your stats?
             </div>
           </div>
         )}
         {page === 1 && (
-          <AnimatedBeatsPage totalBeats={totalBeats} avgBeats={avgBeats} />
+          <div style={isMobile ? { padding: '0 16px' } : {}}>
+            <AnimatedBeatsPage totalBeats={totalBeats} avgBeats={avgBeats} styles={styles} />
+          </div>
         )}
         {page === 2 && (
-          <div style={{ padding: 36, background: 'linear-gradient(120deg, #232b39 0%, #181c24 100%)', borderRadius: 24, minHeight: 500, maxWidth: 600, margin: '0 auto', boxShadow: '0 8px 48px #000b' }}>
-            <h2 style={{ color: '#fff', fontSize: '2.2rem', fontWeight: 900, marginBottom: 32, textAlign: 'center', letterSpacing: 1 }}>The Average Audio Profile</h2>
-            <MetricBarCharts analyzedTracks={analyzedTracks} />
+          <div style={styles.pageContainer}>
+            <h2 style={styles.pageTitle}>The Average Audio Profile</h2>
+            {isMobile ? (
+              // Mobile layout for metric charts
+              <div style={{ padding: '0 8px' }}>
+                <MetricBarCharts analyzedTracks={analyzedTracks} styles={styles} />
+              </div>
+            ) : (
+              <MetricBarCharts analyzedTracks={analyzedTracks} styles={styles} />
+            )}
           </div>
         )}
         {page === 3 && (
-          <div style={{ padding: 36, background: 'linear-gradient(120deg, #232b39 0%, #181c24 100%)', borderRadius: 24, minHeight: 400, maxWidth: 600, margin: '0 auto', boxShadow: '0 8px 48px #000b' }}>
-            <h2 style={{ color: '#fff', fontSize: '2.2rem', fontWeight: 900, marginBottom: 32, textAlign: 'center', letterSpacing: 1 }}>Binary Audio Features</h2>
-            <BinaryBarCharts analyzedTracks={analyzedTracks} />
+          <div style={styles.pageContainer}>
+            <h2 style={styles.pageTitle}>Binary Audio Features</h2>
+            {isMobile ? (
+              // Mobile layout for binary charts
+              <div style={{ padding: '0 8px' }}>
+                <BinaryBarCharts analyzedTracks={analyzedTracks} styles={styles} />
+              </div>
+            ) : (
+              <BinaryBarCharts analyzedTracks={analyzedTracks} styles={styles} />
+            )}
           </div>
         )}
         {page === 4 && (
-          <div style={{ padding: 36, background: 'linear-gradient(120deg, #232b39 0%, #181c24 100%)', borderRadius: 24, minHeight: 400, maxWidth: 600, margin: '0 auto', boxShadow: '0 8px 48px #000b' }}>
-            <h2 style={{ color: '#fff', fontSize: '2.2rem', fontWeight: 900, marginBottom: 32, textAlign: 'center', letterSpacing: 1 }}>Genre & Rhythm Leaderboards</h2>
-            <GenreLeaderboards analyzedTracks={analyzedTracks} />
+          <div style={styles.pageContainer}>
+            <h2 style={styles.pageTitle}>Genre & Rhythm Leaderboards</h2>
+            {isMobile ? (
+              // Mobile layout for genre leaderboards
+              <div style={{ padding: '0 8px' }}>
+                <GenreLeaderboards analyzedTracks={analyzedTracks} styles={styles} isMobile={isMobile} />
+              </div>
+            ) : (
+              <GenreLeaderboards analyzedTracks={analyzedTracks} styles={styles} isMobile={isMobile} />
+            )}
           </div>
         )}
         {page === 5 && (
-          <div style={{ padding: 36, background: 'linear-gradient(120deg, #232b39 0%, #181c24 100%)', borderRadius: 24, minHeight: 400, maxWidth: 600, margin: '0 auto', boxShadow: '0 8px 48px #000b' }}>
-            <h2 style={{ color: '#fff', fontSize: '2.2rem', fontWeight: 900, marginBottom: 12, textAlign: 'center', letterSpacing: 1 }}>Chords Histogram</h2>
-            <div style={{ color: '#b0b6be', fontSize: 15, textAlign: 'center', marginBottom: 24 }}>
+          <div style={styles.pageContainer}>
+            <h2 style={styles.pageTitle}>Chords Histogram</h2>
+            <div style={{ color: '#b0b6be', fontSize: isMobile ? 13 : 15, textAlign: 'center', marginBottom: 24 }}>
               Average percentage of major and minor chords heard in the track.
             </div>
-            <ChordsHistogram analyzedTracks={analyzedTracks} />
-            <div style={{ color: '#b0b6be', fontSize: 14, textAlign: 'center', marginTop: 24 }}>
+            {isMobile ? (
+              // Mobile layout for chords histogram
+              <div style={{ padding: '0 8px' }}>
+                <ChordsHistogram analyzedTracks={analyzedTracks} styles={styles} />
+              </div>
+            ) : (
+              <ChordsHistogram analyzedTracks={analyzedTracks} styles={styles} />
+            )}
+            <div style={{ color: '#b0b6be', fontSize: isMobile ? 12 : 14, textAlign: 'center', marginTop: 24 }}>
               For each chord, this value shows the average proportion of time (per song) that the chord is present, based on all analyzed tracks.
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 36 }}>
-          <button onClick={goPrev} disabled={page === 0} style={{ opacity: page === 0 ? 0.4 : 1, background: 'none', border: '1.5px solid #38bdf8', color: '#38bdf8', borderRadius: 8, padding: '10px 28px', fontWeight: 700, fontSize: 18, cursor: page === 0 ? 'default' : 'pointer', transition: 'background 0.18s' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          marginTop: 36,
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? 12 : 0
+        }}>
+          <button onClick={goPrev} disabled={page === 0} style={{ 
+            opacity: page === 0 ? 0.4 : 1, 
+            ...styles.navButton,
+            cursor: page === 0 ? 'default' : 'pointer',
+            width: isMobile ? '100%' : 'auto'
+          }}>
             Prev
           </button>
           {page === totalPages - 1 ? (
-            <button onClick={onClose} style={{ background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 28px', fontWeight: 700, fontSize: 18, cursor: 'pointer', boxShadow: '0 4px 24px #000a', transition: 'background 0.18s' }}>
+            <button onClick={onClose} style={{
+              ...styles.navButtonPrimary,
+              width: isMobile ? '100%' : 'auto'
+            }}>
               Close
             </button>
           ) : (
-            <button onClick={goNext} disabled={page === totalPages - 1} style={{ opacity: page === totalPages - 1 ? 0.4 : 1, background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 28px', fontWeight: 700, fontSize: 18, cursor: page === totalPages - 1 ? 'default' : 'pointer', boxShadow: '0 4px 24px #000a', transition: 'background 0.18s' }}>
+            <button onClick={goNext} disabled={page === totalPages - 1} style={{ 
+              opacity: page === totalPages - 1 ? 0.4 : 1, 
+              ...styles.navButtonPrimary,
+              cursor: page === totalPages - 1 ? 'default' : 'pointer',
+              width: isMobile ? '100%' : 'auto'
+            }}>
               Next
             </button>
           )}
@@ -225,7 +1002,7 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
 }
 
 // --- Animated Beats Page ---
-function AnimatedBeatsPage({ totalBeats, avgBeats }) {
+function AnimatedBeatsPage({ totalBeats, avgBeats, styles }) {
   const [displayedBeats, setDisplayedBeats] = useState(0);
   const [showLine1, setShowLine1] = useState(false);
   const [showBeats, setShowBeats] = useState(false);
@@ -265,7 +1042,7 @@ function AnimatedBeatsPage({ totalBeats, avgBeats }) {
   return (
     <div style={{ textAlign: 'center', padding: '0 12px' }}>
       <h2 style={{
-        fontSize: '2.5rem', fontWeight: 900, marginBottom: 18, letterSpacing: 1,
+        ...styles.beatsPageTitle,
         ...(!showLine1 ? fadeOut : fadeIn),
         transitionProperty: 'opacity, transform',
         transitionDuration: '0.7s',
@@ -274,7 +1051,7 @@ function AnimatedBeatsPage({ totalBeats, avgBeats }) {
       }}>Total Beat Count</h2>
       <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{
-          fontSize: '2rem', color: '#e5e7eb', fontWeight: 700, marginBottom: 16, width: '100%',
+          ...styles.beatsPageText,
           ...(!showLine1 ? fadeOut : fadeIn),
           transitionProperty: 'opacity, transform',
           transitionDuration: '0.7s',
@@ -284,7 +1061,7 @@ function AnimatedBeatsPage({ totalBeats, avgBeats }) {
           You have in total of
         </div>
         <div style={{
-          fontSize: '4rem', fontWeight: 900, color: '#38bdf8', margin: '18px 0 0 0', textShadow: '0 2px 24px #38bdf8aa', width: '100%',
+          ...styles.beatsPageNumber,
           ...(!showBeats ? fadeOut : fadeIn),
           transitionProperty: 'opacity, transform',
           transitionDuration: '0.7s',
@@ -292,7 +1069,7 @@ function AnimatedBeatsPage({ totalBeats, avgBeats }) {
           transitionDelay: '0.3s'
         }}>{displayedBeats}</div>
         <div style={{
-          fontSize: '2rem', color: '#e5e7eb', fontWeight: 700, margin: '24px 0 18px 0', width: '100%',
+          ...styles.beatsPageText,
           ...(!showPulse ? fadeOut : fadeIn),
           transitionProperty: 'opacity, transform',
           transitionDuration: '0.7s',
@@ -300,18 +1077,18 @@ function AnimatedBeatsPage({ totalBeats, avgBeats }) {
           transitionDelay: '0.5s'
         }}>beats</div>
         <div style={{
-          fontSize: '1.6rem', color: '#b0b6be', fontWeight: 600, marginBottom: 16, width: '100%',
+          ...styles.beatsPageSubtext,
           ...(!showLine2 ? fadeOut : fadeIn),
           transitionProperty: 'opacity, transform',
           transitionDuration: '0.7s',
           transitionTimingFunction: 'cubic-bezier(.4,0,.2,1)',
           transitionDelay: '0.7s'
         }}>
-          That’s <span style={{ color: '#38bdf8', fontWeight: 900 }}>{avgBeats}</span> beats per song on average.
+          That's <span style={{ color: '#38bdf8', fontWeight: 900 }}>{avgBeats}</span> beats per song on average.
         </div>
       </div>
       <div style={{
-        marginTop: 32, fontSize: 18, color: '#38bdf8', fontWeight: 700,
+        ...styles.beatsPageFooter,
         ...(!showLine2 ? fadeOut : fadeIn),
         transitionProperty: 'opacity, transform',
         transitionDuration: '0.7s',
@@ -325,7 +1102,7 @@ function AnimatedBeatsPage({ totalBeats, avgBeats }) {
 }
 
 // --- MetricBarCharts component ---
-function MetricBarCharts({ analyzedTracks }) {
+function MetricBarCharts({ analyzedTracks, styles }) {
   const [animKey, setAnimKey] = useState(0);
   useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]); // retrigger on page show
   // Helper to get average for a highlevel metric (probability of main value)
@@ -363,16 +1140,16 @@ function MetricBarCharts({ analyzedTracks }) {
         const barWidth = `${Math.round(m.value * 100)}%`;
         const barKey = `${animKey}-${m.label}`;
         return (
-          <div key={m.label} style={{ display: 'flex', alignItems: 'center', marginBottom: 28 }}>
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: 20, width: 170 }}>{m.label}</span>
-            <div style={{ flex: 1, margin: '0 18px', background: '#2d3142', borderRadius: 16, height: 16, position: 'relative', overflow: 'hidden' }}>
+          <div key={m.label} style={styles.metricBarChart}>
+            <span style={styles.metricLabel}>{m.label}</span>
+            <div style={styles.metricBar}>
               <div
                 key={barKey}
                 style={{
                   width: barWidth,
                   background: m.color,
                   height: '100%',
-                  borderRadius: 16,
+                  borderRadius: styles.metricBar.borderRadius,
                   animation: `fill-bar 1s cubic-bezier(.4,0,.2,1)`,
                   animationName: 'fill-bar',
                   animationDuration: '1s',
@@ -383,7 +1160,7 @@ function MetricBarCharts({ analyzedTracks }) {
                 }}
               />
             </div>
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: 20, width: 48, textAlign: 'right' }}>{Math.round(m.value * 100)}%</span>
+            <span style={styles.metricValue}>{Math.round(m.value * 100)}%</span>
           </div>
         );
       })}
@@ -392,7 +1169,7 @@ function MetricBarCharts({ analyzedTracks }) {
 }
 
 // --- BinaryBarCharts component ---
-function BinaryBarCharts({ analyzedTracks }) {
+function BinaryBarCharts({ analyzedTracks, styles }) {
   const [animKey, setAnimKey] = useState(0);
   useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
   // Helper to get average for a binary highlevel metric
@@ -457,17 +1234,25 @@ function BinaryBarCharts({ analyzedTracks }) {
         const leftDominant = leftPct >= rightPct;
         const rightDominant = rightPct > leftPct;
         return (
-          <div key={m.label} style={{ marginBottom: 32 }}>
+          <div key={m.label} style={styles.binaryBarChart}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ color: leftDominant ? '#fff' : '#b0b6be', fontWeight: leftDominant ? 700 : 500, fontSize: 18 }}>
+              <span style={{ 
+                color: leftDominant ? '#fff' : '#b0b6be', 
+                fontWeight: leftDominant ? 700 : 500, 
+                ...styles.binaryBarLabel 
+              }}>
                 {m.left} <span style={{ fontWeight: leftDominant ? 700 : 500 }}>{leftPct}%</span>
               </span>
-              <span style={{ color: rightDominant ? '#fff' : '#b0b6be', fontWeight: rightDominant ? 700 : 500, fontSize: 18 }}>
+              <span style={{ 
+                color: rightDominant ? '#fff' : '#b0b6be', 
+                fontWeight: rightDominant ? 700 : 500, 
+                ...styles.binaryBarLabel 
+              }}>
                 <span style={{ fontWeight: rightDominant ? 700 : 500 }}>{rightPct}%</span> {m.right}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ flex: 1, margin: '0 0px', background: '#1e293b', borderRadius: 16, height: 18, position: 'relative', overflow: 'hidden' }}>
+              <div style={styles.binaryBarContainer}>
                 {/* Left fill (dark red, left to right) */}
                 <div
                   key={leftBarKey}
@@ -478,10 +1263,10 @@ function BinaryBarCharts({ analyzedTracks }) {
                     height: '100%',
                     width: 0,
                     background: colorLeft,
-                    borderTopLeftRadius: 16,
-                    borderBottomLeftRadius: 16,
-                    borderTopRightRadius: leftPct === 100 ? 16 : 0,
-                    borderBottomRightRadius: leftPct === 100 ? 16 : 0,
+                    borderTopLeftRadius: styles.binaryBarContainer.borderRadius,
+                    borderBottomLeftRadius: styles.binaryBarContainer.borderRadius,
+                    borderTopRightRadius: leftPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
+                    borderBottomRightRadius: leftPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
                     animation: `fill-bar-left 1s cubic-bezier(.4,0,.2,1) forwards`,
                     animationName: 'fill-bar-left',
                     animationDuration: '1s',
@@ -502,10 +1287,10 @@ function BinaryBarCharts({ analyzedTracks }) {
                     height: '100%',
                     width: 0,
                     background: colorRight,
-                    borderTopRightRadius: 16,
-                    borderBottomRightRadius: 16,
-                    borderTopLeftRadius: rightPct === 100 ? 16 : 0,
-                    borderBottomLeftRadius: rightPct === 100 ? 16 : 0,
+                    borderTopRightRadius: styles.binaryBarContainer.borderRadius,
+                    borderBottomRightRadius: styles.binaryBarContainer.borderRadius,
+                    borderTopLeftRadius: rightPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
+                    borderBottomLeftRadius: rightPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
                     animation: `fill-bar-right 1s cubic-bezier(.4,0,.2,1) forwards`,
                     animationName: 'fill-bar-right',
                     animationDuration: '1s',
@@ -545,7 +1330,7 @@ function useStaggeredReveal(count, trigger) {
 }
 
 // --- GenreLeaderboards component ---
-function GenreLeaderboards({ analyzedTracks }) {
+function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
   const [animKey, setAnimKey] = useStateReact(0);
   useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
   // Helper to get leaderboard for a highlevel classifier
@@ -579,16 +1364,16 @@ function GenreLeaderboards({ analyzedTracks }) {
     { label: 'Mood (MIREX)', key: 'moods_mirex', map: mirexMap },
   ];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={styles.genreLeaderboard}>
       {metrics.map((m, metricIdx) => {
         const leaderboard = getLeaderboard(m.key);
         const revealed = useStaggeredReveal(leaderboard.length, animKey + '-' + m.key);
         return (
-          <div key={m.key}>
-            <div style={{ color: '#fff', fontWeight: 700, fontSize: 20, marginBottom: 6 }}>{m.label}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <div key={m.key} style={styles.genreSection}>
+            <div style={styles.genreSectionTitle}>{m.label}</div>
+            <div style={styles.genreTags}>
               {leaderboard.length === 0 ? (
-                <span style={{ color: '#b0b6be', fontSize: 16 }}>No data</span>
+                <span style={{ color: '#b0b6be', fontSize: isMobile ? 14 : 16 }}>No data</span>
               ) : (
                 leaderboard.map(([val, count], i) => {
                   const displayVal = m.map ? (m.map[val] || val) : val;
@@ -596,12 +1381,7 @@ function GenreLeaderboards({ analyzedTracks }) {
                     <span
                       key={val}
                       style={{
-                        background: '#232b39',
-                        color: '#38bdf8',
-                        fontWeight: 700,
-                        fontSize: 16,
-                        borderRadius: 8,
-                        padding: '4px 14px',
+                        ...styles.genreTag,
                         opacity: revealed[i] ? 1 : 0,
                         transform: revealed[i] ? 'translateY(0)' : 'translateY(20px)',
                         transition: 'opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1)',
@@ -641,7 +1421,7 @@ function useStaggeredRevealChord(count, trigger) {
 }
 
 // --- ChordsHistogram component ---
-function ChordsHistogram({ analyzedTracks }) {
+function ChordsHistogram({ analyzedTracks, styles }) {
   const [animKey, setAnimKey] = useStateReact(0);
   useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
   // Helper to find the most dominant chord in a song
@@ -686,20 +1466,26 @@ function ChordsHistogram({ analyzedTracks }) {
   const majorRevealed = useStaggeredRevealChord(majorLeaderboard.length, animKey + '-maj');
   const minorRevealed = useStaggeredRevealChord(minorLeaderboard.length, animKey + '-min');
   return (
-    <div style={{ display: 'flex', flexDirection: 'row', gap: 32, justifyContent: 'center' }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 10, textAlign: 'center' }}>Major Chords</div>
+    <div style={styles.chordsHistogram}>
+      <div style={styles.chordSection}>
+        <div style={styles.chordSectionTitle}>Major Chords</div>
         {majorLeaderboard.map(([chord, count], i) => (
-          <div key={chord} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#232b39', color: '#38bdf8', fontWeight: 700, fontSize: 16, borderRadius: 8, padding: '4px 14px', marginBottom: 6, opacity: majorRevealed[i] ? 1 : 0, transform: majorRevealed[i] ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1)', transitionDelay: `${i * 0.08 + 0.1}s` }}>
+          <div key={chord} style={{
+            ...styles.chordItem,
+            opacity: majorRevealed[i] ? 1 : 0,
+            transform: majorRevealed[i] ? 'translateY(0)' : 'translateY(20px)',
+            transition: 'opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1)',
+            transitionDelay: `${i * 0.08 + 0.1}s`
+          }}>
             <span>{chord}</span>
             <span>{count.toFixed(1)}%</span>
           </div>
         ))}
-        <div style={{ marginTop: 18 }}>
-          <div style={{ color: '#b0b6be', fontWeight: 600, fontSize: 15, marginBottom: 4 }}>Most Dominant Major Chords</div>
+        <div style={styles.chordSummary}>
+          <div style={styles.chordSummaryTitle}>Most Dominant Major Chords</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {majorMostSummary.map(([chord, count]) => (
-              <div key={chord} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#181c24', borderRadius: 6, padding: '2px 10px', fontSize: 15 }}>
+              <div key={chord} style={styles.chordSummaryItem}>
                 <span style={{ color: '#38bdf8', fontWeight: 700 }}>{chord}</span>
                 <span style={{ color: '#b0b6be', fontWeight: 600 }}>{count} song{count > 1 ? 's' : ''}</span>
               </div>
@@ -707,19 +1493,26 @@ function ChordsHistogram({ analyzedTracks }) {
           </div>
         </div>
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 10, textAlign: 'center' }}>Minor Chords</div>
+      <div style={styles.chordSection}>
+        <div style={styles.chordSectionTitle}>Minor Chords</div>
         {minorLeaderboard.map(([chord, count], i) => (
-          <div key={chord} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#232b39', color: '#f87171', fontWeight: 700, fontSize: 16, borderRadius: 8, padding: '4px 14px', marginBottom: 6, opacity: minorRevealed[i] ? 1 : 0, transform: minorRevealed[i] ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1)', transitionDelay: `${i * 0.08 + 0.1}s` }}>
+          <div key={chord} style={{
+            ...styles.chordItem,
+            color: '#f87171',
+            opacity: minorRevealed[i] ? 1 : 0,
+            transform: minorRevealed[i] ? 'translateY(0)' : 'translateY(20px)',
+            transition: 'opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1)',
+            transitionDelay: `${i * 0.08 + 0.1}s`
+          }}>
             <span>{chord}</span>
             <span>{count.toFixed(1)}%</span>
           </div>
         ))}
-        <div style={{ marginTop: 18 }}>
-          <div style={{ color: '#b0b6be', fontWeight: 600, fontSize: 15, marginBottom: 4 }}>Most Dominant Minor Chords</div>
+        <div style={styles.chordSummary}>
+          <div style={styles.chordSummaryTitle}>Most Dominant Minor Chords</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {minorMostSummary.map(([chord, count]) => (
-              <div key={chord} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#181c24', borderRadius: 6, padding: '2px 10px', fontSize: 15 }}>
+              <div key={chord} style={styles.chordSummaryItem}>
                 <span style={{ color: '#f87171', fontWeight: 700 }}>{chord}</span>
                 <span style={{ color: '#b0b6be', fontWeight: 600 }}>{count} song{count > 1 ? 's' : ''}</span>
               </div>

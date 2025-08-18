@@ -39,6 +39,42 @@ const spotifyApi = new SpotifyWebApi({
   redirectUri: process.env.REDIRECT_URI,
 });
 
+// Token refresh function
+const refreshAccessTokenIfNeeded = async () => {
+  try {
+    const accessToken = spotifyApi.getAccessToken();
+    if (!accessToken) {
+      console.log('No access token available');
+      return false;
+    }
+    
+    // Try to make a simple API call to test if token is valid
+    try {
+      await spotifyApi.getMe();
+      return true; // Token is still valid
+    } catch (error) {
+      if (error.statusCode === 401) {
+        console.log('Access token expired, attempting to refresh...');
+        const refreshToken = spotifyApi.getRefreshToken();
+        if (!refreshToken) {
+          console.log('No refresh token available');
+          return false;
+        }
+        
+        const data = await spotifyApi.refreshAccessToken();
+        const newAccessToken = data.body.access_token;
+        spotifyApi.setAccessToken(newAccessToken);
+        console.log('Successfully refreshed access token');
+        return true;
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error refreshing access token:', error);
+    return false;
+  }
+};
+
 // Import our new service
 const spotifyService = require('./services/spotifyService');
 // Pass the spotifyApi object to the service
@@ -163,6 +199,13 @@ app.get('/recent-tracks', async (req, res) => {
 
 app.get('/playlists', async (req, res) => {
   try {
+    // Refresh access token if needed
+    const tokenValid = await refreshAccessTokenIfNeeded();
+    if (!tokenValid) {
+      console.error('Could not obtain valid access token');
+      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
+    }
+    
     // Get the current user's Spotify ID
     const me = await spotifyApi.getMe();
     const userId = me.body.id;
@@ -175,22 +218,11 @@ app.get('/playlists', async (req, res) => {
       body.items
         .filter(item => item.owner.id === userId)
         .map(async item => {
-          // Fetch all tracks in the playlist (handle >100 tracks if needed)
-          let allTracks = [];
-          let offset = 0;
-          let total = item.tracks.total;
-          while (allTracks.length < total) {
-            const { body: tracksBody } = await spotifyApi.getPlaylistTracks(item.id, { offset, limit: 100 });
-            allTracks = allTracks.concat(tracksBody.items);
-            offset += 100;
-          }
-          // Sum durations
-          const totalDurationMs = allTracks.reduce((sum, t) => sum + (t.track ? t.track.duration_ms : 0), 0);
+          // Return basic playlist info without fetching tracks
           return {
             name: item.name,
             id: item.id,
-            trackCount: total,
-            totalDurationMs,
+            trackCount: item.tracks.total,
             images: item.images
           };
         })
@@ -207,6 +239,13 @@ app.get('/playlist-genres/:id', async (req, res) => {
   try {
     const playlistId = req.params.id;
     if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
+    
+    // Refresh access token if needed
+    const tokenValid = await refreshAccessTokenIfNeeded();
+    if (!tokenValid) {
+      console.error('Could not obtain valid access token');
+      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
+    }
     
     // Fetch all tracks in the playlist (handle >100 tracks if needed)
     let allTracks = [];
@@ -306,6 +345,88 @@ app.get('/playlist-genres/:id', async (req, res) => {
   } catch (err) {
     console.error('Error analyzing playlist genres:', err);
     res.status(500).json({ error: 'Failed to analyze playlist genres' });
+  }
+});
+
+app.get('/playlist-tracks-for-wrapped/:id', async (req, res) => {
+  try {
+    const playlistId = req.params.id;
+    if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
+    
+    // Refresh access token if needed
+    const tokenValid = await refreshAccessTokenIfNeeded();
+    if (!tokenValid) {
+      console.error('Could not obtain valid access token');
+      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
+    }
+    
+    // Fetch all tracks in the playlist (handle >100 tracks if needed)
+    let allTracks = [];
+    let offset = 0;
+    let total = 1;
+    let first = true;
+    
+    while (first || allTracks.length < total) {
+      const { body: tracksBody } = await spotifyApi.getPlaylistTracks(playlistId, { offset, limit: 100 });
+      if (first) {
+        total = tracksBody.total;
+        first = false;
+      }
+      allTracks = allTracks.concat(tracksBody.items);
+      offset += 100;
+    }
+    
+    // Transform tracks to the format expected by WrappedAnalysisModal
+    const tracks = allTracks
+      .filter(item => item.track && item.track.id)
+      .map(item => {
+        // Extract release date from various possible locations
+        let releaseDate = null;
+        let releaseYear = null;
+        
+        if (item.track.album?.release_date) {
+          releaseDate = item.track.album.release_date;
+          releaseYear = item.track.album.release_date.split('-')[0];
+        } else if (item.track.release_date) {
+          releaseDate = item.track.release_date;
+          releaseYear = item.track.release_date.split('-')[0];
+        }
+        
+        // Log a sample track to see the structure
+        if (allTracks.indexOf(item) === 0) {
+          console.log('Sample playlist track structure:', {
+            id: item.track.id,
+            name: item.track.name,
+            album: item.track.album,
+            release_date: item.track.album?.release_date,
+            duration_ms: item.track.duration_ms
+          });
+        }
+        
+        return {
+          id: item.track.id,
+          name: item.track.name,
+          artist: item.track.artists?.[0]?.name || 'Unknown Artist',
+          artists: item.track.artists || [],
+          album: item.track.album?.name || 'Unknown Album',
+          duration_ms: item.track.duration_ms || 0,
+          duration: item.track.duration_ms || 0, // Add duration field for compatibility
+          release_date: releaseDate,
+          release_year: releaseYear,
+          uri: item.track.uri,
+          album_image: item.track.album?.images?.[0]?.url || null,
+          // Add additional fields that might be needed
+          popularity: item.track.popularity || 0,
+          explicit: item.track.explicit || false,
+          track_number: item.track.track_number || null,
+          disc_number: item.track.disc_number || null
+        };
+      });
+    
+    res.json({ tracks });
+  } catch (err) {
+    console.error('Error fetching playlist tracks for wrapped:', err);
+    res.status(500).json({ error: 'Failed to fetch playlist tracks for wrapped' });
   }
 });
 
@@ -445,11 +566,19 @@ app.get('/playlist-artists/:id', async (req, res) => {
     const playlistId = req.params.id;
     if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
     
+    // Refresh access token if needed
+    const tokenValid = await refreshAccessTokenIfNeeded();
+    if (!tokenValid) {
+      console.error('Could not obtain valid access token');
+      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
+    }
+    
     // Fetch all tracks in the playlist (handle >100 tracks if needed)
     let allTracks = [];
     let offset = 0;
     let total = 1;
     let first = true;
+    
     while (first || allTracks.length < total) {
       const { body: tracksBody } = await spotifyApi.getPlaylistTracks(playlistId, { offset, limit: 100 });
       if (first) {
