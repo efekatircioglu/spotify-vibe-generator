@@ -5,6 +5,7 @@ import styles from '../page.module.css';
 import AlbumSelector from '../../components/AlbumSelector';
 import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
+import AlbumContributorsModal from '../../components/AlbumContributorsModal';
 import { getCachedArtistId, setArtistCache } from '../../utils/artistCache';
 
 // --- Add this entire helper function ---
@@ -132,6 +133,12 @@ export default function ArtistConcertsPage() {
   const [discogsGenres, setDiscogsGenres] = useState([]);
   const [discogsStyles, setDiscogsStyles] = useState([]);
   
+  // State for album contributors
+  const [showAlbumContributorsModal, setShowAlbumContributorsModal] = useState(false);
+  const [albumContributors, setAlbumContributors] = useState(null);
+  const [albumContributorsLoading, setAlbumContributorsLoading] = useState(false);
+  const [albumContributorsError, setAlbumContributorsError] = useState(null);
+  
   // Pagination state for concerts
   const [currentPage, setCurrentPage] = useState(1);
   const concertsPerPage = 20;
@@ -227,6 +234,56 @@ export default function ArtistConcertsPage() {
       genres: Array.from(allGenres).sort(),
       styles: Array.from(allStyles).sort()
     };
+  };
+
+  // Handle getting album contributors
+  const handleGetAlbumContributors = async () => {
+    console.log(`\n🎵 [CLIENT] Get Contributors button clicked:`);
+    console.log(`   Album: "${selectedAlbum?.name}"`);
+    console.log(`   Artist: "${selectedArtist?.name}"`);
+    
+    if (!selectedAlbum?.name || !selectedArtist?.name) {
+      console.log(`❌ [CLIENT] Missing album or artist information`);
+      setAlbumContributorsError('Missing album or artist information');
+      setShowAlbumContributorsModal(true);
+      return;
+    }
+
+    setShowAlbumContributorsModal(true);
+    setAlbumContributorsLoading(true);
+    setAlbumContributorsError(null);
+
+    const apiUrl = `http://127.0.0.1:8000/album-contributors?albumTitle=${encodeURIComponent(selectedAlbum.name)}&artistName=${encodeURIComponent(selectedArtist.name)}`;
+    console.log(`🌐 [CLIENT] Making API request to: ${apiUrl}`);
+
+    try {
+      const startTime = Date.now();
+      const response = await fetch(apiUrl);
+      const endTime = Date.now();
+      
+      console.log(`📡 [CLIENT] Response received:`);
+      console.log(`   Status: ${response.status}`);
+      console.log(`   Duration: ${endTime - startTime}ms`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ [CLIENT] Data received successfully:`);
+      console.log(`   Contributors object keys:`, Object.keys(data.contributors || {}));
+      console.log(`   Overall contributors: ${data.contributors?.overallContributors?.length || 0}`);
+      console.log(`   Track contributors: ${data.contributors?.trackContributors?.length || 0}`);
+      console.log(`   Labels: ${data.contributors?.labels?.length || 0}`);
+      console.log(`   Companies: ${data.contributors?.companies?.length || 0}`);
+      
+      setAlbumContributors(data.contributors);
+    } catch (error) {
+      console.error(`❌ [CLIENT] Error fetching album contributors:`, error);
+      setAlbumContributorsError(error.message || 'Failed to fetch album contributors');
+    } finally {
+      setAlbumContributorsLoading(false);
+    }
   };
 
   // Fetch tracks for selected album
@@ -1187,6 +1244,8 @@ export default function ArtistConcertsPage() {
                 showCreatePlaylist={false}
                 showViewPlaylist={false}
                 genres={genresForTable}
+                showContributorsButton={true}
+                onGetContributors={handleGetAlbumContributors}
               />
             </div>
           )}
@@ -1273,6 +1332,15 @@ export default function ArtistConcertsPage() {
           )}
         </>
       )}
+      
+      {/* Album Contributors Modal */}
+      <AlbumContributorsModal 
+        isOpen={showAlbumContributorsModal}
+        onClose={() => setShowAlbumContributorsModal(false)}
+        contributors={albumContributors}
+        loading={albumContributorsLoading}
+        error={albumContributorsError}
+      />
       
       {/* Add CSS for spinner animation */}
       <style jsx>{`

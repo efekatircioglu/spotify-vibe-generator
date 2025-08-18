@@ -21,7 +21,7 @@ function useIsMobile(breakpoint = 760) {
   return isMobile;
 }
 
-export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [] }) {
+export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [], showContributorsButton = false, onGetContributors = null }) {
   // Helper function to format listening time
   const formatListeningTime = (playedAt) => {
     if (!playedAt) return '--';
@@ -69,6 +69,9 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const tableContainerRef = useRef(null);
   const contributorModalRef = useRef(null);
   const [isContribLoading, setIsContribLoading] = useState(false);
+  
+
+  
   // Add this new component at the top of NewTrackTable.jsx
 const NoContributorData = () => {
   return (
@@ -285,6 +288,8 @@ const NoContributorData = () => {
       setShowNewSongAnalysisModal(true);
     }
   };
+
+
 
 
 
@@ -1054,8 +1059,56 @@ if (isMobile) {
         </div>
       )}
       <WrappedAnalysisModal open={showWrapped} onClose={() => setShowWrapped(false)} tracks={tracks} />
+
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
+      {/* Contributors Button Section */}
+      {showContributorsButton && onGetContributors && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          marginBottom: '16px',
+          gap: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <button
+            onClick={onGetContributors}
+            style={{
+              background: '#1db954',
+              color: '#fff',
+              borderRadius: 12,
+              fontWeight: 700,
+              padding: '12px 24px',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px #1db95433',
+              border: 'none',
+              outline: 'none',
+              transition: 'all 0.2s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#1ed760';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#1db954';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
+            }}
+            title="Get Album Contributors from Discogs"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            Get Contributors
+          </button>
+        </div>
+      )}
+
       {/* Table Section */}
       <div ref={tableContainerRef} className="table-container" style={{ width: '100%', overflowX: 'auto', marginTop: 8 }}>
         {!loading && !error && tracks && tracks.length > 0 && (
