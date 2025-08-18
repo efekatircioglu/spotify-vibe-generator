@@ -9,7 +9,7 @@ const getResponsiveStyles = (isMobile) => {
       modalContainer: {
         background: '#181c24',
         borderRadius: 16,
-        padding: 24,
+        padding: '60px 24px 24px 24px',
         minWidth: 'auto',
         minHeight: 'auto',
         boxShadow: '0 12px 64px #000b',
@@ -23,15 +23,24 @@ const getResponsiveStyles = (isMobile) => {
       },
       // Close button
       closeButton: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        background: 'none',
-        border: 'none',
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        background: 'rgba(24, 28, 36, 0.9)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        borderRadius: '50%',
         color: 'rgb(255, 255, 255)',
-        fontSize: 24,
+        fontSize: 20,
         cursor: 'pointer',
-        zIndex: 10
+        zIndex: 10000,
+        width: '36px',
+        height: '36px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+        transition: 'all 0.2s ease'
       },
       // Main title
       mainTitle: {
@@ -319,25 +328,36 @@ const getResponsiveStyles = (isMobile) => {
       modalContainer: {
         background: '#181c24',
         borderRadius: 24,
-        padding: 72,
-        minWidth: 600,
+        padding: '80px 72px 72px 72px',
+        minWidth: 800,
         minHeight: 700,
         boxShadow: '0 12px 64px #000b',
         color: '#fff',
         position: 'relative',
-        maxWidth: 900,
-        width: '100%'
+        maxWidth: '95vw',
+        width: '95vw',
+        maxHeight: '90vh',
+        overflowY: 'auto'
       },
       closeButton: {
-        position: 'absolute',
-        top: 1,
-        right: 1,
-        background: 'none',
-        border: 'none',
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        background: 'rgba(24, 28, 36, 0.9)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        borderRadius: '50%',
         color: 'rgb(255, 255, 255)',
-        fontSize: 32,
+        fontSize: 24,
         cursor: 'pointer',
-        zIndex: 10
+        zIndex: 10000,
+        width: '40px',
+        height: '40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+        transition: 'all 0.2s ease'
       },
       mainTitle: {
         fontSize: '2.8rem',
@@ -368,9 +388,11 @@ const getResponsiveStyles = (isMobile) => {
         overflowY: 'auto',
         background: 'rgba(255,255,255,0.06)',
         borderRadius: 16,
-        padding: '28px 0 28px 28px',
+        padding: '28px 0 28px 32px',
         boxShadow: '0 2px 16px #0003',
-        transition: 'scrollTop 0.5s'
+        transition: 'scrollTop 0.5s',
+        width: '100%',
+        boxSizing: 'border-box'
       },
       songsListTitle: {
         fontWeight: 900,
@@ -383,7 +405,10 @@ const getResponsiveStyles = (isMobile) => {
         color: '#d1d5db',
         fontSize: 18,
         marginBottom: 8,
-        lineHeight: 1.25
+        lineHeight: 1.25,
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        maxWidth: '100%'
       },
       callToAction: {
         marginTop: 48,
@@ -404,9 +429,11 @@ const getResponsiveStyles = (isMobile) => {
         background: 'linear-gradient(120deg, #232b39 0%, #181c24 100%)',
         borderRadius: 24,
         minHeight: 500,
-        maxWidth: 600,
+        maxWidth: '100%',
         margin: '0 auto',
-        boxShadow: '0 8px 48px #000b'
+        boxShadow: '0 8px 48px #000b',
+        width: '100%',
+        boxSizing: 'border-box'
       },
       navButton: {
         background: 'none',
@@ -703,10 +730,10 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
   
   // Scroll to top when page changes (especially important for mobile)
   useEffect(() => {
-    if (modalContainerRef.current && isMobile) {
+    if (modalContainerRef.current) {
       modalContainerRef.current.scrollTop = 0;
     }
-  }, [page, isMobile]);
+  }, [page]);
   
   useEffect(() => {
     if (page !== 0) return;
@@ -715,27 +742,42 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
     let direction = 1; // 1 = down, -1 = up
     let animationFrame;
     let startTime;
-    let duration = 7000; // ms for full scroll down or up
+    
+    // Constant scroll speed in pixels per second (adjust this value to control speed)
+    const scrollSpeed = 50; // pixels per second
     let maxScroll = container.scrollHeight - container.clientHeight;
     if (maxScroll <= 0) return;
 
     function animateScroll(timestamp) {
       if (!startTime) startTime = timestamp;
       let elapsed = timestamp - startTime;
-      let progress = Math.min(elapsed / duration, 1);
+      
+      // Calculate scroll position based on constant speed
+      let scrollDistance = (elapsed / 1000) * scrollSpeed; // Convert ms to seconds
+      
       if (direction === 1) {
-        container.scrollTop = progress * maxScroll;
+        // Scrolling down
+        if (scrollDistance >= maxScroll) {
+          // Reached bottom, change direction
+          direction = -1;
+          startTime = timestamp;
+          scrollDistance = 0;
+        }
+        container.scrollTop = scrollDistance;
       } else {
-        container.scrollTop = (1 - progress) * maxScroll;
+        // Scrolling up
+        if (scrollDistance >= maxScroll) {
+          // Reached top, change direction
+          direction = 1;
+          startTime = timestamp;
+          scrollDistance = 0;
+        }
+        container.scrollTop = maxScroll - scrollDistance;
       }
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animateScroll);
-      } else {
-        direction *= -1;
-        startTime = undefined;
-        animationFrame = requestAnimationFrame(animateScroll);
-      }
+      
+      animationFrame = requestAnimationFrame(animateScroll);
     }
+    
     animationFrame = requestAnimationFrame(animateScroll);
     return () => cancelAnimationFrame(animationFrame);
   }, [analyzedTracks, page]);
@@ -752,12 +794,113 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
       display: 'flex', 
       alignItems: isMobile ? 'flex-start' : 'center', 
       justifyContent: 'center',
-      padding: isMobile ? '20px 10px' : '0'
+      padding: isMobile ? '20px 10px' : '20px'
     }}>
-      <div style={styles.modalContainer} ref={modalContainerRef}>
-        <button onClick={onClose} style={styles.closeButton}>&times;</button>
+      <div style={styles.modalContainer} ref={modalContainerRef} className="wrapped-modal-container">
+        <button onClick={onClose} style={styles.closeButton} className="wrapped-close-button">&times;</button>
+        <style jsx>{`
+          @media (min-width: 1200px) {
+            .wrapped-modal-container {
+              max-width: 1200px !important;
+              width: 90vw !important;
+            }
+          }
+          @media (min-width: 1600px) {
+            .wrapped-modal-container {
+              max-width: 1400px !important;
+              width: 85vw !important;
+            }
+          }
+          @media (max-width: 1199px) and (min-width: 800px) {
+            .wrapped-modal-container {
+              max-width: 95vw !important;
+              width: 95vw !important;
+            }
+          }
+          .wrapped-modal-container .songs-list-item {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            max-width: 100% !important;
+          }
+          .wrapped-modal-container {
+            overflow-x: hidden !important;
+            position: relative !important;
+          }
+          .wrapped-modal-container * {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          
+          /* Ensure modal content doesn't overlap with close button */
+          .wrapped-modal-container > *:first-child {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+          }
+          
+          /* Close button hover effects */
+          .wrapped-close-button:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+          }
+          
+          /* Ensure close button is always visible */
+          .wrapped-close-button {
+            position: fixed !important;
+            z-index: 10000 !important;
+            top: 20px !important;
+            right: 20px !important;
+          }
+          
+          /* Mobile adjustments for close button */
+          @media (max-width: 768px) {
+            .wrapped-close-button {
+              top: 15px !important;
+              right: 15px !important;
+              width: 32px !important;
+              height: 32px !important;
+              font-size: 18px !important;
+            }
+          }
+          
+          /* Ensure close button is always on top and visible */
+          .wrapped-close-button {
+            position: fixed !important;
+            z-index: 10000 !important;
+            top: 20px !important;
+            right: 20px !important;
+            background: rgba(24, 28, 36, 0.95) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+          }
+          
+          /* Add a subtle glow effect to make it more visible */
+          .wrapped-close-button::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, rgba(56, 189, 248, 0.3), rgba(255, 255, 255, 0.1));
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+          }
+          
+          .wrapped-close-button:hover::before {
+            opacity: 1;
+          }
+        `}</style>
         {page === 0 && (
-          <div style={{ textAlign: 'center', padding: '0 24px' }}>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: isMobile ? '0 24px' : '0 32px',
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
             <h2 style={styles.mainTitle}>Your Songs Wrapped</h2>
             {/* Calculate earliest/latest and total duration */}
             {(() => {
@@ -860,40 +1003,31 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
               }
             })()}
             
-            {/* Songs list - mobile vs desktop layout */}
-            {isMobile ? (
-              // Mobile songs list - identical to desktop design
-              <div
-                ref={songsListRef}
-                style={{
-                  ...styles.songsListContainer,
-                  padding: isMobile ? '20px 0 20px 20px' : styles.songsListContainer.padding,
-                  maxHeight: isMobile ? 300 : styles.songsListContainer.maxHeight
-                }}>
-                <div style={styles.songsListTitle}>Included Songs:</div>
-                <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
-                  {analyzedTracks.map((r, i) => (
-                    <li key={r.track?.id || i} style={styles.songListItem}>
-                      <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              // Desktop songs list - original design
-              <div
-                ref={songsListRef}
-                style={styles.songsListContainer}>
-                <div style={styles.songsListTitle}>Included Songs:</div>
-                <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
-                  {analyzedTracks.map((r, i) => (
-                    <li key={r.track?.id || i} style={styles.songListItem}>
-                      <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {/* Songs list - unified responsive design */}
+            <div
+              ref={songsListRef}
+              style={{
+                ...styles.songsListContainer,
+                padding: isMobile ? '20px 0 20px 20px' : styles.songsListContainer.padding,
+                maxHeight: isMobile ? 300 : styles.songsListContainer.maxHeight,
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+              <div style={styles.songsListTitle}>Included Songs:</div>
+              <ul style={{ padding: 0, margin: 0, listStyle: 'none', width: '100%' }}>
+                {analyzedTracks.map((r, i) => (
+                  <li key={r.track?.id || i} className="songs-list-item" style={{
+                    ...styles.songListItem,
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word'
+                  }}>
+                    <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
             
             <div style={styles.callToAction}>
               Ready to see your stats?

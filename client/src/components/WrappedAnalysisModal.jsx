@@ -483,7 +483,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         <div className={styles.modalBody} style={{ 
           overflowY: isMobile ? 'auto' : 'visible',
           maxHeight: isMobile ? '70vh' : 'none',
-          padding: isMobile ? '20px' : '24px',
+          padding: isMobile ? '20px' : '32px',
+          paddingBottom: isMobile ? '20px' : '48px',
           height: isMobile ? '70vh' : 'auto'
         }}>
           {!showResults && (
@@ -787,16 +788,16 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                 </div>
               ) : (
                 // Desktop layout - original table design
-                <div style={{ 
-                  marginTop: 24,
-                  maxHeight: '60vh', // Limit height to prevent overflow
-                  overflowY: 'auto', // Enable vertical scrolling
-                  overflowX: 'auto', // Enable horizontal scrolling if needed
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: 8,
-                  padding: '8px 0'
+                <div className={styles.tableContainer} style={{ 
+                  marginTop: 32,
+                  marginBottom: 48,
+                  width: '85%',
+                  maxWidth: '85%',
+                  marginLeft: 'auto',
+                  marginRight: 'auto',
+                  boxSizing: 'border-box'
                 }}>
-                  <table className={styles.statusTable}>
+                  <table className={styles.statusTable} style={{ margin: '0 auto' }}>
                     <thead>
                       <tr>
                         <th className={styles.tableHeader}>#</th>

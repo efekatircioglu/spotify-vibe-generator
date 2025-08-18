@@ -697,6 +697,43 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
         textAlign: 'center',
         color: '#a0a0a0'
       }}>
+        {/* Close button - only show if onClose is provided (modal mode) */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'rgba(24, 28, 36, 0.9)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '50%',
+              color: '#ffffff',
+              fontSize: '20px',
+              cursor: 'pointer',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              zIndex: 1001
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.target.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'rgba(24, 28, 36, 0.9)';
+              e.target.style.transform = 'scale(1)';
+            }}
+            aria-label="Close Modal"
+          >
+            ×
+          </button>
+        )}
         <div style={{
           fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
           fontWeight: 700,
@@ -707,7 +744,36 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
         }}>
           {title}
         </div>
-        <p>No genre data available for this time period.</p>
+        <p>No data available.</p>
+        
+        {/* Add CSS for close button styling */}
+        <style jsx>{`
+          /* Ensure close button is always visible */
+          button[aria-label="Close Modal"] {
+            position: absolute !important;
+            z-index: 1001 !important;
+            top: 16px !important;
+            right: 16px !important;
+          }
+          
+          /* Close button hover effects */
+          button[aria-label="Close Modal"]:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            transform: scale(1.1) !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+          }
+          
+          /* Mobile adjustments for close button */
+          @media (max-width: 768px) {
+            button[aria-label="Close Modal"] {
+              top: 12px !important;
+              right: 12px !important;
+              width: 32px !important;
+              height: 32px !important;
+              font-size: 18px !important;
+            }
+          }
+        `}</style>
       </div>
     );
   }
