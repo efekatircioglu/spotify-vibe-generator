@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { fetchTrackMetrics } from '../utils/fetchTrackMetrics';
 import { lookupTrackMBID, getTrackISRC, setTrackISRC, setTrackMBID, getTrackMBID, getTrackAnalysis, setTrackAnalysis, hasValidAnalysis } from '../utils/trackAnalysisCache';
 import styles from './WrappedAnalysisModal.module.css'; // Import the CSS module
@@ -27,14 +27,24 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
   const [stepDetails, setStepDetails] = useState('');
   const [expandedStatuses, setExpandedStatuses] = useState(new Set());
   const isMobile = useIsMobile(760);
+  
+  // Add ref for cancellation
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     if (!open || !tracks || tracks.length === 0) return;
+
+    // Create new AbortController for this analysis session
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     const analyzeTracks = async () => {
       setLoading(true);
       setResults(null);
       setShowResults(false);
+      
+      // Check if modal was closed before starting
+      if (signal.aborted) return;
       
       // Step 1: Explain the process and filter unique tracks
       setCurrentStep('Initializing Analysis');
@@ -73,7 +83,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       }));
       setStatuses(initialStatuses);
 
-            // Step 2: Sequential MBID lookup - get ALL MBIDs before proceeding
+      // Step 2: Sequential MBID lookup - get ALL MBIDs before proceeding
       setCurrentStep('MBID Lookup Phase');
       setStepDetails('Looking up MusicBrainz IDs (MBIDs) for each track. This is required to fetch acoustic analysis data.');
       
@@ -81,6 +91,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       
       // Process tracks sequentially to get all MBIDs
       for (let i = 0; i < uniqueTracks.length; i++) {
+        // Check if modal was closed
+        if (signal.aborted) {
+          console.log('Analysis cancelled during MBID lookup phase');
+          return;
+        }
+
         const track = uniqueTracks[i];
         const newStatuses = [...initialStatuses];
         
@@ -140,6 +156,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         }
       }
       
+      // Check if modal was closed after MBID lookup
+      if (signal.aborted) {
+        console.log('Analysis cancelled after MBID lookup phase');
+        return;
+      }
+      
       // Log summary of MBID lookup results
       const successfulMbids = tracksWithMbids.filter(t => t.mbid).length;
       const failedMbids = tracksWithMbids.filter(t => !t.mbid).length;
@@ -173,6 +195,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       const analysisResults = [];
       
       for (let i = 0; i < tracksWithMbids.length; i++) {
+        // Check if modal was closed
+        if (signal.aborted) {
+          console.log('Analysis cancelled during analysis phase');
+          return;
+        }
+
         const track = tracksWithMbids[i];
         
         if (!track.mbid) {
@@ -208,7 +236,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
           const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tracks: [track] })
+            body: JSON.stringify({ tracks: [track] }),
+            signal: signal // Add abort signal
           });
 
           if (analysisRes.ok) {
@@ -254,6 +283,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
             });
           }
         } catch (error) {
+          // Check if this is an abort error
+          if (error.name === 'AbortError') {
+            console.log('Analysis request was aborted');
+            return;
+          }
+          
           finalStatuses[i].status = 'Skipped (network error)';
           finalStatuses[i].details = 'Analysis Request Failed';
           analysisResults.push({
@@ -276,6 +311,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         }
       }
 
+      // Check if modal was closed before retry phase
+      if (signal.aborted) {
+        console.log('Analysis cancelled before retry phase');
+        return;
+      }
+
       // Step 5: Simple retry for tracks that failed analysis (only once, same wait time)
       const failedTracks = analysisResults.filter(r => r.mbid && !r.success);
       if (failedTracks.length > 0) {
@@ -283,6 +324,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         setStepDetails(`Retrying analysis for ${failedTracks.length} tracks that failed initially. This helps catch tracks that may have been temporarily unavailable.`);
         
         for (let i = 0; i < failedTracks.length; i++) {
+          // Check if modal was closed
+          if (signal.aborted) {
+            console.log('Analysis cancelled during retry phase');
+            return;
+          }
+
           const failedTrack = failedTracks[i];
           const trackIndex = tracksWithMbids.findIndex(t => t.id === failedTrack.track.id);
           
@@ -299,7 +346,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
             const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ tracks: [failedTrack.track] })
+              body: JSON.stringify({ tracks: [failedTrack.track] }),
+              signal: signal // Add abort signal
             });
 
             if (analysisRes.ok) {
@@ -337,6 +385,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
               finalStatuses[trackIndex].details = 'Analysis Request Failed';
             }
           } catch (error) {
+            // Check if this is an abort error
+            if (error.name === 'AbortError') {
+              console.log('Retry analysis request was aborted');
+              return;
+            }
+            
             finalStatuses[trackIndex].status = 'Skipped (retry failed)';
             finalStatuses[trackIndex].details = 'Analysis Request Failed';
           }
@@ -354,7 +408,26 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
     };
 
     analyzeTracks();
+
+    // Cleanup function to abort ongoing requests when modal is closed
+    return () => {
+      if (abortControllerRef.current) {
+        console.log('Aborting ongoing analysis requests');
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
   }, [open, tracks]);
+
+  // Additional cleanup when modal is closed
+  useEffect(() => {
+    if (!open && abortControllerRef.current) {
+      console.log('Modal closed, aborting ongoing requests');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setLoading(false);
+    }
+  }, [open]);
 
   if (!open) return null;
 
