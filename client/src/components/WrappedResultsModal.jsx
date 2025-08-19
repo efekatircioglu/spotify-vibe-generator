@@ -739,12 +739,11 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
     if (page !== 0) return;
     const container = songsListRef.current;
     if (!container) return;
-    let direction = 1; // 1 = down, -1 = up
     let animationFrame;
     let startTime;
     
-    // Constant scroll speed in pixels per second (adjust this value to control speed)
-    const scrollSpeed = 50; // pixels per second
+    // Slower scroll speed for smoother movement
+    const scrollSpeed = 30; // pixels per second
     let maxScroll = container.scrollHeight - container.clientHeight;
     if (maxScroll <= 0) return;
 
@@ -752,27 +751,17 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
       if (!startTime) startTime = timestamp;
       let elapsed = timestamp - startTime;
       
-      // Calculate scroll position based on constant speed
-      let scrollDistance = (elapsed / 1000) * scrollSpeed; // Convert ms to seconds
+      // Create a continuous loop using modulo
+      const totalDistance = maxScroll * 2; // Down and back up
+      const currentPosition = (elapsed / 1000) * scrollSpeed;
+      const loopPosition = currentPosition % totalDistance;
       
-      if (direction === 1) {
-        // Scrolling down
-        if (scrollDistance >= maxScroll) {
-          // Reached bottom, change direction
-          direction = -1;
-          startTime = timestamp;
-          scrollDistance = 0;
-        }
-        container.scrollTop = scrollDistance;
+      if (loopPosition <= maxScroll) {
+        // Going down
+        container.scrollTop = loopPosition;
       } else {
-        // Scrolling up
-        if (scrollDistance >= maxScroll) {
-          // Reached top, change direction
-          direction = 1;
-          startTime = timestamp;
-          scrollDistance = 0;
-        }
-        container.scrollTop = maxScroll - scrollDistance;
+        // Going up (reverse direction)
+        container.scrollTop = maxScroll - (loopPosition - maxScroll);
       }
       
       animationFrame = requestAnimationFrame(animateScroll);

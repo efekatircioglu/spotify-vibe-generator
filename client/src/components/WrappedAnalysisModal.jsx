@@ -474,7 +474,11 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className={styles.modalContent}>
+      <div onClick={e => e.stopPropagation()} className={styles.modalContent} style={{
+        width: isMobile ? '95vw' : 'auto',
+        maxWidth: isMobile ? '95vw' : 'none',
+        minWidth: isMobile ? 'auto' : 'auto',
+      }}>
         <div className={styles.modalHeader}>
           <h2 className={styles.modalTitle}>Your Songs Wrapped</h2>
           <button onClick={onClose} className={styles.closeButton}>&times;</button>
@@ -485,7 +489,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
           maxHeight: isMobile ? '70vh' : 'none',
           padding: isMobile ? '20px' : '32px',
           paddingBottom: isMobile ? '20px' : '48px',
-          height: isMobile ? '70vh' : 'auto'
+          height: isMobile ? '70vh' : 'auto',
+          boxSizing: 'border-box',
         }}>
           {!showResults && (
             <>
