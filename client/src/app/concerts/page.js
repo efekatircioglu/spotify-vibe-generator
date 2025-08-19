@@ -5,6 +5,7 @@ import styles from '../page.module.css';
 // import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId } from '../../utils/artistCache';
+import { optimizedConcertApiCall, optimizedArtistSearch } from '../../utils/concertApiOptimizer';
 
 export default function ConcertsPage() {
   const router = useRouter();
@@ -22,6 +23,15 @@ export default function ConcertsPage() {
   
   // State for selected artists
   const [selectedArtists, setSelectedArtists] = useState([]);
+  
+  // State for batch operations
+  const [isBatchSelecting, setIsBatchSelecting] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  
+  // Function to check if an artist has a Ticketmaster ID
+  const hasTicketmasterId = (artistName) => {
+    return getCachedArtistId(artistName) !== null;
+  };
   
   // State for concerts
   const [concerts, setConcerts] = useState([]);
@@ -239,6 +249,12 @@ export default function ConcertsPage() {
       // Clear search bar after selection for better UX
       setSearchQuery('');
       setSearchResults([]);
+      
+      // Force re-render to show green checkmarks immediately
+      // This is a simple way to trigger a re-render when the cache changes
+      setTimeout(() => {
+        setSelectedArtists(prev => [...prev]);
+      }, 100);
     }
   };
 
@@ -265,8 +281,16 @@ export default function ConcertsPage() {
         return;
       }
 
-      const data = await fetchWithRetry(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
-      const attractions = data._embedded?.attractions || data.attractions || [];
+      // Use optimized API call with caching
+      const searchData = await optimizedConcertApiCall(
+        'http://127.0.0.1:8000/ticketmaster/search-artist',
+        {
+          params: { artistName },
+          cacheKey: `artist-search-${artistName.toLowerCase()}`
+        }
+      );
+      
+      const attractions = searchData._embedded?.attractions || searchData.attractions || [];
       const musicArtists = attractions.filter(artist => {
         const isMusic = artist.classifications && 
           artist.classifications.some(classification => 
@@ -280,8 +304,16 @@ export default function ConcertsPage() {
         const firstArtist = musicArtists[0];
         const imageUrl = firstArtist.images?.[0]?.url || null;
         const spotifyId = spotifyArtist?.id || null;
-        setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId);
-        console.log(`Cached Ticketmaster ID for "${artistName}": ${firstArtist.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+        
+        console.log(`🎯 Found artist "${artistName}" on Ticketmaster with ID: ${firstArtist.id}`);
+        
+        // Cache the artist in the required format for artistNameToTicketmasterId
+        try {
+          setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId);
+          console.log(`✅ Successfully cached Ticketmaster ID for "${artistName}": ${firstArtist.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+        } catch (cacheError) {
+          console.error(`❌ Failed to cache artist "${artistName}":`, cacheError);
+        }
         
         // Add Spotify ID to the artist object
         const artistWithSpotifyId = {
@@ -294,6 +326,7 @@ export default function ConcertsPage() {
       } else {
         // If no match found, just set the search query
         setSearchQuery(artistName);
+        console.log(`❌ No Ticketmaster ID found for "${artistName}"`);
       }
     } catch (err) {
       console.error('Error auto-searching artist:', err);
@@ -306,14 +339,59 @@ export default function ConcertsPage() {
     setSelectedArtists(prev => prev.filter(a => a.id !== artistId));
   };
 
-  // Select all followed artists
+    // Select all followed artists
   const selectAllFollowed = async () => {
     const artistsToAdd = followedArtists.filter(artist => 
       !selectedArtists.find(selected => selected.id === artist.id)
     );
     
-    for (const artist of artistsToAdd) {
-      await autoSearchAndAddArtist(artist.name, artist);
+    if (artistsToAdd.length === 0) return;
+    
+    setIsBatchSelecting(true);
+    setBatchProgress({ current: 0, total: artistsToAdd.length });
+    
+    try {
+      console.log(`Selecting ${artistsToAdd.length} followed artists with optimized API calls`);
+      
+      // Use optimized batch artist search
+      const results = await optimizedArtistSearch(
+        artistsToAdd.map(artist => artist.name),
+        200 // 200ms delay between API calls
+      );
+      
+      // Process results and add successful artists one by one
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        setBatchProgress(prev => ({ ...prev, current: i + 1 }));
+        
+        if (result.success && result.data) {
+          const originalArtist = artistsToAdd[i];
+          const artistWithSpotifyId = {
+            ...result.data,
+            spotifyId: originalArtist.id
+          };
+          
+          // Cache the result if it wasn't already cached
+          if (!result.cached) {
+            const imageUrl = result.data.images?.[0]?.url || null;
+            setArtistCache(result.data.name, result.data.id, imageUrl, originalArtist.id);
+            console.log(`✅ Batch cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
+          } else {
+            console.log(`🟢 Using cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
+          }
+          
+          // Add artist one by one with a small delay for visual effect
+          addArtist(artistWithSpotifyId);
+          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between additions
+        } else {
+          console.warn(`Failed to find artist "${artistsToAdd[i].name}":`, result.error);
+        }
+      }
+    } catch (error) {
+      console.error('Error in batch artist selection:', error);
+    } finally {
+      setIsBatchSelecting(false);
+      setBatchProgress({ current: 0, total: 0 });
     }
   };
 
@@ -323,10 +401,55 @@ export default function ConcertsPage() {
       !selectedArtists.find(selected => selected.id === artist.id)
     );
     
-    for (const artist of artistsToAdd) {
-      await autoSearchAndAddArtist(artist.name, artist);
-    }
-  };
+    if (artistsToAdd.length === 0) return;
+    
+    setIsBatchSelecting(true);
+    setBatchProgress({ current: 0, total: artistsToAdd.length });
+    
+    try {
+      console.log(`Selecting ${artistsToAdd.length} top artists with optimized API calls`);
+      
+      // Use optimized batch artist search
+      const results = await optimizedArtistSearch(
+        artistsToAdd.map(artist => artist.name),
+        200 // 200ms delay between API calls
+      );
+      
+            // Process results and add successful artists one by one
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        setBatchProgress(prev => ({ ...prev, current: i + 1 }));
+        
+        if (result.success && result.data) {
+          const originalArtist = artistsToAdd[i];
+          const artistWithSpotifyId = {
+            ...result.data,
+            spotifyId: originalArtist.id
+          };
+          
+          // Cache the result if it wasn't already cached
+          if (!result.cached) {
+            const imageUrl = result.data.images?.[0]?.url || null;
+            setArtistCache(result.data.name, result.data.id, imageUrl, originalArtist.id);
+            console.log(`✅ Batch cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
+          } else {
+            console.log(`🟢 Using cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
+          }
+          
+          // Add artist one by one with a small delay for visual effect
+          addArtist(artistWithSpotifyId);
+          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between additions
+        } else {
+          console.warn(`Failed to find artist "${artistsToAdd[i].name}":`, result.error);
+        }
+      }
+  } catch (error) {
+    console.error('Error in batch artist selection:', error);
+  } finally {
+    setIsBatchSelecting(false);
+    setBatchProgress({ current: 0, total: 0 });
+  }
+};
 
   // Remove all selected artists
   const removeAllArtists = () => {
@@ -509,7 +632,11 @@ export default function ConcertsPage() {
         Find Concerts Worldwide
       </h1>
       
-      {/* Artist Selection */}
+      
+        
+
+        
+        {/* Artist Selection */}
       <div style={{ 
         background: '#181818', 
         padding: 24, 
@@ -562,6 +689,7 @@ export default function ConcertsPage() {
                     alignItems: 'center',
                     gap: 12,
                     transition: 'background 0.2s',
+                    position: 'relative',
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#404040'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
@@ -574,6 +702,28 @@ export default function ConcertsPage() {
                     />
                   )}
                   <span>{artist.name}</span>
+                  
+                  {/* Green checkmark icon when Ticketmaster ID is found */}
+                  {hasTicketmasterId(artist.name) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '16px',
+                      width: '20px',
+                      height: '20px',
+                      background: '#1db954',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid #232323',
+                      fontSize: '12px',
+                      color: '#000',
+                      fontWeight: 'bold',
+                    }}>
+                      ✓
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -620,6 +770,47 @@ export default function ConcertsPage() {
             Your Followed Artists
           </button>
         </div>
+        
+        {/* Batch Selection Progress Indicator */}
+        {isBatchSelecting && (
+          <div style={{ 
+            background: '#1db954', 
+            color: '#000', 
+            padding: '16px 24px', 
+            borderRadius: 12, 
+            marginBottom: 24,
+            textAlign: 'center',
+            fontWeight: 600
+          }}>
+            <div style={{ marginBottom: 8 }}>
+              🔍 Optimizing Artists Searches with intelligent caching...
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              Processing artist {batchProgress.current} of {batchProgress.total}
+            </div>
+            <div style={{ 
+              width: '100%', 
+              background: '#0003', 
+              borderRadius: 8, 
+              height: 8,
+              overflow: 'hidden'
+            }}>
+              <div style={{ 
+                width: `${(batchProgress.current / batchProgress.total) * 100}%`, 
+                height: '100%', 
+                background: '#000', 
+                transition: 'width 0.3s ease',
+                borderRadius: 8
+              }} />
+            </div>
+            <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8 }}>
+              Please wait...
+            </div>
+            <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8, fontStyle: 'italic' }}>
+              Found Ticketmaster IDs are automatically cached for instant future access
+            </div>
+          </div>
+        )}
         
         {/* Unified Artist List (Followed or Top) */}
         {artistListType === 'followed' && (
@@ -690,6 +881,7 @@ export default function ConcertsPage() {
                     textAlign: 'center',
                     minWidth: isMobile ? 120 : 100,
                     height: isMobile ? '44px' : 'auto',
+                    position: 'relative',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -701,6 +893,28 @@ export default function ConcertsPage() {
                   }}
                 >
                   {artist.name}
+                  {/* Green checkmark icon when Ticketmaster ID is found */}
+                  {hasTicketmasterId(artist.name) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      width: '20px',
+                      height: '20px',
+                      background: '#1db954',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid #181818',
+                      fontSize: '12px',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      zIndex: 1,
+                    }}>
+                      ✓
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -774,6 +988,7 @@ export default function ConcertsPage() {
                     textAlign: 'center',
                     minWidth: isMobile ? 120 : 100,
                     height: isMobile ? '44px' : 'auto',
+                    position: 'relative',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -785,6 +1000,28 @@ export default function ConcertsPage() {
                   }}
                 >
                   {artist.name}
+                  {/* Green checkmark icon when Ticketmaster ID is found */}
+                  {hasTicketmasterId(artist.name) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      width: '20px',
+                      height: '20px',
+                      background: '#1db954',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid #181818',
+                      fontSize: '12px',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      zIndex: 1,
+                    }}>
+                      ✓
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -973,6 +1210,8 @@ export default function ConcertsPage() {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
+          
+
           
           /* Basic styling for artist buttons - less restrictive */
           .top-artists-grid button,

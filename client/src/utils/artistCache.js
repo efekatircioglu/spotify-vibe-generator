@@ -20,19 +20,14 @@ const cleanCache = (cache) => {
   const entries = Object.entries(cache);
   if (entries.length <= MAX_CACHE_ENTRIES / 2) return cache; // Don't clean if cache is small
   
-  // Sort by timestamp (if available) or keep most recent entries
-  const sortedEntries = entries.sort((a, b) => {
-    const aTime = a[1].timestamp || 0;
-    const bTime = b[1].timestamp || 0;
-    return bTime - aTime;
-  });
-  
-  // Keep only the most recent entries
+  // Since we no longer store timestamps, keep entries in order they were added
+  // This is a simple FIFO (First In, First Out) approach
   const cleanedCache = {};
   const entriesToKeep = Math.floor(MAX_CACHE_ENTRIES * 0.7); // Keep 70% of max
   
-  for (let i = 0; i < Math.min(entriesToKeep, sortedEntries.length); i++) {
-    const [key, value] = sortedEntries[i];
+  // Keep the first entries (oldest) to maintain some cache history
+  for (let i = 0; i < Math.min(entriesToKeep, entries.length); i++) {
+    const [key, value] = entries[i];
     cleanedCache[key] = value;
   }
   
@@ -56,14 +51,30 @@ export const getArtistCache = () => {
 
 export const setArtistCache = (artistName, ticketmasterId, imageUrl = null, spotifyId = null) => {
   try {
-    const cache = getArtistCache();
+    // Validate inputs
+    if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
+      console.error('Invalid artist name provided to setArtistCache:', artistName);
+      return;
+    }
     
-    // Add timestamp for cache management
+    if (!ticketmasterId || typeof ticketmasterId !== 'string') {
+      console.error('Invalid ticketmaster ID provided to setArtistCache:', ticketmasterId);
+      return;
+    }
+    
+    let cache = getArtistCache();
+    
+    // Ensure cache is an object
+    if (typeof cache !== 'object' || cache === null) {
+      console.warn('Cache was not an object, initializing new cache');
+      cache = {};
+    }
+    
+    // Add artist data to cache (without timestamp for new items)
     cache[artistName.toLowerCase()] = {
       id: ticketmasterId,
       image: imageUrl,
-      spotifyId: spotifyId,
-      timestamp: Date.now()
+      spotifyId: spotifyId
     };
     
     // Check if cache is getting too large
