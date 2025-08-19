@@ -904,7 +904,14 @@ export default function Home() {
           // Redirect to the playlist
           if (result.playlistUrl) {
             setCreatedPlaylistUrl(result.playlistUrl);
-            localStorage.setItem('last50songs_playlist_url', result.playlistUrl);
+            // Try to save playlist URL to cache
+        try {
+          localStorage.setItem('last50songs_playlist_url', result.playlistUrl);
+        } catch (error) {
+          if (error.name === 'QuotaExceededError') {
+            console.warn('Cannot save playlist URL - storage quota exceeded');
+          }
+        }
           }
         }, 2000);
       } else {
@@ -1910,7 +1917,7 @@ export default function Home() {
           ref={tableRef} 
           style={{ 
             display: 'flex', 
-            justifyContent: 'center' 
+            justifyContent: 'center'
           }}
         >
           <NewTrackTable

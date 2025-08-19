@@ -23,6 +23,78 @@
     display: flex;
     flex-direction: column;
     position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Mobile responsive overrides */
+@media (max-width: 600px) {
+    .modalContent {
+        min-width: auto;
+        width: 95vw;
+        max-width: 95vw;
+        margin: 0 10px;
+    }
+    
+    .modalOverlay {
+        padding: 0.5rem;
+    }
+    
+    .modalBody {
+        padding: 1rem;
+        padding-bottom: 2rem;
+    }
+    
+    .modalHeader {
+        padding: 1rem;
+    }
+    
+    .modalTitle {
+        font-size: 1.25rem;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+    .modalContent {
+        width: 98vw;
+        max-width: 98vw;
+        margin: 0 5px;
+        border-radius: 0.5rem;
+    }
+    
+    .modalOverlay {
+        padding: 0.25rem;
+    }
+    
+    .modalBody {
+        padding: 0.75rem;
+        padding-bottom: 1.5rem;
+    }
+    
+    .modalHeader {
+        padding: 0.75rem;
+    }
+    
+    .modalTitle {
+        font-size: 1.1rem;
+    }
+}
+
+/* Medium screens - ensure smooth transition */
+@media (max-width: 768px) and (min-width: 601px) {
+    .modalContent {
+        width: 90vw;
+        max-width: 90vw;
+        min-width: auto;
+    }
+}
+
+/* Large screens - maintain some constraints */
+@media (min-width: 1200px) {
+    .modalContent {
+        max-width: 1200px;
+        width: 80vw;
+    }
 }
 
 .modalHeader {

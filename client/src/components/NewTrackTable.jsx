@@ -711,8 +711,14 @@ if (isMobile) {
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 18
         }}>
           <div style={{ fontWeight: 900, fontSize: '1.2rem', color: '#f3f3f3', letterSpacing: 1, textAlign: 'center' }}>{title || 'Your Last 50 Songs'}</div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, width: '95%',
-  justifyContent: 'center'}}>
+          <div style={{ 
+            display: 'flex', 
+            gap: 'clamp(2px, 1.5vw, 8px)', 
+            marginTop: 'clamp(4px, 1.5vw, 8px)', 
+            width: '95%',
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
             {tracks && tracks.length > 0 && (
               <PlaylistActions
                 tracks={tracks}
@@ -739,6 +745,36 @@ if (isMobile) {
           margin: '0 auto',
           maxHeight: 430,
         }}>
+          <style>{`
+            @media (max-width: 500px) {
+              /* Make text smaller on very small screens */
+              .mobile-song-name {
+                font-size: 0.85rem !important;
+              }
+              .mobile-artist-name {
+                font-size: 0.8rem !important;
+              }
+              .mobile-album-name {
+                font-size: 0.75rem !important;
+              }
+            }
+            
+            @media (max-width: 400px) {
+              /* Make text even smaller on very small screens */
+              .mobile-song-name {
+                font-size: 0.75rem !important;
+              }
+              .mobile-artist-name {
+                font-size: 0.7rem !important;
+              }
+              .mobile-album-name {
+                font-size: 0.65rem !important;
+              }
+              .mobile-duration-year {
+                font-size: 0.6rem !important;
+              }
+            }
+          `}</style>
           {tracks && tracks.length > 0 && tracks.map((track, idx) => (
             <div key={track.id ? `${track.id}-${idx}` : idx} style={{
               background: idx % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
@@ -746,13 +782,30 @@ if (isMobile) {
               padding: 14,
               display: 'grid',
               gridTemplateColumns: 'auto 1fr auto',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               gap: 12,
               boxShadow: '0 2px 8px #0002',
               position: 'relative',
             }}>
-              {/* 1st Column: Cover Art */}
-              <div>
+              {/* 1st Column: Cover Art with Index */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                {/* Index Number */}
+                <div style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  background: '#1db954',
+                  borderRadius: '50%',
+                  width: 20,
+                  height: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 1px 4px #0002'
+                }}>
+                  {idx + 1}
+                </div>
+                {/* Album Cover */}
                 {track.album_image || track.album?.images?.[0]?.url ? (
                   <img src={track.album_image || track.album?.images?.[0]?.url} alt={track.album?.name || track.album} style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', background: '#232323' }} />
                 ) : (
@@ -764,22 +817,25 @@ if (isMobile) {
               </div>
               {/* 2nd Column: Song Info */}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: '#fff', fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.name}</div>
-                <div style={{ color: '#d1d5db', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{renderArtistNames(track, idx)}</div>
+                <div className="mobile-song-name" style={{ fontWeight: 700, color: '#fff', fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.name}</div>
+                <div className="mobile-artist-name" style={{ color: '#d1d5db', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{renderArtistNames(track, idx)}</div>
                 <div
+                  className="mobile-album-name"
                   style={{
                     color: '#b3b3b3',
                     fontSize: 13,
-                    maxWidth: 120,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    maxWidth: 'none',
+                    overflow: 'visible',
+                    textOverflow: 'clip',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                    lineHeight: 1.2,
                   }}
                   title={track.album?.name || track.album}
                 >
                   {track.album?.name || track.album}
                 </div>
-                <div style={{ color: '#b3b3b3', fontSize: 12 }}>
+                <div className="mobile-duration-year" style={{ color: '#b3b3b3', fontSize: 12 }}>
                   {track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')} • {track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}
                   
                   {playlistKey === 'last50' && track.played_at && (
@@ -793,7 +849,7 @@ if (isMobile) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', position: 'relative' }}>
                 <button
                   style={{
-                    background: '#232323', color: '#fff', borderRadius: 8, fontWeight: 700, padding: '8px 16px', fontSize: 14, border: 'none', cursor: 'pointer', marginBottom: 4
+                    background: '#232323', color: '#fff', borderRadius: 8, fontWeight: 700, padding: '8px 8px', fontSize: 14, border: 'none', cursor: 'pointer', marginBottom: 4
                   }}
                   onClick={() => setMobileDropdownOpen(mobileDropdownOpen === idx ? null : idx)}
                 >Breakdown</button>

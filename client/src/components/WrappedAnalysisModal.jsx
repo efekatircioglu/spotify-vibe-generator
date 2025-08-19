@@ -481,7 +481,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         </div>
 
         <div className={styles.modalBody} style={{ 
-          overflowY: isMobile ? 'auto' : 'visible',
+          overflowY: 'auto',
           maxHeight: isMobile ? '70vh' : 'none',
           padding: isMobile ? '20px' : '32px',
           paddingBottom: isMobile ? '20px' : '48px',

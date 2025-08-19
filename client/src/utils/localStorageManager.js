@@ -1,4 +1,5 @@
 // Global localStorage manager with quota protection and automatic cleanup
+
 class LocalStorageManager {
   constructor() {
     this.maxTotalSize = 45 * 1024 * 1024; // 45MB total limit (leaving 5MB buffer)
@@ -98,7 +99,6 @@ class LocalStorageManager {
         // Try to save again after cleanup
         try {
           localStorage.setItem(key, JSON.stringify(value));
-          console.log(`Data saved after cleanup: ${key}`);
           return true;
         } catch (retryError) {
           console.error(`Failed to save data after cleanup: ${key}`, retryError);
@@ -107,31 +107,35 @@ class LocalStorageManager {
       }
       
       // Normal save operation
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch (error) {
-      if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
-        console.warn('Quota exceeded, attempting emergency cleanup...');
-        this.emergencyCleanup();
-        
-        // Try one more time
-        try {
-          localStorage.setItem(key, JSON.stringify(value));
-          console.log(`Data saved after quota error: ${key}`);
-          return true;
-        } catch (retryError) {
-          console.error(`Failed to save data after quota error: ${key}`, retryError);
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (error) {
+        if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+          console.warn('Quota exceeded, attempting emergency cleanup...');
+          this.emergencyCleanup();
+          
+          // Try one more time
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+            return true;
+          } catch (retryError) {
+            console.error(`Failed to save data after quota error: ${key}`, retryError);
+            return false;
+          }
+        } else {
+          console.error(`Error saving data: ${key}`, error);
           return false;
         }
-      } else {
-        console.error(`Error saving data: ${key}`, error);
-        return false;
       }
+    } catch (error) {
+      console.error(`Error in safeSetItem: ${key}`, error);
+      return false;
     }
   }
 
   // Safe getItem with error handling
-  safeGetItem(key) {
+  getItem(key) {
     try {
       const data = localStorage.getItem(key);
       return data ? JSON.parse(data) : null;
@@ -148,7 +152,7 @@ class LocalStorageManager {
   }
 
   // Safe removeItem
-  safeRemoveItem(key) {
+  removeItem(key) {
     try {
       localStorage.removeItem(key);
       return true;
@@ -204,8 +208,8 @@ export const localStorageManager = new LocalStorageManager();
 
 // Export utility functions for backward compatibility
 export const safeSetItem = (key, value) => localStorageManager.safeSetItem(key, value);
-export const safeGetItem = (key) => localStorageManager.safeGetItem(key, value);
-export const safeRemoveItem = (key) => localStorageManager.safeRemoveItem(key);
+export const safeGetItem = (key) => localStorageManager.getItem(key);
+export const safeRemoveItem = (key) => localStorageManager.removeItem(key);
 export const getStorageStats = () => localStorageManager.getStorageStats();
 export const clearAllCaches = () => localStorageManager.clearAllCaches();
 export const isStorageAvailable = () => localStorageManager.isAvailable();

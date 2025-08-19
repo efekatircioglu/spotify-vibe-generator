@@ -1,4 +1,5 @@
 // Persistent cache for ISRC/MBID mapping, using localStorage
+import { safeSetItem, safeGetItem, safeRemoveItem, hasStorageSpace } from './safeStorage';
 
 const CACHE_KEY = 'trackAnalysisCache';
 const MAX_CACHE_SIZE = 10 * 1024 * 1024; // 10MB limit (tracks can have more data)
@@ -45,20 +46,19 @@ function isValidSpotifyId(id) {
 
 function loadCache() {
   try {
-    const data = localStorage.getItem(CACHE_KEY);
-    let parsed = data ? JSON.parse(data) : {};
+    const data = safeGetItem(CACHE_KEY, {});
     // Only keep valid Spotify IDs
     cache = {};
-    for (const key in parsed) {
+    for (const key in data) {
       if (isValidSpotifyId(key)) {
-        cache[key] = parsed[key];
+        cache[key] = data[key];
       }
     }
   } catch (e) {
     console.error('Error loading track analysis cache:', e);
     // If loading fails, try to clear and start fresh
     try {
-      localStorage.removeItem(CACHE_KEY);
+      safeRemoveItem(CACHE_KEY);
     } catch (clearError) {
       console.error('Error clearing corrupted track cache:', clearError);
     }
@@ -76,26 +76,22 @@ function saveCache() {
       const cleanedCache = cleanCache(cache);
       
       // Try to save the cleaned cache
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
+      const saveSuccess = safeSetItem(CACHE_KEY, cleanedCache);
+      if (saveSuccess) {
         console.log('Track cache cleaned and saved successfully');
         // Update the in-memory cache to the cleaned version
         cache = cleanedCache;
-      } catch (cleanError) {
-        console.error('Error saving cleaned track cache:', cleanError);
-        // If even the cleaned cache fails, clear everything
-        try {
-          localStorage.removeItem(CACHE_KEY);
-          console.log('Track cache cleared due to storage issues');
-          cache = {};
-        } catch (clearError) {
-          console.error('Error clearing track cache:', clearError);
-        }
-        return;
+      } else {
+        console.warn('Cannot save cleaned cache - storage quota exceeded');
+        // Keep the cleaned cache in memory but don't save
+        cache = cleanedCache;
       }
     } else {
       // Normal save operation
-      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+      const saveSuccess = safeSetItem(CACHE_KEY, cache);
+      if (!saveSuccess) {
+        console.warn('Cannot save cache - storage quota exceeded');
+      }
     }
   } catch (error) {
     if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
@@ -104,19 +100,18 @@ function saveCache() {
       try {
         // Try to clean the cache and save again
         const cleanedCache = cleanCache(cache);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
-        console.log('Track cache cleaned and saved after quota error');
-        cache = cleanedCache;
+        const saveSuccess = safeSetItem(CACHE_KEY, cleanedCache);
+        if (saveSuccess) {
+          console.log('Track cache cleaned and saved after quota error');
+          cache = cleanedCache;
+        } else {
+          console.warn('Cannot save even cleaned cache - storage quota exceeded');
+          // Keep cleaned cache in memory but don't save
+          cache = cleanedCache;
+        }
       } catch (cleanError) {
         console.error('Failed to clean track cache after quota error:', cleanError);
-        // Last resort: clear everything
-        try {
-          localStorage.removeItem(CACHE_KEY);
-          console.log('Track cache cleared due to persistent quota issues');
-          cache = {};
-        } catch (clearError) {
-          console.error('Error clearing track cache:', clearError);
-        }
+        // Keep current cache in memory but don't save
       }
     } else {
       console.error('Error saving track analysis cache:', error);

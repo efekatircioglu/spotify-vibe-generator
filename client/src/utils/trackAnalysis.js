@@ -1,9 +1,11 @@
 // --- Analysis Cache Management ---
+import { safeSetItem, safeGetItem, safeRemoveItem } from './safeStorage';
+
 const ANALYSIS_CACHE_KEY = 'analysis_cache';
 
 export function getAnalysis(mbid) {
   try {
-    const cache = JSON.parse(localStorage.getItem(ANALYSIS_CACHE_KEY)) || {};
+    const cache = safeGetItem(ANALYSIS_CACHE_KEY) || {};
     return cache[mbid];
   } catch {
     return undefined;
@@ -12,9 +14,12 @@ export function getAnalysis(mbid) {
 
 export function setAnalysis(mbid, analysis) {
   try {
-    const cache = JSON.parse(localStorage.getItem(ANALYSIS_CACHE_KEY)) || {};
+    const cache = safeGetItem(ANALYSIS_CACHE_KEY) || {};
     cache[mbid] = analysis;
-    localStorage.setItem(ANALYSIS_CACHE_KEY, JSON.stringify(cache));
+    const saveSuccess = safeSetItem(ANALYSIS_CACHE_KEY, cache);
+    if (!saveSuccess) {
+      console.warn('Cannot save analysis cache - storage quota exceeded');
+    }
   } catch {
     // Ignore write errors
   }
@@ -22,7 +27,7 @@ export function setAnalysis(mbid, analysis) {
 
 export function clearAnalysisCache() {
   try {
-    localStorage.removeItem(ANALYSIS_CACHE_KEY);
+    safeRemoveItem(ANALYSIS_CACHE_KEY);
   } catch {
     // Ignore errors
   }

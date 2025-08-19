@@ -1,4 +1,6 @@
 // localStorage utilities for artist name -> Ticketmaster ID caching
+import { safeSetItem, safeGetItem, safeRemoveItem } from './safeStorage';
+
 const CACHE_KEY = 'artistNameToTicketmasterId';
 const MAX_CACHE_SIZE = 5 * 1024 * 1024; // 5MB limit
 const MAX_CACHE_ENTRIES = 1000; // Maximum number of cached artists
@@ -39,13 +41,12 @@ const cleanCache = (cache) => {
 
 export const getArtistCache = () => {
   try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    return cached ? JSON.parse(cached) : {};
+    return safeGetItem(CACHE_KEY, {});
   } catch (error) {
     console.error('Error reading artist cache:', error);
     // If reading fails, try to clear and start fresh
     try {
-      localStorage.removeItem(CACHE_KEY);
+      safeRemoveItem(CACHE_KEY);
     } catch (clearError) {
       console.error('Error clearing corrupted cache:', clearError);
     }
@@ -73,23 +74,18 @@ export const setArtistCache = (artistName, ticketmasterId, imageUrl = null, spot
       const cleanedCache = cleanCache(cache);
       
       // Try to save the cleaned cache
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
+      const saveSuccess = safeSetItem(CACHE_KEY, cleanedCache);
+      if (saveSuccess) {
         console.log('Cache cleaned and saved successfully');
-      } catch (cleanError) {
-        console.error('Error saving cleaned cache:', cleanError);
-        // If even the cleaned cache fails, clear everything
-        try {
-          localStorage.removeItem(CACHE_KEY);
-          console.log('Cache cleared due to storage issues');
-        } catch (clearError) {
-          console.error('Error clearing cache:', clearError);
-        }
-        return;
+      } else {
+        console.warn('Cannot save cleaned cache - storage quota exceeded');
       }
     } else {
       // Normal save operation
-      localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+      const saveSuccess = safeSetItem(CACHE_KEY, cache);
+      if (!saveSuccess) {
+        console.warn('Cannot save cache - storage quota exceeded');
+      }
     }
   } catch (error) {
     if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {

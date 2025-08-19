@@ -1,4 +1,6 @@
 // Protected cache for recent artist searches with localStorage quota management
+import { safeSetItem, safeGetItem, safeRemoveItem } from './safeStorage';
+
 const RECENT_SEARCHES_KEY = 'recent_artist_searches';
 const MAX_RECENT_SEARCHES = 5; // Strict limit: exactly 5 recent searches
 const MAX_CACHE_SIZE = 1 * 1024 * 1024; // 1MB limit (reduced for safety)
@@ -87,8 +89,12 @@ export const saveRecentSearch = (artistObj) => {
         
         if (singleEntrySize <= MAX_CACHE_SIZE) {
           // Save just the single entry
-          localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(singleEntry));
-          console.log('Saved single entry due to storage constraints');
+          const saveSuccess = safeSetItem(RECENT_SEARCHES_KEY, singleEntry);
+          if (saveSuccess) {
+            console.log('Saved single entry due to storage constraints');
+          } else {
+            console.warn('Cannot save single entry - storage quota exceeded');
+          }
           return true;
         } else {
           // Even a single entry is too large, clear everything
@@ -104,8 +110,13 @@ export const saveRecentSearch = (artistObj) => {
     
     // Normal save operation with guaranteed 5-entry limit
     try {
-      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
-      return true;
+      const saveSuccess = safeSetItem(RECENT_SEARCHES_KEY, searches);
+      if (saveSuccess) {
+        return true;
+      } else {
+        console.warn('Cannot save searches - storage quota exceeded');
+        return false;
+      }
     } catch (saveError) {
       if (saveError.name === 'QuotaExceededError' || saveError.message.includes('quota')) {
         console.warn('localStorage quota exceeded, attempting emergency cleanup...');
@@ -117,9 +128,14 @@ export const saveRecentSearch = (artistObj) => {
           
           if (reducedSize <= MAX_CACHE_SIZE) {
             try {
-              localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(reducedSearches));
+                          const saveSuccess = safeSetItem(RECENT_SEARCHES_KEY, reducedSearches);
+            if (saveSuccess) {
               console.log(`Saved with ${i} entries after quota error`);
               return true;
+            } else {
+              console.warn('Cannot save reduced searches - storage quota exceeded');
+              continue;
+            }
             } catch (retryError) {
               continue; // Try with even fewer entries
             }
@@ -129,9 +145,14 @@ export const saveRecentSearch = (artistObj) => {
         // Last resort: try to save just the new entry
         try {
           const singleEntry = [entry];
-          localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(singleEntry));
-          console.log('Saved single entry after quota error');
-          return true;
+          const saveSuccess = safeSetItem(RECENT_SEARCHES_KEY, singleEntry);
+          if (saveSuccess) {
+            console.log('Saved single entry after quota error');
+            return true;
+          } else {
+            console.warn('Cannot save single entry after quota error - storage quota exceeded');
+            return false;
+          }
         } catch (finalError) {
           // Complete failure - clear everything
           try {

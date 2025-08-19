@@ -8,6 +8,17 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
   const [creationStatus, setCreationStatus] = useState('');
   const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState('');
 
+  // Helper function to determine font size based on screen width
+  const getFontSize = () => {
+    if (window.innerWidth <= 400) {
+      return '0.65rem';
+    } else if (window.innerWidth <= 768) {
+      return '0.8rem';
+    } else {
+      return '1.08rem';
+    }
+  };
+
   // On mount, fetch the cached playlist URL for this table from the backend
   useEffect(() => {
     setCreatedPlaylistUrl('');
@@ -89,7 +100,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
             justifyContent: 'center',
             height: 48,
             minWidth: 0,
-            fontSize: window.innerWidth <= 768 ? '0.8rem' : undefined,
+            fontSize: getFontSize(),
             padding: window.innerWidth <= 768 ? '6px 10px' : undefined,
             whiteSpace: window.innerWidth <= 768 ? 'normal' : 'nowrap',
           }}
@@ -111,7 +122,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
             height: 48,
             minWidth: 0,
             fontWeight: 700,
-            fontSize: window.innerWidth <= 400 ? '0.65rem' : window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
+            fontSize: getFontSize(),
             border: 'none',
             boxShadow: 'none',
             transition: 'background 0.18s, color 0.18s',
@@ -133,7 +144,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           height: 48,
           minWidth: 0,
           fontWeight: 700,
-          fontSize: window.innerWidth <= 400 ? '0.65rem' : window.innerWidth <= 768 ? '0.8rem' : '1.08rem',
+          fontSize: getFontSize(),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

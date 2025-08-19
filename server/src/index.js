@@ -2009,10 +2009,7 @@ app.get('/album-contributors', async (req, res) => {
     
     if (!searchData?.results || searchData.results.length === 0) {
       console.log(`⚠️ [ALBUM CONTRIBUTORS] No album found after all strategies`);
-      return res.json({ 
-        contributors: [], 
-        message: `We couldn't find any albums matching "${albumTitle}" by "${artistName}" in our music database. Please check the spelling or try a different search.` 
-      });
+      return res.json({ contributors: [], message: 'No album found' });
     }
 
     // Find the most relevant album by filtering and scoring results
@@ -2174,40 +2171,13 @@ app.get('/album-contributors', async (req, res) => {
                         albumResponse = retryResponse;
                       } else {
                         console.log(`   ❌ Retry also failed with status: ${retryResponse.status}`);
-                        
-                        // Create user-friendly error message
-                        let errorMessage = '';
-                        if (retryResponse.status === 404) {
-                          errorMessage = `Sorry, we couldn't find detailed information for "${albumTitle}" by "${artistName}". The album exists in our database but the contributor details are currently unavailable.`;
-                        } else if (retryResponse.status === 429) {
-                          errorMessage = `We're getting too many requests from the music database right now. Please try again in a few minutes.`;
-                        } else if (retryResponse.status >= 500) {
-                          errorMessage = `The music database is experiencing technical difficulties. Please try again later.`;
-                        } else {
-                          errorMessage = `We encountered an issue while fetching contributor details for "${albumTitle}" by "${artistName}". Please try again.`;
-                        }
-                        
-                        throw new Error(errorMessage);
+                        throw new Error(`All album IDs failed to fetch. Last error: ${retryResponse.status}`);
                       }
                     } else {
-                      // Create user-friendly error message for 404
-                      const errorMessage = `Sorry, we couldn't find detailed contributor information for "${albumTitle}" by "${artistName}". The album may exist but detailed credits are not available in our database.`;
-                      throw new Error(errorMessage);
+                      throw new Error(`Discogs album fetch failed with status: ${albumResponse.status}`);
                     }
                   } else {
-                    // Create user-friendly error message based on status
-                    let errorMessage = '';
-                    if (albumResponse.status === 404) {
-                      errorMessage = `Sorry, we couldn't find detailed contributor information for "${albumTitle}" by "${artistName}". The album may exist but detailed credits are not available in our database.`;
-                    } else if (albumResponse.status === 429) {
-                      errorMessage = `We're getting too many requests from the music database right now. Please try again in a few minutes.`;
-                    } else if (albumResponse.status >= 500) {
-                      errorMessage = `The music database is experiencing technical difficulties. Please try again later.`;
-                    } else {
-                      errorMessage = `We encountered an issue while fetching contributor details for "${albumTitle}" by "${artistName}". Please try again.`;
-                    }
-                    
-                    throw new Error(errorMessage);
+                    throw new Error(`Discogs album fetch failed with status: ${albumResponse.status}`);
                   }
                 }
 
@@ -2272,7 +2242,6 @@ app.get('/album-contributors', async (req, res) => {
                 if (!albumData || !albumData.title) {
                   console.log(`🔄 [ALBUM CONTRIBUTORS] Additional fallback: trying other results...`);
                   
-                  let fallbackSuccess = false;
                   for (let i = 0; i < Math.min(5, relevantResults.length); i++) {
                     const fallbackResult = relevantResults[i];
                     if (fallbackResult.id === album.id) continue; // Skip current one
@@ -2289,19 +2258,12 @@ app.get('/album-contributors', async (req, res) => {
                         
                         albumData = fallbackData;
                         album = fallbackResult;
-                        fallbackSuccess = true;
                         break;
                       }
                     } catch (error) {
                       console.log(`   ❌ Fallback ${i + 1} failed: ${error.message}`);
                       continue;
                     }
-                  }
-                  
-                  // If all fallbacks failed, provide user-friendly error
-                  if (!fallbackSuccess) {
-                    const errorMessage = `We found "${albumTitle}" by "${artistName}" in our database, but we're unable to retrieve the detailed contributor information at the moment. This can happen when the music database is temporarily unavailable or when album details are being updated. Please try again later.`;
-                    throw new Error(errorMessage);
                   }
                 }
     
@@ -2435,33 +2397,10 @@ app.get('/album-contributors', async (req, res) => {
 
     res.json({ contributors });
     
-                } catch (error) {
-                console.error(`\n❌ [ALBUM CONTRIBUTORS] Error:`, error);
-                
-                // Check if it's already a user-friendly error message
-                if (error.message.includes('Sorry, we couldn\'t find') || 
-                    error.message.includes('We\'re getting too many requests') ||
-                    error.message.includes('The music database is experiencing') ||
-                    error.message.includes('We encountered an issue') ||
-                    error.message.includes('We found') ||
-                    error.message.includes('Please try again')) {
-                  // It's already user-friendly, pass it through
-                  res.status(500).json({ error: error.message });
-                } else {
-                  // Convert technical errors to user-friendly messages
-                  let userFriendlyError = 'We encountered an unexpected issue while searching for album contributors. Please try again.';
-                  
-                  if (error.message.includes('fetch')) {
-                    userFriendlyError = 'We\'re having trouble connecting to the music database. Please check your internet connection and try again.';
-                  } else if (error.message.includes('JSON')) {
-                    userFriendlyError = 'We received unexpected data from the music database. Please try again.';
-                  } else if (error.message.includes('timeout')) {
-                    userFriendlyError = 'The request to the music database is taking too long. Please try again.';
-                  }
-                  
-                  res.status(500).json({ error: userFriendlyError });
-                }
-              }
+  } catch (error) {
+    console.error(`\n❌ [ALBUM CONTRIBUTORS] Error:`, error);
+    res.status(500).json({ error: 'Failed to fetch album contributors' });
+  }
 });
 
 module.exports = pool;
