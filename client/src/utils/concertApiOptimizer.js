@@ -152,9 +152,10 @@ export async function optimizedConcertApiCall(endpoint, options = {}) {
  * Optimizes artist search by checking cache first, then making API calls with delays
  * @param {Array<string>} artistNames - Array of artist names to search for
  * @param {number} delayBetweenApiCalls - Delay in milliseconds between API calls (default: 200)
+ * @param {Function} progressCallback - Optional callback for real-time progress updates (current, total)
  * @returns {Promise<Array>} - Array of artist search results
  */
-export async function optimizedArtistSearch(artistNames, delayBetweenApiCalls = 200) {
+export async function optimizedArtistSearch(artistNames, delayBetweenApiCalls = 200, progressCallback = null) {
   const results = [];
   let lastApiCallTime = 0;
   
@@ -162,6 +163,11 @@ export async function optimizedArtistSearch(artistNames, delayBetweenApiCalls = 
     const artistName = artistNames[i];
     
     try {
+      // Update progress callback
+      if (progressCallback) {
+        progressCallback(i + 1, artistNames.length);
+      }
+      
       // Check artist cache first
       const cachedId = getCachedArtistId(artistName);
       const cachedImage = getCachedArtistImage(artistName);

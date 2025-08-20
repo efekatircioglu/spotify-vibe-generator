@@ -496,12 +496,10 @@ export default function ConcertsList({
           transition: box-shadow 0.3s;
         }
         
-        /* Green underline for concert dates */
+        /* Green text for concert dates */
         .concert-date {
-          text-decoration: underline !important;
-          text-decoration-color: #1db954 !important;
-          text-decoration-thickness: clamp(1px, 0.3vw, 2px) !important;
-          text-underline-offset: clamp(1px, 0.5vw, 3px) !important;
+          color: #1db954 !important;
+          font-weight: 700 !important;
         }
         
         /* Animation styles for concert rows */

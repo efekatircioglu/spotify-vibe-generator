@@ -81,15 +81,11 @@
 }
 
 .calendar-day.has-event {
-    text-decoration: underline;
-    text-decoration-color: #1DB954;
-    text-decoration-thickness: clamp(1px, 0.3vw, 2px);
-    text-underline-offset: clamp(1px, 0.5vw, 3px);
+    color: #1DB954; /* Green text instead of underline */
+    font-weight: 700; /* Make it bold to stand out */
 }
 
 .calendar-day.is-today.has-event {
-    text-decoration: underline;
-    text-decoration-color: #1DB954;
-    text-decoration-thickness: clamp(1px, 0.3vw, 2px);
-    text-underline-offset: clamp(1px, 0.5vw, 3px);
+    color: #1DB954; /* Green text instead of underline */
+    font-weight: 700; /* Make it bold to stand out */
 } 

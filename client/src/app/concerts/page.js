@@ -28,6 +28,13 @@ export default function ConcertsPage() {
   const [isBatchSelecting, setIsBatchSelecting] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   
+  // State for final processing phase
+  const [isProcessingResults, setIsProcessingResults] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
+  
+  // State for final report
+  const [finalReport, setFinalReport] = useState(null);
+  
   // Function to check if an artist has a Ticketmaster ID
   const hasTicketmasterId = (artistName) => {
     return getCachedArtistId(artistName) !== null;
@@ -278,6 +285,9 @@ export default function ConcertsPage() {
           classifications: [{ segment: { name: 'Music' } }]
         };
         addArtist(cachedArtist);
+        
+        // Update report for successful cached artist
+        updateReportForIndividualArtist(artistName, true, cachedArtist);
         return;
       }
 
@@ -323,17 +333,71 @@ export default function ConcertsPage() {
         
         // Auto-select the first match
         addArtist(artistWithSpotifyId);
+        
+        // Update report for successful artist
+        updateReportForIndividualArtist(artistName, true, artistWithSpotifyId);
       } else {
-        // If no match found, just set the search query
-        setSearchQuery(artistName);
+        // If no match found, add to failed artists in report
         console.log(`❌ No Ticketmaster ID found for "${artistName}"`);
+        
+        // Update report for failed artist
+        updateReportForIndividualArtist(artistName, false, spotifyArtist);
       }
     } catch (err) {
       console.error('Error auto-searching artist:', err);
       setSearchQuery(artistName);
+      
+      // Update report for failed artist due to error
+      updateReportForIndividualArtist(artistName, false, spotifyArtist);
     }
   };
   
+  // Update report for individual artist clicks
+  const updateReportForIndividualArtist = (artistName, isSuccess, artistData) => {
+    if (isSuccess) {
+      // Artist was found successfully
+      const currentReport = finalReport || {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        failedArtists: [],
+        successfulNames: [],
+        isVisible: true
+      };
+      
+      // Check if artist is already in successful names
+      if (!currentReport.successfulNames.includes(artistName)) {
+        setFinalReport({
+          ...currentReport,
+          total: currentReport.total + 1,
+          successful: currentReport.successful + 1,
+          successfulNames: [...currentReport.successfulNames, artistName]
+        });
+      }
+    } else {
+      // Artist was not found
+      const currentReport = finalReport || {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        failedArtists: [],
+        successfulNames: [],
+        isVisible: true
+      };
+      
+      // Check if artist is already in failed artists
+      const alreadyFailed = currentReport.failedArtists.find(failed => failed.id === artistData?.id);
+      if (!alreadyFailed) {
+        setFinalReport({
+          ...currentReport,
+          total: currentReport.total + 1,
+          failed: currentReport.failed + 1,
+          failedArtists: [...currentReport.failedArtists, artistData || { name: artistName, id: `unknown-${Date.now()}` }]
+        });
+      }
+    }
+  };
+
   // Remove artist from selection
   const removeArtist = (artistId) => {
     setSelectedArtists(prev => prev.filter(a => a.id !== artistId));
@@ -341,28 +405,46 @@ export default function ConcertsPage() {
 
     // Select all followed artists
   const selectAllFollowed = async () => {
-    const artistsToAdd = followedArtists.filter(artist => 
-      !selectedArtists.find(selected => selected.id === artist.id)
-    );
+    // Smart deduplication: check against already selected and failed artists
+    const artistsToAdd = followedArtists.filter(artist => {
+      const alreadySelected = selectedArtists.find(selected => selected.id === artist.id);
+      const alreadyFailed = finalReport?.failedArtists?.find(failed => failed.id === artist.id);
+      return !alreadySelected && !alreadyFailed;
+    });
     
-    if (artistsToAdd.length === 0) return;
+    if (artistsToAdd.length === 0) {
+      console.log('All followed artists already processed in previous searches');
+      return;
+    }
     
     setIsBatchSelecting(true);
     setBatchProgress({ current: 0, total: artistsToAdd.length });
     
     try {
-      console.log(`Selecting ${artistsToAdd.length} followed artists with optimized API calls`);
+      console.log(`Selecting ${artistsToAdd.length} new followed artists (${followedArtists.length - artistsToAdd.length} already processed)`);
       
-      // Use optimized batch artist search
+      // Use optimized batch artist search with real-time progress updates
       const results = await optimizedArtistSearch(
         artistsToAdd.map(artist => artist.name),
-        200 // 200ms delay between API calls
+        200, // 200ms delay between API calls
+        (current, total) => {
+          // Real-time progress callback
+          setBatchProgress(prev => ({ ...prev, current, total }));
+        }
       );
+      
+      // Start final processing phase
+      setIsProcessingResults(true);
+      setProcessingProgress({ current: 0, total: results.length });
+      
+      // Track results for final report
+      const successfulArtists = [];
+      const failedArtists = [];
       
       // Process results and add successful artists one by one
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        setBatchProgress(prev => ({ ...prev, current: i + 1 }));
+        setProcessingProgress(prev => ({ ...prev, current: i + 1 }));
         
         if (result.success && result.data) {
           const originalArtist = artistsToAdd[i];
@@ -380,45 +462,95 @@ export default function ConcertsPage() {
             console.log(`🟢 Using cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
           }
           
+          successfulArtists.push(result.data.name);
+          
           // Add artist one by one with a small delay for visual effect
           addArtist(artistWithSpotifyId);
           await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between additions
         } else {
           console.warn(`Failed to find artist "${artistsToAdd[i].name}":`, result.error);
+          failedArtists.push(artistsToAdd[i]); // Store full artist object instead of just name
         }
       }
+      
+      // Generate combined final report with deduplication
+      const allFailedArtists = [
+        ...(finalReport?.failedArtists || []),
+        ...failedArtists
+      ];
+      const allSuccessfulNames = [
+        ...(finalReport?.successfulNames || []),
+        ...successfulArtists
+      ];
+      
+      // Remove duplicates from successful names
+      const uniqueSuccessfulNames = [...new Set(allSuccessfulNames)];
+      
+      // Remove duplicates from failed artists (based on Spotify ID)
+      const uniqueFailedArtists = allFailedArtists.filter((artist, index, self) => 
+        index === self.findIndex(a => a.id === artist.id)
+      );
+      
+      setFinalReport({
+        total: uniqueSuccessfulNames.length + uniqueFailedArtists.length,
+        successful: uniqueSuccessfulNames.length,
+        failed: uniqueFailedArtists.length,
+        failedArtists: uniqueFailedArtists,
+        successfulNames: uniqueSuccessfulNames,
+        isVisible: true // Initially show the report
+      });
     } catch (error) {
       console.error('Error in batch artist selection:', error);
     } finally {
       setIsBatchSelecting(false);
       setBatchProgress({ current: 0, total: 0 });
+      setIsProcessingResults(false);
+      setProcessingProgress({ current: 0, total: 0 });
     }
   };
 
   // Select all top artists
   const selectAllTop = async () => {
-    const artistsToAdd = topArtists.filter(artist => 
-      !selectedArtists.find(selected => selected.id === artist.id)
-    );
+    // Smart deduplication: check against already selected and failed artists
+    const artistsToAdd = topArtists.filter(artist => {
+      const alreadySelected = selectedArtists.find(selected => selected.id === artist.id);
+      const alreadyFailed = finalReport?.failedArtists?.find(failed => failed.id === artist.id);
+      return !alreadySelected && !alreadyFailed;
+    });
     
-    if (artistsToAdd.length === 0) return;
+    if (artistsToAdd.length === 0) {
+      console.log('All top artists already processed in previous searches');
+      return;
+    }
     
     setIsBatchSelecting(true);
     setBatchProgress({ current: 0, total: artistsToAdd.length });
     
     try {
-      console.log(`Selecting ${artistsToAdd.length} top artists with optimized API calls`);
+      console.log(`Selecting ${artistsToAdd.length} new top artists (${topArtists.length - artistsToAdd.length} already processed)`);
       
-      // Use optimized batch artist search
+      // Use optimized batch artist search with real-time progress updates
       const results = await optimizedArtistSearch(
         artistsToAdd.map(artist => artist.name),
-        200 // 200ms delay between API calls
+        200, // 200ms delay between API calls
+        (current, total) => {
+          // Real-time progress callback
+          setBatchProgress(prev => ({ ...prev, current, total }));
+        }
       );
       
-            // Process results and add successful artists one by one
+      // Start final processing phase
+      setIsProcessingResults(true);
+      setProcessingProgress({ current: 0, total: results.length });
+      
+      // Track results for final report
+      const successfulArtists = [];
+      const failedArtists = [];
+      
+      // Process results and add successful artists one by one
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
-        setBatchProgress(prev => ({ ...prev, current: i + 1 }));
+        setProcessingProgress(prev => ({ ...prev, current: i + 1 }));
         
         if (result.success && result.data) {
           const originalArtist = artistsToAdd[i];
@@ -436,24 +568,58 @@ export default function ConcertsPage() {
             console.log(`🟢 Using cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
           }
           
+          successfulArtists.push(result.data.name);
+          
           // Add artist one by one with a small delay for visual effect
           addArtist(artistWithSpotifyId);
           await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between additions
         } else {
           console.warn(`Failed to find artist "${artistsToAdd[i].name}":`, result.error);
+          failedArtists.push(artistsToAdd[i]); // Store full artist object instead of just name
         }
       }
-  } catch (error) {
-    console.error('Error in batch artist selection:', error);
-  } finally {
-    setIsBatchSelecting(false);
-    setBatchProgress({ current: 0, total: 0 });
-  }
-};
+      
+      // Generate combined final report with deduplication
+      const allFailedArtists = [
+        ...(finalReport?.failedArtists || []),
+        ...failedArtists
+      ];
+      const allSuccessfulNames = [
+        ...(finalReport?.successfulNames || []),
+        ...successfulArtists
+      ];
+      
+      // Remove duplicates from successful names
+      const uniqueSuccessfulNames = [...new Set(allSuccessfulNames)];
+      
+      // Remove duplicates from failed artists (based on Spotify ID)
+      const uniqueFailedArtists = allFailedArtists.filter((artist, index, self) => 
+        index === self.findIndex(a => a.id === artist.id)
+      );
+      
+      setFinalReport({
+        total: uniqueSuccessfulNames.length + uniqueFailedArtists.length,
+        successful: uniqueSuccessfulNames.length,
+        failed: uniqueFailedArtists.length,
+        failedArtists: uniqueFailedArtists,
+        successfulNames: uniqueSuccessfulNames,
+        isVisible: true // Initially show the report
+      });
+    } catch (error) {
+      console.error('Error in batch artist selection:', error);
+    } finally {
+      setIsBatchSelecting(false);
+      setBatchProgress({ current: 0, total: 0 });
+      setIsProcessingResults(false);
+      setProcessingProgress({ current: 0, total: 0 });
+    }
+  };
 
   // Remove all selected artists
   const removeAllArtists = () => {
     setSelectedArtists([]);
+    // Also clear the final report when removing all artists
+    setFinalReport(null);
   };
 
   // Toggle location filter (add if not present, remove if present)
@@ -679,7 +845,11 @@ export default function ConcertsPage() {
               {searchResults.map(artist => (
                 <div
                   key={artist.id}
-                  onClick={() => addArtist(artist)}
+                  onClick={() => {
+                    addArtist(artist);
+                    // Also add to report as successful artist from search
+                    updateReportForIndividualArtist(artist.name, true, artist);
+                  }}
                   style={{
                     padding: '12px 16px',
                     cursor: 'pointer',
@@ -771,8 +941,8 @@ export default function ConcertsPage() {
           </button>
         </div>
         
-        {/* Batch Selection Progress Indicator */}
-        {isBatchSelecting && (
+        {/* Unified Progress Bar */}
+        {(isBatchSelecting || isProcessingResults) && (
           <div style={{ 
             background: '#1db954', 
             color: '#000', 
@@ -783,10 +953,16 @@ export default function ConcertsPage() {
             fontWeight: 600
           }}>
             <div style={{ marginBottom: 8 }}>
-              🔍 Optimizing Artists Searches with intelligent caching...
+              {isProcessingResults 
+                ? '🟢 Processing Results & Adding Artists...'
+                : '🔍 Optimizing Artists Searches with intelligent caching...'
+              }
             </div>
             <div style={{ marginBottom: 12 }}>
-              Processing artist {batchProgress.current} of {batchProgress.total}
+              {isProcessingResults 
+                ? `Processing result ${processingProgress.current} of ${processingProgress.total}`
+                : `Processing artist ${batchProgress.current} of ${batchProgress.total}`
+              }
             </div>
             <div style={{ 
               width: '100%', 
@@ -796,7 +972,9 @@ export default function ConcertsPage() {
               overflow: 'hidden'
             }}>
               <div style={{ 
-                width: `${(batchProgress.current / batchProgress.total) * 100}%`, 
+                width: isProcessingResults 
+                  ? `${(processingProgress.current / processingProgress.total) * 100}%`
+                  : `${(batchProgress.current / batchProgress.total) * 100}%`, 
                 height: '100%', 
                 background: '#000', 
                 transition: 'width 0.3s ease',
@@ -804,11 +982,284 @@ export default function ConcertsPage() {
               }} />
             </div>
             <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8 }}>
-              Please wait...
+              {isProcessingResults 
+                ? 'Adding artists to selection and updating cache...'
+                : 'Please wait...'
+              }
             </div>
-            <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8, fontStyle: 'italic' }}>
-              Found Ticketmaster IDs are automatically cached for instant future access
+            
+            {!isProcessingResults && (
+              <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8, fontStyle: 'italic' }}>
+                Found Ticketmaster IDs are automatically cached for instant future access
+              </div>
+            )}
+            
+
+          </div>
+        )}
+        
+        {/* Show Report Button - Only visible when report exists but is not displayed */}
+        {finalReport && !finalReport.isVisible && (
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: 24 
+          }}>
+            <button
+              onClick={() => setFinalReport(prev => ({ ...prev, isVisible: true }))}
+              style={{
+                padding: '12px 24px',
+                background: '#374151',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#414B5A';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#374151';
+              }}
+            >
+              Show Report
+            </button>
+          </div>
+        )}
+        
+        {/* Final Report */}
+        {finalReport && finalReport.isVisible && (
+          <div style={{ 
+            background: '#232323', 
+            color: '#000', 
+            padding: '20px 24px', 
+            borderRadius: 12, 
+            marginBottom: 24,
+            textAlign: 'center',
+            fontWeight: 600
+          }}>
+            <div style={{ marginBottom: 16, color: '#fff' }}>
+              Artist Search Complete!
             </div>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', 
+              gap: isMobile ? '8px' : '16px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ 
+                background: '#ffffff33', 
+                padding: isMobile ? '8px' : '12px', 
+                borderRadius: '8px'
+              }}>
+                <div style={{ 
+                  fontSize: isMobile ? '1rem' : '1.2rem', 
+                  fontWeight: 'bold', 
+                  color: '#fff' 
+                }}>
+                  {finalReport.total}
+                </div>
+                <div style={{ 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  color: '#fff' 
+                }}>
+                  Total Artists
+                </div>
+              </div>
+              
+              <div style={{ 
+                background: '#ffffff33', 
+                padding: isMobile ? '8px' : '12px', 
+                borderRadius: '8px'
+              }}>
+                <div style={{ 
+                  fontSize: isMobile ? '1rem' : '1.2rem', 
+                  fontWeight: 'bold', 
+                  color: '#fff' 
+                }}>
+                  {finalReport.successful}
+                </div>
+                <div style={{ 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  color: '#fff' 
+                }}>
+                  Successful
+                </div>
+              </div>
+              
+              <div style={{ 
+                background: '#ffffff33', 
+                padding: isMobile ? '8px' : '12px', 
+                borderRadius: '8px'
+              }}>
+                <div style={{ 
+                  fontSize: isMobile ? '1rem' : '1.2rem', 
+                  fontWeight: 'bold', 
+                  color: '#fff' 
+                }}>
+                  {finalReport.failed}
+                </div>
+                <div style={{ 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  color: '#fff' 
+                }}>
+                  Failed
+                </div>
+              </div>
+            </div>
+            
+            {finalReport.failed > 0 && (
+              <div style={{ 
+                marginBottom: '16px',
+                textAlign: 'left'
+              }}>
+                <div style={{ 
+                  fontWeight: 'bold', 
+                  marginBottom: '12px',
+                  color: '#fff',
+                  fontSize: '1rem'
+                }}>
+                  ❌ Failed Artists ({finalReport.failed}):
+                </div>
+                
+                {/* Optional Fail Reason Toggle */}
+                <div style={{ 
+                  marginBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <button
+                    onClick={() => setFinalReport(prev => ({ ...prev, showFailReasons: !prev.showFailReasons }))}
+                    style={{
+                      background: 'transparent',
+                      color: '#9ca3af',
+                      border: '1px solid #4b5563',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: 0.7
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                      e.currentTarget.style.borderColor = '#6b7280';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.7';
+                      e.currentTarget.style.borderColor = '#4b5563';
+                    }}
+                  >
+                    {finalReport.showFailReasons ? 'Hide' : 'Show'} Fail Reasons
+                  </button>
+                  <span style={{ 
+                    fontSize: '0.7rem', 
+                    color: '#6b7280',
+                    fontStyle: 'italic'
+                  }}>
+                  </span>
+                </div>
+                
+                {/* Fail Reasons Display */}
+                {finalReport.showFailReasons && (
+                  <div style={{ 
+                    background: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    marginBottom: '12px',
+                    fontSize: '0.8rem',
+                    color: '#d1d5db',
+                    lineHeight: '1.4'
+                  }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      marginBottom: '6px',
+                      color: '#9ca3af'
+                    }}>
+                      Common Fail Reasons:
+                    </div>
+                    <ul style={{ 
+                      margin: '0', 
+                      paddingLeft: '16px',
+                      fontSize: isMobile ? '0.65rem' : '0.75rem'
+                    }}>
+                      <li>International artists not in Ticketmaster database</li>
+                      <li>Very new or emerging artists</li>
+                      <li>Artists who don't perform live concerts</li>
+                      <li>Spelling differences between Spotify and Ticketmaster</li>
+                    </ul>
+                  </div>
+                )}
+                
+                <div style={{ 
+                  maxHeight: '290px',
+                  overflowY: 'auto',
+                  background: '#232323',
+                  borderRadius: '8px',
+                  border: '1px solid #333',
+                  padding: '12px'
+                }}>
+                  <div style={{ 
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    {finalReport.failedArtists.map((artist, index) => (
+                      <button
+                        key={index}
+                        onClick={() => router.push(`/artist?name=${encodeURIComponent(artist.name)}&spotifyId=${artist.id}`)}
+                        style={{
+                          background: '#8B0000',
+                          color: '#fff',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontSize: '0.85rem',
+                          fontWeight: '500',
+                          border: '1px solid #a52a2a',
+                          boxShadow: '0 2px 4px rgba(139, 0, 0, 0.3)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#a52a2a';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#8B0000';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        {artist.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <button
+              onClick={() => setFinalReport(prev => ({ ...prev, isVisible: false }))}
+              style={{
+                padding: '8px 16px',
+                background: '#374151',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#414B5A'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#374151'}
+            >
+              ✕ Close Report
+            </button>
           </div>
         )}
         
@@ -1153,12 +1604,12 @@ export default function ConcertsPage() {
           onClick={searchConcerts}
           disabled={selectedArtists.length === 0 || loadingConcerts}
           style={{
-            padding: '16px 32px',
+            padding: isMobile ? '12px 20px' : '16px 32px',
             background: selectedArtists.length > 0 ? '#10b981' : '#374151',
             color: selectedArtists.length > 0 ? '#fff' : '#6b7280',
             border: 'none',
             borderRadius: 12,
-            fontSize: '1.1rem',
+            fontSize: isMobile ? '0.9rem' : '1.1rem',
             fontWeight: 800,
             cursor: selectedArtists.length > 0 ? 'pointer' : 'not-allowed',
             transition: 'all 0.3s ease',
