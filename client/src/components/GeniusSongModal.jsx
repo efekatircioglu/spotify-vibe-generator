@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 export default function GeniusSongModal({ open, onClose, songInfo, loading, error }) {
   const [isVisible, setIsVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState('samples');
 
   useEffect(() => {
     if (open) {
@@ -33,13 +34,23 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
     }
   };
 
-  const renderSamples = (samples) => {
-    if (!samples || samples.length === 0) {
+  const renderSamples = (relationships) => {
+    if (!relationships || typeof relationships !== 'object') {
       return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No sample information available</div>;
     }
 
-    return samples.map((sample, index) => (
-      <div key={index} style={{ 
+    // Extract samples from relationships
+    const samples = relationships.samples || [];
+    const sampledIn = relationships.sampled_in || [];
+
+    if (samples.length === 0 && sampledIn.length === 0) {
+      return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No sample information available</div>;
+    }
+
+    const allSamples = [...samples, ...sampledIn];
+
+    return allSamples.map((sample, index) => (
+      <div key={index} className="genius-relationship-card" style={{ 
         background: '#232323', 
         padding: '12px', 
         borderRadius: '8px', 
@@ -52,8 +63,8 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
           alignItems: 'center', 
           marginBottom: '8px' 
         }}>
-          <span style={{ 
-            background: sample.type === 'samples' ? '#1db954' : '#ff6b6b', 
+          <span className="genius-relationship-tag" style={{ 
+            background: sample.type === 'samples' ? '#1db954' : '#ff0033', 
             color: '#fff', 
             padding: '4px 8px', 
             borderRadius: '12px', 
@@ -64,23 +75,68 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
             {sample.type === 'samples' ? 'Samples' : 'Sampled In'}
           </span>
         </div>
-        <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
           {sample.song.title}
         </div>
-        <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-          by {sample.song.primary_artist.name}
+        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+          by {sample.song.primary_artist}
         </div>
       </div>
     ));
   };
 
-  const renderRelationships = (relationships) => {
-    if (!relationships || relationships.length === 0) {
+  // Helper function to get color based on relationship type
+  const getRelationshipColor = (relationshipType) => {
+    switch (relationshipType) {
+      // Green: The song is the originator/takes from another
+      case 'samples':
+      case 'interpolates':
+      case 'cover_of':
+      case 'remix_of':
+        return '#1db954'; // Green
+      
+      // Red: The song is derived from/taken by another
+      case 'sampled_in':
+      case 'interpolated_by':
+      case 'covered_by':
+      case 'remixed_by':
+        return '#ff0033'; // Red
+      
+      // Default color for other relationship types
+      default:
+        return '#404040'; // Default gray
+    }
+  };
+
+  const renderTabContent = (relationships) => {
+    if (!relationships || typeof relationships !== 'object') {
       return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No relationship information available</div>;
     }
 
-    return relationships.map((rel, index) => (
-      <div key={index} style={{ 
+    switch (activeTab) {
+      case 'samples':
+        return renderSamples(relationships);
+      case 'interpolations':
+        return renderInterpolations(relationships);
+      case 'remixes':
+        return renderRemixes(relationships);
+      default:
+        return renderSamples(relationships);
+    }
+  };
+
+  const renderInterpolations = (relationships) => {
+    const interpolates = relationships.interpolates || [];
+    const interpolatedBy = relationships.interpolated_by || [];
+
+    if (interpolates.length === 0 && interpolatedBy.length === 0) {
+      return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No interpolation information available</div>;
+    }
+
+    const allInterpolations = [...interpolates, ...interpolatedBy];
+
+    return allInterpolations.map((item, index) => (
+      <div key={index} className="genius-relationship-card" style={{ 
         background: '#232323', 
         padding: '12px', 
         borderRadius: '8px', 
@@ -88,6 +144,117 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
         border: '1px solid #333'
       }}>
         <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '8px' 
+        }}>
+          <span className="genius-relationship-tag" style={{ 
+            background: item.type === 'interpolates' ? '#1db954' : '#ff0033', 
+            color: '#fff', 
+            padding: '4px 8px', 
+            borderRadius: '12px', 
+            fontSize: '0.75rem', 
+            fontWeight: '600',
+            textTransform: 'capitalize'
+          }}>
+            {item.type === 'interpolates' ? 'Interpolates' : 'Interpolated By'}
+          </span>
+        </div>
+        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+          {item.song.title}
+        </div>
+        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+          by {item.song.primary_artist}
+        </div>
+      </div>
+    ));
+  };
+
+  const renderRemixes = (relationships) => {
+    const remixOf = relationships.remix_of || [];
+    const remixedBy = relationships.remixed_by || [];
+
+    if (remixOf.length === 0 && remixedBy.length === 0) {
+      return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No remix information available</div>;
+    }
+
+    const allRemixes = [...remixOf, ...remixedBy];
+
+    return allRemixes.map((item, index) => (
+      <div key={index} className="genius-relationship-card" style={{ 
+        background: '#232323', 
+        padding: '12px', 
+        borderRadius: '8px', 
+        marginBottom: '8px',
+        border: '1px solid #333'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '8px' 
+        }}>
+          <span className="genius-relationship-tag" style={{ 
+            background: item.type === 'remix_of' ? '#1db954' : '#ff0033', 
+            color: '#fff', 
+            padding: '4px 8px', 
+            borderRadius: '12px', 
+            fontSize: '0.75rem', 
+            fontWeight: '600',
+            textTransform: 'capitalize'
+          }}>
+            {item.type === 'remix_of' ? 'Remix Of' : 'Remixed By'}
+          </span>
+        </div>
+        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+          {item.song.title}
+        </div>
+        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+          by {item.song.primary_artist}
+        </div>
+      </div>
+    ));
+  };
+
+  const renderRelationships = (relationships) => {
+    if (!relationships || typeof relationships !== 'object') {
+      return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No relationship information available</div>;
+    }
+
+    // Convert the relationships object to a flat array for rendering
+    // Exclude 'sampled_in' since it's already shown in Samples & Sampling section
+    const allRelationships = [];
+    
+    // Add all relationship types to the array except the ones handled by tabs and translations
+    Object.keys(relationships).forEach(category => {
+      if (category !== 'sampled_in' && 
+          category !== 'samples' && 
+          category !== 'translation_of' && 
+          category !== 'translations' &&
+          category !== 'interpolates' &&
+          category !== 'interpolated_by' &&
+          category !== 'remix_of' &&
+          category !== 'remixed_by' &&
+          Array.isArray(relationships[category]) && 
+          relationships[category].length > 0) {
+        allRelationships.push(...relationships[category]);
+      }
+    });
+
+    if (allRelationships.length === 0) {
+      return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No relationship information available</div>;
+    }
+
+    return allRelationships.map((rel, index) => (
+      <div key={index} className="genius-relationship-card" style={{ 
+        background: '#232323', 
+        padding: '12px', 
+        borderRadius: '8px', 
+        marginBottom: '8px',
+        border: '1px solid #333'
+      }}>
+        <div className="genius-relationship-tag" style={{ 
           background: '#404040', 
           color: '#fff', 
           padding: '4px 8px', 
@@ -100,11 +267,11 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
         }}>
           {rel.type.replace(/_/g, ' ')}
         </div>
-        <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
           {rel.song.title}
         </div>
-        <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-          by {rel.song.primary_artist.name}
+        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+          by {rel.song.primary_artist}
         </div>
       </div>
     ));
@@ -217,9 +384,9 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
         }
         .genius-info-item {
           background: #232323;
-          padding: '12px';
-          border-radius: '8px';
-          border: '1px solid #333';
+          padding: 12px;
+          border-radius: 8px;
+          border: 1px solid #333;
         }
         .genius-info-label {
           color: #a1a1aa;
@@ -239,7 +406,7 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
           border-radius: 8px;
           border: 1px solid #333;
           line-height: 1.6;
-          color: #e4e4e7;
+          color: #ffffff;
         }
         .genius-link {
           color: #1db954;
@@ -255,7 +422,8 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
           display: flex;
           justify-content: center;
           align-items: center;
-          min-height: 200px;
+          min-height: 60vh;
+          width: 100%;
         }
         .genius-spinner {
           width: 40px;
@@ -274,6 +442,91 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
           padding: 2rem;
           font-size: 1.1rem;
         }
+        
+        /* Mobile responsive styles for screens below 480px */
+        @media (max-width: 480px) {
+          .genius-description {
+            font-size: 0.6rem !important;
+            padding: 12px !important;
+          }
+          
+          .genius-tab-button {
+            padding: 0.5rem 0.5rem !important;
+            font-size: 0.85rem !important;
+          }
+          
+          .genius-section-title {
+            font-size: 0.9rem !important;
+            margin-bottom: 0.5rem !important;
+            padding-bottom: 0.25rem !important;
+          }
+          
+          .genius-info-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.5rem !important;
+          }
+          
+          .genius-info-item {
+            padding: 8px !important;
+            border-radius: 6px !important;
+          }
+          
+          .genius-info-label {
+            font-size: 0.7rem !important;
+            margin-bottom: 2px !important;
+          }
+          
+          .genius-info-value {
+            font-size: 0.8rem !important;
+          }
+          
+          .genius-relationship-card {
+            padding: 8px !important;
+            margin-bottom: 6px !important;
+            border-radius: 6px !important;
+          }
+          
+          .genius-relationship-tag {
+            padding: 3px 6px !important;
+            font-size: 0.65rem !important;
+            border-radius: 8px !important;
+            margin-bottom: 6px !important;
+          }
+          
+          .genius-relationship-title {
+            font-size: 0.85rem !important;
+            margin-bottom: 3px !important;
+          }
+          
+          .genius-relationship-artist {
+            font-size: 0.75rem !important;
+          }
+          
+          .genius-section-title {
+            font-size: 0.9rem !important;
+            margin-bottom: 0.5rem !important;
+            padding-bottom: 0.25rem !important;
+          }
+          
+          .genius-info-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.5rem !important;
+          }
+          
+          .genius-info-item {
+            padding: 8px !important;
+            border-radius: 6px !important;
+          }
+          
+          .genius-info-label {
+            font-size: 0.7rem !important;
+            margin-bottom: 2px !important;
+          }
+          
+          .genius-info-value {
+            font-size: 0.6rem !important;
+          }
+        }
       `}</style>
 
       <div 
@@ -285,7 +538,7 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
         <div className="genius-modal-content">
           <div className="genius-modal-header">
             <h2 className="genius-modal-title">
-              {songInfo?.songDetails?.title || 'Song Information'}
+              {loading ? 'Loading...' : (songInfo?.songDetails?.title || 'Song Information')}
             </h2>
             <button className="genius-close-button" onClick={handleClose}>
               ×
@@ -294,7 +547,12 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
           {loading && (
             <div className="genius-loading">
-              <div className="genius-spinner" />
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ color: '#a1a1aa', fontSize: '1rem', marginBottom: '1.5rem' }}>
+                  Fetching song information...
+                </div>
+                <div className="genius-spinner" />
+              </div>
             </div>
           )}
 
@@ -309,9 +567,9 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
           {!loading && !error && songInfo && (
             <>
-              {/* Basic Information */}
+              {/* Song Information */}
               <div className="genius-section">
-                <h3 className="genius-section-title">Basic Information</h3>
+                <h3 className="genius-section-title">Song Information</h3>
                 <div className="genius-info-grid">
                   <div className="genius-info-item">
                     <div className="genius-info-label">Artist</div>
@@ -335,19 +593,6 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
                       </div>
                     </div>
                   )}
-                  <div className="genius-info-item">
-                    <div className="genius-info-label">Genius URL</div>
-                    <div className="genius-info-value">
-                      <a 
-                        href={songInfo.songDetails.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="genius-link"
-                      >
-                        View on Genius →
-                      </a>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -373,58 +618,105 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
               )}
 
               {/* Song Description */}
-                      {songInfo.songDetails.description && (
-          <div className="genius-section">
-            <h3 className="genius-section-title">About This Song</h3>
-            <div className="genius-description" style={{
-              maxHeight: '400px',
-              overflowY: 'auto',
-              fontSize: '0.9rem',
-              lineHeight: '1.6',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              padding: '15px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              border: '1px solid #e9ecef'
-            }}>
-              {songInfo.songDetails.description}
-            </div>
-          </div>
-        )}
-
-              {/* Samples */}
-              <div className="genius-section">
-                <h3 className="genius-section-title">Samples & Sampling</h3>
-                {renderSamples(songInfo.songDetails.samples)}
-              </div>
-
-              {/* Relationships */}
-              <div className="genius-section">
-                <h3 className="genius-section-title">Related Songs</h3>
-                {renderRelationships(songInfo.songDetails.relationships)}
-              </div>
-
-              {/* Search Info */}
-              {songInfo.searchResult && (
+              {songInfo.songDetails.description && (
                 <div className="genius-section">
-                  <h3 className="genius-section-title">Search Information</h3>
-                  <div className="genius-info-grid">
-                    <div className="genius-info-item">
-                      <div className="genius-info-label">Match Score</div>
-                      <div className="genius-info-value">
-                        {songInfo.searchResult.score}/100
-                      </div>
-                    </div>
-                    <div className="genius-info-item">
-                      <div className="genius-info-label">Found Title</div>
-                      <div className="genius-info-value">
-                        {songInfo.searchResult.title}
-                      </div>
-                    </div>
+                  <h3 className="genius-section-title">About This Song</h3>
+                  <div className="genius-description" style={{
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    fontSize: '0.9rem',
+                    lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    padding: '15px',
+                    backgroundColor: '#232323',
+                    borderRadius: '8px',
+                    border: '1px solid #333'
+                  }}>
+                    {songInfo.songDetails.description}
                   </div>
                 </div>
               )}
+
+              {/* Tabbed Relationships Interface */}
+              <div className="genius-section">
+                <div style={{ 
+                  display: 'flex', 
+                  borderBottom: '1px solid #333',
+                  marginBottom: '1rem'
+                }}>
+                  <button
+                    onClick={() => setActiveTab('samples')}
+                    className="genius-tab-button"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: activeTab === 'samples' ? '#fff' : '#a1a1aa',
+                      padding: '0.75rem 1rem',
+                      fontSize: '1rem',
+                      fontWeight: activeTab === 'samples' ? '600' : '400',
+                      cursor: 'pointer',
+                      borderBottom: activeTab === 'samples' ? '2px solid #1db954' : '2px solid transparent',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Samples & Sampling ({((songInfo.songDetails.relationships?.samples?.length || 0) + (songInfo.songDetails.relationships?.sampled_in?.length || 0))})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('interpolations')}
+                    className="genius-tab-button"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: activeTab === 'interpolations' ? '#fff' : '#a1a1aa',
+                      padding: '0.75rem 1rem',
+                      fontSize: '1rem',
+                      fontWeight: activeTab === 'interpolations' ? '600' : '400',
+                      cursor: 'pointer',
+                      borderBottom: activeTab === 'interpolations' ? '2px solid #1db954' : '2px solid transparent',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Interpolations ({((songInfo.songDetails.relationships?.interpolates?.length || 0) + (songInfo.songDetails.relationships?.interpolated_by?.length || 0))})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('remixes')}
+                    className="genius-tab-button"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: activeTab === 'remixes' ? '#fff' : '#a1a1aa',
+                      padding: '0.75rem 1rem',
+                      fontSize: '1rem',
+                      fontWeight: activeTab === 'remixes' ? '600' : '400',
+                      cursor: 'pointer',
+                      borderBottom: activeTab === 'remixes' ? '2px solid #1db954' : '2px solid transparent',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Remixes ({((songInfo.songDetails.relationships?.remix_of?.length || 0) + (songInfo.songDetails.relationships?.remixed_by?.length || 0))})
+                  </button>
+                </div>
+                
+                {/* Tab Content */}
+                {renderTabContent(songInfo.songDetails.relationships)}
+              </div>
+
+              {/* Other Relationships */}
+              {(() => {
+                const otherRelationships = renderRelationships(songInfo.songDetails.relationships);
+                if (otherRelationships && otherRelationships.props && otherRelationships.props.children !== 'No relationship information available') {
+                  return (
+                    <div className="genius-section">
+                      <h3 className="genius-section-title">Other Relationships</h3>
+                      {otherRelationships}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+
             </>
           )}
         </div>

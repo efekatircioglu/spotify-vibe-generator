@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getCachedArtistImage } from '../utils/artistCache';
 
 // Cache for contributor data to prevent duplicate API calls
 const contributorCache = new Map();
@@ -8,22 +9,124 @@ const contributorCache = new Map();
  * Renders a section of contributors with a title and list of items
  */
 const ContributorSection = ({ title, items }) => {
-  // Don't render anything if no items
-  if (!items || items.length === 0) {
+  const [artistImages, setArtistImages] = useState({});
+
+  // Function to get artist image (from cache or search)
+  const getArtistImage = async (artistName) => {
+    // First check cache
+    const cachedImage = getCachedArtistImage(artistName);
+    if (cachedImage) {
+      return cachedImage;
+    }
+
+    // If not in cache, search Spotify
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.artists && data.artists.length > 0) {
+          const bestMatch = data.artists[0];
+          if (bestMatch.image) {
+            return bestMatch.image;
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch artist image for:', artistName);
+    }
+    
     return null;
-  }
+  };
+
+  // Load images for all contributors in this section
+  useEffect(() => {
+    const loadImages = async () => {
+      const imagePromises = items.map(async (item) => {
+        const artistName = typeof item === 'object' ? item.name : item;
+        const image = await getArtistImage(artistName);
+        return { artistName, image };
+      });
+      
+      const results = await Promise.all(imagePromises);
+      const newImages = {};
+      results.forEach(({ artistName, image }) => {
+        newImages[artistName] = image;
+      });
+      setArtistImages(newImages);
+    };
+
+    if (items && items.length > 0) {
+      loadImages();
+    }
+  }, [items]);
+
+  // Function to get initials from artist name
+  const getInitials = (name) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  if (!items || items.length === 0) return null;
 
   return (
     <div className="contributor-section">
-      <h3 className="section-title">{title} ({items.length})</h3>
+      <h3 className="section-title">{title}</h3>
       <div className="contributor-list">
         {items.map((item, index) => {
           const contributorName = typeof item === 'object' ? item.name : item;
+          const artistImage = artistImages[contributorName];
           
           return (
             <div key={index} className="contributor-item">
+              <div 
+                className="contributor-avatar"
+                style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  minWidth: '48px', 
+                  minHeight: '48px',
+                  maxWidth: '48px', 
+                  maxHeight: '48px'
+                }}
+              >
+                {artistImage ? (
+                  <img 
+                    src={artistImage} 
+                    alt={contributorName}
+                    className="contributor-image"
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      maxWidth: '48px', 
+                      maxHeight: '48px' 
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className={`contributor-initials ${artistImage ? 'fallback' : ''}`}
+                  style={{ 
+                    display: artistImage ? 'none' : 'flex',
+                    width: '100%', 
+                    height: '100%', 
+                    minWidth: '48px', 
+                    minHeight: '48px',
+                    maxWidth: '48px', 
+                    maxHeight: '48px'
+                  }}
+                >
+                  {getInitials(contributorName)}
+                </div>
+              </div>
               <div className="contributor-info" style={{ margin: '5px' }}>
-                <span className="contributor-name">• {contributorName}                 </span>
+                <span className="contributor-name">{contributorName}</span>
                 {typeof item === 'object' && item.role && (
                   <span className="contributor-role" style={{ color: '#a1a1aa' }}>{item.role}</span>
                 )}
@@ -236,7 +339,6 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
     return (
       <div className="contributor-finder no-data">
         <div className="no-data-container">
-          <div className="no-data-icon">📭</div>
           <h2>No Contributor Information</h2>
           <p>This track doesn't have detailed contributor information available in MusicBrainz.</p>
         </div>
@@ -466,6 +568,71 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
+        .contributor-avatar {
+          width: 48px !important;
+          height: 48px !important;
+          border-radius: 50% !important;
+          overflow: hidden !important;
+          margin-right: 16px !important;
+          flex-shrink: 0 !important;
+          min-width: 48px !important;
+          min-height: 48px !important;
+          max-width: 48px !important;
+          max-height: 48px !important;
+        }
+
+        .contributor-image {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+          max-width: 48px !important;
+          max-height: 48px !important;
+        }
+
+        /* Force override any conflicting styles */
+        .contributor-item .contributor-avatar,
+        .contributor-item .contributor-avatar img,
+        .contributor-item .contributor-avatar .contributor-initials {
+          width: 48px !important;
+          height: 48px !important;
+          min-width: 48px !important;
+          min-height: 48px !important;
+          max-width: 48px !important;
+          max-height: 48px !important;
+        }
+
+        /* Reset any potential conflicting styles */
+        .contributor-avatar * {
+          box-sizing: border-box !important;
+        }
+
+        /* Ensure images don't exceed container */
+        .contributor-avatar img {
+          display: block !important;
+          box-sizing: border-box !important;
+        }
+
+        .contributor-initials {
+          width: 100% !important;
+          height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          background-color: #8b5cf6 !important;
+          color: white !important;
+          font-size: 18px !important;
+          font-weight: bold !important;
+          border-radius: 50% !important;
+          min-width: 48px !important;
+          min-height: 48px !important;
+          max-width: 48px !important;
+          max-height: 48px !important;
+        }
+
+        .contributor-initials.fallback {
+          display: flex;
+        }
+
         .contributor-info {
           display: flex;
           flex-direction: column;
@@ -648,6 +815,20 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
             margin-bottom: 6px;
           }
           
+          .contributor-avatar {
+            width: 40px !important;
+            height: 40px !important;
+            margin-right: 12px !important;
+            min-width: 40px !important;
+            min-height: 40px !important;
+            max-width: 40px !important;
+            max-height: 40px !important;
+          }
+          
+          .contributor-initials {
+            font-size: 16px !important;
+          }
+          
           .contributor-name {
             font-size: 11px;
           }
@@ -668,6 +849,20 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           
           .card-title {
             font-size: 1.3rem;
+          }
+          
+          .contributor-avatar {
+            width: 56px !important;
+            height: 56px !important;
+            margin-right: 20px !important;
+            min-width: 56px !important;
+            min-height: 56px !important;
+            max-width: 56px !important;
+            max-height: 56px !important;
+          }
+          
+          .contributor-initials {
+            font-size: 20px !important;
           }
           
           .contributor-name {

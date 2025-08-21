@@ -356,8 +356,6 @@ class GeniusService {
       remixed_by: [],
       live_version_of: [],
       performed_live_as: [],
-      translation_of: [],
-      translations: [],
       other: []
     };
     
@@ -396,6 +394,11 @@ class GeniusService {
             };
             
             // Categorize relationships by type
+            if (rel.relationship_type === 'translation_of' || rel.relationship_type === 'translations') {
+              console.log(`[Genius] Skipping translation relationship: ${rel.relationship_type}`);
+              return; // Skip this relationship entirely
+            }
+            
             switch (rel.relationship_type) {
               case 'samples':
                 relationships.samples.push(relationshipData);
@@ -426,12 +429,6 @@ class GeniusService {
                 break;
               case 'performed_live_as':
                 relationships.performed_live_as.push(relationshipData);
-                break;
-              case 'translation_of':
-                relationships.translation_of.push(relationshipData);
-                break;
-              case 'translations':
-                relationships.translations.push(relationshipData);
                 break;
               default:
                 relationships.other.push(relationshipData);

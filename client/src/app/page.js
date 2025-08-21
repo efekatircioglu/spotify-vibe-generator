@@ -125,6 +125,7 @@ export default function Home() {
 
   // Mobile detection state
   const [isMobile, setIsMobile] = useState(false);
+  const [deviceDetectionComplete, setDeviceDetectionComplete] = useState(false);
   
   // Wrapped modal state
   const [showWrappedModal, setShowWrappedModal] = useState(false);
@@ -530,6 +531,7 @@ export default function Home() {
       const isMobileDevice = isSmallScreen || (hasTouch && !hasMouse);
       
       setIsMobile(isMobileDevice);
+      setDeviceDetectionComplete(true);
     };
     
     // Check on mount
@@ -1056,6 +1058,19 @@ export default function Home() {
     router.push(`/artist?name=${encodeURIComponent(artist.name)}&id=${artist.id}`);
   };
 
+  // Don't render until device detection is complete to prevent hydration mismatch
+  if (!deviceDetectionComplete) {
+    return (
+      <div className={styles.dashboardBackground}>
+        <div className={styles.dashboardContainer}>
+          <main className={styles.main}>
+            <h1>Loading...</h1>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.dashboardBackground}>
       <div className={styles.dashboardContainer}>
@@ -1152,7 +1167,7 @@ export default function Home() {
                 display: 'flex', 
                 gap: '16px', 
                 flexWrap: 'wrap',
-                flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+                flexDirection: isMobile ? 'column' : 'row',
                 justifyContent: 'center',
                 alignItems: 'center'
               }}>

@@ -933,8 +933,8 @@ if (isMobile) {
                       right: 0,
                       background: '#232323',
                       borderRadius: 8,
-                      boxShadow: '0 2px 12px #0006',
-                      zIndex: 1000,
+                      boxShadow: '0 2px 16px #0003',
+                      zIndex: 99999999,
                       minWidth: 120,
                       display: 'flex',
                       flexDirection: 'column',
@@ -943,19 +943,43 @@ if (isMobile) {
                     }}>
                     <button
                       style={{
-                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s',
+                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s, color 0.18s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#404040';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.color = '#fff';
                       }}
                       onClick={() => { setMobileDropdownOpen(null); handleThirdGenreClick(track); }}
                     >Genre</button>
                     <button
                       style={{
-                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s',
+                        background: 'none', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s, color 0.18s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#404040';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.color = '#fff';
                       }}
                       onClick={() => { setMobileDropdownOpen(null); handleContributionsClick(track); }}
                     >Contributors</button>
                     <button
                       style={{
-                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s',
+                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s, color 0.18s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#404040';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.color = '#fff';
                       }}
                       onClick={() => { setMobileDropdownOpen(null); handleGeniusClick(track); }}
                     >About</button>
@@ -1019,13 +1043,13 @@ if (isMobile) {
           <style jsx global>{`
             #contrib-popup-overlay-mobile {
               position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
-              z-index: 40; opacity: 0; transition: opacity 200ms ease-out;
+              z-index: 99940; opacity: 0; transition: opacity 200ms ease-out;
               pointer-events: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
             }
             #contrib-popup-overlay-mobile.visible { opacity: 1; pointer-events: auto; }
             #contrib-popup-container {
-              position: fixed; z-index: 50; opacity: 0; transform: scale(0.95);
-              transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+              position: fixed; z-index: 99950; opacity: 0; transform: scale(0.95);
+              transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0.2, 1);
               pointer-events: none;
             }
             #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
@@ -1433,7 +1457,7 @@ if (isMobile) {
                               background: '#232323',
                               borderRadius: 10,
                               boxShadow: '0 2px 16px #0003',
-                              zIndex: 99999,
+                              zIndex: 999999,
                               minWidth: 140,
                               padding: 6,
                               display: 'flex',
@@ -1577,13 +1601,13 @@ if (isMobile) {
           <style jsx global>{`
             #contrib-popup-overlay {
               position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5);
-              z-index: 40; opacity: 0; transition: opacity 200ms ease-out;
+              z-index: 99940; opacity: 0; transition: opacity 200ms ease-out;
               pointer-events: none; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
             }
             #contrib-popup-overlay.visible { opacity: 1; pointer-events: auto; }
             #contrib-popup-container {
-              position: fixed; z-index: 50; opacity: 0; transform: scale(0.95);
-              transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+              position: fixed; z-index: 99950; opacity: 0; transform: scale(0.95);
+              transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0.2, 1);
               pointer-events: none;
             }
             #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
@@ -1699,7 +1723,7 @@ if (isMobile) {
           transform: translate(-50%, -50%) scale(1) !important;
           width: 95% !important;
           max-width: 100vw !important;
-          z-index: 50 !important;
+          z-index: 99950 !important;
         }
         
         /* Override any conflicting transforms for mobile */
@@ -1755,7 +1779,7 @@ if (isMobile) {
           position: absolute;
           top: 0.75rem;
           right: 0.75rem;
-          z-index: 100;
+          z-index: 99960;
         }
         
         .mobile-close-button:hover {

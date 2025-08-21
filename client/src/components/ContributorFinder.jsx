@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getCachedArtistImage } from '../utils/artistCache';
 
 // Cache for contributor data to prevent duplicate API calls
 const contributorCache = new Map();
@@ -8,32 +9,116 @@ const contributorCache = new Map();
  * Renders a section of contributors with a title and list of items
  */
 const ContributorSection = ({ title, items }) => {
-  // Don't render anything if no items
-  if (!items || items.length === 0) {
+  const [artistImages, setArtistImages] = useState({});
+
+  // Function to get artist image (from cache or search)
+  const getArtistImage = async (artistName) => {
+    // First check cache
+    const cachedImage = getCachedArtistImage(artistName);
+    if (cachedImage) {
+      return cachedImage;
+    }
+
+    // If not in cache, search Spotify
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.artists && data.artists.length > 0) {
+          const bestMatch = data.artists[0];
+          if (bestMatch.image) {
+            return bestMatch.image;
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch artist image for:', artistName);
+    }
+    
     return null;
-  }
+  };
+
+  // Load images for all contributors in this section
+  useEffect(() => {
+    const loadImages = async () => {
+      const imagePromises = items.map(async (item) => {
+        const artistName = typeof item === 'object' ? item.name : item;
+        const image = await getArtistImage(artistName);
+        return { artistName, image };
+      });
+      
+      const results = await Promise.all(imagePromises);
+      const newImages = {};
+      results.forEach(({ artistName, image }) => {
+        newImages[artistName] = image;
+      });
+      setArtistImages(newImages);
+    };
+
+    if (items && items.length > 0) {
+      loadImages();
+    }
+  }, [items]);
+
+  // Function to get initials from artist name
+  const getInitials = (name) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  if (!items || items.length === 0) return null;
 
   return (
     <div className="contributor-card">
       <div className="card-header">
-        <h3 className="card-title">{title} ({items.length})</h3>
+        <h3 className="card-title">{title}</h3>
       </div>
       <div className="card-content">
         <div className="contributor-grid">
-          {items.map((item, index) => (
-            <div key={index} className="contributor-chip">
-                          {typeof item === 'object' ? (
-              <>
-                <span className="contributor-name">• {item.name}</span>
-                {item.role && (
-                  <span className="contributor-role"> {item.role}</span>
-                )}
-              </>
-            ) : (
-              <span className="contributor-name">• {item}</span>
-            )}
-            </div>
-          ))}
+          {items.map((item, index) => {
+            const contributorName = typeof item === 'object' ? item.name : item;
+            const artistImage = artistImages[contributorName];
+            
+            return (
+              <div key={index} className="contributor-chip">
+                <div className="contributor-avatar">
+                  {artistImage ? (
+                    <img 
+                      src={artistImage} 
+                      alt={contributorName}
+                      className="contributor-image"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div 
+                    className={`contributor-initials ${artistImage ? 'fallback' : ''}`}
+                    style={{ display: artistImage ? 'none' : 'flex' }}
+                  >
+                    {getInitials(contributorName)}
+                  </div>
+                </div>
+                <div className="contributor-text">
+                  {typeof item === 'object' ? (
+                    <>
+                      <span className="contributor-name">{item.name}</span>
+                      {item.role && (
+                        <span className="contributor-role"> {item.role}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="contributor-name">{item}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -217,7 +302,6 @@ const ContributorFinder = ({ mbid }) => {
     return (
       <div className="contributor-finder no-data">
         <div className="no-data-container">
-          <div className="no-data-icon">📭</div>
           <h2>No Contributor Information</h2>
           <p>This track doesn't have detailed contributor information available in MusicBrainz.</p>
         </div>
@@ -357,21 +441,55 @@ const ContributorFinder = ({ mbid }) => {
         }
 
         .contributor-chip {
-          display: inline-flex;
+          display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
           background: rgba(63, 63, 70, 0.4);
           border: 1px solid rgba(63, 63, 70, 0.6);
           border-radius: 2rem;
           padding: 0.4rem 0.8rem;
           margin: 0.2rem;
           transition: all 0.2s ease;
+          width: 100%;
         }
 
         .contributor-chip:hover {
           background: rgba(29, 185, 84, 0.1);
           border-color: rgba(29, 185, 84, 0.4);
           transform: scale(1.05);
+        }
+
+        .contributor-avatar {
+          position: relative;
+          width: 1.25rem;
+          height: 1.25rem;
+          border-radius: 50%;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+
+        .contributor-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .contributor-initials {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 100%;
+          height: 100%;
+          background-color: #1db954;
+          color: #ffffff;
+          font-size: 0.75rem;
+          font-weight: 700;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .contributor-text {
+          flex-grow: 1;
         }
 
         .contributor-name {
@@ -479,6 +597,19 @@ const ContributorFinder = ({ mbid }) => {
           .contributor-card {
             padding: 1rem;
           }
+          
+          .contributor-avatar {
+            width: 1rem;
+            height: 1rem;
+          }
+          
+          .contributor-initials {
+            font-size: 0.625rem;
+          }
+          
+          .contributor-chip {
+            padding: 0.5rem;
+          }
         }
         
         /* Desktop text sizing */
@@ -493,6 +624,15 @@ const ContributorFinder = ({ mbid }) => {
           
           .card-title {
             font-size: 1.3rem;
+          }
+          
+          .contributor-avatar {
+            width: 1.5rem;
+            height: 1.5rem;
+          }
+          
+          .contributor-initials {
+            font-size: 0.875rem;
           }
           
           .contributor-name {
