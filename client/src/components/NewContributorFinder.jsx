@@ -236,7 +236,6 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
     return (
       <div className="contributor-finder no-data">
         <div className="no-data-container">
-          <div className="no-data-icon">📭</div>
           <h2>No Contributor Information</h2>
           <p>This track doesn't have detailed contributor information available in MusicBrainz.</p>
         </div>

@@ -34,80 +34,277 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
   };
 
   const renderSamples = (samples) => {
-    if (!samples || samples.length === 0) {
+    if (!samples || !Array.isArray(samples) || samples.length === 0) {
       return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No sample information available</div>;
     }
 
-    return samples.map((sample, index) => (
-      <div key={index} style={{ 
-        background: '#232323', 
-        padding: '12px', 
-        borderRadius: '8px', 
-        marginBottom: '8px',
-        border: '1px solid #333'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '8px' 
+    // Check if all samples have empty song data
+    const allEmpty = samples.every(sample => 
+      !sample || !sample.song || !sample.song.title || !sample.song.primary_artist || !sample.song.primary_artist.name
+    );
+    
+    if (allEmpty) {
+      return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No sample information available</div>;
+    }
+
+    return samples.map((sample, index) => {
+      // Safety check for sample object structure
+      if (!sample || !sample.type || !sample.song || !sample.song.title || !sample.song.primary_artist || !sample.song.primary_artist.name) {
+        return null;
+      }
+      
+      return (
+        <div key={index} style={{ 
+          background: '#232323', 
+          padding: '12px', 
+          borderRadius: '8px', 
+          marginBottom: '8px',
+          border: '1px solid #333'
         }}>
-          <span style={{ 
-            background: sample.type === 'samples' ? '#1db954' : '#ff6b6b', 
-            color: '#fff', 
-            padding: '4px 8px', 
-            borderRadius: '12px', 
-            fontSize: '0.75rem', 
-            fontWeight: '600',
-            textTransform: 'capitalize'
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '8px' 
           }}>
-            {sample.type === 'samples' ? 'Samples' : 'Sampled In'}
-          </span>
+            <span style={{ 
+              background: sample.type === 'samples' ? '#1db954' : '#ff6b6b', 
+              color: '#fff', 
+              padding: '4px 8px', 
+              borderRadius: '12px', 
+              fontSize: '0.75rem', 
+              fontWeight: '600',
+              textTransform: 'capitalize'
+            }}>
+              {sample.type === 'samples' ? 'Samples' : 'Sampled In'}
+            </span>
+          </div>
+          <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+            {sample.song.title}
+          </div>
+          <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+            by {sample.song.primary_artist.name}
+          </div>
         </div>
-        <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
-          {sample.song.title}
-        </div>
-        <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-          by {sample.song.primary_artist.name}
-        </div>
-      </div>
-    ));
+      );
+    }).filter(Boolean); // Remove any null entries
+  };
+
+  // Helper function to check if description has meaningful content
+  const hasMeaningfulDescription = (description) => {
+    if (!description) return false;
+    // Check if description is just "?" or empty string
+    const trimmedDesc = description.toString().trim();
+    const result = trimmedDesc !== '' && trimmedDesc !== '?';
+    console.log('[GeniusSongModal] Description check:', { description, trimmedDesc, result });
+    return result;
+  };
+
+  // Helper function to check if relationships have actual song data
+  const hasMeaningfulRelationships = (relationships) => {
+    if (!relationships) {
+      console.log('[GeniusSongModal] No relationships data');
+      return false;
+    }
+    
+    console.log('[GeniusSongModal] Raw relationships data:', relationships);
+    
+    // Check if any relationship type has songs
+    const hasSongs = Object.keys(relationships).some(key => {
+      const songs = relationships[key];
+      return Array.isArray(songs) && songs.length > 0;
+    });
+    
+    console.log('[GeniusSongModal] Has songs in relationships:', hasSongs);
+    return hasSongs;
+  };
+
+  // Helper function to check if there's any meaningful information
+  const hasAnyMeaningfulInfo = (songInfo) => {
+    if (!songInfo || !songInfo.songDetails) return false;
+    
+    // Debug logging to understand the data structure
+    console.log('[GeniusSongModal] Checking for meaningful info:', {
+      description: songInfo.songDetails.description,
+      relationships: songInfo.songDetails.relationships,
+      samples: songInfo.songDetails.samples,
+      featured_artists: songInfo.songDetails.featured_artists
+    });
+    
+    const hasDesc = hasMeaningfulDescription(songInfo.songDetails.description);
+    const hasRelationships = hasMeaningfulRelationships(songInfo.songDetails.relationships);
+    const hasSamples = songInfo.songDetails.relationships && (
+      (songInfo.songDetails.relationships.samples && Array.isArray(songInfo.songDetails.relationships.samples) && 
+       songInfo.songDetails.relationships.samples.length > 0) ||
+      (songInfo.songDetails.relationships.sampled_in && Array.isArray(songInfo.songDetails.relationships.sampled_in) && 
+       songInfo.songDetails.relationships.sampled_in.length > 0)
+    );
+    const hasFeaturedArtists = songInfo.songDetails.featured_artists && 
+                               Array.isArray(songInfo.songDetails.featured_artists) && 
+                               songInfo.songDetails.featured_artists.length > 0;
+    
+    // Only check the 3 specific criteria: description, relationships, and samples
+    const result = hasDesc || hasRelationships || hasSamples;
+    console.log('[GeniusSongModal] Has meaningful info:', result, { hasDesc, hasRelationships, hasSamples, hasFeaturedArtists });
+    
+    return result;
   };
 
   const renderRelationships = (relationships) => {
-    if (!relationships || relationships.length === 0) {
+    if (!relationships) {
+      console.log('[GeniusSongModal] No relationships data');
       return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No relationship information available</div>;
     }
 
-    return relationships.map((rel, index) => (
-      <div key={index} style={{ 
-        background: '#232323', 
-        padding: '12px', 
-        borderRadius: '8px', 
-        marginBottom: '8px',
-        border: '1px solid #333'
-      }}>
-        <div style={{ 
-          background: '#404040', 
-          color: '#fff', 
-          padding: '4px 8px', 
-          borderRadius: '12px', 
-          fontSize: '0.75rem', 
-          fontWeight: '600',
-          textTransform: 'capitalize',
-          display: 'inline-block',
-          marginBottom: '8px'
-        }}>
-          {rel.type.replace(/_/g, ' ')}
-        </div>
-        <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
-          {rel.song.title}
-        </div>
-        <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
-          by {rel.song.primary_artist.name}
-        </div>
-      </div>
-    ));
+    console.log('[GeniusSongModal] Starting to render relationships');
+    console.log('[GeniusSongModal] Full relationships object:', relationships);
+    console.log('[GeniusSongModal] Relationships keys:', Object.keys(relationships));
+    
+    // Create sections for each relationship type that has songs
+    const sections = [];
+    
+    Object.keys(relationships).forEach(relationshipType => {
+      const relationshipItems = relationships[relationshipType];
+      console.log(`[GeniusSongModal] Processing ${relationshipType}:`, relationshipItems);
+      
+      if (Array.isArray(relationshipItems) && relationshipItems.length > 0) {
+        console.log(`[GeniusSongModal] ${relationshipType} has ${relationshipItems.length} relationship items`);
+        
+        // Log the first item to see its structure
+        if (relationshipItems.length > 0) {
+          console.log(`[GeniusSongModal] First item in ${relationshipType}:`, relationshipItems[0]);
+          console.log(`[GeniusSongModal] First item structure:`, {
+            hasType: !!relationshipItems[0].type,
+            hasSong: !!relationshipItems[0].song,
+            songType: typeof relationshipItems[0].song,
+            songKeys: relationshipItems[0].song ? Object.keys(relationshipItems[0].song) : 'No song object'
+          });
+        }
+        
+        // Filter out invalid relationship items and extract valid songs
+        const validSongs = relationshipItems.filter(item => {
+          // Check if item exists and has the expected structure
+          if (!item) return false;
+          
+          // The server sends: { type: '...', song: { title: '...', primary_artist: { name: '...' } } }
+          const hasSong = item.song && typeof item.song === 'object';
+          
+          // Log the full song object structure to debug
+          if (hasSong) {
+            console.log(`[GeniusSongModal] Full song object for ${relationshipType}:`, item.song);
+            console.log(`[GeniusSongModal] Song object keys:`, Object.keys(item.song));
+          }
+          
+          // Try multiple possible artist field structures
+          const hasTitle = hasSong && (item.song.title || item.song.name);
+          const hasArtist = hasSong && (
+            (item.song.primary_artist && item.song.primary_artist.name) ||
+            (item.song.artist && item.song.artist.name) ||
+            (item.song.artist_names) ||
+            (item.song.artist_name)
+          );
+          
+          // Log what we're checking
+          console.log(`[GeniusSongModal] Checking relationship item:`, {
+            hasItem: !!item,
+            hasSong: hasSong,
+            hasTitle: hasTitle,
+            hasArtist: hasArtist,
+            songTitle: hasSong ? (item.song.title || item.song.name) : 'No song',
+            artistName: hasSong ? (
+              item.song.primary_artist?.name || 
+              item.song.artist?.name || 
+              item.song.artist_names || 
+              item.song.artist_name || 
+              'No artist'
+            ) : 'No song',
+            availableArtistFields: hasSong ? {
+              primary_artist: item.song.primary_artist,
+              artist: item.song.artist,
+              artist_names: item.song.artist_names,
+              artist_name: item.song.artist_name
+            } : 'No song object'
+          });
+          
+          return hasSong && hasTitle && hasArtist;
+        }).map(item => {
+          // Extract and normalize the song data
+          const song = item.song;
+          return {
+            title: song.title || song.name,
+            primary_artist: {
+              name: song.primary_artist?.name || 
+                    song.artist?.name || 
+                    song.artist_names || 
+                    song.artist_name || 
+                    'Unknown Artist'
+            }
+          };
+        });
+        
+        console.log(`[GeniusSongModal] ${relationshipType} has ${validSongs.length} valid songs after filtering`);
+        
+        if (validSongs.length > 0) {
+          console.log(`[GeniusSongModal] Creating section for ${relationshipType} with ${validSongs.length} songs`);
+          
+          // Create section for this relationship type
+          const section = (
+            <div key={relationshipType} style={{ marginBottom: '24px' }}>
+              <h4 style={{ 
+                color: '#fff', 
+                fontSize: '1.1rem', 
+                fontWeight: '600', 
+                marginBottom: '12px',
+                textTransform: 'capitalize'
+              }}>
+                {relationshipType.replace(/_/g, ' ')}
+              </h4>
+              
+              {validSongs.map((song, songIndex) => {
+                // The song data is now normalized, so we can access it directly
+                const songTitle = song.title;
+                const artistName = song.primary_artist.name;
+                
+                return (
+                  <div key={`${relationshipType}-${songIndex}`} style={{ 
+                    background: '#232323', 
+                    padding: '12px', 
+                    borderRadius: '8px', 
+                    marginBottom: '8px',
+                    border: '1px solid #333'
+                  }}>
+                    <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+                      {songTitle}
+                    </div>
+                    <div style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+                      by {artistName}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+          
+          sections.push(section);
+          console.log(`[GeniusSongModal] Section added for ${relationshipType}`);
+        } else {
+          console.log(`[GeniusSongModal] No valid songs found for ${relationshipType} after filtering`);
+        }
+      } else {
+        console.log(`[GeniusSongModal] ${relationshipType} has no relationship items or invalid data`);
+      }
+    });
+    
+    console.log('[GeniusSongModal] Total sections created:', sections.length);
+    console.log('[GeniusSongModal] Sections array:', sections);
+    
+    if (sections.length === 0) {
+      console.log('[GeniusSongModal] No sections to render');
+      return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>No relationship information available</div>;
+    }
+    
+    console.log('[GeniusSongModal] Rendering', sections.length, 'sections');
+    return sections;
   };
 
   return (
@@ -216,10 +413,9 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
           margin-bottom: 1rem;
         }
         .genius-info-item {
-          background: #232323;
-          padding: '12px';
-          border-radius: '8px';
-          border: '1px solid #333';
+          padding: 12px;
+          border-radius: 8px;
+          border: 1px solid #333;
         }
         .genius-info-label {
           color: #a1a1aa;
@@ -239,23 +435,15 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
           border-radius: 8px;
           border: 1px solid #333;
           line-height: 1.6;
-          color: #e4e4e7;
+          color: #ffffff;
         }
-        .genius-link {
-          color: #1db954;
-          text-decoration: none;
-          font-weight: 500;
-          transition: color 0.2s ease;
-        }
-        .genius-link:hover {
-          color: #1ed760;
-          text-decoration: underline;
-        }
+
         .genius-loading {
           display: flex;
           justify-content: center;
           align-items: center;
-          min-height: 200px;
+          min-height: 60vh;
+          width: 100%;
         }
         .genius-spinner {
           width: 40px;
@@ -285,7 +473,7 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
         <div className="genius-modal-content">
           <div className="genius-modal-header">
             <h2 className="genius-modal-title">
-              {songInfo?.songDetails?.title || 'Song Information'}
+              {loading ? 'Loading...' : (songInfo?.songDetails?.title || 'Song Information')}
             </h2>
             <button className="genius-close-button" onClick={handleClose}>
               ×
@@ -294,7 +482,12 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
           {loading && (
             <div className="genius-loading">
-              <div className="genius-spinner" />
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ color: '#a1a1aa', fontSize: '1rem', marginBottom: '1.5rem' }}>
+                  Fetching song information...
+                </div>
+                <div className="genius-spinner" />
+              </div>
             </div>
           )}
 
@@ -309,9 +502,9 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
           {!loading && !error && songInfo && (
             <>
-              {/* Basic Information */}
+                            {/* Song Information */}
               <div className="genius-section">
-                <h3 className="genius-section-title">Basic Information</h3>
+                <h3 className="genius-section-title">Song Information</h3>
                 <div className="genius-info-grid">
                   <div className="genius-info-item">
                     <div className="genius-info-label">Artist</div>
@@ -335,24 +528,34 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
                       </div>
                     </div>
                   )}
-                  <div className="genius-info-item">
-                    <div className="genius-info-label">Genius URL</div>
-                    <div className="genius-info-value">
-                      <a 
-                        href={songInfo.songDetails.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="genius-link"
-                      >
-                        View on Genius →
-                      </a>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Featured Artists */}
-              {songInfo.songDetails.featured_artists && songInfo.songDetails.featured_artists.length > 0 && (
+          {/* Check if there's any meaningful information */}
+          {!hasAnyMeaningfulInfo(songInfo) && (
+            <div className="genius-section" style={{ textAlign: 'center', padding: '2rem' }}>
+              <div style={{ 
+                fontSize: '1.2rem', 
+                color: '#a1a1aa', 
+                marginBottom: '1rem',
+                fontWeight: 600
+              }}>
+                ⚠️ No Information Found
+              </div>
+              <div style={{ 
+                color: '#71717a', 
+                fontSize: '0.95rem',
+                lineHeight: 1.5
+              }}>
+                No information found for this song.
+                <br />
+                The description, relationships, and samples are all empty or unavailable.
+              </div>
+            </div>
+          )}
+
+          {/* Featured Artists */}
+              {songInfo.songDetails.featured_artists && Array.isArray(songInfo.songDetails.featured_artists) && songInfo.songDetails.featured_artists.length > 0 && (
                 <div className="genius-section">
                   <h3 className="genius-section-title">Featured Artists</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -373,10 +576,10 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
               )}
 
               {/* Song Description */}
-                      {songInfo.songDetails.description && (
-          <div className="genius-section">
-            <h3 className="genius-section-title">About This Song</h3>
-            <div className="genius-description" style={{
+              {hasMeaningfulDescription(songInfo.songDetails.description) && (
+                <div className="genius-section">
+                  <h3 className="genius-section-title">About This Song</h3>
+                              <div className="genius-description" style={{
               maxHeight: '400px',
               overflowY: 'auto',
               fontSize: '0.9rem',
@@ -384,47 +587,38 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               padding: '15px',
-              backgroundColor: '#f8f9fa',
+              backgroundColor: '#232323',
               borderRadius: '8px',
-              border: '1px solid #e9ecef'
+              border: '1px solid #333'
             }}>
-              {songInfo.songDetails.description}
-            </div>
-          </div>
-        )}
-
-              {/* Samples */}
-              <div className="genius-section">
-                <h3 className="genius-section-title">Samples & Sampling</h3>
-                {renderSamples(songInfo.songDetails.samples)}
-              </div>
-
-              {/* Relationships */}
-              <div className="genius-section">
-                <h3 className="genius-section-title">Related Songs</h3>
-                {renderRelationships(songInfo.songDetails.relationships)}
-              </div>
-
-              {/* Search Info */}
-              {songInfo.searchResult && (
-                <div className="genius-section">
-                  <h3 className="genius-section-title">Search Information</h3>
-                  <div className="genius-info-grid">
-                    <div className="genius-info-item">
-                      <div className="genius-info-label">Match Score</div>
-                      <div className="genius-info-value">
-                        {songInfo.searchResult.score}/100
-                      </div>
-                    </div>
-                    <div className="genius-info-item">
-                      <div className="genius-info-label">Found Title</div>
-                      <div className="genius-info-value">
-                        {songInfo.searchResult.title}
-                      </div>
-                    </div>
+                    {songInfo.songDetails.description}
                   </div>
                 </div>
               )}
+
+              {/* Samples */}
+              {songInfo.songDetails.relationships && (
+                (songInfo.songDetails.relationships.samples && songInfo.songDetails.relationships.samples.length > 0) ||
+                (songInfo.songDetails.relationships.sampled_in && songInfo.songDetails.relationships.sampled_in.length > 0)
+              ) && (
+                <div className="genius-section">
+                  <h3 className="genius-section-title">Samples & Sampling</h3>
+                  {renderSamples([
+                    ...(songInfo.songDetails.relationships.samples || []),
+                    ...(songInfo.songDetails.relationships.sampled_in || [])
+                  ])}
+                </div>
+              )}
+
+              {/* Relationships */}
+              {songInfo.songDetails.relationships && (
+                <div className="genius-section">
+                  <h3 className="genius-section-title">Related Songs</h3>
+                  {renderRelationships(songInfo.songDetails.relationships)}
+                </div>
+              )}
+
+
             </>
           )}
         </div>
