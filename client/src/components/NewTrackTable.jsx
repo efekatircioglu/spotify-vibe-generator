@@ -6,6 +6,7 @@ import DropdownPortal from './DropdownPortal';
 import NewContributorFinder from './NewContributorFinder';
 import { lookupTrackMBID } from '../utils/trackAnalysisCache';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
+import GeniusSongModal from './GeniusSongModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 import { useRouter } from 'next/navigation';
 
@@ -69,6 +70,11 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
   const tableContainerRef = useRef(null);
   const contributorModalRef = useRef(null);
   const [isContribLoading, setIsContribLoading] = useState(false);
+  const [showGeniusModal, setShowGeniusModal] = useState(false);
+  const [geniusSongInfo, setGeniusSongInfo] = useState(null);
+  const [isGeniusLoading, setIsGeniusLoading] = useState(false);
+  const [geniusError, setGeniusError] = useState(null);
+  const [selectedTrackForGenius, setSelectedTrackForGenius] = useState(null);
   
 
   
@@ -224,6 +230,71 @@ const NoContributorData = () => {
 
   setIsContribLoading(false); // <-- Finish loading
 };
+
+  // Handle Genius "About" button click
+  const handleGeniusClick = async (track) => {
+    try {
+      setSelectedTrackForGenius(track);
+      setShowGeniusModal(true);
+      setIsGeniusLoading(true);
+      setGeniusError(null);
+      
+      // Extract artist name from track data
+      let artistName = '';
+      if (track.artist && typeof track.artist === 'string') {
+        artistName = track.artist.split(',')[0].trim(); // Take first artist if multiple
+      } else if (track.artists && Array.isArray(track.artists)) {
+        artistName = track.artists[0]?.name || track.artists[0];
+      }
+      
+      if (!artistName) {
+        throw new Error('Unable to determine artist name');
+      }
+      
+      console.log(`[Genius] Fetching info for: "${track.name}" by "${artistName}"`);
+      
+      // Call Genius API
+      const response = await fetch(`http://127.0.0.1:8000/genius/song-info?songName=${encodeURIComponent(track.name)}&artistName=${encodeURIComponent(artistName)}`);
+      
+      console.log(`[Genius] Response status: ${response.status}`);
+      
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          console.log('[Genius] Could not parse error response:', parseError);
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const songInfo = await response.json();
+      console.log(`[Genius] Raw response:`, songInfo);
+      
+      // Log the Genius song ID
+      if (songInfo.songDetails && songInfo.songDetails.id) {
+        console.log(`[Genius] 🎵 Genius Song ID: ${songInfo.songDetails.id}`);
+        console.log(`[Genius] 🎵 Song: "${songInfo.songDetails.title}" by ${songInfo.songDetails.primary_artist?.name || 'Unknown Artist'}`);
+        console.log(`[Genius] 🎵 Genius URL: ${songInfo.songDetails.url}`);
+      }
+      
+      // Validate the response structure
+      if (!songInfo || !songInfo.songDetails || !songInfo.songDetails.title) {
+        console.error('[Genius] Invalid response structure:', songInfo);
+        throw new Error('Invalid response from Genius API');
+      }
+      
+      setGeniusSongInfo(songInfo);
+      console.log(`[Genius] Successfully retrieved song info:`, songInfo);
+      
+    } catch (error) {
+      console.error('[Genius] Error:', error);
+      setGeniusError(error.message);
+    } finally {
+      setIsGeniusLoading(false);
+    }
+  };
 
   const handleThirdGenreClick = async (track) => {
     try {
@@ -882,6 +953,12 @@ if (isMobile) {
                       }}
                       onClick={() => { setMobileDropdownOpen(null); handleContributionsClick(track); }}
                     >Contributors</button>
+                    <button
+                      style={{
+                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s',
+                      }}
+                      onClick={() => { setMobileDropdownOpen(null); handleGeniusClick(track); }}
+                    >About</button>
                   </div>
                 )}
                 {track.id && (
@@ -1011,7 +1088,16 @@ if (isMobile) {
           </div>
         </>
       )}
-      {/* --- END OF NEW POP-UP CODE --- */}
+              {/* --- END OF NEW POP-UP CODE --- */}
+        
+        {/* Genius Song Modal for Mobile */}
+        <GeniusSongModal
+          open={showGeniusModal}
+          onClose={() => setShowGeniusModal(false)}
+          songInfo={geniusSongInfo}
+          loading={isGeniusLoading}
+          error={geniusError}
+        />
       </div>
     );
   }
@@ -1407,6 +1493,32 @@ if (isMobile) {
                             >
                               Contributions
                             </button>
+                            <button
+                              style={{
+                                background: 'none',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: 6,
+                                fontWeight: 700,
+                                fontSize: 'clamp(0.75rem, 0.9vw, 0.92rem)',
+                                padding: 'clamp(3px, 0.8vw, 4px) clamp(8px, 1.5vw, 10px)',
+                                lineHeight: 1.1,
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'background 0.18s, color 0.18s',
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = '#404040';
+                                e.currentTarget.style.color = '#fff';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'none';
+                                e.currentTarget.style.color = '#fff';
+                              }}
+                              onClick={() => { setDropdownOpen(null); handleGeniusClick(track); }}
+                            >
+                              About
+                            </button>
                           </div>
                         </DropdownPortal>
                       )}
@@ -1536,6 +1648,15 @@ if (isMobile) {
           songInfo={selectedTrackForNewAnalysis}
         />
       )}
+      
+      {/* Genius Song Modal */}
+      <GeniusSongModal
+        open={showGeniusModal}
+        onClose={() => setShowGeniusModal(false)}
+        songInfo={geniusSongInfo}
+        loading={isGeniusLoading}
+        error={geniusError}
+      />
       
 
       

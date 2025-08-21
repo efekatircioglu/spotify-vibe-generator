@@ -8,6 +8,7 @@ const pool = new Pool(); // Uses .env variables automatically
 const axios = require('axios');
 const { getDiscogsArtistProfile } = require('./services/discogsService');
 const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName, getArtistPrimaryGenre } = require('./services/discogsService');
+const geniusService = require('./services/geniusService');
 
 const app = express();
 const PORT = 8000;
@@ -2400,6 +2401,180 @@ app.get('/album-contributors', async (req, res) => {
   } catch (error) {
     console.error(`\n❌ [ALBUM CONTRIBUTORS] Error:`, error);
     res.status(500).json({ error: 'Failed to fetch album contributors' });
+  }
+});
+
+// Genius API endpoint to get song information
+app.get('/genius/song-info', async (req, res) => {
+  try {
+    const { songName, artistName } = req.query;
+    
+    if (!songName || !artistName) {
+      return res.status(400).json({ error: 'Missing song name or artist name' });
+    }
+    
+    console.log(`[Genius API] Request received for: "${songName}" by "${artistName}"`);
+    
+    const songInfo = await geniusService.getSongInfoFromSpotify(songName, artistName);
+    
+    if (songInfo.error) {
+      console.log(`[Genius API] Error: ${songInfo.error}`);
+      return res.status(404).json({ error: songInfo.error });
+    }
+    
+    console.log(`[Genius API] Successfully retrieved info for: "${songInfo.songDetails.title}"`);
+    res.json(songInfo);
+    
+  } catch (error) {
+    console.error('[Genius API] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch song information from Genius' });
+  }
+});
+
+// Debug endpoint to test Genius API directly
+app.get('/genius/debug', async (req, res) => {
+  try {
+    console.log('[Genius Debug] Testing Genius API connection...');
+    
+    // Test basic connectivity
+    const testResult = await geniusService.getSongInfoFromSpotify('Blinding Lights', 'The Weeknd');
+    
+    res.json({
+      success: !testResult.error,
+      result: testResult,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[Genius Debug] Error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// New endpoint to test Genius API with custom song/artist
+app.get('/genius/test-song', async (req, res) => {
+  try {
+    const { songName, artistName } = req.query;
+    
+    if (!songName || !artistName) {
+      return res.status(400).json({ 
+        error: 'Missing parameters',
+        usage: 'Use: /genius/test-song?songName=Chandelier&artistName=Sia'
+      });
+    }
+    
+    console.log(`[Genius Test] Testing with: "${songName}" by "${artistName}"`);
+    
+    // Get the song info
+    const songInfo = await geniusService.getSongInfoFromSpotify(songName, artistName);
+    
+    // Return the complete response with detailed logging
+    res.json({
+      success: !songInfo.error,
+      query: { songName, artistName },
+      result: songInfo,
+      timestamp: new Date().toISOString(),
+      message: songInfo.error ? 'API call failed' : 'API call successful'
+    });
+    
+  } catch (error) {
+    console.error('[Genius Test] Error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Endpoint to show raw Genius API response structure
+app.get('/genius/raw-response/:songId', async (req, res) => {
+  try {
+    const { songId } = req.params;
+    
+    if (!songId) {
+      return res.status(400).json({ error: 'Missing song ID' });
+    }
+    
+    console.log(`[Genius Raw] Getting raw response for song ID: ${songId}`);
+    
+    // Get the raw response from Genius API
+    const accessToken = await geniusService.getAccessToken();
+    const axios = require('axios');
+    
+    const response = await axios.get(`https://api.genius.com/songs/${songId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'User-Agent': 'spotify-vibe-generator/1.0'
+      }
+    });
+    
+    // Return the complete raw response
+    res.json({
+      success: true,
+      songId: songId,
+      rawResponse: response.data,
+      timestamp: new Date().toISOString(),
+      message: 'Raw Genius API response'
+    });
+    
+  } catch (error) {
+    console.error('[Genius Raw] Error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Simple health check for Genius service
+app.get('/genius/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'Genius API',
+    timestamp: new Date().toISOString(),
+    environment: {
+      GENIUS_CLIENT_ID: !!process.env.GENIUS_CLIENT_ID,
+      GENIUS_CLIENT_SECRET: !!process.env.GENIUS_CLIENT_SECRET,
+      GENIUS_CLIENT_ACCESS_TOKEN: !!process.env.GENIUS_CLIENT_ACCESS_TOKEN
+    }
+  });
+});
+
+// Test basic Genius API connectivity
+app.get('/genius/test-connectivity', async (req, res) => {
+  try {
+    console.log('[Genius] Testing basic connectivity...');
+    
+    // Try a simple request to Genius API
+    const axios = require('axios');
+    const response = await axios.get('https://api.genius.com/search?q=test', {
+      headers: {
+        'User-Agent': 'spotify-vibe-generator/1.0'
+      },
+      timeout: 10000
+    });
+    
+    res.json({
+      success: true,
+      status: response.status,
+      message: 'Genius API is accessible',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[Genius] Connectivity test failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Genius API is not accessible',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
