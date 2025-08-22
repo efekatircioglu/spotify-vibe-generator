@@ -727,7 +727,7 @@ export default function ArtistConcertsPage() {
                   backgroundImage: `url('${artistImage}')`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
-                  filter: 'blur(28px) brightness(0.7)',
+                  filter: 'blur(22px) brightness(0.7)',
                   zIndex: 1,
                 }}
               />

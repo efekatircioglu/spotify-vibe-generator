@@ -150,6 +150,101 @@ export const clearArtistCache = () => {
   }
 };
 
+export const clearSpecificArtistCache = (artistName) => {
+  try {
+    if (!artistName || typeof artistName !== 'string') {
+      console.error('Invalid artist name provided to clearSpecificArtistCache:', artistName);
+      return;
+    }
+    
+    let cache = getArtistCache();
+    if (cache && typeof cache === 'object') {
+      delete cache[artistName.toLowerCase()];
+      safeSetItem(CACHE_KEY, cache);
+      console.log(`Cleared cache for artist: ${artistName}`);
+    }
+  } catch (error) {
+    console.error('Error clearing specific artist cache:', error);
+  }
+};
+
+// New function specifically for caching Spotify artist data (without requiring ticketmaster ID)
+export const setSpotifyArtistCache = (artistName, imageUrl, spotifyId) => {
+  try {
+    // Validate inputs
+    if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
+      console.error('Invalid artist name provided to setSpotifyArtistCache:', artistName);
+      return;
+    }
+    
+    if (!spotifyId || typeof spotifyId !== 'string') {
+      console.error('Invalid Spotify ID provided to setSpotifyArtistCache:', spotifyId);
+      return;
+    }
+    
+    let cache = getArtistCache();
+    
+    // Ensure cache is an object
+    if (typeof cache !== 'object' || cache === null) {
+      console.warn('Cache was not an object, initializing new cache');
+      cache = {};
+    }
+    
+    // Add or update Spotify artist data in cache
+    const existingData = cache[artistName.toLowerCase()] || {};
+    cache[artistName.toLowerCase()] = {
+      ...existingData,
+      image: imageUrl,
+      spotifyId: spotifyId
+    };
+    
+    // Check if cache is getting too large
+    const estimatedSize = estimateCacheSize(cache);
+    
+    if (estimatedSize > MAX_CACHE_SIZE || Object.keys(cache).length > MAX_CACHE_ENTRIES) {
+      console.warn('Cache size limit reached, cleaning old entries...');
+      const cleanedCache = cleanCache(cache);
+      
+      // Try to save the cleaned cache
+      const saveSuccess = safeSetItem(CACHE_KEY, cleanedCache);
+      if (saveSuccess) {
+        console.log('Cache cleaned and saved successfully');
+      } else {
+        console.warn('Cannot save cleaned cache - storage quota exceeded');
+      }
+    } else {
+      // Normal save operation
+      const saveSuccess = safeSetItem(CACHE_KEY, cache);
+      if (!saveSuccess) {
+        console.warn('Cannot save cache - storage quota exceeded');
+      }
+    }
+  } catch (error) {
+    if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+      console.warn('localStorage quota exceeded, attempting to clean cache...');
+      
+      try {
+        // Try to clean the cache and save again
+        const cache = getArtistCache();
+        const cleanedCache = cleanCache(cache);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
+        console.log('Cache cleaned and saved after quota error');
+      } catch (cleanError) {
+        console.error('Failed to clean cache after quota error:', cleanError);
+        // Last resort: clear everything
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          console.log('Cache cleared due to persistent quota issues');
+        } catch (clearError) {
+          console.error('Error clearing cache:', clearError);
+        }
+      }
+    } else {
+      console.error('Error writing Spotify artist cache:', error);
+    }
+  }
+};
+
 export const getCacheStats = () => {
   try {
     const cache = getArtistCache();

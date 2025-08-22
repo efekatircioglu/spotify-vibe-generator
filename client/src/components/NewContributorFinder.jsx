@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { getCachedArtistImage } from '../utils/artistCache';
+import { getCachedArtistImage, setSpotifyArtistCache, clearSpecificArtistCache } from '../utils/artistCache';
 
 // Cache for contributor data to prevent duplicate API calls
 const contributorCache = new Map();
@@ -9,126 +9,24 @@ const contributorCache = new Map();
  * Renders a section of contributors with a title and list of items
  */
 const ContributorSection = ({ title, items }) => {
-  const [artistImages, setArtistImages] = useState({});
-
-  // Function to get artist image (from cache or search)
-  const getArtistImage = async (artistName) => {
-    // First check cache
-    const cachedImage = getCachedArtistImage(artistName);
-    if (cachedImage) {
-      return cachedImage;
-    }
-
-    // If not in cache, search Spotify
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.artists && data.artists.length > 0) {
-          const bestMatch = data.artists[0];
-          if (bestMatch.image) {
-            return bestMatch.image;
-          }
-        }
-      }
-    } catch (error) {
-      console.log('Could not fetch artist image for:', artistName);
-    }
-    
+  // Don't render anything if no items
+  if (!items || items.length === 0) {
     return null;
-  };
-
-  // Load images for all contributors in this section
-  useEffect(() => {
-    const loadImages = async () => {
-      const imagePromises = items.map(async (item) => {
-        const artistName = typeof item === 'object' ? item.name : item;
-        const image = await getArtistImage(artistName);
-        return { artistName, image };
-      });
-      
-      const results = await Promise.all(imagePromises);
-      const newImages = {};
-      results.forEach(({ artistName, image }) => {
-        newImages[artistName] = image;
-      });
-      setArtistImages(newImages);
-    };
-
-    if (items && items.length > 0) {
-      loadImages();
-    }
-  }, [items]);
-
-  // Function to get initials from artist name
-  const getInitials = (name) => {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  if (!items || items.length === 0) return null;
+  }
 
   return (
     <div className="contributor-section">
-      <h3 className="section-title">{title}</h3>
+      <h3 className="section-title" style={{ fontSize: '16px' }}>{title} ({items.length})</h3>
       <div className="contributor-list">
         {items.map((item, index) => {
           const contributorName = typeof item === 'object' ? item.name : item;
-          const artistImage = artistImages[contributorName];
           
           return (
             <div key={index} className="contributor-item">
-              <div 
-                className="contributor-avatar"
-                style={{ 
-                  width: '48px', 
-                  height: '48px', 
-                  minWidth: '48px', 
-                  minHeight: '48px',
-                  maxWidth: '48px', 
-                  maxHeight: '48px'
-                }}
-              >
-                {artistImage ? (
-                  <img 
-                    src={artistImage} 
-                    alt={contributorName}
-                    className="contributor-image"
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      maxWidth: '48px', 
-                      maxHeight: '48px' 
-                    }}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                ) : null}
-                <div 
-                  className={`contributor-initials ${artistImage ? 'fallback' : ''}`}
-                  style={{ 
-                    display: artistImage ? 'none' : 'flex',
-                    width: '100%', 
-                    height: '100%', 
-                    minWidth: '48px', 
-                    minHeight: '48px',
-                    maxWidth: '48px', 
-                    maxHeight: '48px'
-                  }}
-                >
-                  {getInitials(contributorName)}
-                </div>
-              </div>
               <div className="contributor-info" style={{ margin: '5px' }}>
-                <span className="contributor-name">{contributorName}</span>
+                <span className="contributor-name" style={{ fontSize: '16px' }}>• {contributorName}                 </span>
                 {typeof item === 'object' && item.role && (
-                  <span className="contributor-role" style={{ color: '#a1a1aa' }}>{item.role}</span>
+                  <span className="contributor-role" style={{ fontSize: '14px', color: '#a1a1aa' }}>{item.role}</span>
                 )}
               </div>
             </div>
@@ -147,6 +45,8 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [noRelations, setNoRelations] = useState(false);
+  const [artistImage, setArtistImage] = useState(null);
+  const [artistImageLoading, setArtistImageLoading] = useState(false);
 
   // Extract track information from track object or use provided trackInfo
   const getTrackInfo = () => {
@@ -171,12 +71,64 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
 
   const currentTrackInfo = getTrackInfo();
 
+  // Function to fetch artist image from Spotify
+  const fetchArtistImage = async (artistName) => {
+    if (!artistName) return;
+    
+    setArtistImageLoading(true);
+    try {
+      console.log(`[NewContributorFinder] Fetching artist image for: "${artistName}"`);
+      
+      const response = await axios.get(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+      console.log(`[NewContributorFinder] Spotify response:`, response.data);
+      
+      if (response.data.artists && response.data.artists.length > 0) {
+        // Find the best match by comparing artist names more accurately
+        const bestMatch = response.data.artists.find(artist => {
+          const spotifyName = artist.name.toLowerCase();
+          const searchName = artistName.toLowerCase();
+          
+          // Exact match
+          if (spotifyName === searchName) return true;
+          
+          // Check if search name is contained in Spotify name or vice versa
+          if (spotifyName.includes(searchName) || searchName.includes(spotifyName)) return true;
+          
+          // Check for common variations (e.g., "The Beatles" vs "Beatles")
+          const cleanSpotifyName = spotifyName.replace(/^the\s+/i, '').trim();
+          const cleanSearchName = searchName.replace(/^the\s+/i, '').trim();
+          if (cleanSpotifyName === cleanSearchName) return true;
+          
+          return false;
+        }) || response.data.artists[0]; // Fallback to first result
+        
+        console.log(`[NewContributorFinder] Best match:`, bestMatch);
+        
+        if (bestMatch.image) {
+          setArtistImage(bestMatch.image);
+          // Cache the image for future use with the exact artist name from Spotify
+          setSpotifyArtistCache(bestMatch.name, bestMatch.image, bestMatch.id);
+          console.log(`[NewContributorFinder] Set image for "${bestMatch.name}":`, bestMatch.image);
+        } else {
+          console.log(`[NewContributorFinder] No image found for artist:`, bestMatch.name);
+        }
+      } else {
+        console.log(`[NewContributorFinder] No artists found for: "${artistName}"`);
+      }
+    } catch (err) {
+      console.error('[NewContributorFinder] Error fetching artist image:', err);
+    } finally {
+      setArtistImageLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Reset state
     setContributors(null);
     setError(null);
     setLoading(true);
     setNoRelations(false);
+    setArtistImage(null);
 
     // Handle missing MBID
     if (!mbid || mbid === 'Not Found') {
@@ -197,6 +149,21 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
 
     fetchContributors();
   }, [mbid]);
+
+  // Fetch artist image when track info changes
+  useEffect(() => {
+    if (currentTrackInfo.artist) {
+      const mainArtist = currentTrackInfo.artist.split(',')[0].trim();
+      
+      // Check if we have a cached image and log it for debugging
+      const cachedImage = getCachedArtistImage(mainArtist);
+      if (cachedImage) {
+        console.log(`[NewContributorFinder] Found cached image for "${mainArtist}":`, cachedImage);
+      }
+      
+      fetchArtistImage(mainArtist);
+    }
+  }, [currentTrackInfo.artist]);
 
   const fetchContributors = async () => {
     const MUSICBRAINZ_USER_AGENT = 'spotify-vibe-generator/1.0 (your@email.com)';
@@ -314,8 +281,8 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
       <div className="contributor-finder loading">
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <h2>Loading Contributors</h2>
-          <p>Fetching detailed information from MusicBrainz...</p>
+          <h2 style={{ fontSize: '24px' }}>Loading Contributors</h2>
+          <p style={{ fontSize: '16px' }}>Fetching detailed information from MusicBrainz...</p>
         </div>
       </div>
     );
@@ -327,8 +294,8 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
       <div className="contributor-finder error">
         <div className="error-container">
           <div className="error-icon">⚠️</div>
-          <h2>Error Loading Data</h2>
-          <p>{error}</p>
+          <h2 style={{ fontSize: '24px' }}>Error Loading Data</h2>
+          <p style={{ fontSize: '16px' }}>{error}</p>
         </div>
       </div>
     );
@@ -339,8 +306,9 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
     return (
       <div className="contributor-finder no-data">
         <div className="no-data-container">
-          <h2>No Contributor Information</h2>
-          <p>This track doesn't have detailed contributor information available in MusicBrainz.</p>
+          <div className="no-data-icon">📭</div>
+          <h2 style={{ fontSize: '24px' }}>No Contributor Information</h2>
+          <p style={{ fontSize: '16px' }}>This track doesn't have detailed contributor information available in MusicBrainz.</p>
         </div>
       </div>
     );
@@ -349,10 +317,67 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
   // Success state
   return (
     <div className="contributor-finder new-contributor-finder">
-      <div className="track-header">
+      <div className={`track-header ${artistImage ? 'has-artist-image' : ''}`}>
+        {/* Blurred, stretched background image */}
+        {artistImage && (
+          <div
+            className="blurred-background"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              backgroundImage: `url('${artistImage}')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(28px) brightness(0.9)',
+              zIndex: 1,
+            }}
+          />
+        )}
+                    {/* Dark overlay for contrast */}
+            <div
+              className="dark-overlay"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                background: 'rgba(16,17,20,0.3)',
+                zIndex: 2,
+              }}
+            />
+        
         <div className="track-avatar">
-          <span>{currentTrackInfo.artist && currentTrackInfo.artist.length > 0 ? 
-            currentTrackInfo.artist.split(',')[0].split(' ').map(n => n[0]).join('').toUpperCase() : '?'}</span>
+          {artistImage ? (
+            <div className="artist-image-container">
+              <img 
+                src={artistImage} 
+                alt={currentTrackInfo.artist} 
+                className="artist-image"
+              />
+              <button 
+                className="refresh-image-btn"
+                onClick={() => {
+                  // Clear the specific artist from cache and refresh
+                  const artistName = currentTrackInfo.artist.split(',')[0].trim();
+                  clearSpecificArtistCache(artistName);
+                  setArtistImage(null);
+                  fetchArtistImage(artistName);
+                }}
+                title="Refresh artist image"
+              >
+                🔄
+              </button>
+            </div>
+          ) : artistImageLoading ? (
+            <div className="image-loading-spinner"></div>
+          ) : (
+            <span className="artist-initials">
+              {currentTrackInfo.artist && currentTrackInfo.artist.length > 0 ? 
+                currentTrackInfo.artist.split(',')[0].split(' ').map(n => n[0]).join('').toUpperCase() : '?'}
+            </span>
+          )}
         </div>
         <div className="track-info">
           <h1 className="track-name">{currentTrackInfo.name}</h1>
@@ -366,41 +391,41 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         )}
       </div>
 
-      <div className="contributor-content">
-        <h2 className="content-title">Track Contributors</h2>
-        <p className="content-description">Detailed information about everyone involved in creating this track</p>
-        
-        <div className="contributor-sections">
-          <ContributorSection 
-            title="Performers" 
-            items={contributors.performers}
-          />
-          <ContributorSection 
-            title="Writers" 
-            items={contributors.writers}
-          />
-          <ContributorSection 
-            title="Producers" 
-            items={contributors.producers}
-          />
-          <ContributorSection 
-            title="Mixing" 
-            items={contributors.mixers}
-          />
-          <ContributorSection 
-            title="Engineering" 
-            items={contributors.engineers}
-          />
-          <ContributorSection 
-            title="Arrangers" 
-            items={contributors.arrangers}
-          />
-          <ContributorSection 
-            title="Remixers" 
-            items={contributors.remixers}
-          />
+              <div className="contributor-content">
+          <h2 className="content-title" style={{ fontSize: '24px' }}>Track Contributors</h2>
+          <p className="content-description" style={{ fontSize: '16px' }}>Detailed information about everyone involved in creating this track</p>
+          
+          <div className="contributor-sections">
+            <ContributorSection 
+              title="Performers" 
+              items={contributors.performers}
+            />
+            <ContributorSection 
+              title="Writers" 
+              items={contributors.writers}
+            />
+            <ContributorSection 
+              title="Producers" 
+              items={contributors.producers}
+            />
+            <ContributorSection 
+              title="Mixing" 
+              items={contributors.mixers}
+            />
+            <ContributorSection 
+              title="Engineering" 
+              items={contributors.engineers}
+            />
+            <ContributorSection 
+              title="Arrangers" 
+              items={contributors.arrangers}
+            />
+            <ContributorSection 
+              title="Remixers" 
+              items={contributors.remixers}
+            />
+          </div>
         </div>
-      </div>
 
       <style jsx>{`
         .contributor-finder {
@@ -411,6 +436,9 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           border-radius: 16px;
           overflow: hidden;
           box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          display: flex;
+          flex-direction: column;
+          max-height: 100vh;
         }
 
         .track-header {
@@ -421,9 +449,15 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
           border-bottom: 1px solid #333;
           position: relative;
+          overflow: hidden;
+          flex-shrink: 0;
         }
 
-        .track-header::before {
+        .track-header.has-artist-image {
+          background: #1a1a1a;
+        }
+
+        .track-header:not(.has-artist-image)::before {
           content: '';
           position: absolute;
           top: 0;
@@ -432,13 +466,46 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           bottom: 0;
           background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 50%, rgba(139, 92, 246, 0.1) 100%);
           pointer-events: none;
+          z-index: 1;
+        }
+
+        .blurred-background {
+          transition: opacity 0.3s ease, filter 0.3s ease;
+          opacity: 0;
+          animation: fadeInBlur 0.5s ease forwards;
+        }
+
+        .dark-overlay {
+          transition: opacity 0.3s ease;
+          opacity: 0;
+          animation: fadeInOverlay 0.5s ease forwards;
+        }
+
+        @keyframes fadeInBlur {
+          from {
+            opacity: 0;
+            filter: blur(40px) brightness(0.5);
+          }
+          to {
+            opacity: 1;
+            filter: blur(8px) brightness(0.7);
+          }
+        }
+
+        @keyframes fadeInOverlay {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
         }
 
         .track-avatar {
           width: 100px;
           height: 100px;
           border-radius: 50%;
-          background: linear-gradient(135deg, #8b5cf6, #a855f7);
+          background: transparent;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -446,42 +513,127 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           font-weight: bold;
           color: white;
           flex-shrink: 0;
-          box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
           position: relative;
-          z-index: 1;
+          z-index: 3;
+          overflow: hidden;
+        }
+
+        .artist-image-container {
+          position: relative;
+          width: 100%;
+          height: 100%;
+        }
+
+        .artist-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 50%;
+        }
+
+        .refresh-image-btn {
+          position: absolute;
+          top: 5px;
+          right: 5px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.7);
+          border: none;
+          color: white;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          opacity: 0;
+        }
+
+        .artist-image-container:hover .refresh-image-btn {
+          opacity: 1;
+        }
+
+        .refresh-image-btn:hover {
+          background: rgba(0, 0, 0, 0.9);
+          transform: scale(1.1);
+        }
+
+        .artist-initials {
+          font-weight: 600;
+          color: white;
+          text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .image-loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
         }
 
         .track-info {
           flex: 1;
           position: relative;
-          z-index: 1;
+          z-index: 3;
         }
 
         .track-name {
-          font-size: 42px;
-          font-weight: bold;
+          font-weight: 600;
           color: white;
           margin: 0 0 16px 0;
+          text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.6);
+          letter-spacing: -0.5px;
         }
 
         .track-artist {
-          font-size: 24px;
-          color: #e5e5e5;
+          font-weight: 500;
+          color: #ffffff;
           margin: 0 0 8px 0;
+          text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8), 0 0 12px rgba(0, 0, 0, 0.5);
         }
 
         .track-album {
-          font-size: 18px;
-          color: #a1a1aa;
+          font-weight: 400;
+          color: #f0f0f0;
           margin: 0;
+          text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+        }
+
+        .close-button {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 40px;
+          height: 40px;
+          font-size: 18px;
+          background: rgba(139, 92, 246, 0.3);
+          border: 2px solid #8b5cf6;
+          border-radius: 50%;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+          transition: all 0.2s ease;
+        }
+
+        .close-button:hover {
+          background: rgba(139, 92, 246, 0.5);
+          transform: scale(1.1);
         }
 
         .contributor-content {
           padding: 40px;
-          max-height: 70vh;
+          max-height: calc(100vh - 200px);
           overflow-y: auto;
           scrollbar-width: thin;
           scrollbar-color: #666 #1a1a1a;
+          flex: 1;
         }
 
         .contributor-content::-webkit-scrollbar {
@@ -503,16 +655,17 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         }
 
         .content-title {
-          font-size: 24px;
-          font-weight: bold;
+          font-weight: 600;
           color: #10b981;
           margin: 0 0 8px 0;
+          text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.6);
         }
 
         .content-description {
-          font-size: 16px;
-          color: #a1a1aa;
+          font-weight: 400;
+          color: #e0e0e0;
           margin: 0 0 32px 0;
+          text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
         }
 
         .contributor-sections {
@@ -530,12 +683,12 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         }
 
         .section-title {
-          font-size: 16px;
-          font-weight: 700;
+          font-weight: 600;
           margin: 0 0 24px 0;
           text-transform: uppercase;
           letter-spacing: 1px;
-          color: #888;
+          color: #cccccc;
+          text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
         }
 
         .contributor-list {
@@ -568,71 +721,6 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
-        .contributor-avatar {
-          width: 48px !important;
-          height: 48px !important;
-          border-radius: 50% !important;
-          overflow: hidden !important;
-          margin-right: 16px !important;
-          flex-shrink: 0 !important;
-          min-width: 48px !important;
-          min-height: 48px !important;
-          max-width: 48px !important;
-          max-height: 48px !important;
-        }
-
-        .contributor-image {
-          width: 100% !important;
-          height: 100% !important;
-          object-fit: cover !important;
-          max-width: 48px !important;
-          max-height: 48px !important;
-        }
-
-        /* Force override any conflicting styles */
-        .contributor-item .contributor-avatar,
-        .contributor-item .contributor-avatar img,
-        .contributor-item .contributor-avatar .contributor-initials {
-          width: 48px !important;
-          height: 48px !important;
-          min-width: 48px !important;
-          min-height: 48px !important;
-          max-width: 48px !important;
-          max-height: 48px !important;
-        }
-
-        /* Reset any potential conflicting styles */
-        .contributor-avatar * {
-          box-sizing: border-box !important;
-        }
-
-        /* Ensure images don't exceed container */
-        .contributor-avatar img {
-          display: block !important;
-          box-sizing: border-box !important;
-        }
-
-        .contributor-initials {
-          width: 100% !important;
-          height: 100% !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          background-color: #8b5cf6 !important;
-          color: white !important;
-          font-size: 18px !important;
-          font-weight: bold !important;
-          border-radius: 50% !important;
-          min-width: 48px !important;
-          min-height: 48px !important;
-          max-width: 48px !important;
-          max-height: 48px !important;
-        }
-
-        .contributor-initials.fallback {
-          display: flex;
-        }
-
         .contributor-info {
           display: flex;
           flex-direction: column;
@@ -644,21 +732,21 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         }
 
         .contributor-name {
-          font-size: 16px;
-          font-weight: 600;
+          font-weight: 500;
           color: #ffffff;
           line-height: 1.3;
           margin: 0 !important;
           padding: 0 !important;
+          text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
         }
 
         .contributor-role {
-          font-size: 14px;
-          color: #9ca3af;
+          font-weight: 400;
+          color: #d1d5db;
           line-height: 1.3;
           margin: 0 !important;
           padding: 0 !important;
-          font-weight: 400;
+          text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
         }
 
         .loading {
@@ -686,7 +774,6 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         }
 
         .loading-container h2 {
-          font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.5rem;
           color: #ffffff;
@@ -721,7 +808,6 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         }
 
         .error-container h2, .no-data-container h2 {
-          font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.5rem;
           color: #ffffff;
@@ -745,13 +831,36 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
             align-items: center;
             gap: 16px;
             text-align: center;
+            min-height: 200px;
+            max-height: 250px;
+          }
+          
+          .blurred-background {
+            filter: blur(20px) brightness(0.6);
           }
           
           .track-avatar {
             width: 60px;
             height: 60px;
-            font-size: 24px;
             margin-bottom: 8px;
+          }
+          
+          .artist-initials {
+            font-size: 24px;
+          }
+          
+          .image-loading-spinner {
+            width: 24px;
+            height: 24px;
+            border-width: 3px;
+          }
+          
+          .refresh-image-btn {
+            width: 20px;
+            height: 20px;
+            font-size: 10px;
+            top: 3px;
+            right: 3px;
           }
           
           .track-info {
@@ -772,19 +881,22 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           }
           
           .close-button {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 32px;
-            height: 32px;
-            font-size: 16px;
-            background: rgba(139, 92, 246, 0.3);
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            background: rgba(139, 92, 246, 0.8);
             border: 2px solid #8b5cf6;
+            z-index: 1000;
+            border-radius: 50%;
           }
           
           .contributor-content {
             padding: 16px;
-            max-height: 50vh;
+            max-height: calc(100vh - 250px);
+            min-height: 200px;
           }
           
           .content-title {
@@ -815,20 +927,6 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
             margin-bottom: 6px;
           }
           
-          .contributor-avatar {
-            width: 40px !important;
-            height: 40px !important;
-            margin-right: 12px !important;
-            min-width: 40px !important;
-            min-height: 40px !important;
-            max-width: 40px !important;
-            max-height: 40px !important;
-          }
-          
-          .contributor-initials {
-            font-size: 16px !important;
-          }
-          
           .contributor-name {
             font-size: 11px;
           }
@@ -851,26 +949,100 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
             font-size: 1.3rem;
           }
           
-          .contributor-avatar {
-            width: 56px !important;
-            height: 56px !important;
-            margin-right: 20px !important;
-            min-width: 56px !important;
-            min-height: 56px !important;
-            max-width: 56px !important;
-            max-height: 56px !important;
-          }
-          
-          .contributor-initials {
-            font-size: 20px !important;
-          }
-          
           .contributor-name {
             font-size: 1.2rem;
           }
           
           .contributor-role {
             font-size: 1rem;
+          }
+        }
+
+        @media (max-width: 1000px) {
+          .track-name {
+            font-size: 38px;
+          }
+          
+          .track-artist {
+            font-size: 22px;
+          }
+          
+          .track-album {
+            font-size: 16px;
+          }
+          
+          .content-title {
+            font-size: 22px;
+          }
+          
+          .content-description {
+            font-size: 14px;
+          }
+          
+          .section-title {
+            font-size: 14px;
+          }
+          
+          .contributor-name {
+            font-size: 14px;
+          }
+          
+          .contributor-role {
+            font-size: 12px;
+          }
+          
+          .artist-initials {
+            font-size: 36px;
+          }
+          
+          .loading-container h2 {
+            font-size: 1.3rem;
+          }
+          
+          .error-container h2, .no-data-container h2 {
+            font-size: 1.3rem;
+          }
+        }
+
+        @media (max-height: 600px) {
+          .track-header {
+            min-height: 150px;
+            max-height: 180px;
+            padding: 16px;
+          }
+          
+          .track-name {
+            font-size: 18px;
+          }
+          
+          .track-artist {
+            font-size: 14px;
+          }
+          
+          .track-album {
+            font-size: 10px;
+          }
+          
+          .artist-initials {
+            font-size: 28px;
+          }
+          
+          .track-avatar {
+            width: 40px;
+            height: 40px;
+          }
+          
+          .contributor-content {
+            max-height: calc(100vh - 180px);
+            min-height: 150px;
+          }
+          
+          .close-button {
+            top: 15px;
+            right: 15px;
+            width: 35px;
+            height: 35px;
+            font-size: 16px;
           }
         }
       `}</style>

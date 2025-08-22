@@ -1205,6 +1205,8 @@ app.get('/spotify/artist-search', async (req, res) => {
   }
 });
 
+
+
 // Get artist details by Spotify artist ID
 app.get('/spotify/artist-details/:id', async (req, res) => {
   const artistId = req.params.id;
