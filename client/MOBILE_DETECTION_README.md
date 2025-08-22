@@ -1,5 +1,7 @@
 # Mobile Detection & Playlist Controls
 
+> **⚠️ NOTE**: The `deviceDetection.js` utility file referenced in this document has been removed. Components now implement device detection inline for better performance and to avoid hydration issues.
+
 This document explains how mobile detection works in the Spotify Vibe Generator app and how to use it.
 
 ## Overview
