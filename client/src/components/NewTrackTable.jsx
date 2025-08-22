@@ -22,7 +22,7 @@ function useIsMobile(breakpoint = 760) {
   return isMobile;
 }
 
-export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [], showContributorsButton = false, onGetContributors = null }) {
+export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [], showContributorsButton = false, onGetContributors = null, wrappedLabel = 'Create Your Custom Wrapped', isArtistContext = false }) {
   // Helper function to format listening time
   const formatListeningTime = (playedAt) => {
     if (!playedAt) return '--';
@@ -47,6 +47,18 @@ export default function TrackTable({ tracks, title, playlistKey, onExploreGenre,
         hour: '2-digit',
         minute: '2-digit'
       });
+    }
+  };
+
+  // Responsive font size (to match PlaylistActions behavior)
+  const getFontSize = () => {
+    if (typeof window === 'undefined') return '1rem';
+    if (window.innerWidth <= 400) {
+      return '0.65rem';
+    } else if (window.innerWidth <= 768) {
+      return '0.8rem';
+    } else {
+      return '1.08rem';
     }
   };
 
@@ -784,25 +796,98 @@ if (isMobile) {
           <div style={{ fontWeight: 900, fontSize: '1.2rem', color: '#f3f3f3', letterSpacing: 1, textAlign: 'center' }}>{title || 'Your Last 50 Songs'}</div>
           <div style={{ 
             display: 'flex', 
-            gap: 'clamp(2px, 1.5vw, 8px)', 
+            gap: 'clamp(6px, 2vw, 12px)', 
             marginTop: 'clamp(4px, 1.5vw, 8px)', 
             width: '95%',
             justifyContent: 'center',
-            flexWrap: 'wrap'
+            alignItems: 'center',
+            flexWrap: 'nowrap'
           }}>
-            {tracks && tracks.length > 0 && (
-              <PlaylistActions
-                tracks={tracks}
-                playlistKey={playlistKey}
-                playlistNameLabel={title}
-                onWrapped={() => setShowWrapped(true)}
-                showCreatePlaylist={showCreatePlaylist}
-                showViewPlaylist={showViewPlaylist}
-              />
-            )}
-          </div>
+            {isArtistContext && showContributorsButton && onGetContributors && (
+               <button
+                 onClick={onGetContributors}
+                 className={styles.vibeButton}
+                 style={{
+                   background: '#1db954',
+                   color: '#fff',
+                   height: 48,
+                   minWidth: 0,
+                   fontWeight: 700,
+                   fontSize: getFontSize(),
+                   padding: '8px 16px',
+                   whiteSpace: 'nowrap',
+                 }}
+                 onMouseEnter={(e) => {
+                   e.currentTarget.style.background = '#1ed760';
+                   e.currentTarget.style.transform = 'translateY(-2px)';
+                   e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.style.background = '#1db954';
+                   e.currentTarget.style.transform = 'translateY(0)';
+                   e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
+                 }}
+                 title="Get Album Contributors from Discogs"
+               >
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                 </svg>
+                 Get Contributors
+               </button>
+             )}
+             {tracks && tracks.length > 0 && (
+               <PlaylistActions
+                 tracks={tracks}
+                 playlistKey={playlistKey}
+                 playlistNameLabel={title}
+                 onWrapped={() => setShowWrapped(true)}
+                 showCreatePlaylist={showCreatePlaylist}
+                 showViewPlaylist={showViewPlaylist}
+                 wrappedLabel={wrappedLabel}
+               />
+             )}
+           </div>
         </div>
         
+        {/* Mobile: Organized controls (genres + contributors) */}
+        {(genres && genres.length > 0) ? (
+          <div style={{
+            width: '95%',
+            margin: '0 auto 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8
+          }}>
+            {genres && genres.length > 0 && (
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '4px',
+                justifyContent: 'flex-start',
+                width: '100%'
+              }}>
+                {genres.map((genre, i) => (
+                  <span key={i} style={{
+                    display: 'inline-block',
+                    background: '#232323',
+                    color: '#1db954',
+                    borderRadius: 999,
+                    padding: '3px 8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    letterSpacing: 0.2,
+                    boxShadow: '0 1px 4px #0003',
+                    border: '1.25px solid #1db954',
+                    userSelect: 'none',
+                    whiteSpace: 'nowrap'
+                  }}>{genre}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
         
         
         {/* This is the container for the list of songs. We center this. */}
@@ -953,6 +1038,20 @@ if (isMobile) {
                         e.currentTarget.style.background = 'none';
                         e.currentTarget.style.color = '#fff';
                       }}
+                      onClick={() => { setMobileDropdownOpen(null); handleGeniusClick(track); }}
+                    >About</button>
+                    <button
+                      style={{
+                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s, color 0.18s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#404040';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.color = '#fff';
+                      }}
                       onClick={() => { setMobileDropdownOpen(null); handleThirdGenreClick(track); }}
                     >Genre</button>
                     <button
@@ -969,20 +1068,6 @@ if (isMobile) {
                       }}
                       onClick={() => { setMobileDropdownOpen(null); handleContributionsClick(track); }}
                     >Contributors</button>
-                    <button
-                      style={{
-                        background: 'none', color: '#fff', border: 'none', borderRadius: 0, fontWeight: 700, fontSize: 14, padding: '10px 18px', textAlign: 'left', cursor: 'pointer', width: '100%', transition: 'background 0.18s, color 0.18s',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = '#404040';
-                        e.currentTarget.style.color = '#fff';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'none';
-                        e.currentTarget.style.color = '#fff';
-                      }}
-                      onClick={() => { setMobileDropdownOpen(null); handleGeniusClick(track); }}
-                    >About</button>
                   </div>
                 )}
                 {track.id && (
@@ -1163,7 +1248,39 @@ if (isMobile) {
             letterSpacing: 1,
             textShadow: '0 2px 8px #0008',
           }}>{title || 'Your Last 50 Songs'}</span>
-          <div style={{ display: 'flex', gap: 'clamp(6px, 2vw, 16px)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'clamp(6px, 2vw, 16px)', flexWrap: 'wrap', alignItems: 'center' }}>
+            {isArtistContext && showContributorsButton && onGetContributors && (
+              <button
+                onClick={onGetContributors}
+                className={styles.vibeButton}
+                style={{
+                  background: '#1db954',
+                  color: '#fff',
+                  height: 48,
+                  minWidth: 0,
+                  fontWeight: 700,
+                  fontSize: getFontSize(),
+                  padding: '8px 16px',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#1ed760';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#1db954';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
+                }}
+                title="Get Album Contributors from Discogs"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                Get Contributors
+              </button>
+            )}
             {tracks && tracks.length > 0 ? (
               <PlaylistActions
                 tracks={tracks}
@@ -1172,6 +1289,7 @@ if (isMobile) {
                 onWrapped={() => setShowWrapped(true)}
                 showCreatePlaylist={showCreatePlaylist}
                 showViewPlaylist={showViewPlaylist}
+                wrappedLabel={wrappedLabel}
               />
             ) : (
               <div style={{ minWidth: 220, minHeight: 48 }} />
@@ -1228,52 +1346,7 @@ if (isMobile) {
 
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
-      {/* Contributors Button Section */}
-      {showContributorsButton && onGetContributors && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          marginBottom: '16px',
-          gap: '12px',
-          flexWrap: 'wrap'
-        }}>
-          <button
-            onClick={onGetContributors}
-            style={{
-              background: '#1db954',
-              color: '#fff',
-              borderRadius: 12,
-              fontWeight: 700,
-              padding: '12px 24px',
-              fontSize: '1rem',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px #1db95433',
-              border: 'none',
-              outline: 'none',
-              transition: 'all 0.2s ease',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#1ed760';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#1db954';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
-            }}
-            title="Get Album Contributors from Discogs"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-            </svg>
-            Get Contributors
-          </button>
-        </div>
-      )}
+      {/* Contributors Button Section removed (now placed next to Wrapped) */}
 
       {/* Table Section */}
       <div ref={tableContainerRef} className="table-container" style={{ width: '100%', overflowX: 'auto', marginTop: 8 }}>
@@ -1487,6 +1560,32 @@ if (isMobile) {
                                 e.currentTarget.style.background = 'none';
                                 e.currentTarget.style.color = '#fff';
                               }}
+                              onClick={() => { setDropdownOpen(null); handleGeniusClick(track); }}
+                            >
+                              About
+                            </button>
+                            <button
+                              style={{
+                                background: 'none',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: 6,
+                                fontWeight: 700,
+                                fontSize: 'clamp(0.75rem, 0.9vw, 0.92rem)',
+                                padding: 'clamp(3px, 0.8vw, 4px) clamp(8px, 1.5vw, 10px)',
+                                lineHeight: 1.1,
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'background 0.18s, color 0.18s',
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = '#404040';
+                                e.currentTarget.style.color = '#fff';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'none';
+                                e.currentTarget.style.color = '#fff';
+                              }}
                               onClick={() => { setDropdownOpen(null); handleThirdGenreClick(track); }}
                             >
                               Genre
@@ -1516,32 +1615,6 @@ if (isMobile) {
                               onClick={() => { setDropdownOpen(null); handleContributionsClick(track); }}
                             >
                               Contributions
-                            </button>
-                            <button
-                              style={{
-                                background: 'none',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: 6,
-                                fontWeight: 700,
-                                fontSize: 'clamp(0.75rem, 0.9vw, 0.92rem)',
-                                padding: 'clamp(3px, 0.8vw, 4px) clamp(8px, 1.5vw, 10px)',
-                                lineHeight: 1.1,
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                transition: 'background 0.18s, color 0.18s',
-                              }}
-                              onMouseEnter={e => {
-                                e.currentTarget.style.background = '#404040';
-                                e.currentTarget.style.color = '#fff';
-                              }}
-                              onMouseLeave={e => {
-                                e.currentTarget.style.background = 'none';
-                                e.currentTarget.style.color = '#fff';
-                              }}
-                              onClick={() => { setDropdownOpen(null); handleGeniusClick(track); }}
-                            >
-                              About
                             </button>
                           </div>
                         </DropdownPortal>

@@ -210,7 +210,7 @@ export default function AlbumContributorsModal({ isOpen, onClose, contributors, 
           color: #a1a1aa;
         }
         
-        @media (max-width: 768px) {
+                @media (max-width: 768px) {
           .album-contributors-modal {
             margin: 20px;
             max-height: calc(100vh - 40px);
@@ -218,6 +218,222 @@ export default function AlbumContributorsModal({ isOpen, onClose, contributors, 
           
           .labels-companies {
             grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 500px) {
+          .album-contributors-overlay {
+            padding: 10px;
+          }
+
+          .album-contributors-modal {
+            margin: 10px;
+            max-height: calc(100vh - 20px);
+            border-radius: 12px;
+          }
+          
+          .album-contributors-header {
+            padding: 16px 16px 12px 16px;
+          }
+          
+          .album-contributors-title {
+            font-size: 1.1rem;
+            margin-bottom: 6px;
+          }
+          
+          .album-contributors-subtitle {
+            font-size: 0.85rem;
+          }
+          
+          .album-contributors-close {
+            top: 12px;
+            right: 12px;
+            font-size: 1.2rem;
+            padding: 2px;
+          }
+          
+          .album-contributors-content {
+            padding: 16px;
+          }
+          
+          .contributors-section {
+            margin-bottom: 20px;
+          }
+          
+          .contributors-section-title {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+          }
+          
+          .contributors-list {
+            gap: 8px;
+          }
+          
+          .contributor-item {
+            padding: 12px;
+            border-radius: 6px;
+          }
+          
+          .contributor-name {
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+          }
+          
+          .contributor-role {
+            font-size: 0.75rem;
+          }
+          
+          .track-contributors {
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 6px;
+          }
+          
+          .track-title {
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+          }
+          
+          .track-details {
+            font-size: 0.75rem;
+            margin-bottom: 8px;
+          }
+          
+          .track-contributors-list {
+            gap: 6px;
+          }
+          
+          .track-contributor {
+            padding: 8px;
+            border-radius: 4px;
+          }
+          
+          .label-company-item {
+            padding: 12px;
+            border-radius: 6px;
+          }
+          
+          .label-company-name {
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+          }
+          
+          .label-company-detail {
+            font-size: 0.75rem;
+          }
+          
+          .loading-spinner, .error-message, .no-contributors {
+            padding: 40px;
+            font-size: 0.85rem;
+          }
+        }
+
+        @media (max-width: 430px) {
+          .album-contributors-overlay {
+            padding: 6px;
+          }
+
+          .album-contributors-modal {
+            margin: 6px;
+            max-height: calc(100vh - 12px);
+            border-radius: 10px;
+          }
+          
+          .album-contributors-header {
+            padding: 12px 12px 8px 12px;
+          }
+          
+          .album-contributors-title {
+            font-size: 1rem;
+            margin-bottom: 4px;
+          }
+          
+          .album-contributors-subtitle {
+            font-size: 0.75rem;
+          }
+          
+          .album-contributors-close {
+            top: 8px;
+            right: 8px;
+            font-size: 1rem;
+            padding: 1px;
+          }
+          
+          .album-contributors-content {
+            padding: 12px;
+          }
+          
+          .contributors-section {
+            margin-bottom: 16px;
+          }
+          
+          .contributors-section-title {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+          }
+          
+          .contributors-list {
+            gap: 6px;
+          }
+          
+          .contributor-item {
+            padding: 10px;
+            border-radius: 4px;
+          }
+          
+          .contributor-name {
+            font-size: 0.8rem;
+            margin-bottom: 1px;
+          }
+          
+          .contributor-role {
+            font-size: 0.7rem;
+          }
+          
+          .track-contributors {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+          }
+          
+          .track-title {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+          }
+          
+          .track-details {
+            font-size: 0.7rem;
+            margin-bottom: 6px;
+          }
+          
+          .track-contributors-list {
+            gap: 4px;
+          }
+          
+          .track-contributor {
+            padding: 6px;
+            border-radius: 3px;
+          }
+          
+          .label-company-item {
+            padding: 10px;
+            border-radius: 4px;
+          }
+          
+          .label-company-name {
+            font-size: 0.8rem;
+            margin-bottom: 1px;
+          }
+          
+          .label-company-detail {
+            font-size: 0.7rem;
+          }
+          
+          .loading-spinner, .error-message, .no-contributors {
+            padding: 30px;
+            font-size: 0.75rem;
           }
         }
       `}</style>

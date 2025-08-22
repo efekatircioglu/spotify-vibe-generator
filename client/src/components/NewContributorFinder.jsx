@@ -1049,6 +1049,246 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           }
         }
 
+        @media (max-width: 500px) {
+          .contributor-finder {
+            border-radius: 8px;
+            margin: 8px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+          }
+
+          .track-header {
+            padding: 16px;
+            gap: 16px;
+            min-height: 120px;
+            flex-direction: column;
+            text-align: center;
+          }
+
+          .track-avatar {
+            width: 60px;
+            height: 60px;
+          }
+
+          .artist-initials {
+            font-size: 24px;
+          }
+
+          .track-name {
+            font-size: 16px;
+            line-height: 1.2;
+          }
+          
+          .track-artist {
+            font-size: 12px;
+            line-height: 1.2;
+          }
+          
+          .track-album {
+            font-size: 10px;
+            line-height: 1.2;
+          }
+
+          .contributor-content {
+            padding: 16px;
+            max-height: calc(100vh - 140px);
+          }
+
+          .content-title {
+            font-size: 16px;
+            margin-bottom: 4px;
+          }
+
+          .content-description {
+            font-size: 11px;
+            margin-bottom: 16px;
+          }
+
+          .contributor-sections {
+            gap: 16px;
+          }
+
+          .contributor-section {
+            padding: 12px;
+            border-radius: 8px;
+          }
+
+          .section-title {
+            font-size: 11px;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+          }
+
+          .contributor-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            min-height: 40px;
+            border-radius: 6px;
+          }
+
+          .contributor-item:hover {
+            transform: translateX(2px);
+          }
+
+          .contributor-name {
+            font-size: 12px;
+            line-height: 1.2;
+          }
+
+          .contributor-role {
+            font-size: 10px;
+            line-height: 1.2;
+          }
+
+          .close-button {
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+            font-size: 14px;
+          }
+
+          .loading-container h2 {
+            font-size: 1rem;
+          }
+
+          .error-container h2, .no-data-container h2 {
+            font-size: 1rem;
+          }
+
+          .error-icon, .no-data-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+          }
+
+          .loading-spinner {
+            width: 30px;
+            height: 30px;
+            border-width: 3px;
+            margin-bottom: 1rem;
+          }
+        }
+
+        @media (max-width: 430px) {
+          .contributor-finder {
+            border-radius: 6px;
+            margin: 4px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+          }
+
+          .track-header {
+            padding: 12px;
+            gap: 12px;
+            min-height: 100px;
+          }
+
+          .track-avatar {
+            width: 50px;
+            height: 50px;
+          }
+
+          .artist-initials {
+            font-size: 20px;
+          }
+
+          .track-name {
+            font-size: 14px;
+            line-height: 1.1;
+          }
+          
+          .track-artist {
+            font-size: 10px;
+            line-height: 1.1;
+          }
+          
+          .track-album {
+            font-size: 9px;
+            line-height: 1.1;
+          }
+
+          .contributor-content {
+            padding: 12px;
+            max-height: calc(100vh - 120px);
+          }
+
+          .content-title {
+            font-size: 14px;
+            margin-bottom: 3px;
+          }
+
+          .content-description {
+            font-size: 10px;
+            margin-bottom: 12px;
+          }
+
+          .contributor-sections {
+            gap: 12px;
+          }
+
+          .contributor-section {
+            padding: 10px;
+            border-radius: 6px;
+          }
+
+          .section-title {
+            font-size: 10px;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+          }
+
+          .contributor-item {
+            padding: 10px;
+            margin-bottom: 6px;
+            min-height: 35px;
+            border-radius: 4px;
+          }
+
+          .contributor-name {
+            font-size: 11px;
+            line-height: 1.1;
+          }
+
+          .contributor-role {
+            font-size: 9px;
+            line-height: 1.1;
+          }
+
+          .close-button {
+            top: 6px;
+            right: 6px;
+            width: 26px;
+            height: 26px;
+            font-size: 12px;
+          }
+
+          .loading-container h2 {
+            font-size: 0.9rem;
+          }
+
+          .loading-container p {
+            font-size: 0.75rem;
+          }
+
+          .error-container h2, .no-data-container h2 {
+            font-size: 0.9rem;
+          }
+
+          .error-container p, .no-data-container p {
+            font-size: 0.75rem;
+          }
+
+          .error-icon, .no-data-icon {
+            font-size: 2rem;
+            margin-bottom: 0.3rem;
+          }
+
+          .loading-spinner {
+            width: 25px;
+            height: 25px;
+            border-width: 2px;
+            margin-bottom: 0.5rem;
+          }
+        }
+
         @media (max-height: 600px) {
           .track-header {
             min-height: 150px;

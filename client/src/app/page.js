@@ -1944,6 +1944,7 @@ export default function Home() {
             onExploreGenre={handleExploreGenre}
                 // Add the new prop on the next line
                 onExploreContributions={handleExploreContributions}
+            wrappedLabel={'Create Playlist Analysis'}
           />
         </div>
       

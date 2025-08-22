@@ -3,6 +3,51 @@ import React, { useState, useEffect } from 'react';
 export default function GeniusSongModal({ open, onClose, songInfo, loading, error }) {
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('samples');
+  const [showDefinitions, setShowDefinitions] = useState(false);
+
+  // Helper function to determine the best default tab based on available data
+  const getDefaultTab = (relationships) => {
+    if (!relationships) return 'samples';
+    
+    // Check samples & sampling data
+    const samplesCount = (relationships.samples?.length || 0) + (relationships.sampled_in?.length || 0);
+    if (samplesCount > 0) return 'samples';
+    
+    // Check interpolations data
+    const interpolationsCount = (relationships.interpolates?.length || 0) + (relationships.interpolated_by?.length || 0);
+    if (interpolationsCount > 0) return 'interpolations';
+    
+    // Check remixes data
+    const remixesCount = (relationships.remix_of?.length || 0) + (relationships.remixed_by?.length || 0);
+    if (remixesCount > 0) return 'remixes';
+    
+    // Default fallback
+    return 'samples';
+  };
+
+  // Helper function to check if there's any meaningful data to show
+  const hasUsefulData = (songInfo) => {
+    if (!songInfo?.songDetails) return false;
+    
+    // Check if there's a meaningful description
+    const hasDescription = songInfo.songDetails.description && 
+                          songInfo.songDetails.description.trim() !== '?' && 
+                          songInfo.songDetails.description.trim().length > 0;
+    
+    // Check if there's any relationship data in the three main categories
+    const relationships = songInfo.songDetails.relationships;
+    if (relationships) {
+      const samplesCount = (relationships.samples?.length || 0) + (relationships.sampled_in?.length || 0);
+      const interpolationsCount = (relationships.interpolates?.length || 0) + (relationships.interpolated_by?.length || 0);
+      const remixesCount = (relationships.remix_of?.length || 0) + (relationships.remixed_by?.length || 0);
+      
+      if (samplesCount > 0 || interpolationsCount > 0 || remixesCount > 0) {
+        return true;
+      }
+    }
+    
+    return hasDescription;
+  };
 
   useEffect(() => {
     if (open) {
@@ -12,6 +57,14 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
       return () => clearTimeout(timer);
     }
   }, [open]);
+
+  // Set the default tab based on available data when songInfo changes
+  useEffect(() => {
+    if (songInfo?.songDetails?.relationships) {
+      const defaultTab = getDefaultTab(songInfo.songDetails.relationships);
+      setActiveTab(defaultTab);
+    }
+  }, [songInfo]);
 
   if (!open && !isVisible) return null;
 
@@ -105,6 +158,34 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
       // Default color for other relationship types
       default:
         return '#404040'; // Default gray
+    }
+  };
+
+  // Helper function to get description for relationship types
+  const getRelationshipDescription = (relationshipType) => {
+    switch (relationshipType) {
+      case 'samples':
+        return 'This song contains a direct audio snippet copied from an older track. It uses the original recording of another song.';
+      case 'sampled_in':
+        return "This song's original audio was copied and used as an element in a new track by another artist.";
+      case 'interpolates':
+        return 'This song re-records a melody or lyric from an older track. It uses the original composition, not the original audio.';
+      case 'interpolated_by':
+        return "This song's melody or lyrics were re-recorded by another artist for their new song.";
+      case 'remix_of':
+        return 'This is a new, official version of another song, created by rearranging and altering its original parts (stems).';
+      case 'remixed_by':
+        return 'This is the original song that was re-imagined by another artist who rearranged its component parts to create a new version.';
+      case 'cover_of':
+        return 'This is a new performance of another song, typically with the same melody and lyrics but different arrangement.';
+      case 'covered_by':
+        return 'This original song has been performed by another artist with their own interpretation.';
+      case 'translation_of':
+        return 'This song is a translated version of another song, with lyrics in a different language.';
+      case 'translations':
+        return 'This original song has been translated into different languages by other artists.';
+      default:
+        return 'This song has a musical relationship with another track.';
     }
   };
 
@@ -526,6 +607,50 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
           .genius-info-value {
             font-size: 0.6rem !important;
           }
+
+          .genius-relationship-info {
+            padding: 8px 10px !important;
+            font-size: 0.75rem !important;
+            line-height: 1.3 !important;
+            margin-bottom: 0.75rem !important;
+          }
+
+          .genius-relationship-info strong {
+            font-size: 0.7rem !important;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .genius-relationship-info {
+            padding: 10px 12px !important;
+            font-size: 0.8rem !important;
+            line-height: 1.4 !important;
+            margin-bottom: 0.85rem !important;
+          }
+
+          .genius-relationship-info span {
+            font-size: 0.7rem !important;
+            padding: 3px 6px !important;
+            margin-right: 6px !important;
+          }
+
+          .genius-definitions-toggle {
+            padding: 4px 8px !important;
+            font-size: 0.7rem !important;
+            gap: 2px !important;
+          }
+
+          .genius-definitions-toggle.definitions-shown {
+            border-color: #1db954 !important;
+            color: #1db954 !important;
+            background: rgba(29, 185, 84, 0.1) !important;
+          }
+
+          .genius-definitions-toggle.definitions-hidden {
+            border-color: #666 !important;
+            color: #999 !important;
+            background: none !important;
+          }
         }
       `}</style>
 
@@ -565,7 +690,7 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
             </div>
           )}
 
-          {!loading && !error && songInfo && (
+          {!loading && !error && songInfo && hasUsefulData(songInfo) && (
             <>
               {/* Song Information */}
               <div className="genius-section">
@@ -618,7 +743,7 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
               )}
 
               {/* Song Description */}
-              {songInfo.songDetails.description && (
+              {songInfo.songDetails.description && songInfo.songDetails.description.trim() !== '?' && songInfo.songDetails.description.trim().length > 0 && (
                 <div className="genius-section">
                   <h3 className="genius-section-title">About This Song</h3>
                   <div className="genius-description" style={{
@@ -640,6 +765,147 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
               {/* Tabbed Relationships Interface */}
               <div className="genius-section">
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '1rem',
+                  paddingBottom: '0.5rem',
+                  borderBottom: '1px solid #333'
+                }}>
+                  <h3 className="genius-section-title" style={{ margin: 0, border: 'none', paddingBottom: 0 }}>Song Relationships</h3>
+                  <button
+                    className={`genius-definitions-toggle ${showDefinitions ? 'definitions-shown' : 'definitions-hidden'}`}
+                    onClick={() => setShowDefinitions(!showDefinitions)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #333',
+                      color: '#a1a1aa',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    onMouseEnter={(e) => {
+                      // Only apply hover effects on desktop (screens wider than 600px)
+                      if (window.innerWidth > 600) {
+                        e.currentTarget.style.borderColor = '#1db954';
+                        e.currentTarget.style.color = '#1db954';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      // Only apply hover effects on desktop (screens wider than 600px)
+                      if (window.innerWidth > 600) {
+                        e.currentTarget.style.borderColor = '#333';
+                        e.currentTarget.style.color = '#a1a1aa';
+                      }
+                    }}
+                  >
+                    {showDefinitions ? '✕' : '?'} {showDefinitions ? 'Hide' : 'Show'} Definitions
+                  </button>
+                </div>
+                
+                {/* Quick Info About Current Tab */}
+                {activeTab && showDefinitions && (
+                  <div className="genius-relationship-info" style={{
+                    background: '#232323',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #333',
+                    marginBottom: '1rem',
+                    fontSize: '0.9rem',
+                    lineHeight: '1.5',
+                    color: '#e0e0e0'
+                  }}>
+                    <div style={{ 
+                      color: '#ffffff', 
+                      fontWeight: '600', 
+                      marginBottom: '4px',
+                      textTransform: 'capitalize'
+                    }}>
+                      {activeTab === 'samples' ? 'About Samples & Sampling:' : 
+                       activeTab === 'interpolations' ? 'About Interpolations:' : 
+                       activeTab === 'remixes' ? 'About Remixes:' : 'About This Relationship:'}
+                    </div>
+                    {activeTab === 'samples' && (
+                      <div>
+                        <span style={{ 
+                          background: '#1db954', 
+                          color: '#fff', 
+                          padding: '4px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: '600',
+                          display: 'inline-block',
+                          marginRight: '8px'
+                        }}>Samples:</span> {getRelationshipDescription('samples')}<br/><br/>
+                        <span style={{ 
+                          background: '#ff0033', 
+                          color: '#fff', 
+                          padding: '4px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: '600',
+                          display: 'inline-block',
+                          marginRight: '8px'
+                        }}>Sampled In:</span> {getRelationshipDescription('sampled_in')}
+                      </div>
+                    )}
+                    {activeTab === 'interpolations' && (
+                      <div>
+                        <span style={{ 
+                          background: '#1db954', 
+                          color: '#fff', 
+                          padding: '4px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: '600',
+                          display: 'inline-block',
+                          marginRight: '8px'
+                        }}>Interpolates:</span> {getRelationshipDescription('interpolates')}<br/><br/>
+                        <span style={{ 
+                          background: '#ff0033', 
+                          color: '#fff', 
+                          padding: '4px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: '600',
+                          display: 'inline-block',
+                          marginRight: '8px'
+                        }}>Interpolated By:</span> {getRelationshipDescription('interpolated_by')}
+                      </div>
+                    )}
+                    {activeTab === 'remixes' && (
+                      <div>
+                        <span style={{ 
+                          background: '#1db954', 
+                          color: '#fff', 
+                          padding: '4px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: '600',
+                          display: 'inline-block',
+                          marginRight: '8px'
+                        }}>Remix Of:</span> {getRelationshipDescription('remix_of')}<br/><br/>
+                        <span style={{ 
+                          background: '#ff0033', 
+                          color: '#fff', 
+                          padding: '4px 8px', 
+                          borderRadius: '12px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: '600',
+                          display: 'inline-block',
+                          marginRight: '8px'
+                        }}>Remixed By:</span> {getRelationshipDescription('remixed_by')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ 
                   display: 'flex', 
                   borderBottom: '1px solid #333',
@@ -718,6 +984,44 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
 
             </>
+          )}
+
+          {!loading && !error && songInfo && !hasUsefulData(songInfo) && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4rem 2rem',
+              textAlign: 'center',
+              minHeight: '200px'
+            }}>
+              <div style={{
+                fontSize: '3rem',
+                marginBottom: '1rem',
+                opacity: 0.6
+              }}>
+                
+              </div>
+              <h3 style={{
+                color: '#f4f4f5',
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                marginBottom: '0.5rem',
+                margin: 0
+              }}>
+                No Additional Information Available
+              </h3>
+              <p style={{
+                color: '#a1a1aa',
+                fontSize: '0.9rem',
+                lineHeight: '1.5',
+                maxWidth: '400px',
+                margin: '0.5rem 0 0 0'
+              }}>
+                This song doesn't have detailed information, samples, interpolations, or remix data available.
+              </p>
+            </div>
           )}
         </div>
       </div>

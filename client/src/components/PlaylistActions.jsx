@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import styles from '../app/page.module.css';
 
-export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped, showCreatePlaylist = true, showViewPlaylist = true }) {
+export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped, showCreatePlaylist = true, showViewPlaylist = true, wrappedLabel = 'Create Your Custom Wrapped' }) {
   const [showModal, setShowModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -158,7 +159,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
         onClick={() => onWrapped && onWrapped()}
         disabled={!tracks || tracks.length === 0}
       >
-        Create Your Custom Wrapped
+        {wrappedLabel}
       </button>
       {showModal && (
         <div className={styles.metricsModalOverlay} onClick={() => setShowModal(false)}>
@@ -230,3 +231,12 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
     </div>
   );
 } 
+
+PlaylistActions.propTypes = {
+  tracks: PropTypes.array,
+  playlistNameLabel: PropTypes.string,
+  onWrapped: PropTypes.func,
+  showCreatePlaylist: PropTypes.bool,
+  showViewPlaylist: PropTypes.bool,
+  wrappedLabel: PropTypes.string,
+};

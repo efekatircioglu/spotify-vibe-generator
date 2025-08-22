@@ -68,14 +68,75 @@ async function discogsProfileToLinks(profile) {
     });
   }
   
-  // [l67890] → link to label
-  result = result.replace(/\[l(\d+)\]/g, (match, id) =>
-    `<a href="https://www.discogs.com/label/${id}" target="_blank" rel="noopener noreferrer" title="View label on Discogs">Label #${id}</a>`
-  );
-  // [r54321] → link to release
-  result = result.replace(/\[r(\d+)\]/g, (match, id) =>
-    `<a href="https://www.discogs.com/release/${id}" target="_blank" rel="noopener noreferrer" title="View release on Discogs">Release #${id}</a>`
-  );
+  // [l67890] → link to label with real name
+  const labelMatches = result.match(/\[l(\d+)\]/g);
+  if (labelMatches) {
+    // Extract all unique label IDs
+    const labelIds = [...new Set(labelMatches.map(match => match.match(/\[l(\d+)\]/)[1]))];
+    
+    // Make all API calls in parallel
+    const labelPromises = labelIds.map(async (id) => {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/discogs/label-id/${id}`);
+        if (response.ok) {
+          const labelData = await response.json();
+          return { id, name: labelData.name || `Label #${id}` };
+        } else {
+          return { id, name: `Label #${id}` };
+        }
+      } catch (error) {
+        console.error('Error fetching label name:', error);
+        return { id, name: `Label #${id}` };
+      }
+    });
+    
+    // Wait for all API calls to complete
+    const labelResults = await Promise.all(labelPromises);
+    
+    // Create a map for quick lookup
+    const labelNameMap = Object.fromEntries(labelResults.map(r => [r.id, r.name]));
+    
+    // Replace all label links with real names
+    result = result.replace(/\[l(\d+)\]/g, (match, id) => {
+      const labelName = labelNameMap[id] || `Label #${id}`;
+      return `<a href="https://www.discogs.com/label/${id}" target="_blank" rel="noopener noreferrer" title="View ${labelName} on Discogs">${labelName}</a>`;
+    });
+  }
+  
+  // [r54321] → link to release with real name
+  const releaseMatches = result.match(/\[r(\d+)\]/g);
+  if (releaseMatches) {
+    // Extract all unique release IDs
+    const releaseIds = [...new Set(releaseMatches.map(match => match.match(/\[r(\d+)\]/)[1]))];
+    
+    // Make all API calls in parallel
+    const releasePromises = releaseIds.map(async (id) => {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/discogs/release-id/${id}`);
+        if (response.ok) {
+          const releaseData = await response.json();
+          return { id, name: releaseData.title || `Release #${id}` };
+        } else {
+          return { id, name: `Release #${id}` };
+        }
+      } catch (error) {
+        console.error('Error fetching release name:', error);
+        return { id, name: `Release #${id}` };
+      }
+    });
+    
+    // Wait for all API calls to complete
+    const releaseResults = await Promise.all(releasePromises);
+    
+    // Create a map for quick lookup
+    const releaseNameMap = Object.fromEntries(releaseResults.map(r => [r.id, r.name]));
+    
+    // Replace all release links with real names
+    result = result.replace(/\[r(\d+)\]/g, (match, id) => {
+      const releaseName = releaseNameMap[id] || `Release #${id}`;
+      return `<a href="https://www.discogs.com/release/${id}" target="_blank" rel="noopener noreferrer" title="View ${releaseName} on Discogs">${releaseName}</a>`;
+    });
+  }
   // Remove any other [bracketed] codes
   result = result.replace(/\[[^\]]+\]/g, '');
   return result;
@@ -788,7 +849,7 @@ export default function ArtistConcertsPage() {
                 </div>
               )}
               
-              <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+              <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
                 <button
                   style={{
                     background: isFollowing ? '#232323' : '#1db954',
@@ -1246,6 +1307,8 @@ export default function ArtistConcertsPage() {
                 genres={genresForTable}
                 showContributorsButton={true}
                 onGetContributors={handleGetAlbumContributors}
+                wrappedLabel={'Create Album Analysis'}
+                isArtistContext={true}
               />
             </div>
           )}

@@ -1479,6 +1479,63 @@ app.get('/discogs/artist-id/:id', async (req, res) => {
   }
 });
 
+// --- Discogs: Get label name by ID ---
+app.get('/discogs/label-id/:id', async (req, res) => {
+  const labelId = req.params.id;
+  if (!labelId) return res.status(400).json({ error: 'Missing label ID' });
+  try {
+    const authHeaders = {
+      'User-Agent': process.env.DISCOGS_USER_AGENT,
+      'Authorization': `Discogs key=${process.env.DISCOGS_CONSUMER_KEY}, secret=${process.env.DISCOGS_CONSUMER_SECRET}`,
+    };
+    
+    const labelUrl = `https://api.discogs.com/labels/${labelId}`;
+    const labelResponse = await axios.get(labelUrl, { headers: authHeaders });
+    
+    if (labelResponse.status !== 200) {
+      return res.status(404).json({ error: 'Label not found' });
+    }
+    
+    const labelData = labelResponse.data;
+    res.json({ 
+      id: labelId,
+      name: labelData.name
+    });
+  } catch (err) {
+    console.error('Discogs API Error:', err);
+    res.status(500).json({ error: 'Failed to fetch label by ID', details: err.message });
+  }
+});
+
+// --- Discogs: Get release name by ID ---
+app.get('/discogs/release-id/:id', async (req, res) => {
+  const releaseId = req.params.id;
+  if (!releaseId) return res.status(400).json({ error: 'Missing release ID' });
+  try {
+    const authHeaders = {
+      'User-Agent': process.env.DISCOGS_USER_AGENT,
+      'Authorization': `Discogs key=${process.env.DISCOGS_CONSUMER_KEY}, secret=${process.env.DISCOGS_CONSUMER_SECRET}`,
+    };
+    
+    const releaseUrl = `https://api.discogs.com/releases/${releaseId}`;
+    const releaseResponse = await axios.get(releaseUrl, { headers: authHeaders });
+    
+    if (releaseResponse.status !== 200) {
+      return res.status(404).json({ error: 'Release not found' });
+    }
+    
+    const releaseData = releaseResponse.data;
+    res.json({ 
+      id: releaseId,
+      title: releaseData.title,
+      artists: releaseData.artists || []
+    });
+  } catch (err) {
+    console.error('Discogs API Error:', err);
+    res.status(500).json({ error: 'Failed to fetch release by ID', details: err.message });
+  }
+});
+
 // Optimized batch endpoint using single Ticketmaster API call
 app.post('/concerts/events/optimized-batch', async (req, res) => {
   const artistIds = req.body.artistIds;
@@ -2144,7 +2201,7 @@ app.get('/album-contributors', async (req, res) => {
     console.log(`\n📋 [ALBUM CONTRIBUTORS] Fetching detailed album info:`);
     console.log(`   URL: ${albumUrl}`);
     
-    const albumResponse = await fetch(albumUrl, { headers: authHeaders });
+    let albumResponse = await fetch(albumUrl, { headers: authHeaders });
     
     console.log(`   Album Response Status: ${albumResponse.status}`);
     
