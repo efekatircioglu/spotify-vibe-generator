@@ -417,7 +417,18 @@ export default function SongAnalysisModal({
         <table style={{ width: '100%', marginBottom: 16 }}>
           <tbody>
             {isAcousticLoading ? (
-              <tr><td colSpan={2}>Loading...</td></tr>
+              <tr><td colSpan={2} style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ color: '#1db954', fontWeight: 700, marginBottom: '1rem' }}>Loading genre analysis...</div>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  border: '4px solid #1db954',
+                  borderTopColor: 'rgba(24, 24, 27, 0.8)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto'
+                }} />
+              </td></tr>
             ) : (!songMBID || songMBID === 'Not Found' || genreError || acousticMetrics === null) ? (
               <tr><td colSpan={2} style={{ textAlign: 'center', color: '#fff', fontWeight: 800, fontSize: 24, padding: 40, letterSpacing: 1 }}>
                 No genre data available for this song.
@@ -764,7 +775,18 @@ export default function SongAnalysisModal({
           );
         })()}
         {isLowLevelLoading && (
-          <div style={{ marginTop: 32, textAlign: 'center', color: '#8B5CF6', fontWeight: 700 }}>Loading low-level analysis...</div>
+          <div style={{ marginTop: 32, textAlign: 'center', color: '#1db954', fontWeight: 700 }}>
+            <div style={{ marginBottom: '1rem' }}>Loading low-level analysis...</div>
+            <div style={{
+              width: 40,
+              height: 40,
+              border: '4px solid #1db954',
+              borderTopColor: 'rgba(24, 24, 27, 0.8)',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto'
+            }} />
+          </div>
         )}
         {/* Only show low-level error if MBID exists and low-level fetch fails, and genreError is not also true */}
         {songMBID && songMBID !== 'Not Found' && lowLevelError && !genreError && (

@@ -323,7 +323,8 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
                 }
             }
 
-            // No genre found from either source, show error
+            // Both fallback plans failed - only now set the error
+            console.log('Both fallback plans failed for:', artistName);
             setError('Could not fetch analysis data and no artist genre available on Spotify or Discogs.');
         } catch (err) {
             console.log('Could not fetch artist genre for fallback:', err);
@@ -350,8 +351,28 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
                     return;
                 }
             }
-            // No genre found, show error
-            setError('No MBID found and no artist genre available on Spotify.');
+            // No genre found from Spotify, try Discogs as second fallback
+            console.log('Spotify genre not found, attempting Discogs genre fallback for:', artistName);
+            
+            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            if (discogsResponse.ok) {
+                const discogsData = await discogsResponse.json();
+                if (discogsData && discogsData.primaryGenre) {
+                    // We have a Discogs genre, show fallback table
+                    setFallbackMode(true);
+                    setFallbackData({
+                        songName,
+                        artistName,
+                        albumName,
+                        genre: discogsData.primaryGenre
+                    });
+                    return;
+                }
+            }
+            
+            // Both fallback plans failed - only now show error
+            console.log('Both fallback plans failed for:', artistName);
+            setError('No MBID found and no artist genre available on Spotify or Discogs.');
         } catch (err) {
             console.log('Could not fetch artist genre for fallback:', err);
             setError('No MBID found and unable to fetch artist genre.');
@@ -414,7 +435,20 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
     }
 
     if (loading) {
-        return <div style={{ color: '#fff', textAlign: 'center', padding: 40 }}>Loading analysis...</div>;
+        return (
+            <div style={{ color: '#1db954', textAlign: 'center', padding: 40 }}>
+                <div style={{ marginBottom: '1rem', fontWeight: 700 }}>Loading analysis...</div>
+                <div style={{
+                    width: 40,
+                    height: 40,
+                    border: '4px solid #1db954',
+                    borderTopColor: 'rgba(24, 24, 27, 0.8)',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    margin: '0 auto'
+                }} />
+            </div>
+        );
     }
 
     // Show genre-based modal if analysis failed but we have genre data
@@ -433,11 +467,89 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
         );
     }
 
+    // Show fallback table if we have fallback data
+    if (fallbackMode && fallbackData) {
+        return (
+            <div className="app-container">
+                <div className="modal-overlay">
+                    <div className="modal-container">
+                        <div className="modal-header" style={{ position: 'relative' }}>
+                            <h2 className="modal-title">Genre Information</h2>
+                            {onClose && (
+                                <button
+                                    onClick={onClose}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 18,
+                                        right: 24,
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#fff',
+                                        fontSize: 28,
+                                        cursor: 'pointer',
+                                        zIndex: 1001
+                                    }}
+                                    aria-label="Close Modal"
+                                >
+                                    &times;
+                                </button>
+                            )}
+                        </div>
+                        <div className="modal-content-area" style={{ padding: '2rem' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                                <h3 style={{ color: '#fff', fontSize: '1.5rem', marginBottom: '1rem' }}>
+                                    {fallbackData.songName}
+                                </h3>
+                                <p style={{ color: '#d1d5db', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                                    {fallbackData.artistName}
+                                </p>
+                                {fallbackData.albumName && (
+                                    <p style={{ color: '#9ca3af', fontSize: '1rem' }}>
+                                        {fallbackData.albumName}
+                                    </p>
+                                )}
+                            </div>
+                            <div style={{ 
+                                background: '#232b39', 
+                                borderRadius: '12px', 
+                                padding: '1.5rem',
+                                textAlign: 'center'
+                            }}>
+                                <h4 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '1rem' }}>
+                                    Primary Genre
+                                </h4>
+                                <div style={{
+                                    display: 'inline-block',
+                                    background: 'linear-gradient(90deg, #8B5CF6 0%, #A78BFA 100%)',
+                                    color: '#fff',
+                                    padding: '0.75rem 1.5rem',
+                                    borderRadius: '999px',
+                                    fontWeight: '700',
+                                    fontSize: '1.1rem'
+                                }}>
+                                    {fallbackData.genre}
+                                </div>
+                                <p style={{ 
+                                    color: '#9ca3af', 
+                                    fontSize: '0.9rem', 
+                                    marginTop: '1rem',
+                                    fontStyle: 'italic'
+                                }}>
+                                    Genre information retrieved from {genreSource === 'spotify' ? 'Spotify' : 'Discogs'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (error) {
         return <div style={{ color: '#f87171', textAlign: 'center', padding: 40 }}>{error}</div>;
     }
     if (!analysisData) {
-        return <div style={{ color: '#fff', textAlign: 'center', padding: 40 }}>No analysis data available.</div>;
+        return <div style={{ color: '#fff', textAlign: 'center', padding: 40 }}></div>;
     }
 
     return (

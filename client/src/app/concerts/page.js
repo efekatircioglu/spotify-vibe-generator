@@ -68,6 +68,9 @@ export default function ConcertsPage() {
   // Ref for scrolling to concerts section
   const concertsSectionRef = useRef(null);
   
+  // Ref for scrolling to selected artists section
+  const selectedArtistsSectionRef = useRef(null);
+  
   // State for screen size
   const [isMobile, setIsMobile] = useState(false);
   const [isSmallMobile, setIsSmallMobile] = useState(false);
@@ -506,6 +509,16 @@ export default function ConcertsPage() {
       setBatchProgress({ current: 0, total: 0 });
       setIsProcessingResults(false);
       setProcessingProgress({ current: 0, total: 0 });
+      
+      // Auto-scroll to Selected Artists section after batch search completes
+      setTimeout(() => {
+        if (selectedArtistsSectionRef.current) {
+          selectedArtistsSectionRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+        }
+      }, 500); // Short delay to ensure DOM is updated and report is visible
     }
   };
 
@@ -612,6 +625,16 @@ export default function ConcertsPage() {
       setBatchProgress({ current: 0, total: 0 });
       setIsProcessingResults(false);
       setProcessingProgress({ current: 0, total: 0 });
+      
+      // Auto-scroll to Selected Artists section after batch search completes
+      setTimeout(() => {
+        if (selectedArtistsSectionRef.current) {
+          selectedArtistsSectionRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+        }
+      }, 500); // Short delay to ensure DOM is updated and report is visible
     }
   };
 
@@ -1481,7 +1504,7 @@ export default function ConcertsPage() {
         
         {/* Selected Artists */}
         {selectedArtists.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
+          <div ref={selectedArtistsSectionRef} style={{ marginBottom: 24 }}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 

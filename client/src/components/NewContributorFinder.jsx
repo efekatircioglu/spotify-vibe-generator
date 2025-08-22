@@ -73,51 +73,90 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
 
   // Function to fetch artist image from Spotify
   const fetchArtistImage = async (artistName) => {
-    if (!artistName) return;
+    if (!artistName) {
+      console.log(`[NewContributorFinder] No artist name provided, skipping image fetch`);
+      return;
+    }
+    
+    console.log(`[NewContributorFinder] Starting image fetch process for: "${artistName}"`);
+    
+    // Check cache first
+    const cachedImage = getCachedArtistImage(artistName);
+    if (cachedImage) {
+      console.log(`[NewContributorFinder] 🎯 CACHE HIT! Found cached image for "${artistName}":`, cachedImage);
+      setArtistImage(cachedImage);
+      return;
+    }
+    
+    console.log(`[NewContributorFinder] ❌ CACHE MISS! No cached image found for "${artistName}", making API call...`);
     
     setArtistImageLoading(true);
     try {
-      console.log(`[NewContributorFinder] Fetching artist image for: "${artistName}"`);
+      console.log(`[NewContributorFinder] 🌐 Making API call to Spotify for: "${artistName}"`);
       
       const response = await axios.get(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
-      console.log(`[NewContributorFinder] Spotify response:`, response.data);
+      console.log(`[NewContributorFinder] 📡 Spotify API response received:`, response.data);
       
       if (response.data.artists && response.data.artists.length > 0) {
+        console.log(`[NewContributorFinder] ✅ Found ${response.data.artists.length} artists from Spotify`);
+        
         // Find the best match by comparing artist names more accurately
         const bestMatch = response.data.artists.find(artist => {
           const spotifyName = artist.name.toLowerCase();
           const searchName = artistName.toLowerCase();
           
           // Exact match
-          if (spotifyName === searchName) return true;
+          if (spotifyName === searchName) {
+            console.log(`[NewContributorFinder] 🎯 Exact name match found: "${spotifyName}"`);
+            return true;
+          }
           
           // Check if search name is contained in Spotify name or vice versa
-          if (spotifyName.includes(searchName) || searchName.includes(spotifyName)) return true;
+          if (spotifyName.includes(searchName) || searchName.includes(spotifyName)) {
+            console.log(`[NewContributorFinder] 🔍 Partial name match found: "${spotifyName}" contains "${searchName}"`);
+            return true;
+          }
           
           // Check for common variations (e.g., "The Beatles" vs "Beatles")
           const cleanSpotifyName = spotifyName.replace(/^the\s+/i, '').trim();
           const cleanSearchName = searchName.replace(/^the\s+/i, '').trim();
-          if (cleanSpotifyName === cleanSearchName) return true;
+          if (cleanSpotifyName === cleanSearchName) {
+            console.log(`[NewContributorFinder] 🎭 Variation match found: "${cleanSpotifyName}" (removed "The")`);
+            return true;
+          }
           
           return false;
         }) || response.data.artists[0]; // Fallback to first result
         
-        console.log(`[NewContributorFinder] Best match:`, bestMatch);
+        if (!bestMatch) {
+          console.log(`[NewContributorFinder] ⚠️ No best match found, using first result`);
+        }
+        
+        console.log(`[NewContributorFinder] 🏆 Selected artist: "${bestMatch.name}" (ID: ${bestMatch.id})`);
         
         if (bestMatch.image) {
+          console.log(`[NewContributorFinder] 🖼️ Artist has image:`, bestMatch.image);
           setArtistImage(bestMatch.image);
+          
           // Cache the image for future use with the exact artist name from Spotify
+          console.log(`[NewContributorFinder] 💾 Caching image for "${bestMatch.name}" in artist cache`);
           setSpotifyArtistCache(bestMatch.name, bestMatch.image, bestMatch.id);
-          console.log(`[NewContributorFinder] Set image for "${bestMatch.name}":`, bestMatch.image);
+          console.log(`[NewContributorFinder] ✅ Successfully cached image for "${bestMatch.name}"`);
         } else {
-          console.log(`[NewContributorFinder] No image found for artist:`, bestMatch.name);
+          console.log(`[NewContributorFinder] ❌ No image found for artist: "${bestMatch.name}"`);
         }
       } else {
-        console.log(`[NewContributorFinder] No artists found for: "${artistName}"`);
+        console.log(`[NewContributorFinder] ❌ No artists found in Spotify response for: "${artistName}"`);
       }
     } catch (err) {
-      console.error('[NewContributorFinder] Error fetching artist image:', err);
+      console.error('[NewContributorFinder] 💥 Error fetching artist image:', err);
+      console.error('[NewContributorFinder] Error details:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
     } finally {
+      console.log(`[NewContributorFinder] 🏁 Image fetch process completed for: "${artistName}"`);
       setArtistImageLoading(false);
     }
   };
@@ -154,14 +193,18 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
   useEffect(() => {
     if (currentTrackInfo.artist) {
       const mainArtist = currentTrackInfo.artist.split(',')[0].trim();
+      console.log(`[NewContributorFinder] 🎵 Track info changed, extracting main artist: "${mainArtist}"`);
       
       // Check if we have a cached image and log it for debugging
       const cachedImage = getCachedArtistImage(mainArtist);
       if (cachedImage) {
-        console.log(`[NewContributorFinder] Found cached image for "${mainArtist}":`, cachedImage);
+        console.log(`[NewContributorFinder] 📋 Found cached image for "${mainArtist}":`, cachedImage);
       }
       
+      console.log(`[NewContributorFinder] 🚀 Triggering image fetch for artist: "${mainArtist}"`);
       fetchArtistImage(mainArtist);
+    } else {
+      console.log(`[NewContributorFinder] ⚠️ No artist info available in track info`);
     }
   }, [currentTrackInfo.artist]);
 
@@ -569,8 +612,8 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         .image-loading-spinner {
           width: 40px;
           height: 40px;
-          border: 4px solid rgba(255, 255, 255, 0.3);
-          border-top: 4px solid white;
+          border: 4px solid #1db954;
+          border-top-color: rgba(24, 24, 27, 0.8);
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -764,10 +807,10 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         }
 
         .loading-spinner {
-          width: 4rem;
-          height: 4rem;
-          border: 4px solid rgba(16, 185, 129, 0.2);
-          border-top: 4px solid #10b981;
+          width: 40px;
+          height: 40px;
+          border: 4px solid #1db954;
+          border-top-color: rgba(24, 24, 27, 0.8);
           border-radius: 50%;
           animation: spin 1s linear infinite;
           margin: 0 auto 2rem;
@@ -853,6 +896,8 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
             width: 24px;
             height: 24px;
             border-width: 3px;
+            border: 3px solid #1db954;
+            border-top-color: rgba(24, 24, 27, 0.8);
           }
           
           .refresh-image-btn {
