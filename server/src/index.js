@@ -1231,6 +1231,11 @@ app.get('/album-tracks/:albumId', async (req, res) => {
       id: track.id,
       name: track.name,
       artist: track.artists.map(a => a.name).join(', '),
+      artists: track.artists.map(a => ({ // Preserve full artist data for collaboration analysis
+        id: a.id,
+        name: a.name,
+        uri: a.uri
+      })),
       album: track.album?.name || '',
       release_year: track.album?.release_date ? track.album.release_date.split('-')[0] : '',
       album_image: track.album?.images?.[0]?.url || '',
@@ -1241,6 +1246,418 @@ app.get('/album-tracks/:albumId', async (req, res) => {
   } catch (err) {
     console.error('Error fetching album tracks:', err);
     res.status(500).json({ error: 'Failed to fetch album tracks' });
+  }
+});
+
+// Get artist collaborators/friends based on their albums
+app.get('/artist-collaborators/:artistId', async (req, res) => {
+  const artistId = req.params.artistId;
+  const minCollaborations = parseInt(req.query.minCollaborations) || 1; // Minimum collabs to be considered a "friend"
+  const albumTypes = req.query.albumTypes || 'album'; // Default to albums only for speed
+  
+  if (!artistId) {
+    return res.status(400).json({ error: 'Missing artist ID' });
+  }
+
+  try {
+    // Step 1: Get specific album types (much faster than fetching all)
+    let allAlbums = [];
+    
+    console.log(`[Collaborators] Fetching ${albumTypes} for artist ${artistId}...`);
+    
+    // Add initial delay to prevent hitting rate limits
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    try {
+      // Strategy: If user wants "All Types", make 4 separate calls for complete coverage
+      if (albumTypes.includes(',')) {
+        // Multiple types requested - make separate calls for each
+        const types = albumTypes.split(',');
+        const albumPromises = types.map(async (type) => {
+          await new Promise(resolve => setTimeout(resolve, 200)); // Small delay between calls
+          const { body } = await spotifyApi.getArtistAlbums(artistId, {
+            limit: 50, // Full limit since we're being specific
+            include_groups: type.trim()
+          });
+          console.log(`[Collaborators] Fetched ${body.items?.length || 0} ${type.trim()} items`);
+          return body.items || [];
+        });
+        
+        const allAlbumArrays = await Promise.all(albumPromises);
+        
+        // Filter each array to match the requested type (fix Spotify API inconsistency)
+        const filteredArrays = allAlbumArrays.map((albums, index) => {
+          const requestedType = types[index].trim();
+          const filtered = albums.filter(album => {
+            // Handle Spotify API quirks where album_type doesn't match include_groups
+            if (requestedType === 'appears_on') {
+              return album.album_type === 'appears_on' || album.album_type === 'compilation';
+            }
+            return album.album_type === requestedType;
+          });
+          
+          // Normalize album_type to match what was requested
+          return filtered.map(album => ({
+            ...album,
+            album_type: requestedType // Force the type to match what user selected
+          }));
+        });
+        
+        allAlbums = filteredArrays.flat(); // Combine all arrays
+        console.log(`[Collaborators] Total combined: ${allAlbums.length} albums`);
+      } else {
+        // Single type requested - simple call
+        const { body: albumsBody } = await spotifyApi.getArtistAlbums(artistId, {
+          limit: 50, // Full limit for single type
+          include_groups: albumTypes
+        });
+        
+        // Filter to match exactly what was requested (fix Spotify API inconsistency)
+        let filteredAlbums = (albumsBody.items || []).filter(album => {
+          if (albumTypes === 'appears_on') {
+            return album.album_type === 'appears_on' || album.album_type === 'compilation';
+          }
+          return album.album_type === albumTypes;
+        });
+        
+        // Normalize album_type to match what was requested
+        allAlbums = filteredAlbums.map(album => ({
+          ...album,
+          album_type: albumTypes // Force the type to match what user selected
+        }));
+        
+        console.log(`[Collaborators] Fetched ${allAlbums.length} ${albumTypes} albums`);
+      }
+      
+      console.log(`[Collaborators] Final count: ${allAlbums.length} total albums for artist ${artistId}`);
+      
+    } catch (error) {
+      if (error.statusCode === 429) {
+        const retryAfter = Math.min(error.headers['retry-after'] || 3, 10); // Cap at 10 seconds max
+        console.log(`[Collaborators] Rate limited on initial fetch, waiting ${retryAfter} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        
+        // Simple retry with the requested album types
+        try {
+          const { body: albumsBody } = await spotifyApi.getArtistAlbums(artistId, {
+            limit: 50,
+            include_groups: albumTypes
+          });
+          allAlbums = albumsBody.items || [];
+          console.log(`[Collaborators] Retry successful: Fetched ${allAlbums.length} albums`);
+        } catch (retryError) {
+          console.error(`[Collaborators] Retry failed:`, retryError);
+          allAlbums = [];
+        }
+      } else {
+        console.error(`[Collaborators] Error fetching albums:`, error);
+        allAlbums = [];
+      }
+    }
+
+    if (!allAlbums || allAlbums.length === 0) {
+      return res.json({ collaborators: [], totalAlbums: 0, totalTracks: 0, albumTypes: {} });
+    }
+    
+    console.log(`[Collaborators] Found ${allAlbums.length} total albums for artist ${artistId}`);
+    console.log(`[Collaborators] Album types breakdown: ${JSON.stringify(allAlbums.reduce((acc, album) => {
+      acc[album.album_type] = (acc[album.album_type] || 0) + 1;
+      return acc;
+    }, {}))}`);
+    
+    // Log sample of appears_on and compilation albums if they exist
+    const appearsOnAlbums = allAlbums.filter(a => a.album_type === 'appears_on');
+    const compilationAlbums = allAlbums.filter(a => a.album_type === 'compilation');
+    
+    if (appearsOnAlbums.length > 0) {
+      console.log(`[Collaborators] Sample appears_on albums: ${appearsOnAlbums.slice(0, 3).map(a => a.name).join(', ')}`);
+    }
+    if (compilationAlbums.length > 0) {
+      console.log(`[Collaborators] Sample compilation albums: ${compilationAlbums.slice(0, 3).map(a => a.name).join(', ')}`);
+    }
+
+    // Step 2: Get tracks for ALL album types (albums, singles, compilations, appears_on)
+    // NOTE: Even "singles" often have multiple tracks (radio version, instrumental, etc.)
+    // and "appears_on" albums need track-level analysis to find actual collaborations
+    const albumTypeStats = {
+      album: 0,
+      single: 0,
+      compilation: 0,
+      appears_on: 0
+    };
+
+    // Helper function to add delay between API calls
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    // Process albums in batches - conservative approach to avoid rate limits
+    const albumsWithTracks = [];
+    const batchSize = 3; // Very conservative batch size
+    const delayBetweenBatches = 500; // Longer delay to respect rate limits
+    
+    // Add initial delay before starting
+    await delay(200);
+    
+    for (let i = 0; i < allAlbums.length; i += batchSize) {
+      const batch = allAlbums.slice(i, i + batchSize);
+      
+      const batchPromises = batch.map(async (album) => {
+        // Count album types for statistics
+        albumTypeStats[album.album_type] = (albumTypeStats[album.album_type] || 0) + 1;
+        
+        try {
+          const { body: tracksBody } = await spotifyApi.getAlbumTracks(album.id, { limit: 50 });
+          return {
+            albumId: album.id,
+            albumName: album.name,
+            albumType: album.album_type, // Include album type
+            albumYear: album.release_date?.split('-')[0] || '',
+            albumImage: album.images?.[0]?.url || '',
+            tracks: tracksBody.items || []
+          };
+        } catch (err) {
+          if (err.statusCode === 429) {
+            const retryAfter = Math.min(err.headers['retry-after'] || 1, 2); // Cap retry at 2 seconds
+            console.log(`[Collaborators] Rate limited on album ${album.id}, waiting ${retryAfter} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+            
+            // Quick retry once
+            try {
+              const { body: tracksBody } = await spotifyApi.getAlbumTracks(album.id, { limit: 50 });
+              return {
+                albumId: album.id,
+                albumName: album.name,
+                albumType: album.album_type,
+                albumYear: album.release_date?.split('-')[0] || '',
+                albumImage: album.images?.[0]?.url || '',
+                tracks: tracksBody.items || []
+              };
+            } catch (retryErr) {
+              // Skip this album on retry failure to avoid blocking the whole process
+              console.log(`[Collaborators] Skipping album ${album.id} after retry failed`);
+              return { 
+                albumId: album.id, 
+                albumName: album.name, 
+                albumType: album.album_type,
+                albumYear: '',
+                albumImage: '',
+                tracks: [] 
+              };
+            }
+          } else {
+            // Skip albums with other errors to keep processing fast
+            console.log(`[Collaborators] Skipping album ${album.id} due to error:`, err.message);
+            return { 
+              albumId: album.id, 
+              albumName: album.name, 
+              albumType: album.album_type,
+              albumYear: '',
+              albumImage: '',
+              tracks: [] 
+            };
+          }
+        }
+      });
+      
+      // Wait for this batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      albumsWithTracks.push(...batchResults);
+      
+      // Add delay between batches (except for the last batch)
+      if (i + batchSize < allAlbums.length) {
+        await delay(delayBetweenBatches);
+      }
+    }
+
+    // Step 3: Analyze collaborations across all tracks
+    const collaboratorMap = new Map(); // collaboratorId -> { name, count, tracks, albums }
+    let totalTracks = 0;
+
+    // Helper function to normalize track names for deduplication
+    const normalizeTrackName = (name) => {
+      return name
+        .toLowerCase()
+        .replace(/\s*\(feat\.?\s+[^)]+\)/gi, '') // Remove (feat. Artist)
+        .replace(/\s*\(with\s+[^)]+\)/gi, '')   // Remove (with Artist)
+        .replace(/\s*feat\.?\s+[^-]+/gi, '')    // Remove feat. Artist
+        .replace(/\s*with\s+[^-]+/gi, '')      // Remove with Artist
+        .replace(/[^\w\s]/g, '')               // Remove special characters
+        .replace(/\s+/g, ' ')                  // Normalize whitespace
+        .trim();
+    };
+
+    albumsWithTracks.forEach(albumData => {
+      albumData.tracks.forEach(track => {
+        // IMPORTANT FIX: Only analyze tracks where the target artist actually appears
+        const targetArtistOnTrack = track.artists.some(artist => artist.id === artistId);
+        
+        // Skip tracks where the target artist doesn't appear (fixes "appears_on" issue)
+        if (!targetArtistOnTrack) {
+          if (albumData.albumType === 'appears_on') {
+            console.log(`[Collaborators] Skipping track "${track.name}" from appears_on album "${albumData.albumName}" - target artist not on track`);
+          }
+          return;
+        }
+        
+        // Log when we process appears_on or compilation tracks
+        if (albumData.albumType === 'appears_on' || albumData.albumType === 'compilation') {
+          console.log(`[Collaborators] Processing ${albumData.albumType} track: "${track.name}" from "${albumData.albumName}"`);
+        }
+        
+        totalTracks++;
+        
+        // Find all OTHER artists on this track (actual collaborators)
+        track.artists.forEach(artist => {
+          if (artist.id && artist.id !== artistId) {
+            if (!collaboratorMap.has(artist.id)) {
+              collaboratorMap.set(artist.id, {
+                id: artist.id,
+                name: artist.name,
+                count: 0,
+                tracks: [],
+                uniqueTracks: new Map(), // For deduplication
+                uniqueAlbumNames: new Set(), // Simple unique album name tracking
+                spotifyUri: artist.uri
+              });
+            }
+            
+            const collaborator = collaboratorMap.get(artist.id);
+            const normalizedName = normalizeTrackName(track.name);
+            
+            // Check if we already have this track (by normalized name)
+            if (!collaborator.uniqueTracks.has(normalizedName)) {
+              // This is a new unique track
+              collaborator.count++;
+              const trackInfo = {
+                // Core track info (NewTrackTable compatible)
+                name: track.name,
+                id: track.id,
+                artist: track.artists.map(a => a.name).join(', '), // Comma-separated string
+                artists: track.artists.map(a => ({ // Full artist objects
+                  id: a.id,
+                  name: a.name,
+                  uri: a.uri
+                })),
+                album: albumData.albumName,
+                album_image: albumData.albumImage,
+                albumId: albumData.albumId,
+                albumType: albumData.albumType,
+                release_year: albumData.albumYear,
+                year: albumData.albumYear, // Keeping both for compatibility
+                duration_ms: track.duration_ms,
+                uri: track.uri,
+                // Internal deduplication data
+                normalizedName: normalizedName
+              };
+              
+              collaborator.tracks.push(trackInfo);
+              collaborator.uniqueTracks.set(normalizedName, trackInfo);
+              
+              // Add album name to unique album set (Set automatically handles duplicates)
+              collaborator.uniqueAlbumNames.add(albumData.albumName);
+            } else {
+              // This is a duplicate track - still add the album name
+              collaborator.uniqueAlbumNames.add(albumData.albumName);
+              
+              // Optionally, prefer the track from the main album (not deluxe/collector's edition)
+              const existingTrack = collaborator.uniqueTracks.get(normalizedName);
+              const currentAlbum = albumData.albumName.toLowerCase();
+              const existingAlbum = existingTrack.album.toLowerCase();
+              
+              // Prefer non-deluxe/collector's editions
+              const isCurrentMainEdition = !currentAlbum.includes('deluxe') && 
+                                         !currentAlbum.includes('collector') && 
+                                         !currentAlbum.includes('special') &&
+                                         !currentAlbum.includes('extended');
+              const isExistingMainEdition = !existingAlbum.includes('deluxe') && 
+                                          !existingAlbum.includes('collector') && 
+                                          !existingAlbum.includes('special') &&
+                                          !existingAlbum.includes('extended');
+              
+              if (isCurrentMainEdition && !isExistingMainEdition) {
+                // Replace with the main edition version
+                const trackIndex = collaborator.tracks.findIndex(t => t.normalizedName === normalizedName);
+                if (trackIndex !== -1) {
+                  collaborator.tracks[trackIndex] = {
+                    // Core track info (NewTrackTable compatible)
+                    name: track.name,
+                    id: track.id,
+                    artist: track.artists.map(a => a.name).join(', '),
+                    artists: track.artists.map(a => ({
+                      id: a.id,
+                      name: a.name,
+                      uri: a.uri
+                    })),
+                    album: albumData.albumName,
+                    album_image: albumData.albumImage,
+                    albumId: albumData.albumId,
+                    albumType: albumData.albumType,
+                    release_year: albumData.albumYear,
+                    year: albumData.albumYear,
+                    duration_ms: track.duration_ms,
+                    uri: track.uri,
+                    // Internal deduplication data
+                    normalizedName: normalizedName
+                  };
+                  collaborator.uniqueTracks.set(normalizedName, collaborator.tracks[trackIndex]);
+                }
+              }
+            }
+          }
+        });
+      });
+    });
+
+    // Step 4: Filter and sort collaborators
+    console.log(`[DEBUG] Processing ${collaboratorMap.size} collaborators...`);
+    const collaborators = Array.from(collaboratorMap.values())
+      .filter(collab => collab.count >= minCollaborations)
+      .map(collab => ({
+        id: collab.id,
+        name: collab.name,
+        count: collab.count,
+        tracks: collab.tracks.map(track => ({
+          // NewTrackTable compatible format
+          name: track.name,
+          id: track.id,
+          artist: track.artist,
+          artists: track.artists,
+          album: track.album,
+          album_image: track.album_image,
+          albumId: track.albumId,
+          albumType: track.albumType,
+          release_year: track.release_year,
+          year: track.year,
+          duration_ms: track.duration_ms,
+          uri: track.uri
+        })), // Remove internal deduplication data
+        albums: Array.from(collab.uniqueAlbumNames), // List of unique album names
+        albumCount: collab.uniqueAlbumNames.size, // Count of unique albums
+        spotifyUri: collab.spotifyUri
+      }))
+      .sort((a, b) => b.count - a.count); // Sort by collaboration count
+    
+    // Debug the top collaborator
+    if (collaborators.length > 0) {
+      const topCollab = collaborators[0];
+      console.log(`[DEBUG] Top collaborator: ${topCollab.name}`);
+      console.log(`[DEBUG] Unique albums for ${topCollab.name}:`, Array.from(collaboratorMap.get(topCollab.id).uniqueAlbumNames));
+      console.log(`[DEBUG] Album count: ${topCollab.albumCount}`);
+    }
+
+    res.json({
+      collaborators,
+      totalAlbums: allAlbums.length,
+      totalTracks,
+      albumTypes: albumTypeStats, // Include breakdown by album type
+      analysisParams: {
+        includeAllTypes: true,
+        minCollaborations
+      }
+    });
+
+  } catch (err) {
+    console.error('Error analyzing artist collaborators:', err);
+    res.status(500).json({ error: 'Failed to analyze artist collaborators' });
   }
 });
 

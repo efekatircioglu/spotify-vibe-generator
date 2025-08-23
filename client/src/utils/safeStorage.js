@@ -10,6 +10,11 @@
  * @returns {boolean} - True if successful, false if quota exceeded
  */
 export const safeSetItem = (key, value, silent = false) => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return false;
+  }
+  
   try {
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
     localStorage.setItem(key, stringValue);
@@ -34,6 +39,11 @@ export const safeSetItem = (key, value, silent = false) => {
  * @returns {any} - The stored value or default
  */
 export const safeGetItem = (key, defaultValue = null) => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return defaultValue;
+  }
+  
   try {
     const item = localStorage.getItem(key);
     if (item === null) return defaultValue;
@@ -55,6 +65,11 @@ export const safeGetItem = (key, defaultValue = null) => {
  * @returns {boolean} - True if successful
  */
 export const safeRemoveItem = (key) => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return false;
+  }
+  
   try {
     localStorage.removeItem(key);
     return true;
@@ -70,6 +85,11 @@ export const safeRemoveItem = (key) => {
  * @returns {boolean} - True if space is available
  */
 export const hasStorageSpace = (requiredBytes = 0) => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return false;
+  }
+  
   try {
     // Test if we can write a small amount
     const testKey = '__storage_test__';
@@ -96,6 +116,11 @@ export const hasStorageSpace = (requiredBytes = 0) => {
  * @returns {object} - Usage information
  */
 export const getStorageInfo = () => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+    return { keyCount: 0, totalSize: 0, totalSizeMB: '0.00' };
+  }
+  
   try {
     let totalSize = 0;
     let keyCount = 0;

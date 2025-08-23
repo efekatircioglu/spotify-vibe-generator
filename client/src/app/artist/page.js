@@ -6,6 +6,7 @@ import AlbumSelector from '../../components/AlbumSelector';
 import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import AlbumContributorsModal from '../../components/AlbumContributorsModal';
+import ArtistCollaborators from '../../components/ArtistCollaborators';
 import { getCachedArtistId, setArtistCache } from '../../utils/artistCache';
 
 // --- Add this entire helper function ---
@@ -202,6 +203,12 @@ export default function ArtistConcertsPage() {
   
   // Pagination state for concerts
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // State for collaborators
+  const [collaborators, setCollaborators] = useState([]);
+  const [collaboratorsLoading, setCollaboratorsLoading] = useState(false);
+  const [collaboratorsError, setCollaboratorsError] = useState('');
+  const [collaboratorsStats, setCollaboratorsStats] = useState(null);
   const concertsPerPage = 20;
   
   // State for Ticketmaster ID not found
@@ -523,6 +530,39 @@ export default function ArtistConcertsPage() {
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // Exponential backoff
       }
+    }
+  };
+
+  // Fetch collaborators for the artist
+  const fetchCollaborators = async (albumTypes = 'album') => {
+    if (!spotifyId) return;
+    
+    setCollaboratorsLoading(true);
+    setCollaboratorsError('');
+    
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/artist-collaborators/${spotifyId}?minCollaborations=1&albumTypes=${albumTypes}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch collaborators');
+      }
+      
+      const data = await response.json();
+      setCollaborators(data.collaborators || []);
+      setCollaboratorsStats({
+        totalAlbums: data.totalAlbums,
+        totalTracks: data.totalTracks,
+        albumTypes: data.albumTypes,
+        analysisParams: data.analysisParams
+      });
+    } catch (err) {
+      setCollaboratorsError(err.message || 'Failed to fetch collaborators');
+      setCollaborators([]);
+      setCollaboratorsStats(null);
+    } finally {
+      setCollaboratorsLoading(false);
     }
   };
 
@@ -1313,6 +1353,21 @@ export default function ArtistConcertsPage() {
             </div>
           )}
 
+          {/* Artist Collaborators Section */}
+          {spotifyId && (
+            <div style={{ marginTop: 48, marginBottom: 48 }}>
+              <ArtistCollaborators 
+                artistId={spotifyId}
+                artistName={artistName}
+                collaborators={collaborators}
+                loading={collaboratorsLoading}
+                error={collaboratorsError}
+                stats={collaboratorsStats}
+                onAnalyze={fetchCollaborators}
+              />
+            </div>
+          )}
+
           {/* Concerts Section */}
           {loading && <div>Loading concerts...</div>}
           {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
@@ -1391,6 +1446,7 @@ export default function ArtistConcertsPage() {
                 concertsPerPage={concertsPerPage}
                 ticketmasterIdNotFound={ticketmasterIdNotFound}
               />
+
             </>
           )}
         </>
