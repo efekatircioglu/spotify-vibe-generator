@@ -2320,12 +2320,9 @@ app.post('/wrapped-analysis', async (req, res) => {
 app.get('/album-contributors', async (req, res) => {
   const { albumTitle, artistName } = req.query;
   
-  console.log(`\n🔍 [ALBUM CONTRIBUTORS] Request received:`);
-  console.log(`   Album: "${albumTitle}"`);
-  console.log(`   Artist: "${artistName}"`);
+  console.log(`\n🔍 Getting contributors for "${albumTitle}" by "${artistName}"`);
   
   if (!albumTitle || !artistName) {
-    console.log(`❌ [ALBUM CONTRIBUTORS] Missing parameters`);
     return res.status(400).json({ error: 'Missing album title or artist name' });
   }
 
@@ -2334,33 +2331,23 @@ app.get('/album-contributors', async (req, res) => {
     let searchData = null;
     let searchUrl = null;
     let searchStrategy = 'exact';
-    
-    // Strategy 1: Exact search with original title
-    searchUrl = `https://api.discogs.com/database/search?release_title=${encodeURIComponent(albumTitle)}&artist=${encodeURIComponent(artistName)}`;
-    
-    console.log(`\n🌐 [ALBUM CONTRIBUTORS] Strategy 1: Exact search`);
-    console.log(`   URL: ${searchUrl}`);
+    let searchAttempts = 0;
     
     const authHeaders = {
       'User-Agent': process.env.DISCOGS_USER_AGENT,
       'Authorization': `Discogs key=${process.env.DISCOGS_CONSUMER_KEY}, secret=${process.env.DISCOGS_CONSUMER_SECRET}`,
     };
 
-    console.log(`   User-Agent: ${process.env.DISCOGS_USER_AGENT}`);
-    console.log(`   Key: ${process.env.DISCOGS_CONSUMER_KEY ? '✓ Set' : '✗ Missing'}`);
-    console.log(`   Secret: ${process.env.DISCOGS_CONSUMER_SECRET ? '✓ Set' : '✗ Missing'}`);
-
+    // Strategy 1: Exact search with original title
+    searchAttempts++;
+    searchUrl = `https://api.discogs.com/database/search?release_title=${encodeURIComponent(albumTitle)}&artist=${encodeURIComponent(artistName)}`;
     let searchResponse = await fetch(searchUrl, { headers: authHeaders });
     
-    console.log(`   Search Response Status: ${searchResponse.status}`);
-    
     if (!searchResponse.ok) {
-      console.log(`❌ [ALBUM CONTRIBUTORS] Discogs search failed with status: ${searchResponse.status}`);
       throw new Error(`Discogs search failed with status: ${searchResponse.status}`);
     }
 
     searchData = await searchResponse.json();
-    console.log(`   Search Results: ${searchData.results?.length || 0} found`);
     
     // Strategy 2: If no results, try without special characters and parentheses
     if (!searchData.results || searchData.results.length === 0) {
@@ -2370,96 +2357,70 @@ app.get('/album-contributors', async (req, res) => {
         .trim();
       
       if (cleanTitle !== albumTitle) {
+        searchAttempts++;
         searchStrategy = 'cleaned';
         searchUrl = `https://api.discogs.com/database/search?release_title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(artistName)}`;
-        
-        console.log(`\n🌐 [ALBUM CONTRIBUTORS] Strategy 2: Cleaned title search`);
-        console.log(`   Original: "${albumTitle}"`);
-        console.log(`   Cleaned: "${cleanTitle}"`);
-        console.log(`   URL: ${searchUrl}`);
-        
         searchResponse = await fetch(searchUrl, { headers: authHeaders });
         
         if (searchResponse.ok) {
           searchData = await searchResponse.json();
-          console.log(`   Search Results: ${searchData.results?.length || 0} found`);
         }
       }
     }
     
     // Strategy 3: If still no results, try broader search with just artist and album name
     if (!searchData.results || searchData.results.length === 0) {
+      searchAttempts++;
       searchStrategy = 'broad';
       searchUrl = `https://api.discogs.com/database/search?q=${encodeURIComponent(artistName + ' ' + albumTitle)}&type=release`;
-      
-      console.log(`\n🌐 [ALBUM CONTRIBUTORS] Strategy 3: Broad search`);
-      console.log(`   Query: "${artistName} ${albumTitle}"`);
-      console.log(`   URL: ${searchUrl}`);
-      
       searchResponse = await fetch(searchUrl, { headers: authHeaders });
       
       if (searchResponse.ok) {
         searchData = await searchResponse.json();
-        console.log(`   Search Results: ${searchData.results?.length || 0} found`);
       }
     }
     
-                    // Strategy 4: If still no results, try searching by artist only and filter by title
-                if (!searchData?.results || searchData.results.length === 0) {
-                  searchStrategy = 'artist_only';
-                  searchUrl = `https://api.discogs.com/database/search?artist=${encodeURIComponent(artistName)}&type=release`;
+    // Strategy 4: If still no results, try searching by artist only and filter by title
+    if (!searchData?.results || searchData.results.length === 0) {
+      searchAttempts++;
+      searchStrategy = 'artist_only';
+      searchUrl = `https://api.discogs.com/database/search?artist=${encodeURIComponent(artistName)}&type=release`;
+      searchResponse = await fetch(searchUrl, { headers: authHeaders });
 
-                  console.log(`\n🌐 [ALBUM CONTRIBUTORS] Strategy 4: Artist-only search`);
-                  console.log(`   Artist: "${artistName}"`);
-                  console.log(`   URL: ${searchUrl}`);
-
-                  searchResponse = await fetch(searchUrl, { headers: authHeaders });
-
-                  if (searchResponse.ok) {
-                    searchData = await searchResponse.json();
-                    console.log(`   Search Results: ${searchData.results?.length || 0} found`);
-                    
-                    if (searchData.results && searchData.results.length > 0) {
-                      // Filter results to find albums with matching titles
-                      const filteredResults = searchData.results.filter(result => {
-                        const resultTitle = result.title.toLowerCase();
-                        const searchTitle = albumTitle.toLowerCase();
-                        return resultTitle.includes(searchTitle) || searchTitle.includes(resultTitle);
-                      });
-                      
-                      if (filteredResults.length > 0) {
-                        searchData.results = filteredResults;
-                        console.log(`   Filtered to ${filteredResults.length} relevant albums`);
-                      }
-                    }
-                  }
-                }
+      if (searchResponse.ok) {
+        searchData = await searchResponse.json();
+        
+        if (searchData.results && searchData.results.length > 0) {
+          // Filter results to find albums with matching titles
+          const filteredResults = searchData.results.filter(result => {
+            const resultTitle = result.title.toLowerCase();
+            const searchTitle = albumTitle.toLowerCase();
+            return resultTitle.includes(searchTitle) || searchTitle.includes(resultTitle);
+          });
+          
+          if (filteredResults.length > 0) {
+            searchData.results = filteredResults;
+          }
+        }
+      }
+    }
                 
-                // Strategy 5: Try searching with artist name in title pattern
-                if (!searchData?.results || searchData.results.length === 0) {
-                  searchStrategy = 'artist_in_title';
-                  const artistInTitleQuery = `${artistName} - ${albumTitle}`;
-                  searchUrl = `https://api.discogs.com/database/search?q=${encodeURIComponent(artistInTitleQuery)}&type=release`;
+    // Strategy 5: Try searching with artist name in title pattern
+    if (!searchData?.results || searchData.results.length === 0) {
+      searchAttempts++;
+      searchStrategy = 'artist_in_title';
+      const artistInTitleQuery = `${artistName} - ${albumTitle}`;
+      searchUrl = `https://api.discogs.com/database/search?q=${encodeURIComponent(artistInTitleQuery)}&type=release`;
+      searchResponse = await fetch(searchUrl, { headers: authHeaders });
 
-                  console.log(`\n🌐 [ALBUM CONTRIBUTORS] Strategy 5: Artist-in-title search`);
-                  console.log(`   Query: "${artistInTitleQuery}"`);
-                  console.log(`   URL: ${searchUrl}`);
-
-                  searchResponse = await fetch(searchUrl, { headers: authHeaders });
-
-                  if (searchResponse.ok) {
-                    searchData = await searchResponse.json();
-                    console.log(`   Search Results: ${searchData.results?.length || 0} found`);
-                  }
-                }
+      if (searchResponse.ok) {
+        searchData = await searchResponse.json();
+      }
+    }
     
     if (!searchData?.results || searchData.results.length === 0) {
-      console.log(`⚠️ [ALBUM CONTRIBUTORS] No album found after all strategies`);
       return res.json({ contributors: [], message: 'No album found' });
     }
-
-    // Find the most relevant album by filtering and scoring results
-    console.log(`\n🔍 [ALBUM CONTRIBUTORS] Filtering ${searchData.results.length} results for best match...`);
     
     // Filter results to find exact or close matches with better validation
     const relevantResults = searchData.results.filter(result => {
@@ -2467,9 +2428,6 @@ app.get('/album-contributors', async (req, res) => {
       const resultArtist = result.artist?.toLowerCase() || '';
       const searchTitle = albumTitle.toLowerCase();
       const searchArtist = artistName.toLowerCase();
-      
-      // Log the current result being evaluated
-      console.log(`\n   Evaluating: "${result.title}" by "${result.artist || 'undefined'}"`);
       
       // Special case: If artist is undefined/missing, check if artist is embedded in title
       if (!result.artist || result.artist === 'undefined') {
@@ -2488,26 +2446,20 @@ app.get('/album-contributors', async (req, res) => {
           resultTitle.toLowerCase().startsWith(pattern)
         );
         
-        // Also check if artist name appears anywhere in the title
-        const titleContainsArtist = resultTitle.includes(searchArtist.toLowerCase());
+        // More strict check: artist name must appear in title in a meaningful way
+        const artistWords = searchArtist.toLowerCase().split(' ').filter(word => word.length > 2);
+        const titleWords = resultTitle.split(' ');
+        const artistWordsInTitle = artistWords.filter(word => 
+          titleWords.some(titleWord => titleWord.toLowerCase().includes(word))
+        );
+        const artistNameCoverage = artistWordsInTitle.length / artistWords.length;
         
-        console.log(`     Artist missing/undefined - checking patterns:`);
-        console.log(`       Title contains album: ${titleContainsAlbum}`);
-        console.log(`       Title starts with artist pattern: ${titleStartsWithArtist}`);
-        console.log(`       Title contains artist: ${titleContainsArtist}`);
-        
-        // Accept if album is in title AND (title starts with artist pattern OR contains artist name)
-        if (titleContainsAlbum && (titleStartsWithArtist || titleContainsArtist)) {
-          console.log(`     ✅ Accepting result with missing artist (artist embedded in title)`);
-          return true;
-        } else {
-          console.log(`     ❌ Rejecting result with missing artist (insufficient validation)`);
-          return false;
-        }
+        // More strict validation: require either exact pattern match OR high artist name coverage with album match
+        return titleContainsAlbum && (titleStartsWithArtist || artistNameCoverage >= 0.7);
       }
       
       // Normal case: Both artist and title must match
-      const artistMatch = resultArtist.includes(searchArtist) || searchArtist.includes(searchArtist);
+      const artistMatch = resultArtist.includes(searchArtist) || searchArtist.includes(resultArtist);
       const titleMatch = resultTitle.includes(searchTitle) || searchTitle.includes(resultTitle);
       
       // Additional validation: reject obviously wrong results
@@ -2522,20 +2474,11 @@ app.get('/album-contributors', async (req, res) => {
         // Reject if result has no artist and title doesn't contain album name
         (!resultArtist && !resultTitle.includes(searchTitle));
       
-      console.log(`     Artist match: ${artistMatch} (${resultArtist || 'undefined'} vs ${searchArtist})`);
-      console.log(`     Title match: ${titleMatch} (${resultTitle} vs ${searchTitle})`);
-      console.log(`     Obviously wrong: ${isObviouslyWrong}`);
-      
       return artistMatch && titleMatch && !isObviouslyWrong;
     });
     
-    console.log(`   Relevant results after filtering: ${relevantResults.length}`);
-    
     if (relevantResults.length === 0) {
-      console.log(`⚠️ [ALBUM CONTRIBUTORS] No relevant results found after filtering`);
-      console.log(`   Trying to find best partial match...`);
-      
-      // If no exact matches, find the best partial match
+      // If no exact matches, find the best partial match with stricter validation
       const bestMatch = searchData.results.find(result => {
         const resultTitle = result.title.toLowerCase();
         const resultArtist = result.artist?.toLowerCase() || '';
@@ -2544,13 +2487,19 @@ app.get('/album-contributors', async (req, res) => {
         
         // Special case: If artist is missing but title contains album name
         if (!result.artist || result.artist === 'undefined') {
-          if (resultTitle.includes(searchTitle)) {
-            console.log(`     ✅ Found partial match with missing artist: "${result.title}"`);
-            return true;
-          }
+          // Apply the same strict validation as above
+          const titleContainsAlbum = resultTitle.includes(searchTitle);
+          const artistWords = searchArtist.split(' ').filter(word => word.length > 2);
+          const titleWords = resultTitle.split(' ');
+          const artistWordsInTitle = artistWords.filter(word => 
+            titleWords.some(titleWord => titleWord.toLowerCase().includes(word))
+          );
+          const artistNameCoverage = artistWordsInTitle.length / artistWords.length;
+          
+          return titleContainsAlbum && artistNameCoverage >= 0.7;
         }
         
-        // Normal scoring for results with artists
+        // Normal scoring for results with artists - require strong matches
         if (resultArtist) {
           const titleWords = searchTitle.split(' ').filter(word => word.length > 2);
           const artistWords = searchArtist.split(' ').filter(word => word.length > 2);
@@ -2558,160 +2507,80 @@ app.get('/album-contributors', async (req, res) => {
           const titleScore = titleWords.filter(word => resultTitle.includes(word)).length;
           const artistScore = artistWords.filter(word => resultArtist.includes(word)).length;
           
-          // Require at least some title match and some artist match
-          return titleScore > 0 && artistScore > 0;
+          // Require strong matches - at least 50% of words must match
+          const titleMatch = titleWords.length > 0 && (titleScore / titleWords.length) >= 0.5;
+          const artistMatch = artistWords.length > 0 && (artistScore / artistWords.length) >= 0.5;
+          
+          return titleMatch && artistMatch;
         }
         
         return false;
       });
       
       if (bestMatch) {
-        console.log(`   Best partial match found: "${bestMatch.title}" by "${bestMatch.artist}"`);
         relevantResults.push(bestMatch);
       }
     }
     
     if (relevantResults.length === 0) {
-      console.log(`❌ [ALBUM CONTRIBUTORS] No suitable album found after all filtering`);
       return res.json({ contributors: [], message: 'No suitable album found' });
     }
     
-    // Select the best match (first relevant result)
-    let album = relevantResults[0];
-    console.log(`\n✅ [ALBUM CONTRIBUTORS] Search successful using strategy: ${searchStrategy}`);
-    console.log(`   Selected Album: "${album.title}" by "${album.artist}" (ID: ${album.id})`);
-    console.log(`   Total relevant results: ${relevantResults.length}`);
+    // Try multiple results until we find the correct album
+    let album = null;
+    let albumData = null;
+    let attemptCount = 0;
+    let fetchAttempts = 0;
+    const maxAttempts = Math.min(5, relevantResults.length);
     
-    // Fetch detailed album information
-    const albumUrl = `https://api.discogs.com/releases/${album.id}`;
-    console.log(`\n📋 [ALBUM CONTRIBUTORS] Fetching detailed album info:`);
-    console.log(`   URL: ${albumUrl}`);
-    
-    let albumResponse = await fetch(albumUrl, { headers: authHeaders });
-    
-    console.log(`   Album Response Status: ${albumResponse.status}`);
-    
-                    if (!albumResponse.ok) {
-                  console.log(`❌ [ALBUM CONTRIBUTORS] Discogs album fetch failed with status: ${albumResponse.status}`);
-                  
-                  // If this ID fails, try to find another valid result
-                  if (albumResponse.status === 404 && relevantResults.length > 1) {
-                    console.log(`🔄 [ALBUM CONTRIBUTORS] Trying next result due to 404 error...`);
-                    
-                    // Find next result that's not the failed one
-                    const nextResult = relevantResults.find(result => result.id !== album.id);
-                    if (nextResult) {
-                      console.log(`   Trying next result: "${nextResult.title}" (ID: ${nextResult.id})`);
-                      
-                      // Update album to next result
-                      album = nextResult;
-                      
-                      // Try fetching again
-                      const retryUrl = `https://api.discogs.com/releases/${album.id}`;
-                      console.log(`   Retry URL: ${retryUrl}`);
-                      
-                      const retryResponse = await fetch(retryUrl, { headers: authHeaders });
-                      
-                      if (retryResponse.ok) {
-                        console.log(`   ✅ Retry successful! Got album: "${album.title}"`);
-                        albumResponse = retryResponse;
-                      } else {
-                        console.log(`   ❌ Retry also failed with status: ${retryResponse.status}`);
-                        throw new Error(`All album IDs failed to fetch. Last error: ${retryResponse.status}`);
-                      }
-                    } else {
-                      throw new Error(`Discogs album fetch failed with status: ${albumResponse.status}`);
-                    }
-                  } else {
-                    throw new Error(`Discogs album fetch failed with status: ${albumResponse.status}`);
-                  }
-                }
+    for (let i = 0; i < maxAttempts; i++) {
+      attemptCount++;
+      album = relevantResults[i];
+      
+      const albumUrl = `https://api.discogs.com/releases/${album.id}`;
+      let albumResponse = await fetch(albumUrl, { headers: authHeaders });
+      fetchAttempts++;
+      
+      if (!albumResponse.ok) {
+        continue; // Try next result
+      }
 
-                    let albumData = await albumResponse.json();
+      try {
+        albumData = await albumResponse.json();
+        
+        // Validate that this is the correct album
+        const fetchedArtist = albumData.artists?.map(a => a.name).join(', ') || '';
+        const fetchedTitle = albumData.title.toLowerCase();
+        const searchArtistLower = artistName.toLowerCase();
+        const searchTitleLower = albumTitle.toLowerCase();
+        
+        const artistMatches = fetchedArtist.toLowerCase().includes(searchArtistLower) || 
+                            searchArtistLower.includes(fetchedArtist.toLowerCase());
+        const titleMatches = fetchedTitle.includes(searchTitleLower) || 
+                           searchTitleLower.includes(fetchedTitle);
+        
+        if (artistMatches && titleMatches) {
+          console.log(`✅ Found album "${albumData.title}" by "${fetchedArtist}" (${albumData.year || 'Unknown year'})`);
+          break; // Exit the loop, we found the right album
+        } else {
+          albumData = null; // Reset for next attempt
+          continue;
+        }
+        
+      } catch (error) {
+        continue; // Try next result
+      }
+    }
     
-                    console.log(`   Album Title: "${albumData.title}"`);
-                console.log(`   Album Artist: "${albumData.artists?.map(a => a.name).join(', ') || artistName}"`);
-                console.log(`   Album Year: ${albumData.year}`);
-                console.log(`   Album Country: ${albumData.country}`);
-                
-                // Validate that we actually got the right album
-                const fetchedArtist = albumData.artists?.map(a => a.name).join(', ') || '';
-                const fetchedTitle = albumData.title.toLowerCase();
-                const searchArtistLower = artistName.toLowerCase();
-                const searchTitleLower = albumTitle.toLowerCase();
-                
-                const artistMatches = fetchedArtist.toLowerCase().includes(searchArtistLower) || 
-                                    searchArtistLower.includes(fetchedArtist.toLowerCase());
-                const titleMatches = fetchedTitle.includes(searchTitleLower) || 
-                                   searchTitleLower.includes(fetchedTitle);
-                
-                console.log(`\n🔍 [ALBUM CONTRIBUTORS] Validation check:`);
-                console.log(`   Expected: "${albumTitle}" by "${artistName}"`);
-                console.log(`   Fetched: "${albumData.title}" by "${fetchedArtist}"`);
-                console.log(`   Artist match: ${artistMatches}`);
-                console.log(`   Title match: ${titleMatches}`);
-                
-                // If we got the wrong album, try to find a better match
-                if (!artistMatches || !titleMatches) {
-                  console.log(`⚠️ [ALBUM CONTRIBUTORS] Album mismatch detected!`);
-                  console.log(`   The fetched album doesn't match our search criteria`);
-                  
-                  // Try to find a better match from our filtered results
-                  const betterMatch = relevantResults.find(result => {
-                    if (result.id === album.id) return false; // Skip the one we already tried
-                    
-                    const resultTitle = result.title.toLowerCase();
-                    const resultArtist = result.artist?.toLowerCase() || '';
-                    return resultTitle.includes(searchTitleLower) && 
-                           (resultArtist.includes(searchArtistLower) || searchArtistLower.includes(resultArtist));
-                  });
-                  
-                  if (betterMatch) {
-                    console.log(`   Trying better match: "${betterMatch.title}" by "${betterMatch.artist}" (ID: ${betterMatch.id})`);
-                    
-                    // Fetch the better match
-                    const betterAlbumUrl = `https://api.discogs.com/releases/${betterMatch.id}`;
-                    const betterAlbumResponse = await fetch(betterAlbumUrl, { headers: authHeaders });
-                    
-                    if (betterAlbumResponse.ok) {
-                      const betterAlbumData = await betterAlbumResponse.json();
-                      console.log(`   Better match fetched: "${betterAlbumData.title}" by "${betterAlbumData.artists?.map(a => a.name).join(', ')}"`);
-                      
-                      // Use the better match data
-                      albumData = betterAlbumData;
-                      album = betterMatch;
-                    }
-                  }
-                }
-                
-                // Additional fallback: if we still have issues, try other results systematically
-                if (!albumData || !albumData.title) {
-                  console.log(`🔄 [ALBUM CONTRIBUTORS] Additional fallback: trying other results...`);
-                  
-                  for (let i = 0; i < Math.min(5, relevantResults.length); i++) {
-                    const fallbackResult = relevantResults[i];
-                    if (fallbackResult.id === album.id) continue; // Skip current one
-                    
-                    console.log(`   Trying fallback result ${i + 1}: "${fallbackResult.title}" (ID: ${fallbackResult.id})`);
-                    
-                    try {
-                      const fallbackUrl = `https://api.discogs.com/releases/${fallbackResult.id}`;
-                      const fallbackResponse = await fetch(fallbackUrl, { headers: authHeaders });
-                      
-                      if (fallbackResponse.ok) {
-                        const fallbackData = await fallbackResponse.json();
-                        console.log(`   ✅ Fallback successful! Got: "${fallbackData.title}"`);
-                        
-                        albumData = fallbackData;
-                        album = fallbackResult;
-                        break;
-                      }
-                    } catch (error) {
-                      console.log(`   ❌ Fallback ${i + 1} failed: ${error.message}`);
-                      continue;
-                    }
-                  }
-                }
+    // Check if we found a valid album
+    if (!albumData) {
+      return res.json({ 
+        contributors: [], 
+        message: `No matching album found. Tried ${attemptCount} results but none matched "${albumTitle}" by "${artistName}"`,
+        error: 'No valid album match found'
+      });
+    }
+
     
                     // Extract contributors information
                 const contributors = {
@@ -2765,7 +2634,6 @@ app.get('/album-contributors', async (req, res) => {
 
     // Process track listing with contributors
     if (albumData.tracklist && albumData.tracklist.length > 0) {
-      console.log(`   Tracks: ${albumData.tracklist.length} found`);
       contributors.trackContributors = albumData.tracklist.map(track => ({
         title: track.title,
         duration: track.duration,
@@ -2779,7 +2647,6 @@ app.get('/album-contributors', async (req, res) => {
 
     // Process overall release contributors
     if (albumData.extraartists && albumData.extraartists.length > 0) {
-      console.log(`   Overall Contributors: ${albumData.extraartists.length} found`);
       contributors.overallContributors = albumData.extraartists.map(artist => ({
         name: artist.name,
         role: artist.role
@@ -2788,7 +2655,6 @@ app.get('/album-contributors', async (req, res) => {
 
     // Process labels
     if (albumData.labels && albumData.labels.length > 0) {
-      console.log(`   Labels: ${albumData.labels.length} found`);
       contributors.labels = albumData.labels.map(label => ({
         name: label.name,
         catalogNumber: label.catno
@@ -2797,49 +2663,15 @@ app.get('/album-contributors', async (req, res) => {
 
     // Process companies
     if (albumData.companies && albumData.companies.length > 0) {
-      console.log(`   Companies: ${albumData.companies.length} found`);
       contributors.companies = albumData.companies.map(company => ({
         name: company.name,
         role: company.role
       }));
     }
 
-                    console.log(`\n✅ [ALBUM CONTRIBUTORS] Successfully processed:`);
-                console.log(`   - ${contributors.trackContributors.length} tracks with contributors`);
-                console.log(`   - ${contributors.overallContributors.length} overall contributors`);
-                console.log(`   - ${contributors.labels.length} labels`);
-                console.log(`   - ${contributors.companies.length} companies`);
-                console.log(`   Response size: ${JSON.stringify(contributors).length} characters`);
-                
-                if (contributors.searchInfo?.artistWasMissing) {
-                  console.log(`⚠️ [ALBUM CONTRIBUTORS] WARNING: Artist was missing in search results`);
-                  console.log(`   Original search: "${albumTitle}" by "${artistName}"`);
-                  console.log(`   Found album: "${albumData.title}" (artist info missing)`);
-                  console.log(`   This result was accepted because album title matches search`);
-                  
-                  if (contributors.searchInfo.extractedArtistFromTitle) {
-                    console.log(`   ✅ Successfully extracted artist "${contributors.searchInfo.extractedArtistFromTitle}" from title`);
-                  }
-                }
-                
-                // Final validation: ensure we're returning the right album
-                const finalArtist = albumData.artists?.map(a => a.name).join(', ') || '';
-                const finalTitle = albumData.title.toLowerCase();
-                const finalArtistMatch = finalArtist.toLowerCase().includes(artistName.toLowerCase()) || 
-                                        artistName.toLowerCase().includes(finalArtist.toLowerCase());
-                const finalTitleMatch = finalTitle.includes(albumTitle.toLowerCase()) || 
-                                       albumTitle.toLowerCase().includes(finalTitle);
-                
-                if (!finalArtistMatch || !finalTitleMatch) {
-                  console.log(`❌ [ALBUM CONTRIBUTORS] FINAL VALIDATION FAILED!`);
-                  console.log(`   We're about to return the wrong album!`);
-                  console.log(`   Expected: "${albumTitle}" by "${artistName}"`);
-                  console.log(`   Returning: "${albumData.title}" by "${finalArtist}"`);
-                  console.log(`   This should not happen with our improved filtering!`);
-                } else {
-                  console.log(`✅ [ALBUM CONTRIBUTORS] Final validation passed`);
-                  console.log(`   Album matches search criteria: "${albumData.title}" by "${finalArtist}"`);
-                }
+    // Final summary log
+    const totalApiCalls = searchAttempts + fetchAttempts;
+    console.log(`📊 Completed: ${searchAttempts} search attempts, ${fetchAttempts} fetch attempts (${totalApiCalls} total API calls)`);
 
     res.json({ contributors });
     

@@ -445,10 +445,15 @@ export default function AlbumContributorsModal({ isOpen, onClose, contributors, 
               ×
             </button>
             <h2 className="album-contributors-title">Album Contributors</h2>
-                                    {contributors?.albumInfo && (
+                                    {contributors?.albumInfo && !loading && (
                           <p className="album-contributors-subtitle">
                             {contributors.albumInfo.title} by {contributors.albumInfo.artist}
                             {contributors.albumInfo.year && ` (${contributors.albumInfo.year})`}
+                          </p>
+                        )}
+                        {loading && (
+                          <p className="album-contributors-subtitle" style={{ color: '#a1a1aa' }}>
+                            Loading album information...
                           </p>
                         )}
 
