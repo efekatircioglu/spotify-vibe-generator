@@ -1020,37 +1020,6 @@ app.post('/create-playlist', express.json(), async (req, res) => {
   }
 });
 
-app.post('/api/feedback', express.json(), async (req, res) => {
-  const { username, emoji, text } = req.body;
-  if (!username || !emoji) {
-    return res.status(400).json({ error: 'username and emoji are required' });
-  }
-  try {
-    await pool.query(
-      'INSERT INTO feedback (username, emoji, text) VALUES ($1, $2, $3)',
-      [username, emoji, text || null]
-    );
-    res.json({ message: 'Feedback received' });
-  } catch (err) {
-    console.error('Error saving feedback:', err);
-    res.status(500).json({ error: 'Failed to save feedback' });
-  }
-});
-
-app.get('/api/admin/feedbacks', express.json(), async (req, res) => {
-  // Expect the frontend to send the Spotify user id in a header
-  const userId = req.headers['x-spotify-user-id'];
-  if (userId !== process.env.ADMIN_SPOTIFY_USER_ID) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  try {
-    const result = await pool.query('SELECT * FROM feedback ORDER BY created_at DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch feedbacks' });
-  }
-});
 
 app.get('/track-isrc/:id', async (req, res) => {
   const trackId = req.params.id;

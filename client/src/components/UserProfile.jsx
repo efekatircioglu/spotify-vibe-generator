@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import styles from '../app/page.module.css';
-import { useRouter } from 'next/navigation';
 
 // Same useIsMobile hook as in NewTrackTable
 function useIsMobile(breakpoint = 600) {
@@ -15,25 +14,8 @@ function useIsMobile(breakpoint = 600) {
   return isMobile;
 }
 
-export default function UserProfile({ user, onLogout, children, onFeedback }) {
-  const router = useRouter();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+export default function UserProfile({ user, onLogout, children }) {
   const isMobile = useIsMobile(600); // Use the same breakpoint as NewTrackTable
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownOpen]);
 
   if (!user) return null;
 
@@ -78,86 +60,39 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
             <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#fff' }}>{user.display_name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ position: 'relative' }}>
-              <button
-                aria-label="More options"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                  borderRadius: 6,
-                  transition: 'background 0.18s',
-                  outline: 'none',
-                }}
-                onClick={() => setDropdownOpen(o => !o)}
-              >
-                &#8230;
-              </button>
-              {dropdownOpen && (
-                <div
-                  ref={dropdownRef}
-                  style={{
-                    position: 'absolute',
-                    top: 22,
-                    right: 0,
-                    background: '#232323',
-                    borderRadius: 8,
-                    boxShadow: '0 4px 24px #0006',
-                    minWidth: 100,
-                    zIndex: 100,
-                    padding: '3px 0',
-                    border: '1.5px solid #1db954',
-                  }}
-                >
-                  <button
-                    style={{
-                      width: '100%',
-                      background: 'none',
-                      border: 'none',
-                      color: '#fff',
-                      fontWeight: 700,
-                      fontSize: '0.65rem',
-                      padding: '3px 8px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: 6,
-                      transition: 'background 0.15s',
-                    }}
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      if (onFeedback) onFeedback();
-                    }}
-                  >
-                    Feedback
-                  </button>
-                  <div style={{ height: 1, background: '#333', margin: '1px 0' }} />
-                  <button
-                    style={{
-                      width: '100%',
-                      background: 'none',
-                      border: 'none',
-                      color: '#ff3b3b',
-                      fontWeight: 700,
-                      fontSize: '0.65rem',
-                      padding: '3px 8px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: 6,
-                      transition: 'background 0.15s',
-                    }}
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      if (onLogout) onLogout();
-                    }}
-                  >
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
+            <button
+              aria-label="Log out"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '4px',
+                borderRadius: 6,
+                transition: 'all 0.18s',
+                outline: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => {
+                if (onLogout) onLogout();
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'none';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
+                <path d="M16 12H8" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M13 8l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -200,86 +135,39 @@ export default function UserProfile({ user, onLogout, children, onFeedback }) {
             <div style={{ fontWeight: 700, fontSize: '1.35rem', color: '#fff' }}>{user.display_name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ position: 'relative' }}>
-              <button
-                aria-label="More options"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: 22,
-                  cursor: 'pointer',
-                  padding: '0 6px',
-                  borderRadius: 8,
-                  transition: 'background 0.18s',
-                  outline: 'none',
-                }}
-                onClick={() => setDropdownOpen(o => !o)}
-              >
-                &#8230;
-              </button>
-              {dropdownOpen && (
-                <div
-                  ref={dropdownRef}
-                  style={{
-                    position: 'absolute',
-                    top: 38,
-                    right: 0,
-                    background: '#232323',
-                    borderRadius: 10,
-                    boxShadow: '0 4px 24px #0006',
-                    minWidth: 180,
-                    zIndex: 100,
-                    padding: '8px 0',
-                    border: '1.5px solid #1db954',
-                  }}
-                >
-                  <button
-                    style={{
-                      width: '100%',
-                      background: 'none',
-                      border: 'none',
-                      color: '#fff',
-                      fontWeight: 700,
-                      fontSize: 14,
-                      padding: '8px 16px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: 8,
-                      transition: 'background 0.15s',
-                    }}
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      if (onFeedback) onFeedback();
-                    }}
-                  >
-                    Feedback
-                  </button>
-                  <div style={{ height: 1, background: '#333', margin: '4px 0' }} />
-                  <button
-                    style={{
-                      width: '100%',
-                      background: 'none',
-                      border: 'none',
-                      color: '#ff3b3b',
-                      fontWeight: 700,
-                      fontSize: 14,
-                      padding: '8px 16px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      borderRadius: 8,
-                      transition: 'background 0.15s',
-                    }}
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      if (onLogout) onLogout();
-                    }}
-                  >
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
+            <button
+              aria-label="Log out"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: 10,
+                transition: 'all 0.18s',
+                outline: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => {
+                if (onLogout) onLogout();
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'none';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
+                <path d="M16 12H8" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M13 8l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
           </div>
         </div>
         <div style={{

@@ -85,10 +85,7 @@ export default function Home() {
   const [topData, setTopData] = useState(null);
   const [showTopModal, setShowTopModal] = useState(false);
   const [topLoading, setTopLoading] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackEmoji, setFeedbackEmoji] = useState(null);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [feedbackStatus, setFeedbackStatus] = useState('');
+
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [playlistTimeRange, setPlaylistTimeRange] = useState('');
@@ -319,6 +316,9 @@ export default function Home() {
       .then((data) => {
         setUser(data);
         setLoading(false);
+        // Auto-load last 50 songs and playlists when user is logged in
+        handleGenerateFromRecents();
+        handleGenerateFromPlaylist();
       })
       .catch(() => {
         setUser(null);
@@ -336,11 +336,7 @@ export default function Home() {
     setRecentSearches(getRecentSearches());
   }, []);
 
-  useEffect(() => {
-    if (showSongsTable && songs.length > 0 && tableRef.current) {
-      tableRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [showSongsTable, songs.length]);
+
 
   const handleGenerateFromRecents = async () => {
     setIsAnalyzingRecents(true);
@@ -361,11 +357,6 @@ export default function Home() {
       });
       
       setSongs(filteredTracks);
-      setTimeout(() => {
-        if (tableRef.current) {
-          tableRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 200);
     } catch (error) {
       alert('Could not fetch recent tracks. Please try again.');
     } finally {
@@ -381,11 +372,6 @@ export default function Home() {
       if (!res.ok) throw new Error('Failed to fetch playlists');
       const data = await res.json();
       setPlaylists(data.playlists || []);
-      setTimeout(() => {
-        if (playlistsTableRef.current) {
-          playlistsTableRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 200);
     } catch (error) {
       alert('Could not fetch playlists. Please try again.');
     } finally {
@@ -823,39 +809,7 @@ export default function Home() {
     }
   };
 
-  const handleSendFeedback = async () => {
-    if (!feedbackEmoji) {
-      setFeedbackStatus('Please select how you feel!');
-      return;
-    }
-    setFeedbackStatus('');
-    try {
-      console.log('Sending feedback:', {
-        username: user.display_name,
-        emoji: feedbackEmoji,
-        text: feedbackText,
-      });
-      const res = await fetch('http://127.0.0.1:8000/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: user.display_name,
-          emoji: feedbackEmoji,
-          text: feedbackText,
-        }),
-      });
-      if (res.ok) {
-        setFeedbackStatus('Thank you for your feedback!');
-        setFeedbackEmoji(null);
-        setFeedbackText('');
-        setTimeout(() => setShowFeedbackModal(false), 1200);
-      } else {
-        setFeedbackStatus('Failed to send feedback.');
-      }
-    } catch (e) {
-      setFeedbackStatus('Failed to send feedback.');
-    }
-  };
+
 
   const handleCreatePlaylist = async (timeRange, tracks) => {
     setPlaylistTimeRange(timeRange);
@@ -1148,39 +1102,27 @@ export default function Home() {
   </form>
 </div>
         <main className={styles.main} style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh', width: '100vw' }}>
-          <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false} onFeedback={() => setShowFeedbackModal(true)}>
+          <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false}>
             <h2 className={styles.reportTitle}>Create Your Listening Report</h2>
             <div className={styles.reportSubtitle}>Explore your top songs, favorite artists, and personal playlists.</div>
             
             {/* Analyze Buttons and Time Range Row */}
             <div className="responsive-container" style={{ 
               display: 'flex', 
-              alignItems: 'flex-start', 
+              alignItems: 'center', 
               gap: '16px', 
               marginTop: '24px',
               flexWrap: 'wrap',
               justifyContent: 'center',
               flexDirection: 'row'
             }}>
-              {/* All Action Buttons with Equal Spacing */}
-              <div className={styles.actionButtons} style={{ 
-                display: 'flex', 
-                gap: '16px', 
-                flexWrap: 'wrap',
-                flexDirection: isMobile ? 'column' : 'row',
+              {/* Centered Analyze Your Listening History Dropdown Button */}
+              <div style={{ 
+                display: 'flex',
                 justifyContent: 'center',
-                alignItems: 'center'
+                alignItems: 'center',
+                position: 'relative'
               }}>
-                <button
-  onClick={handleGenerateFromPlaylist}
-  className={styles.mainActionButton}
-  disabled={isAnalyzingPlaylists}
->
-  {isAnalyzingPlaylists ? 'Analyzing...' : 'Analyze Your Playlists'}
-</button>
-                
-                {/* Analyze Your Listening History Dropdown Button */}
-                <div style={{ position: 'relative' }}>
                 <button
   ref={timeRangeButtonRef}
   className={styles.mainActionButton}
@@ -1221,32 +1163,6 @@ export default function Home() {
                       marginTop: '8px'
                     }}
                   >
-                      <button 
-                        className={styles.timeRangeButton}
-                        onClick={(e) => {
-                          console.log('Last 50 Songs button clicked!');
-                          e.stopPropagation();
-                          handleGenerateFromRecents();
-                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
-                        }}
-                        style={{
-                          width: '100%',
-                          borderRadius: '0',
-                          borderBottom: '1px solid #333',
-                          background: 'transparent',
-                          transition: 'background 0.2s ease',
-                          fontSize: '0.85rem',
-                          padding: '4px 8px'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                        }}
-                      >
-                        Last 50 Songs
-                      </button>
                       <button 
                         className={styles.timeRangeButton}
                         onClick={(e) => {
@@ -1325,7 +1241,7 @@ export default function Home() {
                     </div>
                 )}
               </div>
-              </div>
+            </div>
               
               {/* Responsive CSS */}
               <style jsx>{`
@@ -1861,7 +1777,6 @@ export default function Home() {
                   }
                 }
               `}</style>
-            </div>
             
 
         
@@ -2152,7 +2067,7 @@ export default function Home() {
                         handleAnalyzeNewGenres(playlist);
                       }}
                     >
-                      Genres
+                      Genre Count
                     </button>
                     <button 
                       className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
@@ -2173,7 +2088,7 @@ export default function Home() {
                         handleAnalyzeNewArtists(playlist);
                       }}
                     >
-                      Artists
+                      Artist Count
                     </button>
                     <a
                       href={`https://open.spotify.com/playlist/${playlist.id}`}
@@ -2302,48 +2217,7 @@ export default function Home() {
           </div>
         </div>
       )}
-      {showFeedbackModal && (
-        <div className={styles.metricsModalOverlay} onClick={() => setShowFeedbackModal(false)}>
-          <div className={styles.metricsModal} onClick={e => e.stopPropagation()} style={{ minWidth: 320, maxWidth: 400 }}>
-            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>How do you feel about the app?</h2>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 32, marginBottom: 16 }}>
-              {['😡','🙁','😐','😊','😍'].map((emoji, idx) => (
-                <span
-                  key={emoji}
-                  style={{
-                    cursor: 'pointer',
-                    filter: feedbackEmoji === emoji ? 'drop-shadow(0 0 12px #1db954) brightness(1.2)' : 'none',
-                    transform: feedbackEmoji === emoji ? 'scale(1.2)' : 'scale(1)',
-                    transition: 'filter 0.2s, transform 0.2s',
-                    borderRadius: '50%',
-                    background: feedbackEmoji === emoji ? 'rgba(29,185,84,0.15)' : 'transparent',
-                    padding: feedbackEmoji === emoji ? '4px' : '0',
-                  }}
-                  onClick={() => setFeedbackEmoji(emoji)}
-                  title={['Extremely Unhappy','Unhappy','Neutral','Happy','Extremely Happy'][idx]}
-                >
-                  {emoji}
-                </span>
-              ))}
-            </div>
-            <textarea
-              placeholder="Optional: Tell us more..."
-              value={feedbackText}
-              onChange={e => setFeedbackText(e.target.value)}
-              style={{ width: '100%', minHeight: 60, borderRadius: 8, border: '1px solid #444', padding: 8, marginBottom: 12, resize: 'vertical', background: '#222', color: '#fff' }}
-            />
-            <button
-              onClick={handleSendFeedback}
-              className={styles.vibeButton}
-              style={{ width: '100%', marginBottom: 8 }}
-            >
-              Send
-            </button>
-            {feedbackStatus && <div style={{ textAlign: 'center', color: feedbackStatus.startsWith('Thank') ? '#1db954' : 'red', marginTop: 8 }}>{feedbackStatus}</div>}
-            <button className={styles.closeModalButton} onClick={() => setShowFeedbackModal(false)} style={{ marginTop: 8 }}>Close</button>
-          </div>
-        </div>
-      )}
+
       {/* Playlist Creation Modal */}
       {showPlaylistModal && (
         <div className={styles.metricsModalOverlay} onClick={() => setShowPlaylistModal(false)}>

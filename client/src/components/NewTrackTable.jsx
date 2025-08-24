@@ -891,15 +891,18 @@ if (isMobile) {
         
         
         {/* This is the container for the list of songs. We center this. */}
-        <div style={{
+        <div className="mobile-track-list" style={{
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
-          maxHeight: 576,
+          maxHeight: '480px',
           overflowY: 'auto',
           width: '95%',
           margin: '0 auto',
-          maxHeight: 430,
+          border: '1px solid #333',
+          borderRadius: '12px',
+          backgroundColor: '#1a1a1a',
+          padding: '8px'
         }}>
           <style>{`
             @media (max-width: 500px) {
@@ -929,6 +932,25 @@ if (isMobile) {
               .mobile-duration-year {
                 font-size: 0.6rem !important;
               }
+            }
+            
+            /* Custom scrollbar styling for mobile list container */
+            .mobile-track-list::-webkit-scrollbar {
+              width: 6px;
+            }
+            
+            .mobile-track-list::-webkit-scrollbar-track {
+              background: #232323;
+              border-radius: 3px;
+            }
+            
+            .mobile-track-list::-webkit-scrollbar-thumb {
+              background: #1db954;
+              border-radius: 3px;
+            }
+            
+            .mobile-track-list::-webkit-scrollbar-thumb:hover {
+              background: #1ed760;
             }
           `}</style>
           {tracks && tracks.length > 0 && tracks.map((track, idx) => (
@@ -1349,7 +1371,16 @@ if (isMobile) {
       {/* Contributors Button Section removed (now placed next to Wrapped) */}
 
       {/* Table Section */}
-      <div ref={tableContainerRef} className="table-container" style={{ width: '100%', overflowX: 'auto', marginTop: 8 }}>
+      <div ref={tableContainerRef} className="table-container" style={{ 
+        width: '100%', 
+        overflowX: 'auto', 
+        overflowY: 'auto',
+        maxHeight: '600px',
+        marginTop: 8,
+        border: '1px solid #333',
+        borderRadius: '12px',
+        backgroundColor: '#1a1a1a'
+      }}>
         {!loading && !error && tracks && tracks.length > 0 && (
           <table style={{
             width: '98%',
@@ -1899,6 +1930,26 @@ if (isMobile) {
             overflow-x: auto !important;
             -webkit-overflow-scrolling: touch;
           }
+        }
+        
+        /* Custom scrollbar styling for better UX */
+        .table-container::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        
+        .table-container::-webkit-scrollbar-track {
+          background: #232323;
+          border-radius: 4px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb {
+          background: #1db954;
+          border-radius: 4px;
+        }
+        
+        .table-container::-webkit-scrollbar-thumb:hover {
+          background: #1ed760;
         }
       `}</style>
     </div>
