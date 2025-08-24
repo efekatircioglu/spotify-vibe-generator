@@ -1243,7 +1243,6 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
         // Multiple types requested - make separate calls for each
         const types = albumTypes.split(',');
         const albumPromises = types.map(async (type) => {
-          await new Promise(resolve => setTimeout(resolve, 200)); // Small delay between calls
           const { body } = await spotifyApi.getArtistAlbums(artistId, {
             limit: 50, // Full limit since we're being specific
             include_groups: type.trim()
@@ -1358,82 +1357,107 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
     // Helper function to add delay between API calls
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     
-    // Process albums in batches - conservative approach to avoid rate limits
+    // Process albums using bulk endpoint with parallel batch processing
     const albumsWithTracks = [];
-    const batchSize = 3; // Very conservative batch size
-    const delayBetweenBatches = 500; // Longer delay to respect rate limits
+    const bulkBatchSize = 20; // Spotify allows up to 20 album IDs per call
+    const parallelBatches = 5; // Number of simultaneous getAlbums() calls (matches 5 calls/second limit)
+    const delayBetweenGroups = 1000; // 1 second delay to respect rate limit perfectly
     
-    // Add initial delay before starting
-    await delay(200);
+    console.log(`[Collaborators] Processing ${allAlbums.length} albums in parallel batches (${parallelBatches} simultaneous calls of ${bulkBatchSize} albums each)...`);
     
-    for (let i = 0; i < allAlbums.length; i += batchSize) {
-      const batch = allAlbums.slice(i, i + batchSize);
+    // Process albums in groups of parallel batches
+    for (let i = 0; i < allAlbums.length; i += (bulkBatchSize * parallelBatches)) {
+      const parallelPromises = [];
       
-      const batchPromises = batch.map(async (album) => {
-        // Count album types for statistics
-        albumTypeStats[album.album_type] = (albumTypeStats[album.album_type] || 0) + 1;
+      // Create up to 5 simultaneous batch calls
+      for (let j = 0; j < parallelBatches; j++) {
+        const startIndex = i + (j * bulkBatchSize);
+        const endIndex = Math.min(startIndex + bulkBatchSize, allAlbums.length);
         
-        try {
-          const { body: tracksBody } = await spotifyApi.getAlbumTracks(album.id, { limit: 50 });
-          return {
-            albumId: album.id,
-            albumName: album.name,
-            albumType: album.album_type, // Include album type
-            albumYear: album.release_date?.split('-')[0] || '',
-            albumImage: album.images?.[0]?.url || '',
-            tracks: tracksBody.items || []
-          };
-        } catch (err) {
-          if (err.statusCode === 429) {
-            const retryAfter = Math.min(err.headers['retry-after'] || 1, 2); // Cap retry at 2 seconds
-            console.log(`[Collaborators] Rate limited on album ${album.id}, waiting ${retryAfter} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-            
-            // Quick retry once
+        if (startIndex < allAlbums.length) {
+          const batch = allAlbums.slice(startIndex, endIndex);
+          const albumIds = batch.map(album => album.id);
+          
+          // Create promise for this batch
+          const batchPromise = (async () => {
             try {
-              const { body: tracksBody } = await spotifyApi.getAlbumTracks(album.id, { limit: 50 });
-              return {
-                albumId: album.id,
-                albumName: album.name,
-                albumType: album.album_type,
-                albumYear: album.release_date?.split('-')[0] || '',
-                albumImage: album.images?.[0]?.url || '',
-                tracks: tracksBody.items || []
-              };
-            } catch (retryErr) {
-              // Skip this album on retry failure to avoid blocking the whole process
-              console.log(`[Collaborators] Skipping album ${album.id} after retry failed`);
-              return { 
-                albumId: album.id, 
-                albumName: album.name, 
-                albumType: album.album_type,
-                albumYear: '',
-                albumImage: '',
-                tracks: [] 
-              };
+              // Single call to get up to 20 albums with their tracks
+              const { body: albumsData } = await spotifyApi.getAlbums(albumIds);
+              
+              const batchResults = [];
+              // Process each album from the bulk response
+              albumsData.albums.forEach((albumData, index) => {
+                if (albumData) {
+                  const originalAlbum = batch[index];
+                  
+                  // Count album types for statistics
+                  albumTypeStats[originalAlbum.album_type] = (albumTypeStats[originalAlbum.album_type] || 0) + 1;
+                  
+                  batchResults.push({
+                    albumId: albumData.id,
+                    albumName: albumData.name,
+                    albumType: originalAlbum.album_type, // Use original album type from search
+                    albumYear: albumData.release_date?.split('-')[0] || '',
+                    albumImage: albumData.images?.[0]?.url || '',
+                    tracks: albumData.tracks?.items || []
+                  });
+                }
+              });
+              
+              return batchResults;
+              
+            } catch (err) {
+              if (err.statusCode === 429) {
+                const retryAfter = Math.min(err.headers['retry-after'] || 1, 5); // Cap retry at 5 seconds
+                console.log(`[Collaborators] Rate limited on album batch, waiting ${retryAfter} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                
+                // Retry the same batch
+                try {
+                  const { body: albumsData } = await spotifyApi.getAlbums(albumIds);
+                  const retryResults = [];
+                  albumsData.albums.forEach((albumData, index) => {
+                    if (albumData) {
+                      const originalAlbum = batch[index];
+                      albumTypeStats[originalAlbum.album_type] = (albumTypeStats[originalAlbum.album_type] || 0) + 1;
+                      
+                      retryResults.push({
+                        albumId: albumData.id,
+                        albumName: albumData.name,
+                        albumType: originalAlbum.album_type,
+                        albumYear: albumData.release_date?.split('-')[0] || '',
+                        albumImage: albumData.images?.[0]?.url || '',
+                        tracks: albumData.tracks?.items || []
+                      });
+                    }
+                  });
+                  return retryResults;
+                } catch (retryErr) {
+                  console.log(`[Collaborators] Skipping batch of ${albumIds.length} albums after retry failed`);
+                  return []; // Return empty array for failed batch
+                }
+              } else {
+                console.log(`[Collaborators] Error fetching album batch:`, err.message);
+                return []; // Return empty array for failed batch
+              }
             }
-          } else {
-            // Skip albums with other errors to keep processing fast
-            console.log(`[Collaborators] Skipping album ${album.id} due to error:`, err.message);
-            return { 
-              albumId: album.id, 
-              albumName: album.name, 
-              albumType: album.album_type,
-              albumYear: '',
-              albumImage: '',
-              tracks: [] 
-            };
-          }
+          })();
+          
+          parallelPromises.push(batchPromise);
         }
+      }
+      
+      // Wait for all parallel batches in this group to complete
+      const groupResults = await Promise.all(parallelPromises);
+      
+      // Flatten and add all results
+      groupResults.forEach(batchResults => {
+        albumsWithTracks.push(...batchResults);
       });
       
-      // Wait for this batch to complete
-      const batchResults = await Promise.all(batchPromises);
-      albumsWithTracks.push(...batchResults);
-      
-      // Add delay between batches (except for the last batch)
-      if (i + batchSize < allAlbums.length) {
-        await delay(delayBetweenBatches);
+      // Small delay between groups (except for the last group)
+      if (i + (bulkBatchSize * parallelBatches) < allAlbums.length) {
+        await delay(delayBetweenGroups);
       }
     }
 
@@ -1485,7 +1509,8 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
                 tracks: [],
                 uniqueTracks: new Map(), // For deduplication
                 uniqueAlbumNames: new Set(), // Simple unique album name tracking
-                spotifyUri: artist.uri
+                spotifyUri: artist.uri,
+                images: artist.images || [] // Add artist images from track data
               });
             }
             
@@ -1576,10 +1601,43 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
       });
     });
 
-    // Step 4: Filter and sort collaborators
+    // Step 4: Fetch artist images for collaborators
     console.log(`[DEBUG] Processing ${collaboratorMap.size} collaborators...`);
-    const collaborators = Array.from(collaboratorMap.values())
-      .filter(collab => collab.count >= minCollaborations)
+    let collaboratorsData = Array.from(collaboratorMap.values())
+      .filter(collab => collab.count >= minCollaborations);
+    
+    // Fetch artist details (including images) for all collaborators in batches
+    if (collaboratorsData.length > 0) {
+      console.log(`[Collaborators] Fetching images for ${collaboratorsData.length} collaborators...`);
+      
+      const artistIds = collaboratorsData.map(collab => collab.id).filter(id => id);
+      
+      // Fetch artist details in batches of 50 (Spotify API limit)
+      for (let i = 0; i < artistIds.length; i += 50) {
+        const batch = artistIds.slice(i, i + 50);
+        try {
+          const { body } = await spotifyApi.getArtists(batch);
+          
+          body.artists.forEach(artist => {
+            const collaborator = collaboratorsData.find(c => c.id === artist.id);
+            if (collaborator && artist.images) {
+              collaborator.images = artist.images;
+            }
+          });
+          
+          // Small delay between batches to avoid rate limiting
+          if (i + 50 < artistIds.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        } catch (err) {
+          console.warn(`[Collaborators] Failed to fetch images for batch ${i}-${i+50}:`, err.message);
+          // Continue with other batches even if one fails
+        }
+      }
+    }
+    
+    // Step 5: Build final response
+    const collaborators = collaboratorsData
       .map(collab => ({
         id: collab.id,
         name: collab.name,
@@ -1601,7 +1659,8 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
         })), // Remove internal deduplication data
         albums: Array.from(collab.uniqueAlbumNames), // List of unique album names
         albumCount: collab.uniqueAlbumNames.size, // Count of unique albums
-        spotifyUri: collab.spotifyUri
+        spotifyUri: collab.spotifyUri,
+        images: collab.images || [] // Include artist images
       }))
       .sort((a, b) => b.count - a.count); // Sort by collaboration count
     

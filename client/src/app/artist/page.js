@@ -1286,6 +1286,20 @@ export default function ArtistConcertsPage() {
             </div>
           )}
 
+          {/* Artist Collaborators Section */}
+          {spotifyId && (
+            <div style={{ marginTop: 48, marginBottom: 48 }}>
+              <ArtistCollaborators 
+                artistId={spotifyId}
+                artistName={artistName}
+                collaborators={collaborators}
+                loading={collaboratorsLoading}
+                error={collaboratorsError}
+                stats={collaboratorsStats}
+                onAnalyze={fetchCollaborators}
+              />
+            </div>
+          )}
           
           {/* Album Selector */}
           <div style={{ marginBottom: 64, marginTop: 48 }}>
@@ -1349,21 +1363,6 @@ export default function ArtistConcertsPage() {
                 onGetContributors={handleGetAlbumContributors}
                 wrappedLabel={'Create Album Analysis'}
                 isArtistContext={true}
-              />
-            </div>
-          )}
-
-          {/* Artist Collaborators Section */}
-          {spotifyId && (
-            <div style={{ marginTop: 48, marginBottom: 48 }}>
-              <ArtistCollaborators 
-                artistId={spotifyId}
-                artistName={artistName}
-                collaborators={collaborators}
-                loading={collaboratorsLoading}
-                error={collaboratorsError}
-                stats={collaboratorsStats}
-                onAnalyze={fetchCollaborators}
               />
             </div>
           )}
