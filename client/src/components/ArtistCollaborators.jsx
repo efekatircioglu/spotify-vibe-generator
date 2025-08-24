@@ -13,6 +13,7 @@ import { lookupTrackMBID } from '../utils/trackAnalysisCache';
 export default function ArtistCollaborators({ artistId, artistName, collaborators = [], loading = false, error = '', stats = null, onAnalyze }) {
   const selectedAlbumTypes = 'album,single,compilation,appears_on'; // Always use all types
   const [expandedCollaborator, setExpandedCollaborator] = useState(null);
+  const hasTriggeredAnalysis = useRef(false);
   
   // Dropdown states
   const [dropdownOpen, setDropdownOpen] = useState(null); // "collaboratorId-trackIndex" for open dropdown
@@ -44,7 +45,8 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
 
   useEffect(() => {
     // Trigger analysis when component mounts if no collaborators data yet
-    if (!loading && !collaborators?.length && !error && artistId) {
+    if (!loading && !collaborators?.length && !error && artistId && !hasTriggeredAnalysis.current) {
+      hasTriggeredAnalysis.current = true;
       handleAnalyzeClick();
     }
   }, [artistId]);

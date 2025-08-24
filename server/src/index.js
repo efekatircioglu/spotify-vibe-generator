@@ -1229,10 +1229,13 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
   }
 
   try {
+    // Track API call count for final summary
+    let totalApiCalls = 0;
+    
     // Step 1: Get specific album types (much faster than fetching all)
     let allAlbums = [];
     
-    console.log(`[Collaborators] Fetching ${albumTypes} for artist ${artistId}...`);
+    console.log(`🎵 Starting collaborators analysis for artist ${artistId}...`);
     
     // Add initial delay to prevent hitting rate limits
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -1247,7 +1250,7 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
             limit: 50, // Full limit since we're being specific
             include_groups: type.trim()
           });
-          console.log(`[Collaborators] Fetched ${body.items?.length || 0} ${type.trim()} items`);
+          totalApiCalls++; // Track API call
           return body.items || [];
         });
         
@@ -1272,7 +1275,6 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
         });
         
         allAlbums = filteredArrays.flat(); // Combine all arrays
-        console.log(`[Collaborators] Total combined: ${allAlbums.length} albums`);
       } else {
         // Single type requested - simple call
         const { body: albumsBody } = await spotifyApi.getArtistAlbums(artistId, {
@@ -1297,12 +1299,12 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
         console.log(`[Collaborators] Fetched ${allAlbums.length} ${albumTypes} albums`);
       }
       
-      console.log(`[Collaborators] Final count: ${allAlbums.length} total albums for artist ${artistId}`);
+      // Albums fetched successfully
       
     } catch (error) {
       if (error.statusCode === 429) {
         const retryAfter = Math.min(error.headers['retry-after'] || 3, 10); // Cap at 10 seconds max
-        console.log(`[Collaborators] Rate limited on initial fetch, waiting ${retryAfter} seconds...`);
+        // Rate limited, retrying...
         await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
         
         // Simple retry with the requested album types
@@ -1327,22 +1329,7 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
       return res.json({ collaborators: [], totalAlbums: 0, totalTracks: 0, albumTypes: {} });
     }
     
-    console.log(`[Collaborators] Found ${allAlbums.length} total albums for artist ${artistId}`);
-    console.log(`[Collaborators] Album types breakdown: ${JSON.stringify(allAlbums.reduce((acc, album) => {
-      acc[album.album_type] = (acc[album.album_type] || 0) + 1;
-      return acc;
-    }, {}))}`);
-    
-    // Log sample of appears_on and compilation albums if they exist
-    const appearsOnAlbums = allAlbums.filter(a => a.album_type === 'appears_on');
-    const compilationAlbums = allAlbums.filter(a => a.album_type === 'compilation');
-    
-    if (appearsOnAlbums.length > 0) {
-      console.log(`[Collaborators] Sample appears_on albums: ${appearsOnAlbums.slice(0, 3).map(a => a.name).join(', ')}`);
-    }
-    if (compilationAlbums.length > 0) {
-      console.log(`[Collaborators] Sample compilation albums: ${compilationAlbums.slice(0, 3).map(a => a.name).join(', ')}`);
-    }
+    // Step 1 completed - albums fetched
 
     // Step 2: Get tracks for ALL album types (albums, singles, compilations, appears_on)
     // NOTE: Even "singles" often have multiple tracks (radio version, instrumental, etc.)
@@ -1363,7 +1350,7 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
     const parallelBatches = 5; // Number of simultaneous getAlbums() calls (matches 5 calls/second limit)
     const delayBetweenGroups = 1000; // 1 second delay to respect rate limit perfectly
     
-    console.log(`[Collaborators] Processing ${allAlbums.length} albums in parallel batches (${parallelBatches} simultaneous calls of ${bulkBatchSize} albums each)...`);
+    // Step 2: Processing albums for track data...
     
     // Process albums in groups of parallel batches
     for (let i = 0; i < allAlbums.length; i += (bulkBatchSize * parallelBatches)) {
@@ -1383,6 +1370,7 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
             try {
               // Single call to get up to 20 albums with their tracks
               const { body: albumsData } = await spotifyApi.getAlbums(albumIds);
+              totalApiCalls++; // Track bulk API call
               
               const batchResults = [];
               // Process each album from the bulk response
@@ -1409,12 +1397,13 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
             } catch (err) {
               if (err.statusCode === 429) {
                 const retryAfter = Math.min(err.headers['retry-after'] || 1, 5); // Cap retry at 5 seconds
-                console.log(`[Collaborators] Rate limited on album batch, waiting ${retryAfter} seconds...`);
+                // Rate limited on batch, retrying...
                 await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
                 
                 // Retry the same batch
                 try {
                   const { body: albumsData } = await spotifyApi.getAlbums(albumIds);
+                  totalApiCalls++; // Track retry API call
                   const retryResults = [];
                   albumsData.albums.forEach((albumData, index) => {
                     if (albumData) {
@@ -1433,11 +1422,11 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
                   });
                   return retryResults;
                 } catch (retryErr) {
-                  console.log(`[Collaborators] Skipping batch of ${albumIds.length} albums after retry failed`);
+                  // Skipping failed batch...
                   return []; // Return empty array for failed batch
                 }
               } else {
-                console.log(`[Collaborators] Error fetching album batch:`, err.message);
+                // Error in batch, skipping...
                 return []; // Return empty array for failed batch
               }
             }
@@ -1486,15 +1475,12 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
         // Skip tracks where the target artist doesn't appear (fixes "appears_on" issue)
         if (!targetArtistOnTrack) {
           if (albumData.albumType === 'appears_on') {
-            console.log(`[Collaborators] Skipping track "${track.name}" from appears_on album "${albumData.albumName}" - target artist not on track`);
+            // Skipping track - target artist not present
           }
           return;
         }
         
-        // Log when we process appears_on or compilation tracks
-        if (albumData.albumType === 'appears_on' || albumData.albumType === 'compilation') {
-          console.log(`[Collaborators] Processing ${albumData.albumType} track: "${track.name}" from "${albumData.albumName}"`);
-        }
+        // Processing track for collaborations
         
         totalTracks++;
         
@@ -1602,13 +1588,12 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
     });
 
     // Step 4: Fetch artist images for collaborators
-    console.log(`[DEBUG] Processing ${collaboratorMap.size} collaborators...`);
     let collaboratorsData = Array.from(collaboratorMap.values())
       .filter(collab => collab.count >= minCollaborations);
     
     // Fetch artist details (including images) for all collaborators in batches
     if (collaboratorsData.length > 0) {
-      console.log(`[Collaborators] Fetching images for ${collaboratorsData.length} collaborators...`);
+      // Step 4: Fetching collaborator images...
       
       const artistIds = collaboratorsData.map(collab => collab.id).filter(id => id);
       
@@ -1617,6 +1602,7 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
         const batch = artistIds.slice(i, i + 50);
         try {
           const { body } = await spotifyApi.getArtists(batch);
+          totalApiCalls++; // Track artist details API call
           
           body.artists.forEach(artist => {
             const collaborator = collaboratorsData.find(c => c.id === artist.id);
@@ -1664,13 +1650,8 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
       }))
       .sort((a, b) => b.count - a.count); // Sort by collaboration count
     
-    // Debug the top collaborator
-    if (collaborators.length > 0) {
-      const topCollab = collaborators[0];
-      console.log(`[DEBUG] Top collaborator: ${topCollab.name}`);
-      console.log(`[DEBUG] Unique albums for ${topCollab.name}:`, Array.from(collaboratorMap.get(topCollab.id).uniqueAlbumNames));
-      console.log(`[DEBUG] Album count: ${topCollab.albumCount}`);
-    }
+    // Analysis completed successfully
+    console.log(`✅ Collaborators analysis completed: Found ${collaborators.length} collaborators across ${allAlbums.length} albums (${totalApiCalls} API calls)`);
 
     res.json({
       collaborators,
