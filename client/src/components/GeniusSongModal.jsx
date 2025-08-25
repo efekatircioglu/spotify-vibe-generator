@@ -4,6 +4,81 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('samples');
   const [showDefinitions, setShowDefinitions] = useState(false);
+  const [userTopArtists, setUserTopArtists] = useState([]);
+  const [loadingTopArtists, setLoadingTopArtists] = useState(false);
+
+  // Fetch user's top artists when modal opens
+  useEffect(() => {
+    const fetchUserTopArtists = async () => {
+      if (!open) return;
+      
+      setLoadingTopArtists(true);
+      try {
+        const response = await fetch('http://127.0.0.1:8000/all-artists-deduplicated');
+        if (response.ok) {
+          const data = await response.json();
+          setUserTopArtists(data.artists || []);
+          console.log('Fetched user top artists for sorting:', data.artists?.length || 0);
+        } else {
+          console.error('Failed to fetch user top artists');
+          setUserTopArtists([]);
+        }
+      } catch (error) {
+        console.error('Error fetching user top artists:', error);
+        setUserTopArtists([]);
+      } finally {
+        setLoadingTopArtists(false);
+      }
+    };
+    
+    fetchUserTopArtists();
+  }, [open]);
+
+  // Helper function to check if an artist is in user's top artists
+  const isArtistInUserTop = (artistName) => {
+    if (!artistName || !userTopArtists.length) return false;
+    const artistLower = artistName.toLowerCase().trim();
+    
+    return userTopArtists.some(userArtist => {
+      const userArtistLower = userArtist.name.toLowerCase().trim();
+      
+      // Exact match (highest priority)
+      if (artistLower === userArtistLower) return true;
+      
+      // Check if it's a known alias/variation (e.g., "Kanye West" vs "Ye")
+      const knownAliases = {
+        'kanye west': ['ye', 'kanye'],
+        'the weeknd': ['weeknd', 'abel tesfaye'],
+        'jay-z': ['jay z', 'jigga', 'hova'],
+        'eminem': ['slim shady', 'marshall mathers'],
+        'drake': ['drizzy', 'champagne papi'],
+        'rihanna': ['rih', 'bad gal riri'],
+        'taylor swift': ['taylor', 'tswift']
+      };
+      
+      // Check if current artist matches any known alias
+      if (knownAliases[userArtistLower]) {
+        return knownAliases[userArtistLower].some(alias => 
+          artistLower === alias || artistLower.includes(alias) || alias.includes(artistLower)
+        );
+      }
+      
+      // For other artists, use more strict matching
+      // Only match if one is a clear subset of the other (not partial matches)
+      const artistWords = artistLower.split(/\s+/);
+      const userArtistWords = userArtistLower.split(/\s+/);
+      
+      // Check if all words in one artist name are contained in the other
+      const isSubset = (words1, words2) => {
+        return words1.every(word => 
+          words2.some(userWord => userWord === word || userWord.includes(word))
+        );
+      };
+      
+      // Only return true if one is clearly a subset of the other
+      return isSubset(artistWords, userArtistWords) || isSubset(userArtistWords, artistWords);
+    });
+  };
 
   // Helper function to determine the best default tab based on available data
   const getDefaultTab = (relationships) => {
@@ -58,6 +133,8 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
     }
   }, [open]);
 
+
+
   // Set the default tab based on available data when songInfo changes
   useEffect(() => {
     if (songInfo?.songDetails?.relationships) {
@@ -102,7 +179,30 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
     const allSamples = [...samples, ...sampledIn];
 
-    return allSamples.map((sample, index) => (
+    // Smart sorting: User's top artists first, then green (samples) before red (sampled_in)
+    const sortedSamples = allSamples.sort((a, b) => {
+      const aArtist = a.song.primary_artist?.toLowerCase() || '';
+      const bArtist = b.song.primary_artist?.toLowerCase() || '';
+      
+      // Priority 1: Check if artist is in user's top artists (highest priority)
+      const aIsInUserTop = isArtistInUserTop(a.song.primary_artist);
+      const bIsInUserTop = isArtistInUserTop(b.song.primary_artist);
+      
+      if (aIsInUserTop && !bIsInUserTop) return -1;
+      if (!aIsInUserTop && bIsInUserTop) return 1;
+      
+      // Priority 2: Green songs (samples) before red songs (sampled_in)
+      const aIsGreen = a.type === 'samples';
+      const bIsGreen = b.type === 'samples';
+      
+      if (aIsGreen && !bIsGreen) return -1;
+      if (!aIsGreen && bIsGreen) return 1;
+      
+      // Priority 3: Alphabetical order for similar priority
+      return a.song.title?.localeCompare(b.song.title) || 0;
+    });
+
+    return sortedSamples.map((sample, index) => (
       <div key={index} className="genius-relationship-card" style={{ 
         background: '#232323', 
         padding: '12px', 
@@ -128,10 +228,35 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
             {sample.type === 'samples' ? 'Samples' : 'Sampled In'}
           </span>
         </div>
-        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+        <div className="genius-relationship-title" style={{ 
+          fontWeight: '600', 
+          color: '#fff',
+          marginBottom: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
           {sample.song.title}
+          {isArtistInUserTop(sample.song.primary_artist) && (
+            <span style={{ 
+              fontSize: '0.6rem', 
+              background: '#1db954', 
+              color: '#000', 
+              padding: '2px 6px', 
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              ★ Your Top Artist
+            </span>
+          )}
         </div>
-        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+        <div className="genius-relationship-artist" style={{ 
+          color: '#b3b3b3',
+          fontSize: '0.9rem',
+          fontWeight: '400'
+        }}>
           by {sample.song.primary_artist}
         </div>
       </div>
@@ -216,7 +341,30 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
     const allInterpolations = [...interpolates, ...interpolatedBy];
 
-    return allInterpolations.map((item, index) => (
+    // Smart sorting: User's top artists first, then green (interpolates) before red (interpolated_by)
+    const sortedInterpolations = allInterpolations.sort((a, b) => {
+      const aArtist = a.song.primary_artist?.toLowerCase() || '';
+      const bArtist = b.song.primary_artist?.toLowerCase() || '';
+      
+      // Priority 1: Check if artist is in user's top artists (highest priority)
+      const aIsInUserTop = isArtistInUserTop(a.song.primary_artist);
+      const bIsInUserTop = isArtistInUserTop(b.song.primary_artist);
+      
+      if (aIsInUserTop && !bIsInUserTop) return -1;
+      if (!aIsInUserTop && bIsInUserTop) return 1;
+      
+      // Priority 2: Green songs (interpolates) before red songs (interpolated_by)
+      const aIsGreen = a.type === 'interpolates';
+      const bIsGreen = b.type === 'interpolates';
+      
+      if (aIsGreen && !bIsGreen) return -1;
+      if (!aIsGreen && bIsGreen) return 1;
+      
+      // Priority 3: Alphabetical order for similar priority
+      return a.song.title?.localeCompare(b.song.title) || 0;
+    });
+
+    return sortedInterpolations.map((item, index) => (
       <div key={index} className="genius-relationship-card" style={{ 
         background: '#232323', 
         padding: '12px', 
@@ -242,10 +390,35 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
             {item.type === 'interpolates' ? 'Interpolates' : 'Interpolated By'}
           </span>
         </div>
-        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+        <div className="genius-relationship-title" style={{ 
+          fontWeight: '600', 
+          color: '#fff',
+          marginBottom: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
           {item.song.title}
+          {isArtistInUserTop(item.song.primary_artist) && (
+            <span style={{ 
+              fontSize: '0.6rem', 
+              background: '#1db954', 
+              color: '#000', 
+              padding: '2px 6px', 
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              ★ Your Top Artist
+            </span>
+          )}
         </div>
-        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+        <div className="genius-relationship-artist" style={{ 
+          color: '#b3b3b3',
+          fontSize: '0.9rem',
+          fontWeight: '400'
+        }}>
           by {item.song.primary_artist}
         </div>
       </div>
@@ -262,7 +435,30 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
     const allRemixes = [...remixOf, ...remixedBy];
 
-    return allRemixes.map((item, index) => (
+    // Smart sorting: User's top artists first, then green (remix_of) before red (remixed_by)
+    const sortedRemixes = allRemixes.sort((a, b) => {
+      const aArtist = a.song.primary_artist?.toLowerCase() || '';
+      const bArtist = b.song.primary_artist?.toLowerCase() || '';
+      
+      // Priority 1: Check if artist is in user's top artists (highest priority)
+      const aIsInUserTop = isArtistInUserTop(a.song.primary_artist);
+      const bIsInUserTop = isArtistInUserTop(b.song.primary_artist);
+      
+      if (aIsInUserTop && !bIsInUserTop) return -1;
+      if (!aIsInUserTop && bIsInUserTop) return 1;
+      
+      // Priority 2: Green songs (remix_of) before red songs (remixed_by)
+      const aIsGreen = a.type === 'remix_of';
+      const bIsGreen = b.type === 'remix_of';
+      
+      if (aIsGreen && !bIsGreen) return -1;
+      if (!aIsGreen && bIsGreen) return 1;
+      
+      // Priority 3: Alphabetical order for similar priority
+      return a.song.title?.localeCompare(b.song.title) || 0;
+    });
+
+    return sortedRemixes.map((item, index) => (
       <div key={index} className="genius-relationship-card" style={{ 
         background: '#232323', 
         padding: '12px', 
@@ -288,10 +484,35 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
             {item.type === 'remix_of' ? 'Remix Of' : 'Remixed By'}
           </span>
         </div>
-        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+        <div className="genius-relationship-title" style={{ 
+          fontWeight: '600', 
+          color: '#fff',
+          marginBottom: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
           {item.song.title}
+          {isArtistInUserTop(item.song.primary_artist) && (
+            <span style={{ 
+              fontSize: '0.6rem', 
+              background: '#1db954', 
+              color: '#000', 
+              padding: '2px 6px', 
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              ★ Your Top Artist
+            </span>
+          )}
         </div>
-        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+        <div className="genius-relationship-artist" style={{ 
+          color: '#b3b3b3',
+          fontSize: '0.9rem',
+          fontWeight: '400'
+        }}>
           by {item.song.primary_artist}
         </div>
       </div>
@@ -348,10 +569,35 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
         }}>
           {rel.type.replace(/_/g, ' ')}
         </div>
-        <div className="genius-relationship-title" style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+        <div className="genius-relationship-title" style={{ 
+          fontWeight: '600', 
+          color: '#fff',
+          marginBottom: '4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
           {rel.song.title}
+          {isArtistInUserTop(rel.song.primary_artist) && (
+            <span style={{ 
+              fontSize: '0.6rem', 
+              background: '#1db954', 
+              color: '#000', 
+              padding: '2px 6px', 
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              ★ Your Top Artist
+            </span>
+          )}
         </div>
-        <div className="genius-relationship-artist" style={{ color: '#b3b3b3', fontSize: '0.9rem' }}>
+        <div className="genius-relationship-artist" style={{ 
+          color: '#b3b3b3',
+          fontSize: '0.9rem',
+          fontWeight: '400'
+        }}>
           by {rel.song.primary_artist}
         </div>
       </div>
@@ -360,6 +606,25 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
   return (
     <>
+      {/* Loading indicator for top artists */}
+      {loadingTopArtists && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: '#1db954',
+          color: '#000',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          fontSize: '0.8rem',
+          fontWeight: '600',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(29, 185, 84, 0.3)'
+        }}>
+          🔍 Loading your top artists for smart sorting...
+        </div>
+      )}
+      
       <style jsx global>{`
         .genius-modal-overlay {
           position: fixed;

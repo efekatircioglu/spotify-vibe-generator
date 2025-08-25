@@ -1405,7 +1405,7 @@ if (isMobile) {
                 {playlistKey === 'last50' && (
                   <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Listened At</th>
                 )}
-                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Duration</th>
+                <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'center', fontWeight: 700 }}>Duration</th>
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Analyze</th>
                 <th style={{ padding: 'clamp(12px, 1.5vw, 18px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'left', fontWeight: 700 }}>Play</th>
               </tr>
@@ -1506,7 +1506,7 @@ if (isMobile) {
                       {track.played_at ? formatListeningTime(track.played_at) : '--'}
                     </td>
                   )}
-                  <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
+                  <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'center' }}>{track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}</td>
                   <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{/* Analyze button remains as is for now */}
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <button
@@ -1918,9 +1918,27 @@ if (isMobile) {
           th, td {
             padding: 8px 4px !important;
           }
-          button {
+          /* Target only the Breakdown button in the table */
+          .new-track-table-container button[onClick*="setDropdownOpen"] {
             font-size: 0.75rem !important;
             padding: 6px 12px !important;
+          }
+          /* Target only the Play button (Spotify link) in the table */
+          .new-track-table-container a[href*="open.spotify.com/track"] {
+            width: 32px !important;
+            height: 32px !important;
+          }
+          .new-track-table-container a[href*="open.spotify.com/track"] svg {
+            width: 20px !important;
+            height: 20px !important;
+          }
+        }
+        
+        /* Center the duration column specifically for medium screens */
+        @media (max-width: 1200px) and (min-width: 651px) {
+          .new-track-table-container th:nth-child(8),
+          .new-track-table-container td:nth-child(8) {
+            text-align: center !important;
           }
         }
         

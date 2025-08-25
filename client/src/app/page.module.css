@@ -1453,7 +1453,7 @@ body, .main {
 .backToProfileButton {
   position: absolute;
   top: 1.5rem; /* 24px */
-  left: 2rem;  /* 32px */
+  left: 1rem;  /* 32px */
   z-index: 10;
   
   background: transparent;
@@ -1470,10 +1470,9 @@ body, .main {
   transition: all 0.2s ease-in-out;
   cursor: pointer;
   
-  /* --- STATIC SIZING --- */
-  padding: 10px 28px;
-  font-size: 1.08rem;
-  gap: 8px;
+  /* --- DYNAMIC SIZING --- */
+  padding: clamp(4px, 2vw, 8px) clamp(10px, 4vw, 16px);
+  gap: clamp(3px, 1vw, 8px);
 }
 
 /* This handles the hover effect purely in CSS */

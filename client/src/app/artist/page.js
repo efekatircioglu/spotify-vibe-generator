@@ -156,6 +156,18 @@ function findDiscogsGenreStyle(albumName, genreStyleMap) {
 }
 
 export default function ArtistConcertsPage() {
+  // Load handwriting fonts
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&family=Patrick+Hand&family=Indie+Flower&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const artistName = searchParams.get('name') || '';
@@ -229,6 +241,7 @@ export default function ArtistConcertsPage() {
     { label: 'Appears On', value: 'appears_on' },
   ];
   const [isBioExpanded, setIsBioExpanded] = useState(false); // <-- Add this line
+  const [isHeaderBioExpanded, setIsHeaderBioExpanded] = useState(false); // <-- Add this line for header bio
   const BIO_TRUNCATE_LENGTH = 300; // Characters to show before truncating
   
 
@@ -802,19 +815,22 @@ export default function ArtistConcertsPage() {
   style={{
     position: 'relative',
     display: 'flex',
-    alignItems: 'center',
-    gap: 'clamp(16px, 3vw, 32px)', // Also make the gap responsive
-    minHeight: '60vh',
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'center' : 'center',
+    justifyContent: isMobile ? 'center' : 'flex-start',
+    gap: isMobile ? 'clamp(12px, 3vh, 20px)' : 'clamp(16px, 3vw, 32px)',
+    minHeight: isMobile ? 'clamp(280px, 45vh, 400px)' : 'clamp(300px, 50vh, 600px)',
     width: '100vw',
     borderRadius: '0 0 32px 32px',
     boxShadow: '0 4px 32px #0002',
-    // Responsive padding for all sides
-    padding: 'clamp(32px, 8vh, 64px) clamp(24px, 5vw, 64px)',
+    padding: isMobile 
+      ? 'clamp(20px, 5vh, 32px) clamp(16px, 4vw, 24px)' 
+      : 'clamp(24px, 6vh, 48px) clamp(24px, 5vw, 64px)',
     overflow: 'hidden',
     zIndex: 10,
     marginTop: '-32px',
     background: 'none',
-    boxSizing: 'border-box', // Ensures padding is calculated correctly
+    boxSizing: 'border-box',
   }}
 >
             {/* Blurred, stretched background image */}
@@ -848,25 +864,40 @@ export default function ArtistConcertsPage() {
             <button
   onClick={() => router.push('/')}
   className={styles.backToProfileButton}
+  style={{
+    position: 'absolute',
+    top: 'clamp(16px, 4vh, 32px)',
+    left: 'clamp(16px, 3vw, 32px)',
+    zIndex: 10,
+  }}
 >
   <span style={{ fontSize: '1.3em' }}>←</span>
   Profile
 </button>
             {artistImage && (
              <img src={artistImage} alt={selectedArtist.name} style={{ 
-              width: 'clamp(80px, calc(60px + 4vw), 140px)', 
+              width: isMobile ? 'clamp(100px, 25vw, 140px)' : 'clamp(80px, calc(60px + 4vw), 140px)', 
               aspectRatio: '1 / 1',
               borderRadius: '50%', 
               objectFit: 'cover', 
               boxShadow: '0 4px 24px #0004', 
-              border: '4px solid #fff', 
-              zIndex: 4 
+              border: isMobile ? '3px solid #fff' : '4px solid #fff', 
+              zIndex: 4,
+              marginTop: isMobile ? 'clamp(16px, 4vh, 24px)' : '0'
             }} />
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, zIndex: 4 }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: isMobile ? 'center' : 'flex-start', 
+              gap: isMobile ? 'clamp(8px, 2vh, 16px)' : 'clamp(6px, 1.5vh, 12px)', 
+              zIndex: 4,
+              marginTop: isMobile ? 'clamp(4px, 1vh, 8px)' : 'clamp(8px, 2vh, 16px)',
+              textAlign: isMobile ? 'center' : 'left'
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ 
-  fontSize: 'clamp(2rem, 5vw, 4rem)', 
+  fontSize: isMobile ? 'clamp(1.8rem, 6vw, 2.5rem)' : 'clamp(2rem, 5vw, 4rem)', 
   fontWeight: 900, 
   color: '#fff', 
   letterSpacing: 1 
@@ -881,7 +912,7 @@ export default function ArtistConcertsPage() {
                 }}>
                   <span style={{ 
                     color: '#b3b3b3', 
-                    fontSize: 'clamp(0.9rem, 2vw, 1.25rem)', 
+                    fontSize: isMobile ? 'clamp(0.85rem, 2.5vw, 1.1rem)' : 'clamp(0.9rem, 2vw, 1.25rem)', 
                     fontWeight: 500
                   }}>
                     {artistFollowers.toLocaleString()} Followers
@@ -889,7 +920,265 @@ export default function ArtistConcertsPage() {
                 </div>
               )}
               
-              <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+              {/* Real Name, Genres, Styles and About displayed in header - always show if available */}
+              {(discogsRealName || artistGenres.length > 0 || discogsGenres.length > 0 || discogsStyles.length > 0 || (discogsProfile && discogsProfile.trim().length > 0)) && (
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: isMobile ? 8 : 12, 
+                  marginTop: isMobile ? 12 : 16,
+                  width: '100%'
+                }}>
+                  {/* Real Name Section */}
+                  {discogsRealName && (
+                    <div>
+                      <div style={{
+                        color: '#ffffff',
+                        fontSize: 'clamp(0.8rem, 1.5vw, 1rem)',
+                        fontWeight: 600,
+                        marginBottom: 8,
+                        opacity: 0.9
+                      }}>
+                        Real Name
+                      </div>
+                      <div style={{
+                        color: '#38bdf8',
+                        fontSize: 'clamp(1.2rem, 2.5vw, 1.8rem)',
+                        fontWeight: 500,
+                        fontStyle: 'italic',
+                        fontFamily: '"Caveat", "Kalam", "Patrick Hand", "Indie Flower", cursive',
+                        letterSpacing: '0.5px',
+                        display: 'inline-block'
+                      }}>
+                        {discogsRealName.split(' ').map((word, index) => (
+                          <span key={index} style={{ display: 'inline-block', marginRight: '4px' }}>
+                            <span style={{
+                              fontSize: 'clamp(1.4rem, 2.8vw, 2rem)',
+                              fontWeight: 700,
+                              // color: '#60a5fa'
+                            }}>
+                              {word.charAt(0)}
+                            </span>
+                            <span style={{ fontSize: 'inherit' }}>
+                              {word.slice(1)}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Genres Section */}
+                  {(artistGenres.length > 0 || discogsGenres.length > 0) && (
+                    <div>
+                      <div style={{
+                        color: '#ffffff',
+                        fontSize: isMobile ? 'clamp(0.75rem, 2vw, 0.9rem)' : 'clamp(0.8rem, 1.5vw, 1rem)',
+                        fontWeight: 600,
+                        marginBottom: isMobile ? 6 : 8,
+                        opacity: 0.9
+                      }}>
+                        Genres
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: isMobile ? '4px' : '6px',
+                        justifyContent: isMobile ? 'center' : 'flex-start'
+                      }}>
+                        {/* Spotify Genres */}
+                        {artistGenres.map((genre, index) => (
+                          <span
+                            key={`spotify-${genre}`}
+                            style={{
+                              background: 'linear-gradient(135deg, #1f2937, #374151)',
+                              color: '#ffffff',
+                              padding: isMobile ? '3px 8px' : '4px 10px',
+                              borderRadius: '16px',
+                              fontSize: isMobile ? 'clamp(0.65rem, 2vw, 0.8rem)' : 'clamp(0.7rem, 1.2vw, 0.85rem)',
+                              fontWeight: 500,
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                              border: '1px solid #4b5563',
+                              transition: 'all 0.2s ease',
+                              cursor: 'default'
+                            }}
+                            onMouseOver={(e) => {
+                              e.target.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
+                              e.target.style.transform = 'translateY(-1px)';
+                              e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.target.style.background = 'linear-gradient(135deg, #1f2937, #374151)';
+                              e.target.style.transform = 'translateY(0)';
+                              e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                            }}
+                            title="Spotify Genre"
+                          >
+                            {genre}
+                          </span>
+                        ))}
+                        
+                        {/* Discogs Genres */}
+                        {discogsGenres.map((genre, index) => (
+                          <span
+                            key={`discogs-${genre}`}
+                            style={{
+                              background: 'linear-gradient(135deg, #1f2937, #374151)',
+                              color: '#ffffff',
+                              padding: isMobile ? '3px 8px' : '4px 10px',
+                              borderRadius: '16px',
+                              fontSize: isMobile ? 'clamp(0.65rem, 2vw, 0.8rem)' : 'clamp(0.7rem, 1.2vw, 0.85rem)',
+                              fontWeight: 500,
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                              border: '1px solid #4b5563',
+                              transition: 'all 0.2s ease',
+                              cursor: 'default'
+                            }}
+                            onMouseOver={(e) => {
+                              e.target.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
+                              e.target.style.transform = 'translateY(-1px)';
+                              e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.target.style.background = 'linear-gradient(135deg, #1f2937, #374151)';
+                              e.target.style.transform = 'translateY(0)';
+                              e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                            }}
+                            title="Discogs Genre"
+                          >
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Styles Section */}
+                  {discogsStyles.length > 0 && (
+                    <div>
+                      <div style={{
+                        color: '#ffffff',
+                        fontSize: 'clamp(0.8rem, 1.5vw, 1rem)',
+                        fontWeight: 600,
+                        marginBottom: 8,
+                        opacity: 0.9
+                      }}>
+                        Styles
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '6px'
+                      }}>
+                        {discogsStyles.map((style, index) => (
+                          <span
+                            key={style}
+                            style={{
+                              background: '#374151',
+                              color: '#ffffff',
+                              padding: '4px 10px',
+                              borderRadius: '16px',
+                              fontSize: 'clamp(0.7rem, 1.2vw, 0.85rem)',
+                              fontWeight: 500,
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                              border: '1px solid #6b7280',
+                              transition: 'all 0.2s ease',
+                              cursor: 'default'
+                            }}
+                            onMouseOver={(e) => {
+                              e.target.style.background = '#4b5563';
+                              e.target.style.transform = 'translateY(-1px)';
+                              e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.target.style.background = '#374151';
+                              e.target.style.transform = 'translateY(0)';
+                              e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                            }}
+                          >
+                            {style}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* About Section Preview */}
+                  {discogsProfile && discogsProfile.trim().length > 0 && (
+                    <div>
+                      <div style={{
+                        color: '#ffffff',
+                        fontSize: 'clamp(0.8rem, 1.5vw, 1rem)',
+                        fontWeight: 600,
+                        marginBottom: 8,
+                        opacity: 0.9
+                      }}>
+                        About
+                      </div>
+                      <div style={{
+                        color: '#b3b3b3',
+                        fontSize: 'clamp(0.75rem, 1.3vw, 0.9rem)',
+                        lineHeight: 1.4,
+                        maxWidth: '100%'
+                      }}>
+                        {processingDiscogsProfile ? (
+                          <span style={{ fontStyle: 'italic', opacity: 0.7 }}>
+                            Processing artist information...
+                          </span>
+                        ) : (
+                          <>
+                            <span 
+                              dangerouslySetInnerHTML={{ 
+                                __html: isHeaderBioExpanded ? 
+                                  processedDiscogsProfile : 
+                                  processedDiscogsProfile.length > (isMobile ? 80 : 120) ? 
+                                    processedDiscogsProfile.substring(0, isMobile ? 80 : 120).replace(/<[^>]*>/g, '') + '...' : 
+                                    processedDiscogsProfile.replace(/<[^>]*>/g, '')
+                              }} 
+                            />
+                            {processedDiscogsProfile.length > (isMobile ? 80 : 120) && (
+                              <button
+                                onClick={() => setIsHeaderBioExpanded(!isHeaderBioExpanded)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#1db954',
+                                  fontSize: 'clamp(0.7rem, 1.2vw, 0.8rem)',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  padding: '0',
+                                  margin: '0 0 0 4px',
+                                  textDecoration: 'underline',
+                                  fontFamily: 'inherit'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.color = '#1ed760';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.color = '#1db954';
+                                }}
+                              >
+                                {isHeaderBioExpanded ? 'Show Less' : 'Read More'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div style={{ 
+                display: 'flex', 
+                gap: isMobile ? 8 : 12, 
+                marginTop: isMobile ? 8 : 12, 
+                flexWrap: 'wrap',
+                justifyContent: isMobile ? 'center' : 'flex-start'
+              }}>
                 <button
                   style={{
                     background: isFollowing ? '#232323' : '#1db954',
@@ -897,13 +1186,17 @@ export default function ArtistConcertsPage() {
                     fontWeight: 700,
                     border: 'none',
                     borderRadius: 24,
-                    padding: `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
-                    fontSize: `clamp(0.9rem, 1.5vw, 1.1rem)`,
+                    padding: isMobile 
+                      ? `clamp(6px, 1.5vh, 10px) clamp(16px, 2.5vw, 24px)` 
+                      : `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
+                    fontSize: isMobile 
+                      ? `clamp(0.8rem, 2vw, 1rem)` 
+                      : `clamp(0.9rem, 1.5vw, 1.1rem)`,
                     cursor: followLoading || isFollowing === null ? 'wait' : 'pointer',
                     boxShadow: '0 2px 8px #0001',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: isMobile ? 6 : 8,
                     opacity: followLoading || isFollowing === null ? 0.7 : 1,
                     pointerEvents: followLoading || isFollowing === null ? 'none' : 'auto',
                     transition: 'background 0.2s, color 0.2s, padding 0.2s, font-size 0.2s',
@@ -927,8 +1220,8 @@ export default function ArtistConcertsPage() {
                   }}
                 >
                   {isFollowing ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10" fill="#1db954"/><path d="M6 10.5L9 13.5L14 8.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6 }}>
+                      <svg width={isMobile ? 16 : 18} height={isMobile ? 16 : 18} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10" fill="#1db954"/><path d="M6 10.5L9 13.5L14 8.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       Followed
                     </span>
                   ) : (
@@ -942,8 +1235,12 @@ export default function ArtistConcertsPage() {
                     fontWeight: 700,
                     border: 'none',
                     borderRadius: 24,
-                    padding: `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
-                    fontSize: `clamp(0.9rem, 1.5vw, 1.1rem)`,
+                    padding: isMobile 
+                      ? `clamp(6px, 1.5vh, 10px) clamp(16px, 2.5vw, 24px)` 
+                      : `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
+                    fontSize: isMobile 
+                      ? `clamp(0.8rem, 2vw, 1rem)` 
+                      : `clamp(0.9rem, 1.5vw, 1.1rem)`,
                     cursor: 'pointer',
                     boxShadow: '0 2px 8px #0001',
                     transition: 'padding 0.2s, font-size 0.2s',
@@ -1079,212 +1376,7 @@ export default function ArtistConcertsPage() {
             )}
           </div>
 
-          {/* About (Discogs profile) block - show above albums if exists */}
-          {discogsProfile && (
-            <div style={{
-              marginTop: 18,
-              background: '#181c24',
-              color: '#b3b3b3',
-              padding: 18,
-              borderRadius: 12,
-              width: isMobile ? '95%' : '80vw',
-              maxWidth: isMobile ? '95%' : '80vw',
-              minWidth: 320,
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              boxShadow: '0 2px 16px #0004',
-              // Drastically smaller font size for main text on mobile
-              fontSize: isMobile ? 12 : 18,
-              fontWeight: 400,
-              whiteSpace: 'pre-line',
-              textAlign: 'left',
-              position: 'relative',
-            }}>
-              <style>{`.discogs-profile-links a { text-decoration: underline !important; }`}</style>
-              {discogsRealName && (
-                <div style={{
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  fontSize: isMobile ? 16 : 22,
-                  marginBottom: 12
-                }}>
-                  Real Name <span style={{ color: '#38bdf8' }}>{discogsRealName}</span>
-                </div>
-              )}
-              
-              {/* Discogs Genres */}
-              {(discogsGenres.length > 0 || artistGenres.length > 0) && (
-                <div style={{
-                  marginBottom: 16
-                }}>
-                  <div style={{
-                    color: '#ffffff',
-                    fontSize: isMobile ? 16 : 22,
-                    fontWeight: 600,
-                    marginBottom: 12
-                  }}>
-                    Genres
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '8px'
-                  }}>
-                    {/* Spotify Genres */}
-                    {artistGenres.map((genre, index) => (
-                      <span
-                        key={`spotify-${genre}`}
-                        style={{
-                          background: 'linear-gradient(135deg, #1f2937, #374151)',
-                          color: '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '20px',
-                          fontSize: isMobile ? 11 : 13,
-                          fontWeight: 500,
-                          whiteSpace: 'nowrap',
-                          boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-                          border: '1px solid #4b5563',
-                          transition: 'all 0.2s ease',
-                          cursor: 'default'
-                        }}
-                        onMouseOver={(e) => {
-                          e.target.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.target.style.background = 'linear-gradient(135deg, #1f2937, #374151)';
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-                        }}
-                        title="Spotify Genre"
-                      >
-                        {genre}
-                      </span>
-                    ))}
-                    
-                    {/* Discogs Genres */}
-                    {discogsGenres.map((genre, index) => (
-                      <span
-                        key={`discogs-${genre}`}
-                        style={{
-                          background: 'linear-gradient(135deg, #1f2937, #374151)',
-                          color: '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '20px',
-                          fontSize: isMobile ? 11 : 13,
-                          fontWeight: 500,
-                          whiteSpace: 'nowrap',
-                          boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-                          border: '1px solid #4b5563',
-                          transition: 'all 0.2s ease',
-                          cursor: 'default'
-                        }}
-                        onMouseOver={(e) => {
-                          e.target.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.target.style.background = 'linear-gradient(135deg, #1f2937, #374151)';
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-                        }}
-                        title="Discogs Genre"
-                      >
-                        {genre}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Discogs Styles */}
-              {discogsStyles.length > 0 && (
-                <div style={{
-                  marginBottom: 16
-                }}>
-                  <div style={{
-                    color: '#ffffff',
-                    fontSize: isMobile ? 16 : 22,
-                    fontWeight: 600,
-                    marginBottom: 12
-                  }}>
-                    Styles
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '8px'
-                  }}>
-                    {discogsStyles.map((style, index) => (
-                      <span
-                        key={style}
-                        style={{
-                          background: '#374151',
-                          color: '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '20px',
-                          fontSize: isMobile ? 11 : 13,
-                          fontWeight: 500,
-                          whiteSpace: 'nowrap',
-                          boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-                          border: '1px solid #6b7280',
-                          transition: 'all 0.2s ease',
-                          cursor: 'default'
-                        }}
-                        onMouseOver={(e) => {
-                          e.target.style.background = '#4b5563';
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.4)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.target.style.background = '#374151';
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-                        }}
-                      >
-                        {style}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              <strong style={{
-                color: '#ffffff',
-                fontSize: isMobile ? 16 : 22,
-                fontWeight: 600,
-                marginBottom: 12
-              }}>About</strong>
-              <div 
-                className={`${styles.bioTextContainer} ${!isBioExpanded && discogsProfile.length > BIO_TRUNCATE_LENGTH ? styles.collapsed : ''}`}
-              >
-                <div 
-                  style={{ marginTop: 8 }}
-                  className="discogs-profile-links"
-                >
-                  {processingDiscogsProfile ? (
-                    <div style={{ color: '#b3b3b3', fontStyle: 'italic' }}>
-                      Processing artist links...
-                    </div>
-                  ) : (
-                    <div dangerouslySetInnerHTML={{ __html: processedDiscogsProfile }} />
-                  )}
-                </div>
-              </div>
 
-              {/* Only show the button if the text is long enough to be truncated */}
-              {discogsProfile.length > BIO_TRUNCATE_LENGTH && (
-                <button 
-                  onClick={() => setIsBioExpanded(!isBioExpanded)}
-                  className={styles.readMoreButton}
-                >
-                  {isBioExpanded ? 'Read Less' : 'Read More'}
-                </button>
-              )}
-            </div>
-          )}
 
           {/* Artist Collaborators Section */}
           {spotifyId && (
