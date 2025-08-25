@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import AudioAnalysisInterface from './AudioAnalysisInterface';
 import GenreBasedAnalysisModal from './GenreBasedAnalysisModal';
-import { lookupTrackMBID } from '../utils/trackAnalysisCache';
+import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
 
 export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
   const [mbid, setMbid] = useState(null);

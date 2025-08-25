@@ -6,7 +6,7 @@ import React from 'react';
 import NewContributorFinder from './NewContributorFinder';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
 import GeniusSongModal from './GeniusSongModal';
-import { lookupTrackMBID } from '../utils/trackAnalysisCache';
+import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
 
 
 

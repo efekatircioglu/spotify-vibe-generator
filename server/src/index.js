@@ -18,8 +18,9 @@ app.use(cors({
   origin: ['http://localhost:3000', 'http://192.168.1.4:3000']
 }));
 
-// Parse JSON bodies for POST requests
-app.use(express.json());
+// Parse JSON bodies for POST requests with increased limit for large playlists
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Define the "scopes" or permissions we need from the user
 const scopes = [
@@ -465,16 +466,7 @@ app.get('/playlist-tracks-for-wrapped/:id', async (req, res) => {
           releaseYear = item.track.release_date.split('-')[0];
         }
         
-        // Log a sample track to see the structure
-        if (allTracks.indexOf(item) === 0) {
-          console.log('Sample playlist track structure:', {
-            id: item.track.id,
-            name: item.track.name,
-            album: item.track.album,
-            release_date: item.track.album?.release_date,
-            duration_ms: item.track.duration_ms
-          });
-        }
+
         
         return {
           id: item.track.id,
@@ -2219,7 +2211,17 @@ app.post('/mbid-lookup', async (req, res) => {
   }
 });
 
-// Wrapped analysis endpoint with optimized wait times
+// Global flag to track if analysis should be stopped
+let shouldStopAnalysis = false;
+
+// Endpoint to stop ongoing analysis
+app.post('/stop-analysis', (req, res) => {
+  shouldStopAnalysis = true;
+  console.log('[Server] Stop signal received - will stop analysis at next batch');
+  res.json({ success: true, message: 'Stop signal received' });
+});
+
+// Wrapped analysis endpoint with batch API calls for AcousticBrainz
 app.post('/wrapped-analysis', async (req, res) => {
   try {
     const { tracks } = req.body;
@@ -2228,122 +2230,182 @@ app.post('/wrapped-analysis', async (req, res) => {
       return res.status(400).json({ error: 'Missing tracks array' });
     }
 
-    console.log(`[Wrapped Analysis] Starting analysis for ${tracks.length} tracks`);
-    
+    // Reset stop flag for new analysis
+    shouldStopAnalysis = false;
+
+    // Track all API calls made in the entire process
+    let totalApiCalls = 0;
+    let spotifyApiCalls = 0;
+    let musicbrainzApiCalls = 0;
+    let acousticbrainzApiCalls = 0;
+
     // Helper function to add wait time between API calls
     const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     
-    // Helper function to fetch analysis with simple retry
-    const fetchAnalysisWithRetry = async (mbid) => {
-      const baseWaitTime = 500; // 500ms between API calls
-      
+    // Helper function to fetch batch analysis from AcousticBrainz
+    const fetchBatchAnalysis = async (mbids, analysisType) => {
       try {
-        // Fetch high-level analysis from AcousticBrainz
-        console.log(`[Wrapped Analysis] Fetching high-level analysis for MBID: ${mbid}`);
-        const highRes = await axios.get(`https://acousticbrainz.org/${mbid}/high-level`, {
-          headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
-        });
+        const mbidString = mbids.join(';');
+        const url = `https://acousticbrainz.org/api/v1/${analysisType}?recording_ids=${mbidString}`;
         
-        // Wait between API calls
-        await wait(baseWaitTime);
-        
-        // Fetch low-level analysis from AcousticBrainz
-        console.log(`[Wrapped Analysis] Fetching low-level analysis for MBID: ${mbid}`);
-        const lowRes = await axios.get(`https://acousticbrainz.org/${mbid}/low-level`, {
+        const response = await axios.get(url, {
           headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
         });
         
         return {
-          highLevel: highRes.data,
-          lowLevel: lowRes.data,
+          data: response.data,
           success: true
         };
       } catch (error) {
-        console.log(`[Wrapped Analysis] Analysis fetch failed for MBID ${mbid}:`, error.message);
-        
-        // Simple retry once with same wait time
-        console.log(`[Wrapped Analysis] Retrying analysis for MBID ${mbid}...`);
-        await wait(baseWaitTime);
-        
-        try {
-          const highRes = await axios.get(`https://acousticbrainz.org/${mbid}/high-level`, {
-            headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
-          });
-          
-          await wait(baseWaitTime);
-          
-          const lowRes = await axios.get(`https://acousticbrainz.org/${mbid}/low-level`, {
-            headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' }
-          });
-          
-          return {
-            highLevel: highRes.data,
-            lowLevel: lowRes.data,
-            success: true
-          };
-        } catch (retryError) {
-          console.log(`[Wrapped Analysis] Retry failed for MBID ${mbid}:`, retryError.message);
-          return {
-            highLevel: null,
-            lowLevel: null,
-            success: false,
-            error: retryError.message
-          };
-        }
+        return {
+          data: null,
+          success: false,
+          error: error.message
+        };
       }
     };
 
-    const results = [];
+    // Extract MBIDs from tracks (frontend already filtered for MBIDs)
+    const mbids = tracks.map(track => track.mbid);
     
-    // Process tracks sequentially with minimal wait times
-    for (let i = 0; i < tracks.length; i++) {
-      const track = tracks[i];
-      console.log(`[Wrapped Analysis] Processing track ${i + 1}/${tracks.length}: ${track.name} by ${track.artist || 'Unknown Artist'}`);
-      
-      // Check if we have MBID for this track
-      if (!track.mbid) {
-        console.log(`[Wrapped Analysis] Skipping track ${track.name} - no MBID available`);
-        results.push({
-          track,
-          highLevel: null,
-          lowLevel: null,
+    // Split MBIDs into batches of 25
+    const batchSize = 25; // AcousticBrainz batch size (optimized: 25 MBIDs per batch - tested and stable)
+    const batches = [];
+    
+    // Split MBIDs into batches
+    for (let i = 0; i < mbids.length; i += batchSize) {
+      const batch = mbids.slice(i, i + batchSize);
+      batches.push(batch);
+    }
+    
+    // Process each batch completely (high-level + low-level) before moving to next
+    const allResults = [];
+    
+    for (let i = 0; i < batches.length; i++) {
+      // Check if analysis should be stopped
+      if (shouldStopAnalysis) {
+        console.log(`[Wrapped Analysis] Analysis stopped by user at batch ${i + 1}/${batches.length}`);
+        return res.json({
           success: false,
-          reason: 'No MBID available'
+          error: 'Analysis stopped by user',
+          results: [],
+          summary: 'Analysis was cancelled'
         });
-        continue;
       }
       
-      // Fetch analysis for this track
-      const analysis = await fetchAnalysisWithRetry(track.mbid);
+      const batch = batches[i];
       
-      results.push({
-        track,
-        ...analysis
+      // Fetch high-level analysis for this batch
+      const highLevelResult = await fetchBatchAnalysis(batch, 'high-level');
+      
+      // Check again after high-level
+      if (shouldStopAnalysis) {
+        console.log(`[Wrapped Analysis] Analysis stopped by user after high-level batch ${i + 1}`);
+        return res.json({
+          success: false,
+          error: 'Analysis stopped by user',
+          results: [],
+          summary: 'Analysis was cancelled'
+        });
+      }
+      
+      // Wait 1 second between high-level and low-level for same batch
+      await wait(1000);
+      
+      // Fetch low-level analysis for this batch
+      const lowLevelResult = await fetchBatchAnalysis(batch, 'low-level');
+      
+      // Check again after low-level
+      if (shouldStopAnalysis) {
+        console.log(`[Wrapped Analysis] Analysis stopped by user after low-level batch ${i + 1}`);
+        return res.json({
+          success: false,
+          error: 'Analysis stopped by user',
+          results: [],
+          summary: 'Analysis was cancelled'
+        });
+      }
+      
+      // Store both results for this batch
+      allResults.push({
+        batchIndex: i,
+        highLevel: highLevelResult,
+        lowLevel: lowLevelResult
       });
       
-      // Wait between tracks (except for the last one and when next track has no MBID)
-      if (i < tracks.length - 1) {
-        const nextTrack = tracks[i + 1];
-        // Only add wait time if next track has MBID (will be processed)
-        if (nextTrack && nextTrack.mbid) {
-          const trackWaitTime = 200; // 200ms between tracks
-          console.log(`[Wrapped Analysis] Waiting ${trackWaitTime}ms before next track`);
-          await wait(trackWaitTime);
-        } else {
-          console.log(`[Wrapped Analysis] Next track has no MBID, skipping wait time`);
-        }
+      // Wait between batches (except for the last one)
+      if (i < batches.length - 1) {
+        await wait(1000); // 1 second between batches
       }
     }
     
-    console.log(`[Wrapped Analysis] Analysis complete. Successfully analyzed: ${results.filter(r => r.success).length}/${tracks.length}`);
+    // Map batch results back to individual tracks
+    const results = [];
+    
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      
+      // Find the batch index for this track
+      const mbidIndex = mbids.indexOf(track.mbid);
+      const batchIndex = Math.floor(mbidIndex / batchSize);
+      
+      // Get high-level and low-level data for this track
+      const batchResult = allResults[batchIndex];
+      
+      let highLevel = null;
+      let lowLevel = null;
+      let success = false;
+      
+      if (batchResult && batchResult.highLevel.success && batchResult.lowLevel.success) {
+        // AcousticBrainz returns data with actual MBID keys, not numeric indices
+        if (batchResult.highLevel.data && batchResult.highLevel.data[track.mbid]) {
+          highLevel = batchResult.highLevel.data[track.mbid];
+        }
+        
+        if (batchResult.lowLevel.data && batchResult.lowLevel.data[track.mbid]) {
+          lowLevel = batchResult.lowLevel.data[track.mbid];
+        }
+        
+        success = highLevel && lowLevel;
+      }
+      
+      results.push({
+        track,
+        highLevel,
+        lowLevel,
+        success,
+        reason: success ? null : 'Failed to fetch analysis data'
+      });
+    }
+    
+    const successfulCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
+    
+    // Calculate total API calls (this endpoint only handles AcousticBrainz)
+    acousticbrainzApiCalls = batches.length * 2; // high-level + low-level for each batch
+    totalApiCalls = acousticbrainzApiCalls;
+    
+    // FINAL SUMMARY
+    console.log(`[Wrapped Analysis] ===== ANALYSIS COMPLETE =====`);
+    console.log(`[Wrapped Analysis] Total tracks: ${tracks.length}`);
+    console.log(`[Wrapped Analysis] Successfully analyzed: ${successfulCount}/${tracks.length} (${((successfulCount/tracks.length)*100).toFixed(1)}%)`);
+    console.log(`[Wrapped Analysis] Failed analysis: ${failedCount}/${tracks.length} (${((failedCount/tracks.length)*100).toFixed(1)}%)`);
+    console.log(`[Wrapped Analysis] API Calls Breakdown:`);
+    console.log(`[Wrapped Analysis]   • Spotify API: ${spotifyApiCalls} (ISRC fetching)`);
+    console.log(`[Wrapped Analysis]   • MusicBrainz API: ${musicbrainzApiCalls} (MBID lookup)`);
+    console.log(`[Wrapped Analysis]   • AcousticBrainz API: ${acousticbrainzApiCalls} (${batches.length} high-level + ${batches.length} low-level)`);
+    console.log(`[Wrapped Analysis] Total API calls: ${spotifyApiCalls + musicbrainzApiCalls + acousticbrainzApiCalls}`);
+    console.log(`[Wrapped Analysis] ==========================================`);
     
     res.json({
       success: true,
       results,
       summary: {
         total: tracks.length,
-        successful: results.filter(r => r.success).length,
-        failed: results.filter(r => !r.success).length
+        successful: successfulCount,
+        failed: failedCount,
+        batchesProcessed: batches.length,
+        totalApiCalls: batches.length * 2
       }
     });
     
@@ -2420,43 +2482,43 @@ app.get('/album-contributors', async (req, res) => {
       }
     }
     
-    // Strategy 4: If still no results, try searching by artist only and filter by title
-    if (!searchData?.results || searchData.results.length === 0) {
+                    // Strategy 4: If still no results, try searching by artist only and filter by title
+                if (!searchData?.results || searchData.results.length === 0) {
       searchAttempts++;
-      searchStrategy = 'artist_only';
-      searchUrl = `https://api.discogs.com/database/search?artist=${encodeURIComponent(artistName)}&type=release`;
-      searchResponse = await fetch(searchUrl, { headers: authHeaders });
+                  searchStrategy = 'artist_only';
+                  searchUrl = `https://api.discogs.com/database/search?artist=${encodeURIComponent(artistName)}&type=release`;
+                  searchResponse = await fetch(searchUrl, { headers: authHeaders });
 
-      if (searchResponse.ok) {
-        searchData = await searchResponse.json();
-        
-        if (searchData.results && searchData.results.length > 0) {
-          // Filter results to find albums with matching titles
-          const filteredResults = searchData.results.filter(result => {
-            const resultTitle = result.title.toLowerCase();
-            const searchTitle = albumTitle.toLowerCase();
-            return resultTitle.includes(searchTitle) || searchTitle.includes(resultTitle);
-          });
-          
-          if (filteredResults.length > 0) {
-            searchData.results = filteredResults;
-          }
-        }
-      }
-    }
+                  if (searchResponse.ok) {
+                    searchData = await searchResponse.json();
+                    
+                    if (searchData.results && searchData.results.length > 0) {
+                      // Filter results to find albums with matching titles
+                      const filteredResults = searchData.results.filter(result => {
+                        const resultTitle = result.title.toLowerCase();
+                        const searchTitle = albumTitle.toLowerCase();
+                        return resultTitle.includes(searchTitle) || searchTitle.includes(resultTitle);
+                      });
+                      
+                      if (filteredResults.length > 0) {
+                        searchData.results = filteredResults;
+                      }
+                    }
+                  }
+                }
                 
-    // Strategy 5: Try searching with artist name in title pattern
-    if (!searchData?.results || searchData.results.length === 0) {
+                // Strategy 5: Try searching with artist name in title pattern
+                if (!searchData?.results || searchData.results.length === 0) {
       searchAttempts++;
-      searchStrategy = 'artist_in_title';
-      const artistInTitleQuery = `${artistName} - ${albumTitle}`;
-      searchUrl = `https://api.discogs.com/database/search?q=${encodeURIComponent(artistInTitleQuery)}&type=release`;
-      searchResponse = await fetch(searchUrl, { headers: authHeaders });
+                  searchStrategy = 'artist_in_title';
+                  const artistInTitleQuery = `${artistName} - ${albumTitle}`;
+                  searchUrl = `https://api.discogs.com/database/search?q=${encodeURIComponent(artistInTitleQuery)}&type=release`;
+                  searchResponse = await fetch(searchUrl, { headers: authHeaders });
 
-      if (searchResponse.ok) {
-        searchData = await searchResponse.json();
-      }
-    }
+                  if (searchResponse.ok) {
+                    searchData = await searchResponse.json();
+                  }
+                }
     
     if (!searchData?.results || searchData.results.length === 0) {
       return res.json({ contributors: [], message: 'No album found' });
@@ -2578,10 +2640,10 @@ app.get('/album-contributors', async (req, res) => {
       album = relevantResults[i];
       
       const albumUrl = `https://api.discogs.com/releases/${album.id}`;
-      let albumResponse = await fetch(albumUrl, { headers: authHeaders });
+    let albumResponse = await fetch(albumUrl, { headers: authHeaders });
       fetchAttempts++;
-      
-      if (!albumResponse.ok) {
+    
+                    if (!albumResponse.ok) {
         continue; // Try next result
       }
 
@@ -2589,16 +2651,16 @@ app.get('/album-contributors', async (req, res) => {
         albumData = await albumResponse.json();
         
         // Validate that this is the correct album
-        const fetchedArtist = albumData.artists?.map(a => a.name).join(', ') || '';
-        const fetchedTitle = albumData.title.toLowerCase();
-        const searchArtistLower = artistName.toLowerCase();
-        const searchTitleLower = albumTitle.toLowerCase();
-        
-        const artistMatches = fetchedArtist.toLowerCase().includes(searchArtistLower) || 
-                            searchArtistLower.includes(fetchedArtist.toLowerCase());
-        const titleMatches = fetchedTitle.includes(searchTitleLower) || 
-                           searchTitleLower.includes(fetchedTitle);
-        
+                const fetchedArtist = albumData.artists?.map(a => a.name).join(', ') || '';
+                const fetchedTitle = albumData.title.toLowerCase();
+                const searchArtistLower = artistName.toLowerCase();
+                const searchTitleLower = albumTitle.toLowerCase();
+                
+                const artistMatches = fetchedArtist.toLowerCase().includes(searchArtistLower) || 
+                                    searchArtistLower.includes(fetchedArtist.toLowerCase());
+                const titleMatches = fetchedTitle.includes(searchTitleLower) || 
+                                   searchTitleLower.includes(fetchedTitle);
+                
         if (artistMatches && titleMatches) {
           console.log(`✅ Found album "${albumData.title}" by "${fetchedArtist}" (${albumData.year || 'Unknown year'})`);
           break; // Exit the loop, we found the right album
@@ -2607,7 +2669,7 @@ app.get('/album-contributors', async (req, res) => {
           continue;
         }
         
-      } catch (error) {
+                    } catch (error) {
         continue; // Try next result
       }
     }
@@ -2895,11 +2957,183 @@ app.get('/genius/test-connectivity', async (req, res) => {
   }
 });
 
-module.exports = pool;
+// New endpoint for batch ISRC fetching and MBID lookup
+app.post('/batch-isrc-mbid', async (req, res) => {
+  try {
+    const { trackIds } = req.body;
+    
+    if (!trackIds || !Array.isArray(trackIds)) {
+      return res.status(400).json({ error: 'Missing trackIds array' });
+    }
 
+    
+    // Helper function to add wait time between API calls
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    // Fetch ISRCs from Spotify using /tracks endpoint (max 50 per call)
+    const batchSize = 50; // Spotify's limit for /tracks endpoint
+    const isrcBatches = [];
+    
+    // Split track IDs into batches of 50
+    for (let i = 0; i < trackIds.length; i += batchSize) {
+      const batch = trackIds.slice(i, i + batchSize);
+      isrcBatches.push(batch);
+    }
+    
+    const allTracksWithIsrcs = [];
+    let totalIsrcsFound = 0;
+    
+    // Process each batch to get ISRCs
+    for (let i = 0; i < isrcBatches.length; i++) {
+      const batch = isrcBatches[i];
+      
+      try {
+        // Make batch call to Spotify /tracks endpoint
+        const response = await spotifyApi.getTracks(batch);
+        
+        if (response.body && response.body.tracks) {
+          const tracksWithIsrcs = response.body.tracks.map(track => ({
+            id: track.id,
+            name: track.name,
+            artists: track.artists,
+            isrc: track.external_ids?.isrc || null
+          }));
+          
+          allTracksWithIsrcs.push(...tracksWithIsrcs);
+          
+          const isrcCount = tracksWithIsrcs.filter(t => t.isrc).length;
+          totalIsrcsFound += isrcCount;
+        }
+        
+        // Rate limit: wait between batches
+        if (i < isrcBatches.length - 1) {
+          await wait(10); // 10ms between Spotify API calls
+        }
+        
+      } catch (error) {
+        console.error(`[Batch ISRC/MBID] ❌ Error processing batch ${i + 1}:`, error.message);
+        // Continue with other batches
+      }
+    }
+    
+    // Group all ISRCs and make batch MusicBrainz call
+    const tracksWithIsrcs = allTracksWithIsrcs.filter(track => track.isrc);
+    const tracksWithoutIsrcs = allTracksWithIsrcs.filter(track => !track.isrc);
+    
+    if (tracksWithIsrcs.length === 0) {
+      return res.json({
+        success: true,
+        tracksWithMbids: [],
+        tracksWithoutMbids: allTracksWithIsrcs,
+        summary: {
+          totalTracks: trackIds.length,
+          tracksWithIsrcs: 0,
+          tracksWithoutIsrcs: allTracksWithIsrcs.length,
+          tracksWithMbids: 0
+        }
+      });
+    }
+    
+    // Group ISRCs for MusicBrainz batch call
+    const isrcs = tracksWithIsrcs.map(track => track.isrc);
+    
+    try {
+      // Make batch call to MusicBrainz with proper URL encoding
+      const query = `isrc:(${isrcs.join(' OR ')})`;
+      
+      // Build the URL with proper encoding (axios will handle the rest)
+      const mbidUrl = `https://musicbrainz.org/ws/2/recording?query=${encodeURIComponent(query)}&fmt=json`;
+      
+      const mbidResponse = await axios.get(mbidUrl, {
+        headers: {
+          'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (mbidResponse.data && mbidResponse.data.recordings) {
+        const recordings = mbidResponse.data.recordings;
+        
+        // Create ISRC to MBID mapping
+        const isrcToMbid = {};
+        recordings.forEach(recording => {
+          if (recording.isrcs && recording.isrcs.length > 0) {
+            recording.isrcs.forEach(isrc => {
+              isrcToMbid[isrc] = recording.id;
+            });
+          }
+        });
+        
+        // Map tracks with MBIDs
+        const tracksWithMbids = tracksWithIsrcs.map(track => ({
+          ...track,
+          mbid: isrcToMbid[track.isrc] || null
+        }));
+        
+        const tracksWithMbidsFound = tracksWithMbids.filter(track => track.mbid);
+        const tracksWithoutMbids = tracksWithMbids.filter(track => !track.mbid);
+        
+        // Calculate API calls for this endpoint
+        const spotifyApiCalls = isrcBatches.length; // One call per batch of 50 tracks
+        const musicbrainzApiCalls = 1; // Single batch call to MusicBrainz
+        
+        // FINAL SUMMARY
+        console.log(`[Batch ISRC/MBID] ===== COMPLETE =====`);
+        console.log(`[Batch ISRC/MBID] Total tracks: ${trackIds.length} | Tracks with ISRCs: ${tracksWithIsrcs.length} | Tracks with MBIDs: ${tracksWithMbidsFound.length} | Success rate: ${((tracksWithMbidsFound.length / trackIds.length) * 100).toFixed(1)}%`);
+        console.log(`[Batch ISRC/MBID] ==========================================`);
+        
+        res.json({
+          success: true,
+          tracksWithMbids: tracksWithMbidsFound,
+          tracksWithoutMbids: tracksWithoutMbids,
+          summary: {
+            totalTracks: trackIds.length,
+            tracksWithIsrcs: tracksWithIsrcs.length,
+            tracksWithoutIsrcs: allTracksWithIsrcs.length - tracksWithIsrcs.length,
+            tracksWithMbids: tracksWithMbidsFound.length,
+            apiCalls: {
+              spotify: spotifyApiCalls,
+              musicbrainz: musicbrainzApiCalls,
+              total: spotifyApiCalls + musicbrainzApiCalls
+            }
+          }
+        });
+        
+      } else {
+        throw new Error('Invalid response from MusicBrainz');
+      }
+      
+    } catch (error) {
+      console.error(`[Batch ISRC/MBID] MusicBrainz batch call failed:`, error.message);
+      
+      // Return tracks with ISRCs even if MBID lookup failed
+      res.json({
+        success: false,
+        error: 'MusicBrainz lookup failed',
+        tracksWithMbids: [],
+        tracksWithoutMbids: tracksWithIsrcs,
+        summary: {
+          totalTracks: trackIds.length,
+          tracksWithIsrcs: tracksWithIsrcs.length,
+          tracksWithoutIsrcs: allTracksWithIsrcs.length - tracksWithIsrcs.length,
+          tracksWithMbids: 0
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('[Batch ISRC/MBID] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process batch ISRC/MBID lookup',
+      details: error.message 
+    });
+  }
+});
 
-
+// Start the server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Server is also accessible on http://192.168.1.4:${PORT}`);
 });
+
+module.exports = pool;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { fetchTrackMetrics } from '../utils/fetchTrackMetrics';
-import { lookupTrackMBID, getTrackISRC, setTrackISRC, setTrackMBID, getTrackMBID, getTrackAnalysis, setTrackAnalysis, hasValidAnalysis } from '../utils/trackAnalysisCache';
+import { lookupTrackMBID, getTrackISRC, setTrackISRC, setTrackMBID, getTrackMBID } from '../utils/spotifyIdToMBID';
 import styles from './WrappedAnalysisModal.module.css'; // Import the CSS module
 import WrappedResultsModal from './WrappedResultsModal';
 
@@ -42,6 +42,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       setLoading(true);
       setResults(null);
       setShowResults(false);
+      
+      // Track all API calls made in the entire process
+      let totalApiCalls = 0;
+      let spotifyApiCalls = 0;
+      let musicbrainzApiCalls = 0;
+      let acousticbrainzApiCalls = 0;
       
       // Check if modal was closed before starting
       if (signal.aborted) return;
@@ -151,7 +157,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         // Wait between tracks (except for the last one)
         if (i < uniqueTracks.length - 1) {
           setCurrentStep('MBID Lookup Phase');
-          setStepDetails(`Waiting 50ms before next MBID lookup... (${mbidProgress}/${uniqueTracks.length} complete)`);
+          setStepDetails(`MBID search (${mbidProgress}/${uniqueTracks.length} complete)`);
           await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
@@ -173,114 +179,212 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       // Wait a moment before starting analysis
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Step 3: Analysis phase with detailed explanations
-      const tracksToFetch = tracksWithMbids.filter(t => t.mbid);
+      // Step 3: MBID lookup phase - check cache for ALL songs simultaneously, then fetch missing ones
+      setCurrentStep('MBID Lookup Phase');
+      setStepDetails(`Checking cache for existing MBIDs...`);
+      
+      // STEP 3a: Quick cache check for ALL songs simultaneously (O(n) but very fast)
+      const tracksWithCachedMbids = [];
+      const tracksNeedingMbids = [];
+      const uncachedTrackIds = [];
+      
+      for (let i = 0; i < tracksWithMbids.length; i++) {
+        const track = tracksWithMbids[i];
+        const cachedMbid = getTrackMBID(track.id);
+        
+        if (cachedMbid && cachedMbid !== 'Not Found') {
+          // Update track with cached MBID
+          track.mbid = cachedMbid;
+          tracksWithCachedMbids.push({ track, index: i });
+        } else {
+          tracksNeedingMbids.push({ track, index: i });
+          uncachedTrackIds.push(track.id);
+        }
+      }
+      
+      console.log(`[Wrapped Analysis] Cache check: ${tracksWithCachedMbids.length}/${tracksWithMbids.length} tracks found in cache (${((tracksWithCachedMbids.length / tracksWithMbids.length) * 100).toFixed(1)}% hit rate)`);
+      
+      // STEP 3b: If we have uncached tracks, send ALL of them to backend in ONE request
+      if (uncachedTrackIds.length > 0) {
+        setStepDetails(`Fetching MBIDs for ${uncachedTrackIds.length} uncached tracks...`);
+        
+        try {
+          // Send ALL uncached track IDs in a single request (backend will handle batching)
+          const mbidRes = await fetch('http://127.0.0.1:8000/batch-isrc-mbid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trackIds: uncachedTrackIds }),
+            signal: signal
+          });
+          
+          if (mbidRes.ok) {
+            const mbidData = await mbidRes.json();
+            console.log(`[Wrapped Analysis] MBID lookup: ${mbidData.tracksWithMbids.length}/${uncachedTrackIds.length} tracks found (${((mbidData.tracksWithMbids.length/uncachedTrackIds.length)*100).toFixed(1)}% success rate)`);
+            
+            // Track API calls from MBID lookup
+            if (mbidData.summary && mbidData.summary.apiCalls) {
+              spotifyApiCalls += mbidData.summary.apiCalls.spotify;
+              musicbrainzApiCalls += mbidData.summary.apiCalls.musicbrainz;
+              totalApiCalls += mbidData.summary.apiCalls.total;
+            }
+            
+            // Update tracks with MBIDs and cache them
+            mbidData.tracksWithMbids.forEach(trackWithMbid => {
+              const trackItem = tracksNeedingMbids.find(item => item.track.id === trackWithMbid.id);
+              if (trackItem) {
+                trackItem.track.mbid = trackWithMbid.mbid;
+                // Cache the MBID
+                setTrackMBID(trackWithMbid.id, trackWithMbid.mbid);
+                // Cache the ISRC if available
+                if (trackWithMbid.isrc) {
+                  setTrackISRC(trackWithMbid.id, trackWithMbid.isrc);
+                }
+              }
+            });
+            
+            // Update progress
+            setProgress({ done: tracksWithMbids.length, total: tracksWithMbids.length });
+            
+          } else {
+            console.error(`[Wrapped Analysis] MBID lookup failed:`, mbidRes.status);
+          }
+          
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            console.log('MBID lookup request was aborted');
+            return;
+          }
+          console.error(`[Wrapped Analysis] MBID lookup error:`, error);
+        }
+      }
+      
+      // Now all tracks should have MBIDs (either from cache or fresh lookup)
+      const tracksWithMbidsFinal = tracksWithMbids.filter(track => track.mbid && track.mbid !== 'Not Found');
+      const tracksWithoutMbids = tracksWithMbids.filter(track => !track.mbid || track.mbid === 'Not Found');
+      
+      // Step 4: Analysis phase - now with all MBIDs
       setCurrentStep('Analysis Phase');
-      setStepDetails(`Starting acoustic analysis for ${tracksToFetch.length} tracks with MBIDs. This involves fetching high-level and low-level acoustic features from AcousticBrainz.`);
+      setStepDetails(`Starting acoustic analysis for ${tracksWithMbidsFinal.length} tracks with MBIDs. This involves fetching high-level and low-level acoustic features from AcousticBrainz.`);
       
       // Reset progress for analysis phase
       let done = 0;
-      const total = tracksWithMbids.length;
+      const total = tracksWithMbidsFinal.length;
       setProgress({ done, total });
       
-      let finalStatuses = tracksWithMbids.map(track => ({
+      let finalStatuses = tracksWithMbidsFinal.map(track => ({
         name: track.name,
         artist: track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : ''),
-        status: track.mbid ? 'Checking Analysis Cache...' : 'Skipped (no MBID)',
-        details: track.mbid ? 'Looking for cached analysis data...' : 'No MBID available'
+        status: 'Queued for Analysis...',
+        details: 'Waiting for analysis...'
       }));
       setStatuses(finalStatuses);
 
-      // Step 4: Sequential analysis with wait times and retry logic
+      // Step 5: Batch analysis - send ALL tracks in a single request
       const analysisResults = [];
       
-      for (let i = 0; i < tracksWithMbids.length; i++) {
-        // Check if modal was closed
-        if (signal.aborted) {
-          console.log('Analysis cancelled during analysis phase');
-          return;
-        }
-
-        const track = tracksWithMbids[i];
+      // Prepare tracks needing analysis (no caching for high-level/low-level data)
+      const tracksNeedingAnalysis = tracksWithMbidsFinal.map((track, index) => ({ track, index }));
+      
+      // Add tracks without MBIDs to results
+      tracksWithoutMbids.forEach(track => {
+        analysisResults.push({ track, highLevel: null, lowLevel: null, success: false, reason: 'No MBID' });
+      });
+      
+      // If we have tracks that need analysis, send them ALL in one request
+      if (tracksNeedingAnalysis.length > 0) {
+        setCurrentStep('Analysis Phase');
+        setStepDetails(`Sending ${tracksNeedingAnalysis.length} tracks for analysis...`);
         
-        if (!track.mbid) {
-          analysisResults.push({ track, highLevel: null, lowLevel: null, success: false, reason: 'No MBID' });
-          continue;
-        }
-
-        // Check if we have cached analysis - NO WAIT TIME when using cache
-        const cachedAnalysis = getTrackAnalysis(track.id);
-        if (hasValidAnalysis(track.id)) {
-          finalStatuses[i].status = 'Done (from cache)';
-          finalStatuses[i].details = 'Analysis data found in cache';
+        // Update all tracks to show they're being processed
+        for (let i = 0; i < tracksNeedingAnalysis.length; i++) {
+          const { index } = tracksNeedingAnalysis[i];
+          finalStatuses[index].status = 'Processing...';
+          finalStatuses[index].details = 'Analysis in progress...';
           setStatuses([...finalStatuses]);
-          analysisResults.push({
-            track,
-            highLevel: cachedAnalysis.highLevel,
-            lowLevel: cachedAnalysis.lowLevel,
-            success: true,
-            fromCache: true
-          });
-          done++;
-          setProgress({ done, total });
-          continue;
         }
-
-        // Update status to show we're fetching analysis
-        finalStatuses[i].status = 'Fetching Analysis...';
-        finalStatuses[i].details = 'Making API calls to AcousticBrainz (high-level + low-level)';
-        setStatuses([...finalStatuses]);
-
+        
         try {
-          // Use the new server endpoint for analysis
+          // Send ALL tracks needing analysis in a single request
           const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tracks: [track] }),
-            signal: signal // Add abort signal
+            body: JSON.stringify({ tracks: tracksNeedingAnalysis.map(t => t.track) }),
+            signal: signal
           });
 
           if (analysisRes.ok) {
             const analysisData = await analysisRes.json();
-            const result = analysisData.results[0];
             
-            if (result.success) {
-              // Cache the successful analysis
-              setTrackAnalysis(track.id, {
-                highLevel: result.highLevel,
-                lowLevel: result.lowLevel,
-                timestamp: Date.now()
-              });
+            // Check if analysis was cancelled by user
+            if (analysisData.error === 'Analysis stopped by user') {
+              console.log('[Wrapped Analysis] Analysis was cancelled by user on server');
+              setStepDetails('Analysis was cancelled by user');
+              setLoading(false);
+              return;
+            }
+            
+            // Process results for each track with real-time UI updates
+            for (let i = 0; i < tracksNeedingAnalysis.length; i++) {
+              const { track, index } = tracksNeedingAnalysis[i];
               
-              finalStatuses[i].status = 'Done';
-              finalStatuses[i].details = 'Analysis completed successfully';
-              analysisResults.push({
-                track,
-                highLevel: result.highLevel,
-                lowLevel: result.lowLevel,
-                success: true
-              });
-            } else {
-              finalStatuses[i].status = 'Skipped (no analysis data)';
-              finalStatuses[i].details = 'Analysis Request Failed';
+              const result = analysisData.results.find(r => r.track.id === track.id);
+              
+              // Update step details to show current progress
+              setStepDetails(`Processing results: ${i + 1}/${tracksNeedingAnalysis.length} tracks completed`);
+              
+              // Update status immediately for this track
+              if (result && result.success) {
+                // No caching for high-level/low-level analysis data
+                
+                finalStatuses[index].status = 'Done';
+                finalStatuses[index].details = 'Analysis completed successfully';
+                const successfulResult = {
+                  track,
+                  highLevel: result.highLevel,
+                  lowLevel: result.lowLevel,
+                  success: true
+                };
+                analysisResults.push(successfulResult);
+              } else {
+                finalStatuses[index].status = 'Skipped (no analysis data)';
+                finalStatuses[index].details = 'Analysis Request Failed';
+                const failedResult = {
+                  track,
+                  highLevel: null,
+                  lowLevel: null,
+                  success: false,
+                  reason: result?.error || 'Analysis failed'
+                };
+                analysisResults.push(failedResult);
+              }
+              
+              // Update progress and UI immediately for each track
+              done++;
+              setProgress({ done, total });
+              
+              // Update statuses array and trigger UI refresh
+              setStatuses([...finalStatuses]);
+              
+              // Small delay to make the updates visible to user
+              await new Promise(resolve => setTimeout(resolve, 10));
+            }
+          } else {
+            // Handle server error for all tracks
+            for (let i = 0; i < tracksNeedingAnalysis.length; i++) {
+              const { track, index } = tracksNeedingAnalysis[i];
+              finalStatuses[index].status = 'Skipped (API error)';
+              finalStatuses[index].details = 'Analysis Request Failed';
               analysisResults.push({
                 track,
                 highLevel: null,
                 lowLevel: null,
                 success: false,
-                reason: result.error || 'Analysis failed'
+                reason: 'Server error'
               });
+              done++;
+              setStatuses([...finalStatuses]);
+              setProgress({ done, total });
             }
-          } else {
-            finalStatuses[i].status = 'Skipped (API error)';
-            finalStatuses[i].details = 'Analysis Request Failed';
-            analysisResults.push({
-              track,
-              highLevel: null,
-              lowLevel: null,
-              success: false,
-              reason: 'Server error'
-            });
           }
         } catch (error) {
           // Check if this is an abort error
@@ -289,25 +393,22 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
             return;
           }
           
-          finalStatuses[i].status = 'Skipped (network error)';
-          finalStatuses[i].details = 'Analysis Request Failed';
-          analysisResults.push({
-            track,
-            highLevel: null,
-            lowLevel: null,
-            success: false,
-            reason: `Network error: ${error.message}`
-          });
-        }
-
-        done++;
-        setStatuses([...finalStatuses]);
-        setProgress({ done, total });
-
-        // No client-side wait times - server handles all timing
-        if (i < tracksWithMbids.length - 1) {
-          setCurrentStep('Analysis Phase');
-          setStepDetails(`Processing next track... (${i + 1}/${tracksWithMbids.length} complete)`);
+          // Handle network error for all tracks
+          for (let i = 0; i < tracksNeedingAnalysis.length; i++) {
+            const { track, index } = tracksNeedingAnalysis[i];
+            finalStatuses[index].status = 'Skipped (network error)';
+            finalStatuses[index].details = 'Analysis Request Failed';
+            analysisResults.push({
+              track,
+              highLevel: null,
+              lowLevel: null,
+              success: false,
+              reason: `Network error: ${error.message}`
+            });
+            done++;
+            setStatuses([...finalStatuses]);
+            setProgress({ done, total });
+          }
         }
       }
 
@@ -317,53 +418,49 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         return;
       }
 
-      // Step 5: Simple retry for tracks that failed analysis (only once, same wait time)
+      // Step 5: Batch retry for tracks that failed analysis (only once)
       const failedTracks = analysisResults.filter(r => r.mbid && !r.success);
       if (failedTracks.length > 0) {
         setCurrentStep('Retry Phase');
-        setStepDetails(`Retrying analysis for ${failedTracks.length} tracks that failed initially. This helps catch tracks that may have been temporarily unavailable.`);
+        setStepDetails(`Retrying analysis for ${failedTracks.length} tracks that failed initially using batch processing...`);
         
-        for (let i = 0; i < failedTracks.length; i++) {
-          // Check if modal was closed
-          if (signal.aborted) {
-            console.log('Analysis cancelled during retry phase');
-            return;
-          }
+        try {
+          // Send ALL failed tracks in a single batch retry request
+          const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tracks: failedTracks.map(f => f.track) }),
+            signal: signal
+          });
 
-          const failedTrack = failedTracks[i];
-          const trackIndex = tracksWithMbids.findIndex(t => t.id === failedTrack.track.id);
-          
-          if (trackIndex === -1) continue;
-          
-          finalStatuses[trackIndex].status = 'Retrying Analysis...';
-          finalStatuses[trackIndex].details = 'Retrying analysis once with same wait time...';
-          setStatuses([...finalStatuses]);
-          
-          try {
-            // Simple retry with same wait time as regular API calls
-            setStepDetails(`Retrying analysis for track ${i + 1}/${failedTracks.length}...`);
+                  if (analysisRes.ok) {
+          const analysisData = await analysisRes.json();
             
-            const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ tracks: [failedTrack.track] }),
-              signal: signal // Add abort signal
-            });
-
-            if (analysisRes.ok) {
-              const analysisData = await analysisRes.json();
-              const result = analysisData.results[0];
+            // Check if analysis was cancelled by user
+            if (analysisData.error === 'Analysis stopped by user') {
+              console.log('[Wrapped Analysis] Retry analysis was cancelled by user on server');
+              setStepDetails('Retry analysis was cancelled by user');
+              setLoading(false);
+              return;
+            }
+            
+            // Process retry results for each failed track with real-time updates
+            for (let i = 0; i < failedTracks.length; i++) {
+              const failedTrack = failedTracks[i];
+              const trackIndex = tracksWithMbids.findIndex(t => t.id === failedTrack.track.id);
               
-              if (result.success) {
-                // Cache the successful analysis
-                setTrackAnalysis(failedTrack.track.id, {
-                  highLevel: result.highLevel,
-                  lowLevel: result.lowLevel,
-                  timestamp: Date.now()
-                });
+              if (trackIndex === -1) continue;
+              
+              // Update step details to show retry progress
+              setStepDetails(`Processing retry results: ${i + 1}/${failedTracks.length} tracks completed`);
+              
+              const result = analysisData.results.find(r => r.track.id === failedTrack.track.id);
+              
+              if (result && result.success) {
+                // No caching for high-level/low-level analysis data
                 
                 finalStatuses[trackIndex].status = 'Done (retry success)';
-                finalStatuses[trackIndex].details = 'Analysis completed successfully';
+                finalStatuses[trackIndex].details = 'Analysis completed successfully on retry';
                 
                 // Update the result
                 const resultIndex = analysisResults.findIndex(r => r.track.id === failedTrack.track.id);
@@ -378,24 +475,46 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                 }
               } else {
                 finalStatuses[trackIndex].status = 'Skipped (retry failed)';
-                finalStatuses[trackIndex].details = 'Analysis Request Failed';
+                finalStatuses[trackIndex].details = 'Analysis Request Failed on retry';
               }
-            } else {
-              finalStatuses[trackIndex].status = 'Skipped (retry failed)';
-              finalStatuses[trackIndex].details = 'Analysis Request Failed';
+              
+              // Update statuses and trigger UI refresh
+              setStatuses([...finalStatuses]);
+              
+              // Small delay to make the updates visible to user
+              await new Promise(resolve => setTimeout(resolve, 10));
             }
-          } catch (error) {
-            // Check if this is an abort error
-            if (error.name === 'AbortError') {
-              console.log('Retry analysis request was aborted');
-              return;
+          } else {
+            // Handle server error for all retry tracks
+            for (let i = 0; i < failedTracks.length; i++) {
+              const failedTrack = failedTracks[i];
+              const trackIndex = tracksWithMbids.findIndex(t => t.id === failedTrack.track.id);
+              
+              if (trackIndex !== -1) {
+                finalStatuses[trackIndex].status = 'Skipped (retry failed)';
+                finalStatuses[trackIndex].details = 'Analysis Request Failed on retry';
+                setStatuses([...finalStatuses]);
+              }
             }
-            
-            finalStatuses[trackIndex].status = 'Skipped (retry failed)';
-            finalStatuses[trackIndex].details = 'Analysis Request Failed';
+          }
+        } catch (error) {
+          // Check if this is an abort error
+          if (error.name === 'AbortError') {
+            console.log('Retry analysis request was aborted');
+            return;
           }
           
-          setStatuses([...finalStatuses]);
+          // Handle network error for all retry tracks
+          for (let i = 0; i < failedTracks.length; i++) {
+            const failedTrack = failedTracks[i];
+            const trackIndex = tracksWithMbids.findIndex(t => t.id === failedTrack.track.id);
+            
+            if (trackIndex !== -1) {
+              finalStatuses[trackIndex].status = 'Skipped (retry failed)';
+              finalStatuses[trackIndex].details = 'Analysis Request Failed on retry';
+              setStatuses([...finalStatuses]);
+            }
+          }
         }
       }
 
@@ -403,8 +522,30 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       setCurrentStep('Analysis Complete');
       setStepDetails(`Analysis finished! Successfully analyzed ${analysisResults.filter(r => r.success).length}/${total} tracks.`);
       
+      const successfulCount = analysisResults.filter(r => r.success).length;
+      const failedCount = analysisResults.filter(r => !r.success).length;
+      
+      // Calculate AcousticBrainz API calls (estimate based on batch size)
+      const estimatedBatches = Math.ceil(tracksNeedingAnalysis.length / 25); // Assuming 25 MBIDs per batch
+      acousticbrainzApiCalls = estimatedBatches * 2; // high-level + low-level for each batch
+      totalApiCalls += acousticbrainzApiCalls;
+      
+      console.log(`[Wrapped Analysis] ===== ANALYSIS COMPLETE =====`);
+      console.log(`[Wrapped Analysis] Total tracks: ${analysisResults.length}`);
+      console.log(`[Wrapped Analysis] Successfully analyzed: ${successfulCount}/${analysisResults.length} (${((successfulCount/analysisResults.length)*100).toFixed(1)}%)`);
+      console.log(`[Wrapped Analysis] Failed analysis: ${failedCount}/${analysisResults.length} (${((failedCount/analysisResults.length)*100).toFixed(1)}%)`);
+      console.log(`[Wrapped Analysis] API Calls Breakdown:`);
+      console.log(`[Wrapped Analysis]   • Spotify API: ${spotifyApiCalls} (ISRC fetching)`);
+      console.log(`[Wrapped Analysis]   • MusicBrainz API: ${musicbrainzApiCalls} (MBID lookup)`);
+      console.log(`[Wrapped Analysis]   • AcousticBrainz API: ${acousticbrainzApiCalls} (high-level + low-level analysis)`);
+      console.log(`[Wrapped Analysis] Total API calls: ${spotifyApiCalls + musicbrainzApiCalls + acousticbrainzApiCalls}`);
+      console.log(`[Wrapped Analysis] ==========================================`);
+      
       setResults(analysisResults);
       setLoading(false);
+      
+      // Don't automatically show results - let user click button
+      // setShowResults(true);
     };
 
     analyzeTracks();
@@ -429,12 +570,33 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
     }
   }, [open]);
 
+  // Handle modal close with cleanup
+  const handleClose = () => {
+    if (abortControllerRef.current) {
+      console.log('User stopped analyzing - aborting all requests');
+      abortControllerRef.current.abort();
+      abortControllerRef.current.current = null;
+    }
+    
+    // Signal server to stop processing if analysis is in progress
+    if (loading && currentStep === 'Analysis Phase') {
+      console.log('Signaling server to stop AcousticBrainz analysis...');
+      fetch('http://127.0.0.1:8000/stop-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stop: true })
+      }).catch(() => {}); // Ignore errors if server is busy
+    }
+    
+    setLoading(false);
+    onClose();
+  };
+
   if (!open) return null;
 
   const getStatusClass = (status) => {
     switch (status) {
       case 'Done':
-      case 'Done (from cache)':
       case 'Done (retry success)':
         return styles.statusDone;
       case 'Skipped (no MBID)':
@@ -473,7 +635,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
   const totalTracks = statuses.length;
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
+    <div className={styles.modalOverlay} onClick={handleClose}>
       <div onClick={e => e.stopPropagation()} className={styles.modalContent} style={{
         width: isMobile ? '95vw' : 'auto',
         maxWidth: isMobile ? '95vw' : 'none',
@@ -481,7 +643,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       }}>
         <div className={styles.modalHeader}>
           <h2 className={styles.modalTitle}>Your Songs Wrapped</h2>
-          <button onClick={onClose} className={styles.closeButton}>&times;</button>
+          <button onClick={handleClose} className={styles.closeButton}>&times;</button>
         </div>
 
         <div className={styles.modalBody} style={{ 
@@ -544,28 +706,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                 </button>
               )}
               
-              {/* Close button when no songs analyzed successfully */}
-              {!loading && numDone === 0 && (
-                <button
-                  style={{ 
-                    marginBottom: 24, 
-                    background: '#6b7280', 
-                    color: '#fff', 
-                    fontWeight: 700, 
-                    fontSize: isMobile ? 16 : 18, 
-                    border: 'none', 
-                    borderRadius: 8, 
-                    padding: isMobile ? '10px 24px' : '12px 32px', 
-                    cursor: 'pointer', 
-                    boxShadow: '0 4px 24px #000a', 
-                    transition: 'background 0.18s',
-                    width: isMobile ? '100%' : 'auto'
-                  }}
-                  onClick={onClose}
-                >
-                  Close
-                </button>
-              )}
+              {/* No separate close button needed - the main button handles all cases */}
               
               {loading ? (
                 <div className={styles.progressText} style={{ fontSize: isMobile ? 14 : 16 }}>

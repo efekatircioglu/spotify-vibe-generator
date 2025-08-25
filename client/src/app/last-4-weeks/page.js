@@ -17,7 +17,7 @@ import {
   Legend
 } from 'chart.js';
 import NewContributorFinder from '../../components/NewContributorFinder';
-import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
+import { lookupTrackMBID } from '../../utils/spotifyIdToMBID';
 import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);

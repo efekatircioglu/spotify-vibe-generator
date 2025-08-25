@@ -703,12 +703,16 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
   const { analyzedTracks, skippedTracks, totalBeats, avgBeats } = useMemo(() => {
     const analyzed = results.filter(r => r.highLevel && r.lowLevel);
     const skipped = results.filter(r => !(r.highLevel && r.lowLevel));
+    
     let totalBeats = 0;
     analyzed.forEach(r => {
-      const beats = r.lowLevel?.rhythm?.beats_count || r.lowLevel?.beats_count || 0;
+      // The data is nested under the first key (usually "0")
+      const firstKey = Object.keys(r.lowLevel || {})[0];
+      const beats = r.lowLevel?.[firstKey]?.rhythm?.beats_count || r.lowLevel?.[firstKey]?.beats_count || 0;
       totalBeats += beats;
     });
     const avgBeats = analyzed.length ? Math.round(totalBeats / analyzed.length) : 0;
+    
     return {
       analyzedTracks: analyzed,
       skippedTracks: skipped,
@@ -1228,20 +1232,26 @@ function AnimatedBeatsPage({ totalBeats, avgBeats, styles }) {
 function MetricBarCharts({ analyzedTracks, styles }) {
   const [animKey, setAnimKey] = useState(0);
   useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]); // retrigger on page show
+  
   // Helper to get average for a highlevel metric (probability of main value)
   function getAvgHighlevel(key) {
     let sum = 0, count = 0;
     analyzedTracks.forEach(r => {
-      const val = r.highLevel?.highlevel?.[key]?.probability;
+      // The data is nested under the first key (usually "0")
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const val = r.highLevel?.[firstKey]?.highlevel?.[key]?.probability;
       if (typeof val === 'number') { sum += val; count++; }
     });
     return count ? sum / count : 0;
   }
+  
   // Helper for binary metrics (e.g. mood_acoustic, mood_aggressive, etc.)
   function getAvgBinary(key, positiveValue) {
     let sum = 0, count = 0;
     analyzedTracks.forEach(r => {
-      const all = r.highLevel?.highlevel?.[key]?.all;
+      // The data is nested under the first key (usually "0")
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const all = r.highLevel?.[firstKey]?.highlevel?.[key]?.all;
       if (all && typeof all[positiveValue] === 'number') { sum += all[positiveValue]; count++; }
     });
     return count ? sum / count : 0;
@@ -1299,7 +1309,9 @@ function BinaryBarCharts({ analyzedTracks, styles }) {
   function getAvgBinary(key, left, right) {
     let leftSum = 0, rightSum = 0, count = 0;
     analyzedTracks.forEach(r => {
-      const all = r.highLevel?.highlevel?.[key]?.all;
+      // The data is nested under the first key (usually "0")
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const all = r.highLevel?.[firstKey]?.highlevel?.[key]?.all;
       if (all && typeof all[left] === 'number' && typeof all[right] === 'number') {
         leftSum += all[left];
         rightSum += all[right];
@@ -1460,7 +1472,9 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
   function getLeaderboard(key) {
     const counts = {};
     analyzedTracks.forEach(r => {
-      const val = r.highLevel?.highlevel?.[key]?.value;
+      // The data is nested under the first key (usually "0")
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const val = r.highLevel?.[firstKey]?.highlevel?.[key]?.value;
       if (val) counts[val] = (counts[val] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -1568,7 +1582,9 @@ function ChordsHistogram({ analyzedTracks, styles }) {
   let majorMostCounts = Array(12).fill(0);
   let minorMostCounts = Array(12).fill(0);
   analyzedTracks.forEach(r => {
-    const hist = r.analysisData?.tonal?.chords_histogram || r.lowLevel?.tonal?.chords_histogram || r.highLevel?.tonal?.chords_histogram;
+      // The data is nested under the first key (usually "0")
+      const firstKey = Object.keys(r.lowLevel || {})[0];
+      const hist = r.analysisData?.tonal?.chords_histogram || r.lowLevel?.[firstKey]?.tonal?.chords_histogram || r.highLevel?.[firstKey]?.tonal?.chords_histogram;
     if (Array.isArray(hist) && hist.length === 24) {
       for (let i = 0; i < 12; i++) {
         majorCounts[i] += hist[i];

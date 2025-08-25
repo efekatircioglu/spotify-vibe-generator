@@ -6,7 +6,7 @@ import SongAnalysisModal from '../../components/SongAnalysisModal';
 import NewTrackTable from '../../components/NewTrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
 import NewContributorFinder from '../../components/NewContributorFinder';
-import { lookupTrackMBID } from '../../utils/trackAnalysisCache';
+import { lookupTrackMBID } from '../../utils/spotifyIdToMBID';
 import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
 export default function Last6MonthsPage() {

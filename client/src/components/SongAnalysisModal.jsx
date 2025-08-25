@@ -8,7 +8,7 @@ import {
   setTrackISRC,
   getTrackMBID,
   setTrackMBID
-} from '../utils/trackAnalysisCache';
+} from '../utils/spotifyIdToMBID';
 import { setAnalysis } from '../utils/trackAnalysis';
 
 ChartJS.register(ArcElement, Legend);

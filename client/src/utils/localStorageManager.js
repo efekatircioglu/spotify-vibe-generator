@@ -10,7 +10,7 @@ class LocalStorageManager {
   // Initialize known cache keys from the application
   initializeCacheKeys() {
     this.cacheKeys.add('artistNameToTicketmasterId');
-    this.cacheKeys.add('trackAnalysisCache');
+    this.cacheKeys.add('spotifyIdToMBID');
     this.cacheKeys.add('recent_artist_searches');
     // Add other cache keys as needed
   }

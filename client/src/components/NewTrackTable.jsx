@@ -4,7 +4,7 @@ import styles from '../app/page.module.css';
 import WrappedAnalysisModal from './WrappedAnalysisModal';
 import DropdownPortal from './DropdownPortal';
 import NewContributorFinder from './NewContributorFinder';
-import { lookupTrackMBID } from '../utils/trackAnalysisCache';
+import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
 import GeniusSongModal from './GeniusSongModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
