@@ -20,14 +20,14 @@ async function getArtistBio(artistName) {
       throw new Error(`Search failed with status: ${searchResponse.status}`);
     }
     const searchData = await searchResponse.json();
-    console.log(`[Discogs] Search results:`, searchData.results && searchData.results.length ? searchData.results[0] : 'No results');
+    // Search results received
     if (!searchData.results || searchData.results.length === 0) {
       return { error: 'Artist not found.' };
     }
     const artistId = searchData.results[0].id;
 
     // Step 2: Use the ID to get the full artist profile
-    console.log(`[Discogs] Fetching details for artist ID: ${artistId}`);
+    // Fetching details for artist ID...
     const artistUrl = `https://api.discogs.com/artists/${artistId}`;
     const artistResponse = await fetch(artistUrl, { headers: authHeaders });
     if (!artistResponse.ok) {
@@ -35,7 +35,7 @@ async function getArtistBio(artistName) {
       throw new Error(`Fetching artist profile failed with status: ${artistResponse.status}`);
     }
     const artistData = await artistResponse.json();
-    console.log(`[Discogs] Artist profile:`, artistData.profile ? artistData.profile.substring(0, 120) + '...' : 'No profile');
+    // Artist profile fetched
     return {
       artistId: artistData.artistId,
       name: artistData.name,

@@ -587,7 +587,7 @@ export default function ArtistConcertsPage() {
       // Check cache first
       const cachedId = getCachedArtistId(artistName);
       if (cachedId) {
-        console.log(`Found cached Ticketmaster ID for "${artistName}": ${cachedId}`);
+        // Found cached Ticketmaster ID
         // Navigate to the artist page with the cached ID
         router.push(`/artist?name=${encodeURIComponent(artistName)}&spotifyId=${spotifyId}&ticketmasterId=${cachedId}`);
         return;
@@ -608,7 +608,7 @@ export default function ArtistConcertsPage() {
         const firstArtist = musicArtists[0];
         const imageUrl = firstArtist.images?.[0]?.url || null;
         setArtistCache(artistName, firstArtist.id, imageUrl);
-        console.log(`Cached Ticketmaster ID for "${artistName}": ${firstArtist.id}${imageUrl ? ' with image' : ''}`);
+        // Cached Ticketmaster ID found
         
         // Navigate to the artist page with the found ID
         router.push(`/artist?name=${encodeURIComponent(artistName)}&spotifyId=${spotifyId}&ticketmasterId=${firstArtist.id}`);
@@ -638,7 +638,7 @@ export default function ArtistConcertsPage() {
     
     const fetchConcerts = async () => {
       try {
-        console.log(`Making batch request for artist ID: ${ticketmasterId}`);
+        // Making batch request...
         
         // Use the same batch endpoint as concerts page
         const response = await fetch('http://127.0.0.1:8000/concerts/events/optimized-batch', {
@@ -656,7 +656,7 @@ export default function ArtistConcertsPage() {
         const data = await response.json();
         const allConcerts = data.concerts || [];
         
-        console.log(`Received ${allConcerts.length} concerts from batch endpoint`);
+        // Concerts received
         
         // Sort by date
         const sortedConcerts = allConcerts.sort((a, b) => {

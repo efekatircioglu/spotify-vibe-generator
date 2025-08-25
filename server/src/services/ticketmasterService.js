@@ -65,7 +65,7 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
         params.city = location;
       }
       
-      console.log(`Fetching page ${page} with ${params.size} events per page`);
+      // Fetching page...
       
       const response = await axios.get(url, { params });
       const data = response.data;
@@ -82,12 +82,12 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
       
       // Safety check to prevent infinite loops
       if (page > 10) {
-        console.log('Reached maximum page limit (10), stopping pagination');
+        // Reached maximum page limit
         break;
       }
     }
     
-    console.log(`Total events found across all pages: ${allEvents.length}`);
+    // Total events calculated
     return { _embedded: { events: allEvents } };
   } catch (error) {
     console.error('Batch Ticketmaster API error:', error.response?.data || error.message);

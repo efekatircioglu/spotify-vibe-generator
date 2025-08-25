@@ -513,14 +513,14 @@ app.get('/artist-genre-by-name', async (req, res) => {
     const { artistName } = req.query;
     if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
     
-    console.log(`[Artist Genre API] Searching for artist: "${artistName}"`);
+    // Searching for artist...
     
     // Search for the artist using Spotify API (same as /artist page)
     const searchRes = await spotifyApi.searchArtists(artistName, { limit: 10 });
     const artists = searchRes.body.artists.items;
     
     if (artists && artists.length > 0) {
-      console.log(`[Artist Genre API] Found ${artists.length} potential matches`);
+      // Found potential matches
       
       // Find the best match with improved logic
       let bestMatch = null;
@@ -560,7 +560,7 @@ app.get('/artist-genre-by-name', async (req, res) => {
           score += 10;
         }
         
-        console.log(`[Artist Genre API] Artist "${artist.name}" (popularity: ${artist.popularity}) - Score: ${score}`);
+        // Artist scored
         
         if (score > bestScore) {
           bestScore = score;
@@ -569,15 +569,15 @@ app.get('/artist-genre-by-name', async (req, res) => {
       });
       
       if (bestMatch) {
-        console.log(`[Artist Genre API] Best match: "${bestMatch.name}" with score ${bestScore}`);
+        // Best match found
         
         // Get the primary genre (first one in the array)
         const primaryGenre = bestMatch.genres && bestMatch.genres.length > 0 ? bestMatch.genres[0] : null;
         
         if (primaryGenre) {
-          console.log(`[Artist Genre API] Found genre: "${primaryGenre}" for "${bestMatch.name}"`);
+          // Genre found
         } else {
-          console.log(`[Artist Genre API] No genres found for "${bestMatch.name}"`);
+          // No genres found
         }
         
         res.json({
@@ -589,11 +589,11 @@ app.get('/artist-genre-by-name', async (req, res) => {
           popularity: bestMatch.popularity
         });
       } else {
-        console.log(`[Artist Genre API] No suitable match found for "${artistName}"`);
+        // No suitable match found
         res.status(404).json({ error: 'No suitable artist match found' });
       }
     } else {
-      console.log(`[Artist Genre API] No artists found for "${artistName}"`);
+      // No artists found
       res.status(404).json({ error: 'Artist not found' });
     }
   } catch (err) {
@@ -853,7 +853,6 @@ app.get('/search-artist', async (req, res) => {
         bestMatch = exactMatch;
       }
       
-      console.log(`[search-artist] Found artist: ${bestMatch.name} (ID: ${bestMatch.id})`);
       
       res.json({
         spotifyId: bestMatch.id,
@@ -1032,7 +1031,6 @@ app.get('/find-mbid', async (req, res) => {
   // We now get ISRC, songName, and artistName from query parameters
   const { isrc, songName, artistName } = req.query;
 
-  console.log('[find-mbid] Called with:', { isrc, songName, artistName });
 
   if (!isrc && (!songName || !artistName)) {
     return res.status(400).json({ error: 'Missing required parameters. Provide either an ISRC or both a song and artist name.' });
@@ -1043,7 +1041,6 @@ app.get('/find-mbid', async (req, res) => {
 
     // --- Step 1: Try to find MBID using ISRC (if provided) ---
     if (isrc) {
-      console.log('[find-mbid] Step 1: Attempting ISRC search:', isrc);
       const isrcUrl = `https://musicbrainz.org/ws/2/recording?query=isrc:${isrc}&fmt=json`;
       const isrcResponse = await axios.get(isrcUrl, { 
         headers: { 'User-Agent': 'spotify-vibe-generator/1.0 (your@email.com)' } 
@@ -1051,15 +1048,12 @@ app.get('/find-mbid', async (req, res) => {
       const isrcRecordings = isrcResponse.data.recordings;
       if (isrcRecordings && isrcRecordings.length > 0) {
         mbid = isrcRecordings[0].id;
-        console.log('[find-mbid] Step 1: Found MBID via ISRC:', mbid);
       } else {
-        console.log('[find-mbid] Step 1: No MBID found via ISRC.');
       }
     }
 
     // --- Step 2: If not found, fall back to searching by name and artist ---
     if (!mbid && songName && artistName) {
-      console.log('[find-mbid] Step 2: Attempting name/artist search:', { songName, artistName });
       const nameQuery = `recording:"${encodeURIComponent(songName)}" AND artist:"${encodeURIComponent(artistName)}"`;
       const nameUrl = `https://musicbrainz.org/ws/2/recording?query=${nameQuery}&fmt=json`;
       const nameResponse = await axios.get(nameUrl, { 
@@ -1068,15 +1062,12 @@ app.get('/find-mbid', async (req, res) => {
       const nameRecordings = nameResponse.data.recordings;
       if (nameRecordings && nameRecordings.length > 0) {
         mbid = nameRecordings[0].id;
-        console.log('[find-mbid] Step 2: Found MBID via name/artist:', mbid);
       } else {
-        console.log('[find-mbid] Step 2: No MBID found via name/artist.');
       }
     }
 
     // --- Step 3: Send the final result ---
     // mbid will be the found ID, or null if both searches failed.
-    console.log(`[find-mbid] Search complete. Final MBID: ${mbid}`);
     res.json({ mbid });
 
   } catch (err) {
@@ -1736,7 +1727,6 @@ app.get('/api/artist-search-navigate', async (req, res) => {
     const spotifyArtists = body.artists.items;
     
     if (spotifyArtists.length === 0) {
-      console.log(`[Artist Search Navigate] No Spotify artists found for: ${artistName}`);
       return res.json({ 
         success: false, 
         message: 'No artists found',
@@ -1962,7 +1952,7 @@ app.post('/concerts/events/optimized-batch', async (req, res) => {
   }
   
   try {
-    console.log(`Optimized batch request for ${artistIds.length} artists`);
+    // Optimized batch request initiated
     
     // Make a single API call to Ticketmaster with all artist IDs
     const data = await ticketmasterService.getEventsByMultipleArtistIds(artistIds);
@@ -2002,7 +1992,7 @@ app.get('/test-batch', async (req, res) => {
       const { body } = await spotifyApi.getFollowedArtists({ limit: 10 });
       const followedArtists = body.artists.items;
       
-      console.log(`Found ${followedArtists.length} followed artists`);
+      // Found followed artists
       
       // For each followed artist, search on Ticketmaster to get their ID
       for (const artist of followedArtists) { // Increased from 5 to 10 for testing
@@ -2036,7 +2026,7 @@ app.get('/test-batch', async (req, res) => {
       });
     }
     
-    console.log('Testing batch endpoint with real artist IDs:', artistIds);
+    // Testing batch endpoint
     
     // Fetch concerts for each artist using the optimized batch method
     const data = await ticketmasterService.getEventsByMultipleArtistIds(artistIds);

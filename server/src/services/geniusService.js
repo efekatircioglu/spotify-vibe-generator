@@ -55,7 +55,7 @@ class GeniusService {
       
       // Create search query combining song name and artist
       const searchQuery = `${songName} ${artistName}`.trim();
-      console.log(`[Genius] Searching for: "${searchQuery}"`);
+      // Searching Genius...
       
       const response = await axios.get('https://api.genius.com/search', {
         headers: {
@@ -67,9 +67,9 @@ class GeniusService {
         }
       });
 
-      console.log(`[Genius] Search response status: ${response.status}`);
+      // Search response received
       const hits = response.data.response?.hits || [];
-      console.log(`[Genius] Found ${hits.length} search results`);
+      // Search results processed
 
       if (hits.length === 0) {
         return { error: 'No songs found' };
@@ -125,10 +125,10 @@ class GeniusService {
       }
 
       if (bestMatch && bestMatch.score >= 50) {
-        console.log(`[Genius] Best match: "${bestMatch.title}" by "${bestMatch.primary_artist.name}" (score: ${bestMatch.score})`);
+        // Best match found
         return bestMatch;
       } else {
-        console.log(`[Genius] No suitable match found (best score: ${bestScore})`);
+        // No suitable match found
         return { error: 'No suitable match found' };
       }
 
@@ -143,7 +143,7 @@ class GeniusService {
     try {
       const accessToken = await this.getAccessToken();
       
-      console.log(`[Genius] Fetching details for song ID: ${geniusId}`);
+      // Fetching song details...
       
       const response = await axios.get(`https://api.genius.com/songs/${geniusId}`, {
         headers: {

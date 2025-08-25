@@ -323,7 +323,7 @@ export default function ConcertsPage() {
         // Cache the artist in the required format for artistNameToTicketmasterId
         try {
           setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId);
-          console.log(`✅ Successfully cached Ticketmaster ID for "${artistName}": ${firstArtist.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+          // Successfully cached Ticketmaster ID
         } catch (cacheError) {
           console.error(`❌ Failed to cache artist "${artistName}":`, cacheError);
         }
