@@ -6,7 +6,7 @@
  * intelligent delays between API calls.
  */
 
-import { getCachedArtistId, getCachedArtistImage, getCachedSpotifyId } from './artistCache';
+import { getCachedArtistId, getCachedArtistImage, getCachedSpotifyId, isArtistCached, getCachedArtistStatus, setFailedArtistCache, setArtistCache } from './artistCache';
 
 // Cache for storing API responses
 const concertApiCache = new Map();
@@ -168,25 +168,34 @@ export async function optimizedArtistSearch(artistNames, delayBetweenApiCalls = 
         progressCallback(i + 1, artistNames.length);
       }
       
-      // Check artist cache first
-      const cachedId = getCachedArtistId(artistName);
-      const cachedImage = getCachedArtistImage(artistName);
-      const cachedSpotifyId = getCachedSpotifyId(artistName);
+      // Check if artist is cached (either successful or failed)
+      const isCached = isArtistCached(artistName);
+      const cachedStatus = getCachedArtistStatus(artistName);
       
-      if (cachedId) {
-        // Cache hit - no delay needed
-        console.log(`Artist cache hit for "${artistName}" (${i + 1}/${artistNames.length}), no delay needed`);
-        
-        const cachedArtist = {
-          id: cachedId,
-          name: artistName,
-          images: cachedImage ? [{ url: cachedImage }] : [],
-          spotifyId: cachedSpotifyId,
-          classifications: [{ segment: { name: 'Music' } }],
-          cached: true
-        };
-        
-        results.push({ success: true, data: cachedArtist, cached: true });
+      if (isCached) {
+        if (cachedStatus === 'success') {
+          // Cache hit - successful search
+          const cachedId = getCachedArtistId(artistName);
+          const cachedImage = getCachedArtistImage(artistName);
+          const cachedSpotifyId = getCachedSpotifyId(artistName);
+          
+          console.log(`Artist cache hit for "${artistName}" (${i + 1}/${artistNames.length}), no delay needed`);
+          
+          const cachedArtist = {
+            id: cachedId,
+            name: artistName,
+            images: cachedImage ? [{ url: cachedImage }] : [],
+            spotifyId: cachedSpotifyId,
+            classifications: [{ segment: { name: 'Music' } }],
+            cached: true
+          };
+          
+          results.push({ success: true, data: cachedArtist, cached: true });
+        } else if (cachedStatus === 'failed') {
+          // Cache hit - failed search
+          console.log(`Artist cache hit for "${artistName}" (${i + 1}/${artistNames.length}) - previously failed, skipping API call`);
+          results.push({ success: false, error: 'No music artists found (cached failure)', cached: true });
+        }
       } else {
         // Cache miss - need to make API call
         console.log(`Artist cache miss for "${artistName}" (${i + 1}/${artistNames.length}), making API call`);
@@ -227,13 +236,20 @@ export async function optimizedArtistSearch(artistNames, delayBetweenApiCalls = 
         
         if (musicArtists.length > 0) {
           const firstArtist = musicArtists[0];
+          // Cache the successful result with bidirectional mapping
+          setArtistCache(artistName, firstArtist.id, firstArtist.images?.[0]?.url || null, null, firstArtist.name);
+          console.log(`[OptimizedSearch] Cached bidirectional mapping: "${artistName}" ↔ "${firstArtist.name}" → ${firstArtist.id}`);
           results.push({ success: true, data: firstArtist, cached: false });
         } else {
+          // Cache the failed search to avoid repeated API calls
+          setFailedArtistCache(artistName);
           results.push({ success: false, error: 'No music artists found', cached: false });
         }
       }
     } catch (error) {
       console.error(`Artist search failed for "${artistName}":`, error);
+      // Cache the failed search to avoid repeated API calls
+      setFailedArtistCache(artistName);
       results.push({ success: false, error, cached: false });
     }
   }

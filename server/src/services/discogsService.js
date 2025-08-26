@@ -11,7 +11,6 @@ async function getArtistBio(artistName) {
   };
 
   try {
-    console.log(`[Discogs] Searching for artist: ${artistName}`);
     // Step 1: Search for the artist to get their ID
     const searchUrl = `https://api.discogs.com/database/search?q=${encodeURIComponent(artistName)}&type=artist`;
     const searchResponse = await fetch(searchUrl, { headers: authHeaders });

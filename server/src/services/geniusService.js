@@ -9,10 +9,7 @@ class GeniusService {
     this.accessToken = null;
     this.tokenExpiry = null;
     
-    console.log('[Genius] Service initialized with:');
-    console.log(`  - GENIUS_CLIENT_ID: ${process.env.GENIUS_CLIENT_ID ? '✓ Set' : '✗ Missing'}`);
-    console.log(`  - GENIUS_CLIENT_SECRET: ${process.env.GENIUS_CLIENT_SECRET ? '✓ Set' : '✗ Missing'}`);
-    console.log(`  - GENIUS_CLIENT_ACCESS_TOKEN: ${process.env.GENIUS_CLIENT_ACCESS_TOKEN ? '✓ Set' : '✗ Missing'}`);
+
     
     if (!this.clientAccessToken) {
       console.log('⚠️  IMPORTANT: You need to set GENIUS_CLIENT_ACCESS_TOKEN in your .env file');
@@ -28,7 +25,6 @@ class GeniusService {
     }
 
     try {
-      console.log('[Genius] Getting access token...');
       
       // Genius API uses Client Access Token (permanent, no refresh needed)
       // This is obtained from: https://genius.com/api-clients → Generate Access Token
@@ -37,7 +33,6 @@ class GeniusService {
         this.accessToken = this.clientAccessToken;
         // Client Access Tokens don't expire, but we'll set a long expiry for safety
         this.tokenExpiry = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
-        console.log('[Genius] Using Client Access Token from GENIUS_CLIENT_ACCESS_TOKEN');
         return this.accessToken;
       }
       
@@ -152,16 +147,9 @@ class GeniusService {
         }
       });
 
-      console.log(`[Genius] Song details response status: ${response.status}`);
       
       // Log the response structure to debug
-      console.log(`[Genius] Response structure:`, {
-        hasResponse: !!response.data.response,
-        hasSong: !!response.data.response?.song,
-        songKeys: response.data.response?.song ? Object.keys(response.data.response.song) : [],
-        hasDescription: !!response.data.response?.song?.description,
-        hasDescriptionAnnotation: !!response.data.response?.song?.description_annotation
-      });
+     
 
       // The response structure is: response.data.response.song
       const song = response.data.response?.song;
@@ -179,74 +167,40 @@ class GeniusService {
       console.log(`[Genius] Retrieved details for: "${song.title}"`);
       
       // Log the description field specifically
-      console.log(`[Genius] Description field:`, {
-        hasDescription: !!song.description,
-        hasDescriptionAnnotation: !!song.description_annotation,
-        descriptionType: typeof song.description,
-        descriptionAnnotationType: typeof song.description_annotation,
-        descriptionKeys: song.description ? Object.keys(song.description) : [],
-        descriptionAnnotationKeys: song.description_annotation ? Object.keys(song.description_annotation) : []
-      });
+      // Description field analyzed
       
       // Log the actual description content
       if (song.description) {
-        console.log(`[Genius] Raw description:`, JSON.stringify(song.description, null, 2));
+        // Raw description logged
       }
       if (song.description_annotation) {
-        console.log(`[Genius] Raw description_annotation:`, JSON.stringify(song.description_annotation, null, 2));
+        // Raw description annotation logged
       }
       
       // Extract relevant information - now properly accessing song properties
-      console.log('[Genius] === EXTRACTING SONG DATA ===');
+      // Extracting song data...
       
       // Basic song info
-      console.log('[Genius] Basic song info:', {
-        id: song.id,
-        title: song.title,
-        url: song.url,
-        artist_names: song.artist_names,
-        full_title: song.full_title,
-        release_date: song.release_date,
-        release_date_for_display: song.release_date_for_display
-      });
+      // Basic song info extracted
       
       // Primary artist info
-      console.log('[Genius] Primary artist info:', {
-        hasPrimaryArtist: !!song.primary_artist,
-        artistName: song.primary_artist?.name,
-        artistId: song.primary_artist?.id,
-        artistUrl: song.primary_artist?.url
-      });
+      // Primary artist info extracted
       
       // Featured artists info
-      console.log('[Genius] Featured artists info:', {
-        hasFeaturedArtists: !!song.featured_artists,
-        featuredArtistsCount: song.featured_artists?.length || 0,
-        featuredArtists: song.featured_artists?.map(a => ({ name: a.name, id: a.id })) || []
-      });
+      // Featured artists info extracted
       
       // Album info
-      console.log('[Genius] Album info:', {
-        hasAlbum: !!song.album,
-        albumName: song.album?.name,
-        albumId: song.album?.id,
-        albumUrl: song.album?.url
-      });
+      // Album info extracted
       
       // Stats info
-      console.log('[Genius] Stats info:', {
-        hasStats: !!song.stats,
-        pageviews: song.stats?.pageviews,
-        hot: song.stats?.hot,
-        annotationCount: song.annotation_count
-      });
+      // Stats info extracted
       
       // Extract description safely
       let description = 'No description available';
       try {
-        console.log('[Genius] Starting description extraction...');
+        // Starting description extraction...
         description = this.extractDescription(song);
-        console.log('[Genius] Description extraction completed successfully');
+        // Description extraction completed
       } catch (descError) {
         console.log('[Genius] Error extracting description, using fallback:', descError.message);
         console.log('[Genius] Full description error:', descError);
@@ -295,19 +249,8 @@ class GeniusService {
         relationships: relationships
       };
       
-      console.log('[Genius] === FINAL SONG INFO STRUCTURE ===');
-      console.log('[Genius] Final songInfo:', {
-        hasId: !!songInfo.id,
-        hasTitle: !!songInfo.title,
-        hasUrl: !!songInfo.url,
-        hasPrimaryArtist: !!songInfo.primary_artist?.name,
-        hasFeaturedArtists: !!songInfo.featured_artists?.length,
-        hasAlbum: !!songInfo.album?.name,
-        hasReleaseDate: !!songInfo.release_date,
-        hasDescription: !!songInfo.description,
-                hasSamples: !!songInfo.samples?.length,
-        hasRelationships: !!songInfo.relationships?.length
-      });
+      // Final song info structure
+      // Final song info logged
       
       return songInfo;
 
@@ -333,8 +276,7 @@ class GeniusService {
 
   // Extract sample information from song data (now handled by extractRelationships)
   extractSamples(song) {
-    console.log('[Genius] === EXTRACTING SAMPLES ===');
-    console.log('[Genius] Note: Samples are now extracted as part of relationships');
+    // Extracting samples...
     
     // This method is kept for backward compatibility but samples are now part of relationships
     return [];
@@ -342,8 +284,8 @@ class GeniusService {
 
   // Extract relationship information
   extractRelationships(song) {
-    console.log('[Genius] === EXTRACTING RELATIONSHIPS ===');
-    console.log('[Genius] Song relationships available:', !!song.song_relationships);
+    // Extracting relationships...
+    // Song relationships available
     
     const relationships = {
       samples: [],
@@ -360,18 +302,10 @@ class GeniusService {
     };
     
     if (song.song_relationships) {
-      console.log('[Genius] Song relationships count:', song.song_relationships.length);
-      console.log('[Genius] Song relationships types:', song.song_relationships.map(r => r.relationship_type));
+      // Song relationships processed
       
       song.song_relationships.forEach(rel => {
-        console.log(`[Genius] Processing relationship: ${rel.relationship_type}`);
-        console.log(`[Genius] Relationship structure:`, {
-          hasSongs: !!rel.songs,
-          songsType: rel.songs ? (Array.isArray(rel.songs) ? 'array' : typeof rel.songs) : 'none',
-          songsLength: rel.songs ? (Array.isArray(rel.songs) ? rel.songs.length : 'single') : 0,
-          hasUrl: !!rel.url,
-          url: rel.url
-        });
+        // Processing relationship
         
         // Handle the songs array structure
         if (rel.songs && Array.isArray(rel.songs)) {
@@ -395,7 +329,7 @@ class GeniusService {
             
             // Categorize relationships by type
             if (rel.relationship_type === 'translation_of' || rel.relationship_type === 'translations') {
-              console.log(`[Genius] Skipping translation relationship: ${rel.relationship_type}`);
+              // Skipping translation relationship
               return; // Skip this relationship entirely
             }
             
@@ -435,17 +369,15 @@ class GeniusService {
                 break;
             }
           });
-        } else {
-          console.log(`[Genius] No songs array found for relationship: ${rel.relationship_type}`);
-        }
+        } 
       });
     }
 
     // Log summary of extracted relationships
-    console.log('[Genius] === RELATIONSHIPS EXTRACTION SUMMARY ===');
+    // Relationships extraction summary
     Object.keys(relationships).forEach(key => {
       if (relationships[key].length > 0) {
-        console.log(`[Genius] ${key}: ${relationships[key].length} items`);
+        // Relationship items counted
       }
     });
     
@@ -455,26 +387,26 @@ class GeniusService {
   // Extract description from the complex Genius API response structure
   extractDescription(song) {
     try {
-      console.log('[Genius] === EXTRACTING DESCRIPTION ===');
+      // Extracting description...
       
       let descriptionText = '';
       
       // Extract from song.description.dom structure
       if (song.description && song.description.dom) {
-        console.log('[Genius] Found song.description.dom structure');
+        // Found description DOM structure
         descriptionText += this.parseDescriptionDOM(song.description.dom);
       }
       
       // Extract from song.description_annotation if available
       if (song.description_annotation && song.description_annotation.dom) {
-        console.log('[Genius] Found song.description_annotation.dom structure');
+        // Found description annotation DOM structure
         if (descriptionText) descriptionText += '\n\n';
         descriptionText += this.parseDescriptionDOM(song.description_annotation.dom);
       }
       
       // Fallback: if no DOM structure, try plain text
       if (!descriptionText && song.description && typeof song.description === 'string') {
-        console.log('[Genius] Using plain text description');
+        // Using plain text description
         descriptionText = song.description;
       }
       
@@ -482,7 +414,7 @@ class GeniusService {
         descriptionText = '';
       }
       
-      console.log('[Genius] Final description text length:', descriptionText.length);
+      // Final description text processed
       return descriptionText;
     } catch (error) {
       console.log('[Genius] Error extracting description:', error.message);
@@ -503,12 +435,7 @@ class GeniusService {
       }
       
       // Log the current node being processed
-      console.log(`[Genius] Processing DOM node:`, {
-        tag: domNode.tag,
-        hasChildren: !!domNode.children,
-        childrenType: domNode.children ? (Array.isArray(domNode.children) ? 'array' : typeof domNode.children) : 'none',
-        childrenLength: domNode.children ? (Array.isArray(domNode.children) ? domNode.children.length : 'single') : 0
-      });
+      // Processing DOM node
       
       // If it's an object with children, process them
       if (domNode.children && Array.isArray(domNode.children)) {
@@ -543,29 +470,23 @@ class GeniusService {
 
   // Main method: Get song info from Spotify data
   async getSongInfoFromSpotify(songName, artistName) {
-    console.log(`[Genius] Getting song info for: "${songName}" by "${artistName}"`);
+    // Getting song info...
     
     // Step 1: Search for the song
     const searchResult = await this.searchSong(songName, artistName);
     
     if (searchResult.error) {
-      console.log(`[Genius] Search returned error: ${searchResult.error}`);
+      // Search returned error
       return { error: searchResult.error };
     }
 
-    console.log(`[Genius] Search successful, got ID: ${searchResult.id}`);
+    // Search successful
 
     // Step 2: Get detailed information
     const songDetails = await this.getSongDetails(searchResult.id);
     
-    console.log(`[Genius] Song details retrieved successfully`);
-    console.log(`[Genius] Final song details structure:`, {
-      hasTitle: !!songDetails.title,
-      hasArtist: !!songDetails.primary_artist,
-      hasDescription: !!songDetails.description,
-      hasSamples: !!songDetails.samples,
-      hasRelationships: !!songDetails.relationships
-    });
+    // Song details retrieved
+    // Final song details structure logged
     
     // Validate that we have the required data
     if (!songDetails || !songDetails.title || !songDetails.primary_artist || songDetails.title === 'Unknown Title') {

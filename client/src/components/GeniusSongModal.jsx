@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getCachedTopArtists, setCachedTopArtists } from '../utils/topArtistsCache';
 
 export default function GeniusSongModal({ open, onClose, songInfo, loading, error }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -7,31 +8,51 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
   const [userTopArtists, setUserTopArtists] = useState([]);
   const [loadingTopArtists, setLoadingTopArtists] = useState(false);
 
-  // Fetch user's top artists when modal opens
+  // Get user's top artists from cache when modal opens
   useEffect(() => {
-    const fetchUserTopArtists = async () => {
+    const loadUserTopArtists = () => {
       if (!open) return;
       
       setLoadingTopArtists(true);
-      try {
-        const response = await fetch('http://127.0.0.1:8000/all-artists-deduplicated');
-        if (response.ok) {
-          const data = await response.json();
-          setUserTopArtists(data.artists || []);
-          console.log('Fetched user top artists for sorting:', data.artists?.length || 0);
-        } else {
-          console.error('Failed to fetch user top artists');
-          setUserTopArtists([]);
-        }
-      } catch (error) {
-        console.error('Error fetching user top artists:', error);
-        setUserTopArtists([]);
-      } finally {
+      
+      // Try to get from cache first
+      const cachedArtists = getCachedTopArtists();
+      if (cachedArtists) {
+        setUserTopArtists(cachedArtists);
+        console.log('Loaded user top artists from cache for sorting:', cachedArtists.length);
         setLoadingTopArtists(false);
+        return;
       }
+      
+      // If no cache, fetch from API (fallback)
+      const fetchUserTopArtists = async () => {
+        try {
+          const response = await fetch('http://127.0.0.1:8000/all-artists-deduplicated');
+          if (response.ok) {
+            const data = await response.json();
+            const artists = data.artists || [];
+            setUserTopArtists(artists);
+            
+            // Cache the results for future use
+            setCachedTopArtists(artists);
+            
+            console.log('Fetched user top artists from API for sorting:', artists.length);
+          } else {
+            console.error('Failed to fetch user top artists');
+            setUserTopArtists([]);
+          }
+        } catch (error) {
+          console.error('Error fetching user top artists:', error);
+          setUserTopArtists([]);
+        } finally {
+          setLoadingTopArtists(false);
+        }
+      };
+      
+      fetchUserTopArtists();
     };
     
-    fetchUserTopArtists();
+    loadUserTopArtists();
   }, [open]);
 
   // Helper function to check if an artist is in user's top artists
@@ -606,24 +627,7 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
 
   return (
     <>
-      {/* Loading indicator for top artists */}
-      {loadingTopArtists && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          background: '#1db954',
-          color: '#000',
-          padding: '8px 16px',
-          borderRadius: '20px',
-          fontSize: '0.8rem',
-          fontWeight: '600',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(29, 185, 84, 0.3)'
-        }}>
-          🔍 Loading your top artists for smart sorting...
-        </div>
-      )}
+      
       
       <style jsx global>{`
         .genius-modal-overlay {

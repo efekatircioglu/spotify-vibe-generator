@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 // import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
-import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId } from '../../utils/artistCache';
+import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId, setFailedArtistCache } from '../../utils/artistCache';
 import { optimizedConcertApiCall, optimizedArtistSearch } from '../../utils/concertApiOptimizer';
+import { getCachedTopArtists, setCachedTopArtists } from '../../utils/topArtistsCache';
 
 export default function ConcertsPage() {
   const router = useRouter();
@@ -111,13 +112,28 @@ export default function ConcertsPage() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
   
-  // Fetch all artists from all time periods (deduplicated)
+  // Fetch all artists from all time periods (deduplicated) with caching
   useEffect(() => {
     setLoadingTop(true);
+    
+    // Check cache first
+    const cachedArtists = getCachedTopArtists();
+    if (cachedArtists) {
+      setTopArtists(cachedArtists);
+      setLoadingTop(false);
+      return;
+    }
+    
+    // If no cache, fetch from API
     fetch('http://127.0.0.1:8000/all-artists-deduplicated')
       .then(res => res.ok ? res.json() : { artists: [] })
       .then(data => {
-        setTopArtists(data.artists || []);
+        const artists = data.artists || [];
+        setTopArtists(artists);
+        
+        // Cache the results for future use
+        setCachedTopArtists(artists);
+        
         console.log('Deduplicated artists breakdown:', data.breakdown);
       })
       .catch(err => {
@@ -313,17 +329,18 @@ export default function ConcertsPage() {
       });
       
       if (musicArtists.length > 0) {
-        // Cache the successful result with image and Spotify ID
+        // Cache the successful result with image, Spotify ID, and Ticketmaster name
         const firstArtist = musicArtists[0];
         const imageUrl = firstArtist.images?.[0]?.url || null;
         const spotifyId = spotifyArtist?.id || null;
+        const ticketmasterArtistName = firstArtist.name;
         
         console.log(`🎯 Found artist "${artistName}" on Ticketmaster with ID: ${firstArtist.id}`);
         
-        // Cache the artist in the required format for artistNameToTicketmasterId
+        // Cache the artist with bidirectional mapping
         try {
-          setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId);
-          // Successfully cached Ticketmaster ID
+          setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId, ticketmasterArtistName);
+          console.log(`[Concerts] Cached bidirectional mapping: "${artistName}" ↔ "${ticketmasterArtistName}" → ${firstArtist.id}`);
         } catch (cacheError) {
           console.error(`❌ Failed to cache artist "${artistName}":`, cacheError);
         }
@@ -340,8 +357,10 @@ export default function ConcertsPage() {
         // Update report for successful artist
         updateReportForIndividualArtist(artistName, true, artistWithSpotifyId);
       } else {
-        // If no match found, add to failed artists in report
+        // If no match found, cache the failed search and add to failed artists in report
         console.log(`❌ No Ticketmaster ID found for "${artistName}"`);
+        setFailedArtistCache(artistName, spotifyArtist?.id);
+        console.log(`[Concerts] Cached failed search for "${artistName}" (Spotify ID: ${spotifyArtist?.id})`);
         
         // Update report for failed artist
         updateReportForIndividualArtist(artistName, false, spotifyArtist);
@@ -349,6 +368,10 @@ export default function ConcertsPage() {
     } catch (err) {
       console.error('Error auto-searching artist:', err);
       setSearchQuery(artistName);
+      
+      // Cache the failed search due to error
+      setFailedArtistCache(artistName, spotifyArtist?.id);
+      console.log(`[Concerts] Cached failed search for "${artistName}" due to error (Spotify ID: ${spotifyArtist?.id})`);
       
       // Update report for failed artist due to error
       updateReportForIndividualArtist(artistName, false, spotifyArtist);
@@ -978,7 +1001,7 @@ export default function ConcertsPage() {
             <div style={{ marginBottom: 8 }}>
               {isProcessingResults 
                 ? '🟢 Processing Results & Adding Artists...'
-                : '🔍 Optimizing Artists Searches with intelligent caching...'
+                : '🔍 Searching Artists...'
               }
             </div>
             <div style={{ marginBottom: 12 }}>
@@ -1006,16 +1029,12 @@ export default function ConcertsPage() {
             </div>
             <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8 }}>
               {isProcessingResults 
-                ? 'Adding artists to selection and updating cache...'
+                ? 'Adding artists to selection...'
                 : 'Please wait...'
               }
             </div>
             
-            {!isProcessingResults && (
-              <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8, fontStyle: 'italic' }}>
-                Found Ticketmaster IDs are automatically cached for instant future access
-              </div>
-            )}
+            
             
 
           </div>

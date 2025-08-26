@@ -505,9 +505,9 @@ const NoContributorData = () => {
             if (!imageUrl) {
               imageUrl = exact.images?.[0]?.url || null;
             }
-            // Cache the successful result with both Spotify ID and Ticketmaster ID
-            setArtistCache(artistName, exact.id, imageUrl, spotifyId);
-            console.log(`Cached Ticketmaster ID for "${artistName}": ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+            // Cache the successful result with bidirectional mapping
+            setArtistCache(artistName, exact.id, imageUrl, spotifyId, exact.name);
+            console.log(`[TrackTable] Cached bidirectional mapping: "${artistName}" ↔ "${exact.name}" → ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
           }
         } catch (err) {
           console.error('Error searching Ticketmaster:', err);

@@ -6,15 +6,19 @@ const BASE_URL = 'https://app.ticketmaster.com/discovery/v2';
 async function searchArtist(artistName) {
   const url = `${BASE_URL}/attractions.json`;
   try {
+    console.log(`🎫 [TICKETMASTER API] 📞 Artist search API call for: "${artistName}"`);
     const response = await axios.get(url, {
       params: {
         keyword: artistName,
         apikey: TICKETMASTER_API_KEY,
       },
     });
+    const attractions = response.data._embedded?.attractions || [];
+    console.log(`🎫 [TICKETMASTER API] ✅ Artist search completed for "${artistName}" - Found ${attractions.length} attractions`);
     // Return the first matching artist or all if needed
     return response.data;
   } catch (error) {
+    console.error(`🎫 [TICKETMASTER API] ❌ Artist search failed for "${artistName}":`, error.message);
     throw new Error('Failed to search artist on Ticketmaster');
   }
 }
@@ -45,11 +49,13 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
     // Join artist IDs with commas, no spaces
     const attractionIds = artistIds.join(',');
     
-    console.log(`Making batch request for ${artistIds.length} artists: ${attractionIds}`);
+    console.log(`🎫 [TICKETMASTER API] Making batch request for ${artistIds.length} artists`);
+    console.log(`🎫 [TICKETMASTER API] Request URL: ${url}?attractionId=${attractionIds.slice(0, 50)}...`);
     
     let allEvents = [];
     let page = 0;
     let hasMorePages = true;
+    let totalApiCalls = 0;
     
     // Fetch all pages of events
     while (hasMorePages) {
@@ -65,13 +71,14 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
         params.city = location;
       }
       
-      // Fetching page...
+      console.log(`🎫 [TICKETMASTER API] 📞 API Call #${totalApiCalls + 1} - Fetching page ${page} (size: 200)`);
       
       const response = await axios.get(url, { params });
       const data = response.data;
       const events = data._embedded?.events || [];
       
-      console.log(`Page ${page}: Found ${events.length} events`);
+      totalApiCalls++;
+      console.log(`🎫 [TICKETMASTER API] ✅ API Call #${totalApiCalls} completed - Found ${events.length} events on page ${page}`);
       
       allEvents = allEvents.concat(events);
       
@@ -82,15 +89,20 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
       
       // Safety check to prevent infinite loops
       if (page > 10) {
-        // Reached maximum page limit
+        console.log(`🎫 [TICKETMASTER API] ⚠️ Reached maximum page limit (10), stopping pagination`);
         break;
       }
     }
     
-    // Total events calculated
-    return { _embedded: { events: allEvents } };
+    console.log(`🎫 [TICKETMASTER API] 🏁 Batch request completed: ${totalApiCalls} API calls, ${allEvents.length} total events`);
+    
+    // Return both events and API call count
+    return { 
+      _embedded: { events: allEvents },
+      apiCallCount: totalApiCalls
+    };
   } catch (error) {
-    console.error('Batch Ticketmaster API error:', error.response?.data || error.message);
+    console.error('🎫 [TICKETMASTER API] ❌ Batch API error:', error.response?.data || error.message);
     throw new Error('Failed to get events from Ticketmaster');
   }
 }

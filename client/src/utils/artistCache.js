@@ -49,7 +49,7 @@ export const getArtistCache = () => {
   }
 };
 
-export const setArtistCache = (artistName, ticketmasterId, imageUrl = null, spotifyId = null) => {
+export const setArtistCache = (artistName, ticketmasterId, imageUrl = null, spotifyId = null, ticketmasterArtistName = null) => { 
   try {
     // Validate inputs
     if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
@@ -70,12 +70,26 @@ export const setArtistCache = (artistName, ticketmasterId, imageUrl = null, spot
       cache = {};
     }
     
-    // Add artist data to cache (without timestamp for new items)
-    cache[artistName.toLowerCase()] = {
+    // Create the cache entry with both names
+    const cacheEntry = {
       id: ticketmasterId,
       image: imageUrl,
-      spotifyId: spotifyId
+      spotifyId: spotifyId,
+      status: 'success', // Mark as successful search
+      spotifyName: artistName, // Store the original Spotify name
+      ticketmasterName: ticketmasterArtistName || artistName // Store Ticketmaster name if different
     };
+    
+    // Store under both names for bidirectional lookup
+    cache[artistName.toLowerCase()] = cacheEntry;
+    
+    // If Ticketmaster name is different, also store under that name
+    if (ticketmasterArtistName && ticketmasterArtistName.toLowerCase() !== artistName.toLowerCase()) {
+      cache[ticketmasterArtistName.toLowerCase()] = cacheEntry;
+      console.log(`[ArtistCache] Stored bidirectional mapping: "${artistName}" ↔ "${ticketmasterArtistName}" → ${ticketmasterId}`);
+    } else {
+      console.log(`[ArtistCache] Stored artist: "${artistName}" → ${ticketmasterId}`);
+    }
     
     // Check if cache is getting too large
     const estimatedSize = estimateCacheSize(cache);
@@ -124,10 +138,109 @@ export const setArtistCache = (artistName, ticketmasterId, imageUrl = null, spot
   }
 };
 
+// Cache a failed artist search to avoid repeated API calls
+export const setFailedArtistCache = (artistName, spotifyId = null) => {
+  try {
+    // Validate inputs
+    if (!artistName || typeof artistName !== 'string' || artistName.trim() === '') {
+      console.error('Invalid artist name provided to setFailedArtistCache:', artistName);
+      return;
+    }
+    
+    let cache = getArtistCache();
+    
+    // Ensure cache is an object
+    if (typeof cache !== 'object' || cache === null) {
+      console.warn('Cache was not an object, initializing new cache');
+      cache = {};
+    }
+    
+    // Add failed artist to cache
+    cache[artistName.toLowerCase()] = {
+      id: null, // No Ticketmaster ID
+      image: null,
+      spotifyId: spotifyId,
+      status: 'failed', // Mark as failed search
+      spotifyName: artistName,
+      ticketmasterName: null
+    };
+    
+    // Check if cache is getting too large
+    const estimatedSize = estimateCacheSize(cache);
+    
+    if (estimatedSize > MAX_CACHE_SIZE || Object.keys(cache).length > MAX_CACHE_ENTRIES) {
+      console.warn('Cache size limit reached, cleaning old entries...');
+      const cleanedCache = cleanCache(cache);
+      
+      // Try to save the cleaned cache
+      const saveSuccess = safeSetItem(CACHE_KEY, cleanedCache);
+      if (saveSuccess) {
+        console.log('Cache cleaned and saved successfully');
+      } else {
+        console.warn('Cannot save cleaned cache - storage quota exceeded');
+      }
+    } else {
+      // Normal save operation
+      const saveSuccess = safeSetItem(CACHE_KEY, cache);
+      if (!saveSuccess) {
+        console.warn('Cannot save cache - storage quota exceeded');
+      }
+    }
+    
+    console.log(`[ArtistCache] Cached failed search for "${artistName}"`);
+    
+  } catch (error) {
+    if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+      console.warn('localStorage quota exceeded, attempting to clean cache...');
+      
+      try {
+        // Try to clean the cache and save again
+        const cache = getArtistCache();
+        const cleanedCache = cleanCache(cache);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cleanedCache));
+        console.log('Cache cleaned and saved after quota error');
+      } catch (cleanError) {
+        console.error('Failed to clean cache after quota error:', cleanError);
+        // Last resort: clear everything
+        try {
+          localStorage.removeItem(CACHE_KEY);
+          console.log('Cache cleared due to persistent quota issues');
+        } catch (clearError) {
+          console.error('Error clearing cache:', clearError);
+        }
+      }
+    } else {
+      console.error('Error writing failed artist cache:', error);
+    }
+  }
+};
+
 export const getCachedArtistId = (artistName) => {
   const cache = getArtistCache();
   const cached = cache[artistName.toLowerCase()];
   return cached ? (typeof cached === 'string' ? cached : cached.id) : null;
+};
+
+// Check if an artist is cached (either successful or failed)
+export const isArtistCached = (artistName) => {
+  const cache = getArtistCache();
+  const cached = cache[artistName.toLowerCase()];
+  return cached !== undefined;
+};
+
+// Get cached artist status (success, failed, or null if not cached)
+export const getCachedArtistStatus = (artistName) => {
+  const cache = getArtistCache();
+  const cached = cache[artistName.toLowerCase()];
+  if (!cached) return null;
+  
+  // Handle legacy cache format (just string IDs)
+  if (typeof cached === 'string') {
+    return 'success';
+  }
+  
+  // Handle new cache format with status
+  return cached.status || 'success';
 };
 
 export const getCachedArtistImage = (artistName) => {
@@ -140,6 +253,20 @@ export const getCachedSpotifyId = (artistName) => {
   const cache = getArtistCache();
   const cached = cache[artistName.toLowerCase()];
   return cached && typeof cached === 'object' ? cached.spotifyId : null;
+};
+
+// Get the Ticketmaster artist name from cache
+export const getCachedTicketmasterName = (artistName) => {
+  const cache = getArtistCache();
+  const cached = cache[artistName.toLowerCase()];
+  return cached && typeof cached === 'object' ? cached.ticketmasterName : null;
+};
+
+// Get the Spotify artist name from cache
+export const getCachedSpotifyName = (artistName) => {
+  const cache = getArtistCache();
+  const cached = cache[artistName.toLowerCase()];
+  return cached && typeof cached === 'object' ? cached.spotifyName : null;
 };
 
 export const clearArtistCache = () => {

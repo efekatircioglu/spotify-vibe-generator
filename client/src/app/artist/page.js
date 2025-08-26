@@ -7,7 +7,7 @@ import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import AlbumContributorsModal from '../../components/AlbumContributorsModal';
 import ArtistCollaborators from '../../components/ArtistCollaborators';
-import { getCachedArtistId, setArtistCache } from '../../utils/artistCache';
+import { getCachedArtistId, setArtistCache, setFailedArtistCache } from '../../utils/artistCache';
 
 // --- Add this entire helper function ---
 function useIsMobile(breakpoint = 768) {
@@ -604,15 +604,19 @@ export default function ArtistConcertsPage() {
       });
       
       if (musicArtists.length > 0) {
-        // Cache the successful result with image
+        // Cache the successful result with image, Spotify ID, and Ticketmaster name
         const firstArtist = musicArtists[0];
         const imageUrl = firstArtist.images?.[0]?.url || null;
-        setArtistCache(artistName, firstArtist.id, imageUrl);
-        // Cached Ticketmaster ID found
+        const ticketmasterArtistName = firstArtist.name;
+        setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId, ticketmasterArtistName);
+        console.log(`[Manual Search] Cached bidirectional mapping: "${artistName}" ↔ "${ticketmasterArtistName}" → ${firstArtist.id} (Spotify ID: ${spotifyId})`);
         
         // Navigate to the artist page with the found ID
         router.push(`/artist?name=${encodeURIComponent(artistName)}&spotifyId=${spotifyId}&ticketmasterId=${firstArtist.id}`);
       } else {
+        // Cache the failed search to avoid repeated API calls
+        setFailedArtistCache(artistName, spotifyId);
+        console.log(`[Manual Search] Cached failed search for "${artistName}" (Spotify ID: ${spotifyId})`);
         setSearchError('No Ticketmaster artist found. Try a different search term.');
       }
     } catch (err) {
