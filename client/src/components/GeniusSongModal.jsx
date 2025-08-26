@@ -154,6 +154,27 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
     }
   }, [open]);
 
+  // Prevent body scrolling when modal is open
+  useEffect(() => {
+    if (open) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      
+      // Prevent scrolling by setting body to fixed position
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      return () => {
+        // Restore scrolling when modal closes
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [open]);
+
 
 
   // Set the default tab based on available data when songInfo changes

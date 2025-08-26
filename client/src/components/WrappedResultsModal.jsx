@@ -696,6 +696,33 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
   useEffect(() => {
     setIsMobile(width < 600);
   }, [width]);
+
+  // Prevent body scrolling when modal is open
+  useEffect(() => {
+    if (open) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      
+      // Prevent scrolling by setting body to fixed position and overflow hidden
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      // Also prevent scroll on html element for extra security
+      document.documentElement.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scrolling when modal closes
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [open]);
   
   const styles = getResponsiveStyles(isMobile);
 
@@ -785,9 +812,10 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
       background: 'rgba(0,0,0,0.85)', 
       zIndex: 9999, 
       display: 'flex', 
-      alignItems: isMobile ? 'flex-start' : 'center', 
+      alignItems: 'flex-start', 
       justifyContent: 'center',
-      padding: isMobile ? '20px 10px' : '20px'
+      padding: 'max(20px, 5vh) max(20px, 3vw)',
+      overflow: 'auto'
     }}>
       <div style={styles.modalContainer} ref={modalContainerRef} className="wrapped-modal-container">
         <button onClick={onClose} style={styles.closeButton} className="wrapped-close-button">&times;</button>

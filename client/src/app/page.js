@@ -9,9 +9,10 @@ import NewTrackTable from '../components/NewTrackTable';
 import UserProfile from '../components/UserProfile';
 import ArtistSearch from '../components/ArtistSearch';
 import ConcertsList from '../components/ConcertsList';
+import Sidebar from '../components/Sidebar';
 
 
-import ContributorFinder from '../components/ContributorFinder';
+
 import GenreLeaderboardChart from '../components/GenreLeaderboardChart';
 import WrappedAnalysisModal from '../components/WrappedAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
@@ -50,7 +51,7 @@ export default function Home() {
    * - Use `mobilePlaylistControlsIndex` to track which playlist controls are visible
    */
   
-  const [fetchingMbidForTrackId, setFetchingMbidForTrackId] = useState(null);
+
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -79,7 +80,7 @@ export default function Home() {
   const suggestionsRef = useRef(null);
   const searchInputRef = useRef(null);
   const [showSongsTable, setShowSongsTable] = useState(false);
-  const [showPlaylistsTable, setShowPlaylistsTable] = useState(true);
+  const [showPlaylistsTable, setShowPlaylistsTable] = useState(false);
   const [artistAnalysis, setArtistAnalysis] = useState(null);
   const [analyzingArtistPlaylistId, setAnalyzingArtistPlaylistId] = useState(null);
   const [topData, setTopData] = useState(null);
@@ -108,8 +109,7 @@ export default function Home() {
   const [showNewGenreModal, setShowNewGenreModal] = useState(false);
   const [newGenreAnalysis, setNewGenreAnalysis] = useState(null);
 
-  const [selectedTrackForContributors, setSelectedTrackForContributors] = useState(null);
-  const [showContributorModal, setShowContributorModal] = useState(false);
+
   const [hoveredPlaylistIndex, setHoveredPlaylistIndex] = useState(null);
   const [openDropdownIndex, setOpenDropdownIndex] = useState(null);
   const [timeRangeDropdownOpen, setTimeRangeDropdownOpen] = useState(false);
@@ -123,6 +123,9 @@ export default function Home() {
   // Mobile detection state
   const [isMobile, setIsMobile] = useState(false);
   const [deviceDetectionComplete, setDeviceDetectionComplete] = useState(false);
+  
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // Wrapped modal state
   const [showWrappedModal, setShowWrappedModal] = useState(false);
@@ -249,21 +252,7 @@ export default function Home() {
     }
   };
 
-  const handleExploreContributions = async (track) => {
-  if (!track || !track.id) return;
 
-  setFetchingMbidForTrackId(track.id);
-  const mbid = await getMbidForTrack(track);
-  setFetchingMbidForTrackId(null);
-
-  if (mbid) {
-      // Store the entire track object, ensuring it has the found mbid
-      setSelectedTrackForContributors({ ...track, mbid });
-      setShowContributorModal(true);
-  } else {
-      alert("Could not find contributor information for this track. The ISRC or MusicBrainz ID could not be located.");
-  }
-};
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -316,9 +305,8 @@ export default function Home() {
       .then((data) => {
         setUser(data);
         setLoading(false);
-        // Auto-load last 50 songs and playlists when user is logged in
+        // Auto-load last 50 songs when user is logged in (playlists will be loaded manually)
         handleGenerateFromRecents();
-        handleGenerateFromPlaylist();
       })
       .catch(() => {
         setUser(null);
@@ -372,6 +360,16 @@ export default function Home() {
       if (!res.ok) throw new Error('Failed to fetch playlists');
       const data = await res.json();
       setPlaylists(data.playlists || []);
+      
+      // Scroll to playlists section after a short delay to ensure it's rendered
+      setTimeout(() => {
+        if (playlistsTableRef.current) {
+          playlistsTableRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+        }
+      }, 100);
     } catch (error) {
       alert('Could not fetch playlists. Please try again.');
     } finally {
@@ -490,6 +488,33 @@ export default function Home() {
       }
     };
   }, []);
+
+  // Prevent body scrolling when modals are open
+  useEffect(() => {
+    if (showNewArtistModal || showNewGenreModal || showWrappedModal || showInfoModal || showMetricsModal || showTopModal || showPlaylistModal) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      
+      // Method 1: Prevent scrolling by setting body to fixed position and overflow hidden
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      // Method 2: Also prevent scroll on html element for extra security
+      document.documentElement.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scrolling when modal closes
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showNewArtistModal, showNewGenreModal, showWrappedModal, showInfoModal, showMetricsModal, showTopModal, showPlaylistModal]);
   
 
   
@@ -1026,10 +1051,12 @@ export default function Home() {
   }
 
   return (
-    <div className={styles.dashboardBackground}>
-      <div className={styles.dashboardContainer}>
-        {/* Top Bar: centered search */}
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+    <>
+      <Sidebar onToggle={(open) => setSidebarOpen(open)} />
+      <div className={`${styles.dashboardBackground} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
+        <div className={styles.dashboardContainer}>
+          {/* Top Bar: centered search */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
   {/* MODIFIED: Added position: 'relative' to the form */}
   <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '90%', position: 'relative' }}>
     <input
@@ -1116,6 +1143,28 @@ export default function Home() {
               justifyContent: 'center',
               flexDirection: 'row'
             }}>
+              {/* Show Playlists Button */}
+              <button
+                className={styles.mainActionButton}
+                onClick={() => {
+                  if (!showPlaylistsTable) {
+                    handleGenerateFromPlaylist();
+                  } else {
+                    // If playlists are already shown, just scroll to them
+                    setTimeout(() => {
+                      if (playlistsTableRef.current) {
+                        playlistsTableRef.current.scrollIntoView({ 
+                          behavior: 'smooth', 
+                          block: 'start' 
+                        });
+                      }
+                    }, 100);
+                  }
+                }}
+              >
+                Show Playlists
+              </button>
+              
               {/* Centered Analyze Your Listening History Dropdown Button */}
               <div style={{ 
                 display: 'flex',
@@ -1643,78 +1692,7 @@ export default function Home() {
                   }
                 }
                 
-                /* Super compact for very small screens */
-                @media (max-width: 280px) {
-                  .profileContainer > div {
-                    min-height: 60px !important;
-                    padding: 1px !important;
-                    margin: 0 auto !important;
-                    max-width: 50% !important;
-                    width: 50% !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > img {
-                    width: 16px !important;
-                    height: 16px !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > div {
-                    font-size: 0.4rem !important;
-                  }
-                  
-                  .reportTitle {
-                    font-size: 0.55rem !important;
-                    margin-bottom: 2px !important;
-                  }
-                  
-                  .reportSubtitle {
-                    font-size: 0.3rem !important;
-                    margin-bottom: 3px !important;
-                  }
-                  
-                  .responsive-container {
-                    margin-top: 3px !important;
-                    gap: 2px !important;
-                  }
-                  
-                  .responsive-container button {
-                    font-size: 0.25rem !important;
-                    padding: 1px 2px !important;
-                    min-width: 40px !important;
-                  }
-                  
-                  /* Time Range button and dropdown buttons */
-                  .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.6rem !important;
-                    padding: 6px 12px !important;
-                    min-width: 120px !important;
-                    min-height: 30px !important;
-                    font-weight: 600 !important;
-                  }
-                  
-                  .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 0.2rem !important;
-                    padding: 1px 1px !important;
-                  }
-                  
-                  // .responsive-container .actionButtons button {
-                  //   font-size: 0.2rem !important;
-                  //   padding: 1px 1px !important;
-                  // }
-                  
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 0.4rem !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.25rem !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) button {
-                    font-size: 0.3rem !important;
-                    padding: 1px 4px !important;
-                  }
-                }
+                
                 /* Desktop styles - ensure proper sizing for larger screens */
                 @media (min-width: 769px) {
                   .reportTitle {
@@ -1857,8 +1835,7 @@ export default function Home() {
             loading={isAnalyzingRecents}
             error={null}
             onExploreGenre={handleExploreGenre}
-                // Add the new prop on the next line
-                onExploreContributions={handleExploreContributions}
+
             wrappedLabel={'Create Wrapped Analysis'}
           />
         </div>
@@ -1877,6 +1854,9 @@ export default function Home() {
           position: 'relative',
           minHeight: 120,
           fontSize: 'clamp(0.85rem, 1.1vw, 1.08rem)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          boxSizing: 'border-box',
         }}>
           <span
             style={{ position: 'absolute', top: 8, right: 12, cursor: 'pointer', fontSize: 20, color: '#888', zIndex: 2 }}
@@ -2301,10 +2281,17 @@ export default function Home() {
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               display: 'flex',
               justifyContent: 'center',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               zIndex: 1000,
-              padding: '20px'
-          }}>
+              padding: '20px',
+              overflow: 'auto',
+              paddingTop: 'max(20px, 5vh)',
+              paddingBottom: 'max(20px, 5vh)'
+          }}
+          onClick={() => setShowNewArtistModal(false)}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          >
 
 
                   {/* Use GenreLeaderboardChart component for artists */}
@@ -2330,10 +2317,16 @@ export default function Home() {
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               display: 'flex',
               justifyContent: 'center',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               zIndex: 1000,
-              padding: '20px'
-          }}>
+              padding: '20px',
+              overflow: 'auto',
+              paddingTop: 'max(20px, 5vh)',
+              paddingBottom: 'max(20px, 5vh)'
+          }}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          >
 
 
                   {/* Use GenreLeaderboardChart component for genres */}
@@ -2348,71 +2341,7 @@ export default function Home() {
           </div>
       )}
 
-      {/* Add the Contributor Modal here */}
-      {showContributorModal && selectedTrackForContributors && (
-          <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: 1000,
-              padding: '20px'
-          }}>
-              <div style={{
-                  background: '#1e1e1e',
-                  borderRadius: 18,
-                  padding: '24px',
-                  maxWidth: 'min(95vw, 800px)',
-                  width: '100%',
-                  maxHeight: '90vh',
-                  overflow: 'auto',
-                  boxShadow: '0 8px 32px #0006',
-                  position: 'relative'
-              }}>
-                  {/* Close button */}
-                  <button
-                      onClick={() => setShowContributorModal(false)}
-                      style={{
-                          position: 'absolute',
-                          top: '16px',
-                          right: '16px',
-                          background: 'none',
-                          border: 'none',
-                          color: '#a0a0a0',
-                          fontSize: '24px',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          borderRadius: '4px',
-                          transition: 'all 0.2s',
-                          zIndex: 10
-                      }}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                  >
-                      ×
-                  </button>
 
-                  {/* Modal title */}
-                  <h2 style={{
-                      color: '#f3f3f3',
-                      fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
-                      fontWeight: '700',
-                      marginBottom: '24px',
-                      textAlign: 'center'
-                  }}>
-                      Contributors for {selectedTrackForContributors.name}
-                  </h2>
-
-                  {/* Contributor content */}
-                  <ContributorFinder mbid={selectedTrackForContributors.mbid} />
-              </div>
-          </div>
-      )}
       
       {/* Wrapped Analysis Modal for Playlists */}
       {showWrappedModal && selectedPlaylistForWrapped && (
@@ -2426,5 +2355,6 @@ export default function Home() {
     </main>
       </div>
     </div>
+    </>
   );
 }

@@ -3,6 +3,26 @@ body, .main {
   min-height: 100vh;
 }
 
+/* Sidebar-responsive layout */
+.dashboardBackground {
+  margin-left: 0; /* No margin by default */
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When sidebar is open on desktop */
+@media (min-width: 769px) {
+  .sidebarOpen .dashboardBackground {
+    margin-left: 280px;
+  }
+}
+
+/* Mobile layout - no margin */
+@media (max-width: 768px) {
+  .dashboardBackground {
+    margin-left: 0;
+  }
+}
+
 .main {
   width: 100%;
   max-width: 100%;

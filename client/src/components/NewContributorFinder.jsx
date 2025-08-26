@@ -473,8 +473,7 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
       <style jsx>{`
         .contributor-finder {
           width: 100%;
-          max-width: 1200px;
-          margin: 0 auto;
+          // max-width: 100vx  ;
           background: #1a1a1a;
           border-radius: 16px;
           overflow: hidden;
@@ -668,6 +667,12 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
         .close-button:hover {
           background: rgba(139, 92, 246, 0.5);
           transform: scale(1.1);
+        }
+
+        /* Ensure close button always uses mobile styling regardless of screen size */
+        .close-button {
+          background: #8b5cf6 !important;
+          border: 2px solid #8b5cf6 !important;
         }
 
         .contributor-content {
@@ -981,27 +986,7 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
           }
         }
         
-        @media (min-width: 769px) {
-          .track-header h1 {
-            font-size: 2.5rem;
-          }
-          
-          .track-header p {
-            font-size: 1.2rem;
-          }
-          
-          .card-title {
-            font-size: 1.3rem;
-          }
-          
-          .contributor-name {
-            font-size: 1.2rem;
-          }
-          
-          .contributor-role {
-            font-size: 1rem;
-          }
-        }
+
 
         @media (max-width: 1000px) {
           .track-name {

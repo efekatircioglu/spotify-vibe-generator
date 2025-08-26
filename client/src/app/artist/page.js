@@ -232,8 +232,8 @@ export default function ArtistConcertsPage() {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
-  // Album group filter state
-  const [albumGroup, setAlbumGroup] = useState('album');
+  // Album group filter state - will be set dynamically based on available content
+  const [albumGroup, setAlbumGroup] = useState(null);
   const albumGroups = [
     { label: 'Albums', value: 'album' },
     { label: 'Singles', value: 'single' },
@@ -254,39 +254,73 @@ export default function ArtistConcertsPage() {
 
   // (removed unused formatDate)
 
+  // Function to find the first available album type
+  const findFirstAvailableAlbumType = async (artistId) => {
+    const types = ['album', 'single', 'appears_on', 'compilation'];
+    
+    for (const type of types) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/artist-albums/${artistId}?group=${type}&sortBy=popularity`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.albums && data.albums.length > 0) {
+            return type;
+          }
+        }
+      } catch (error) {
+        console.error(`Error checking ${type}:`, error);
+      }
+    }
+    return 'album'; // fallback
+  };
+
   // Fetch albums when artist or group changes (but NOT when sort changes)
   useEffect(() => {
     if (!selectedArtist?.id || !selectedArtist?.name) return;
     console.log('Selected artist for genre/style fetch:', selectedArtist.name);
-    setLoadingAlbums(true);
-    setAlbumError('');
-    setAlbums([]);
-    setSelectedAlbumId(null);
     
-    // Always fetch with popularity data so we can sort client-side
-    fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}?group=${albumGroup}&sortBy=popularity`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch albums');
-        return res.json();
-      })
-      .then(data => {
-        setAlbums(data.albums || []);
-        if (data.albums && data.albums.length > 0) {
-          setSelectedAlbumId(data.albums[0].id);
-        }
-        console.log(`📊 Albums fetched with popularity data: ${data.albums?.length || 0} albums`);
-        
-        // Debug: Log album data with popularity
-        console.log(`🎵 [CLIENT DEBUG] Album data received:`, data.albums?.map(album => ({
-          name: album.name,
-          popularity: album.popularity,
-          releaseDate: album.releaseDate
-        })));
-      })
-      .catch(err => {
-        setAlbumError(err.message || 'Failed to fetch albums');
-      })
-      .finally(() => setLoadingAlbums(false));
+    const initializeAlbumGroup = async () => {
+      // If no album group is set, find the first available one
+      if (!albumGroup) {
+        const firstAvailable = await findFirstAvailableAlbumType(selectedArtist.id);
+        setAlbumGroup(firstAvailable);
+        console.log(`🎯 Auto-selected album group: ${firstAvailable}`);
+        return; // Exit early, this will trigger the effect again
+      }
+      
+      setLoadingAlbums(true);
+      setAlbumError('');
+      setAlbums([]);
+      setSelectedAlbumId(null);
+      
+      // Always fetch with popularity data so we can sort client-side
+      fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}?group=${albumGroup}&sortBy=popularity`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch albums');
+          return res.json();
+        })
+        .then(data => {
+          setAlbums(data.albums || []);
+          if (data.albums && data.albums.length > 0) {
+            setSelectedAlbumId(data.albums[0].id);
+          }
+          console.log(`📊 Albums fetched with popularity data: ${data.albums?.length || 0} albums`);
+          
+          // Debug: Log album data with popularity
+          console.log(`🎵 [CLIENT DEBUG] Album data received:`, data.albums?.map(album => ({
+            name: album.name,
+            popularity: album.popularity,
+            releaseDate: album.releaseDate
+          })));
+        })
+        .catch(err => {
+          setAlbumError(err.message || 'Failed to fetch albums');
+        })
+        .finally(() => setLoadingAlbums(false));
+    };
+    
+    initializeAlbumGroup();
+    
     // Explicitly fetch genre/style map from Discogs
     fetch(`http://localhost:8000/discogs/artist/${encodeURIComponent(selectedArtist.name)}/genre-style-map`)
       .then(res => res.ok ? res.json() : { map: {} })
@@ -1430,7 +1464,7 @@ export default function ArtistConcertsPage() {
           
           {/* Album Selector */}
           <div style={{ marginBottom: 64, marginTop: 48 }}>
-          <div style={{
+                      <div style={{
   display: 'flex',
   flexWrap: 'wrap', // Allow buttons to wrap on very small screens
   gap: 12,
@@ -1455,7 +1489,9 @@ export default function ArtistConcertsPage() {
                     cursor: 'pointer',
                     boxShadow: albumGroup === group.value ? '0 2px 8px #1db95433' : 'none',
                     transition: 'background 0.18s, color 0.18s',
+                    opacity: albumGroup === null ? 0.6 : 1, // Dim buttons when loading
                   }}
+                  disabled={albumGroup === null} // Disable buttons while determining first available type
                 >
                   {group.label}
                 </button>
@@ -1523,14 +1559,36 @@ export default function ArtistConcertsPage() {
                 </button>
               ))}
             </div>
-            <AlbumSelector
-              albums={albumsWithGenreStyle}
-              selectedAlbumId={selectedAlbumId}
-              onAlbumSelect={album => setSelectedAlbumId(album.id)}
-              albumGenreStyleMap={albumGenreStyleMap}
-            />
-            {loadingAlbums && <div>Loading...</div>}
-            {albumError && <div style={{ color: 'red' }}>{albumError}</div>}
+            {albumGroup === null ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px 20px',
+                color: '#b3b3b3',
+                fontSize: '1rem'
+              }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  border: '3px solid #1db954',
+                  borderTop: '3px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 16px'
+                }} />
+                Finding available content...
+              </div>
+            ) : (
+              <>
+                <AlbumSelector
+                  albums={albumsWithGenreStyle}
+                  selectedAlbumId={selectedAlbumId}
+                  onAlbumSelect={album => setSelectedAlbumId(album.id)}
+                  albumGenreStyleMap={albumGenreStyleMap}
+                />
+                {loadingAlbums && <div>Loading...</div>}
+                {albumError && <div style={{ color: 'red' }}>{albumError}</div>}
+              </>
+            )}
           </div>
 
           {/* Track Table for selected album */}

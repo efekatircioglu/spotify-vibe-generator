@@ -146,6 +146,27 @@ const NoContributorData = () => {
   };
 }, [contributorModalOpen]); // This effect depends on the modal's open/close state
 
+  // Prevent body scrolling when modal is open
+  useEffect(() => {
+    if (contributorModalOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      
+      // Prevent scrolling by setting body to fixed position
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      return () => {
+        // Restore scrolling when modal closes
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [contributorModalOpen]);
+
   // Close popover on outside click
   useEffect(() => {
     if (showPopover === null) return;
@@ -1160,7 +1181,7 @@ if (isMobile) {
               pointer-events: none;
             }
             #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
-            #contrib-popup-container.is-mobile {
+            #contrib-popup-container.mobile-style-modal {
               left: 50% !important; 
               top: 50% !important; 
               transform: translate(-50%, -50%) scale(1) !important;
@@ -1192,7 +1213,7 @@ if (isMobile) {
           
           <div 
             id="contrib-popup-container" 
-            className={`${contributorModalOpen ? 'visible' : ''} is-mobile`}
+            className={`${contributorModalOpen ? 'visible' : ''} mobile-style-modal`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="contrib-popup-content" onClick={e => e.stopPropagation()}>
@@ -1699,7 +1720,7 @@ if (isMobile) {
         )}
       </div>
       
-      {/* --- START OF NEW POP-UP CODE --- */}
+              {/* --- START OF NEW POP-UP CODE --- */}
       {contributorModalOpen && (
         <>
           <style jsx global>{`
@@ -1715,7 +1736,7 @@ if (isMobile) {
               pointer-events: none;
             }
             #contrib-popup-container.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
-            #contrib-popup-container.is-mobile {
+            #contrib-popup-container.mobile-style-modal {
               left: 50% !important; 
               top: 50% !important; 
               transform: translate(-50%, -50%) scale(1) !important;
@@ -1723,7 +1744,7 @@ if (isMobile) {
               max-width: 90vw;
               position: fixed !important;
             }
-            #contrib-popup-container.is-mobile.visible { 
+            #contrib-popup-container.mobile-style-modal.visible { 
               opacity: 1; 
               transform: translate(-50%, -50%) scale(1) !important; 
               pointer-events: auto; 
@@ -1747,7 +1768,7 @@ if (isMobile) {
           
           <div 
             id="contrib-popup-container" 
-            className={`${contributorModalOpen ? 'visible' : ''} desktop-modal`}
+            className={`${contributorModalOpen ? 'visible' : ''} mobile-style-modal`}
           >
             <div ref={contributorModalRef} className="contrib-popup-content">
   {isContribLoading ? (
@@ -1758,7 +1779,7 @@ if (isMobile) {
     </div>
   ) : selectedTrackMBID ? (
             // State 2: If we have an MBID, show the NewContributorFinder
-        <NewContributorFinder mbid={selectedTrackMBID} track={selectedTrackInfo} />
+        <NewContributorFinder mbid={selectedTrackMBID} track={selectedTrackInfo} closeButton={() => setContributorModalOpen(false)} />
   ) : (
     // State 3: No MBID available, show no data message
     <NoContributorData />
@@ -1800,27 +1821,8 @@ if (isMobile) {
           opacity: 1;
         }
         
-        /* Desktop modal positioning */
-        #contrib-popup-container.desktop-modal {
-          left: 50% !important; 
-          top: 50% !important; 
-          transform: translate(-50%, -50%) scale(0.95) !important;
-        }
-        #contrib-popup-container.desktop-modal.visible {
-          transform: translate(-50%, -50%) scale(1) !important;
-        }
-        
-        /* Desktop modal content sizing */
-        #contrib-popup-container.desktop-modal .contrib-popup-content {
-          max-width: 80rem !important;
-          background-color: #181818 !important;
-          padding: 1rem !important;
-          max-height: 85vh !important;
-          overflow-y: auto !important;
-        }
-        
-        /* Mobile modal positioning - ensure it's always centered */
-        #contrib-popup-container.is-mobile {
+        /* Mobile-style modal positioning - always use mobile styling regardless of screen size */
+        #contrib-popup-container.mobile-style-modal {
           position: fixed !important;
           left: 50% !important; 
           top: 50% !important; 
@@ -1830,13 +1832,13 @@ if (isMobile) {
           z-index: 99950 !important;
         }
         
-        /* Override any conflicting transforms for mobile */
-        #contrib-popup-container.is-mobile.visible {
+        /* Override any conflicting transforms for mobile-style modal */
+        #contrib-popup-container.mobile-style-modal.visible {
           transform: translate(-50%, -50%) scale(1) !important;
         }
         
-        /* Ensure mobile modal content is properly sized */
-        #contrib-popup-container.is-mobile .contrib-popup-content {
+        /* Ensure mobile-style modal content is properly sized */
+        #contrib-popup-container.mobile-style-modal .contrib-popup-content {
           width: 100% !important;
           max-width: 100vw !important;
           margin: 0 !important;
