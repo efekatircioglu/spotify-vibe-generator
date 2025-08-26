@@ -240,6 +240,13 @@ export default function ArtistConcertsPage() {
     { label: 'Compilations', value: 'compilation' },
     { label: 'Appears On', value: 'appears_on' },
   ];
+  
+  // Album sorting state
+  const [albumSortBy, setAlbumSortBy] = useState('release_date');
+  const albumSortOptions = [
+    { label: 'Release Date', value: 'release_date' },
+    { label: 'Popularity', value: 'popularity' },
+  ];
   const [isBioExpanded, setIsBioExpanded] = useState(false); // <-- Add this line
   const [isHeaderBioExpanded, setIsHeaderBioExpanded] = useState(false); // <-- Add this line for header bio
   const BIO_TRUNCATE_LENGTH = 300; // Characters to show before truncating
@@ -247,7 +254,7 @@ export default function ArtistConcertsPage() {
 
   // (removed unused formatDate)
 
-  // Fetch albums when artist or group changes
+  // Fetch albums when artist or group changes (but NOT when sort changes)
   useEffect(() => {
     if (!selectedArtist?.id || !selectedArtist?.name) return;
     console.log('Selected artist for genre/style fetch:', selectedArtist.name);
@@ -255,8 +262,9 @@ export default function ArtistConcertsPage() {
     setAlbumError('');
     setAlbums([]);
     setSelectedAlbumId(null);
-    // Fetch albums from Spotify
-    fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}?group=${albumGroup}`)
+    
+    // Always fetch with popularity data so we can sort client-side
+    fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}?group=${albumGroup}&sortBy=popularity`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch albums');
         return res.json();
@@ -266,6 +274,14 @@ export default function ArtistConcertsPage() {
         if (data.albums && data.albums.length > 0) {
           setSelectedAlbumId(data.albums[0].id);
         }
+        console.log(`📊 Albums fetched with popularity data: ${data.albums?.length || 0} albums`);
+        
+        // Debug: Log album data with popularity
+        console.log(`🎵 [CLIENT DEBUG] Album data received:`, data.albums?.map(album => ({
+          name: album.name,
+          popularity: album.popularity,
+          releaseDate: album.releaseDate
+        })));
       })
       .catch(err => {
         setAlbumError(err.message || 'Failed to fetch albums');
@@ -291,8 +307,23 @@ export default function ArtistConcertsPage() {
       });
   }, [selectedArtist, albumGroup]);
 
-  // Merge genre/style info into albums
-  const albumsWithGenreStyle = albums.map(album => {
+  // Sort albums based on current sort option
+  const sortedAlbums = [...albums].sort((a, b) => {
+    switch (albumSortBy) {
+      case 'popularity':
+        return b.popularity - a.popularity; // Highest popularity first
+      case 'release_date':
+      default:
+        // Sort by release date (newest first)
+        if (!a.releaseDate && !b.releaseDate) return 0;
+        if (!a.releaseDate) return 1;
+        if (!b.releaseDate) return -1;
+        return b.releaseDate.localeCompare(a.releaseDate);
+    }
+  });
+
+  // Merge genre/style info into sorted albums
+  const albumsWithGenreStyle = sortedAlbums.map(album => {
     const genreStyle = albumGenreStyleMap[album.name] || [[], []];
     return { ...album, genre: genreStyle[0], style: genreStyle[1] };
   });
@@ -1427,6 +1458,68 @@ export default function ArtistConcertsPage() {
                   }}
                 >
                   {group.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Album Sorting Options */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              marginBottom: 18,
+              justifyContent: isMobile ? 'center' : 'flex-start',
+              marginLeft: isMobile ? 0 : 50,
+              padding: isMobile ? '0 16px' : 0,
+              alignItems: 'center'
+            }}>
+              <span style={{
+                color: '#b3b3b3',
+                fontSize: isMobile ? '0.8rem' : '0.9rem',
+                fontWeight: 600,
+                marginRight: 8
+              }}>
+                Sort by:
+              </span>
+              {albumSortOptions.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    console.log(`🎵 [CLIENT DEBUG] Changing sort from ${albumSortBy} to ${option.value}`);
+                    console.log(`⚡ [CLIENT DEBUG] Sorting ${albums.length} albums client-side (no API call needed)`);
+                    setAlbumSortBy(option.value);
+                    // Update selected album to first album in new sort order
+                    if (albums.length > 0) {
+                      // Sort albums temporarily to find the first one
+                      const tempSorted = [...albums].sort((a, b) => {
+                        switch (option.value) {
+                          case 'popularity':
+                            return b.popularity - a.popularity;
+                          case 'release_date':
+                          default:
+                            if (!a.releaseDate && !b.releaseDate) return 0;
+                            if (!a.releaseDate) return 1;
+                            if (!b.releaseDate) return -1;
+                            return b.releaseDate.localeCompare(a.releaseDate);
+                        }
+                      });
+                      setSelectedAlbumId(tempSorted[0].id);
+                    }
+                  }}
+                  style={{
+                    background: albumSortBy === option.value ? '#1db954' : '#232323',
+                    color: albumSortBy === option.value ? '#181818' : '#fff',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: isMobile ? '3px 10px' : '6px 14px',
+                    fontSize: isMobile ? '0.75rem' : '0.85rem',
+                    cursor: 'pointer',
+                    boxShadow: albumSortBy === option.value ? '0 2px 6px #1db95433' : 'none',
+                    transition: 'background 0.18s, color 0.18s',
+                  }}
+                >
+                  {option.label}
                 </button>
               ))}
             </div>

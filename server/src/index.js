@@ -1139,21 +1139,118 @@ app.get('/artist-albums/:artistId', async (req, res) => {
     // Validate group
     const validGroups = ['album', 'single', 'compilation', 'appears_on'];
     const groupParam = validGroups.includes(group) ? group : 'album';
+    
+    // Get sorting parameter
+    const sortBy = req.query.sortBy || 'release_date'; // Default to release date
+    const validSortOptions = ['release_date', 'popularity'];
+    const sortParam = validSortOptions.includes(sortBy) ? sortBy : 'release_date';
+    
     const { body } = await spotifyApi.getArtistAlbums(artistId, {
       limit: 50,
       include_groups: groupParam,
       album_type: groupParam
     });
 
-    // Simplify album data for the frontend
-    const albums = (body.items || []).map(album => ({
+    // Get basic album data first
+    let albums = (body.items || []).map(album => ({
       id: album.id,
       name: album.name,
       image: album.images?.[0]?.url || '',
       releaseYear: album.release_date?.split('-')[0] || '',
+      releaseDate: album.release_date || '',
+      popularity: 0, // Will be fetched separately
+      totalTracks: album.total_tracks || 0,
+      albumType: album.album_type || groupParam
     }));
 
-    res.json({ albums });
+    // If sorting by popularity, fetch popularity data for albums in batches
+    if (sortParam === 'popularity') {
+      console.log(`🎵 [ALBUM POPULARITY DEBUG] Fetching popularity data for ${albums.length} albums using batch API...`);
+      
+      // Spotify allows up to 20 albums per batch call
+      const BATCH_SIZE = 20;
+      const albumIds = albums.map(album => album.id);
+      
+      // Process albums in batches
+      for (let i = 0; i < albumIds.length; i += BATCH_SIZE) {
+        const batch = albumIds.slice(i, i + BATCH_SIZE);
+        
+        try {
+          // Batch API call: GET /albums?ids=id1,id2,id3...
+          const { body: batchResponse } = await spotifyApi.getAlbums(batch);
+          
+          // Update popularity for albums in this batch
+          batchResponse.albums.forEach((albumDetails, batchIndex) => {
+            const globalIndex = i + batchIndex;
+            if (globalIndex < albums.length) {
+              albums[globalIndex].popularity = albumDetails.popularity || 0;
+              console.log(`🎵 [ALBUM POPULARITY DEBUG] Batch ${Math.floor(i/BATCH_SIZE) + 1}: "${albums[globalIndex].name}" = ${albums[globalIndex].popularity}`);
+            }
+          });
+          
+          // Small delay between batches to be safe with rate limits
+          if (i + BATCH_SIZE < albumIds.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+          
+        } catch (error) {
+          console.error(`Error fetching batch ${Math.floor(i/BATCH_SIZE) + 1}:`, error);
+          // Set popularity to 0 for albums in failed batch
+          for (let j = i; j < Math.min(i + BATCH_SIZE, albums.length); j++) {
+            albums[j].popularity = 0;
+          }
+        }
+      }
+      
+      console.log(`🎵 [ALBUM POPULARITY DEBUG] Finished fetching popularity data using batch API`);
+    }
+
+    // Debug: Log popularity data
+    console.log(`🎵 [ALBUM POPULARITY DEBUG] Sort by: ${sortParam}`);
+    console.log(`🎵 [ALBUM POPULARITY DEBUG] Raw album data:`, albums.map(a => ({
+      name: a.name,
+      popularity: a.popularity,
+      releaseDate: a.releaseDate
+    })));
+    
+    // Check if we have any popularity data
+    const albumsWithPopularity = albums.filter(a => a.popularity > 0);
+    console.log(`🎵 [ALBUM POPULARITY DEBUG] Albums with popularity > 0: ${albumsWithPopularity.length}/${albums.length}`);
+    
+    if (albumsWithPopularity.length === 0 && sortParam === 'popularity') {
+      console.log(`⚠️ [ALBUM POPULARITY DEBUG] No popularity data available, falling back to release date sort`);
+    }
+
+    // Sort albums based on the sort parameter
+    switch (sortParam) {
+      case 'popularity':
+        albums.sort((a, b) => b.popularity - a.popularity); // Highest popularity first
+        console.log(`🎵 [ALBUM POPULARITY DEBUG] After popularity sort:`, albums.map(a => ({
+          name: a.name,
+          popularity: a.popularity
+        })));
+        break;
+      case 'release_date':
+      default:
+        // Sort by release date (newest first)
+        albums.sort((a, b) => {
+          if (!a.releaseDate && !b.releaseDate) return 0;
+          if (!a.releaseDate) return 1;
+          if (!b.releaseDate) return -1;
+          return b.releaseDate.localeCompare(a.releaseDate);
+        });
+        console.log(`🎵 [ALBUM POPULARITY DEBUG] After release date sort:`, albums.map(a => ({
+          name: a.name,
+          releaseDate: a.releaseDate
+        })));
+        break;
+    }
+
+    res.json({ 
+      albums,
+      sortBy: sortParam,
+      totalCount: albums.length
+    });
   } catch (err) {
     console.error('Error fetching artist albums:', err);
     res.status(500).json({ error: 'Failed to fetch artist albums' });

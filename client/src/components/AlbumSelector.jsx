@@ -29,6 +29,22 @@ export default function AlbumSelector({ albums, selectedAlbumId, onAlbumSelect, 
             <img src={album.image} alt={album.name} className={styles.albumCover} />
             <div className={styles.selectorAlbumName}>{album.name}</div>
             <div className={styles.albumYear}>{album.releaseYear}</div>
+            {album.popularity !== undefined && album.popularity > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                background: 'rgba(0, 0, 0, 0.8)',
+                color: '#1db954',
+                fontSize: '0.7rem',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: 8,
+                border: '1px solid #1db954'
+              }}>
+                {album.popularity}
+              </div>
+            )}
           </div>
         );
       })}
