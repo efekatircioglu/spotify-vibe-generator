@@ -1,0 +1,112 @@
+.dashboardContainer {
+  display: flex;
+  min-height: 100vh;
+  background: #101114;
+  color: #f3f3f3;
+}
+
+.mainContent {
+  flex: 1;
+  margin-left: 0;
+  transition: margin-left 0.3s ease;
+  padding: 20px;
+}
+
+.mainContent.sidebarOpen {
+  margin-left: 300px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+  padding-top: 24px;
+}
+
+.header h1 {
+  color: rgb(243, 243, 243);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-shadow: rgba(0, 0, 0, 0.533) 0px 2px 8px;
+  margin: 0px;
+  line-height: 1.2;
+}
+
+.header p {
+  color: #b3b3b3;
+  font-size: 1.2rem;
+  margin-top: 8px;
+}
+
+.section {
+  margin-bottom: 48px;
+}
+
+.section h2 {
+  color: #f3f3f3;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.playlistsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.playlistCard {
+  background: rgb(24, 24, 24);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 4px 32px;
+  transition: transform 0.2s ease;
+}
+
+.playlistCard:hover {
+  transform: translateY(-2px);
+}
+
+.playlistCard h3 {
+  color: #f3f3f3;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.playlistCard p {
+  color: #b3b3b3;
+  margin-bottom: 16px;
+}
+
+.playlistCard button {
+  background: #1db954;
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.playlistCard button:hover {
+  background: #1ed760;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 16px;
+  }
+  
+  .header h1 {
+    font-size: 2rem;
+  }
+  
+  .playlistsGrid {
+    grid-template-columns: 1fr;
+  }
+}

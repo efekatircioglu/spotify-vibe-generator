@@ -15,7 +15,10 @@ const PORT = 8000;
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://192.168.1.4:3000']
+  origin: ['http://localhost:3000', 'http://192.168.1.4:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Parse JSON bodies for POST requests with increased limit for large playlists
@@ -87,16 +90,31 @@ const ticketmasterService = require('./services/ticketmasterService');
 // The LOGIN route
 // This is where we will redirect the user to Spotify to log in
 app.get('/login', (req, res) => {
-  res.redirect(spotifyApi.createAuthorizeURL(scopes));
+  // Force consistent OAuth behavior across all devices
+  // Add parameters to prevent popup/iframe issues on desktop
+  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, null, {
+    show_dialog: false,  // Don't show account selection dialog if already authorized
+    response_type: 'code',
+    state: 'desktop_oauth_fix'  // Add state parameter for security
+  });
+  
+  console.log('Redirecting to Spotify OAuth:', authorizeURL);
+  res.redirect(authorizeURL);
 });
 
 // The CALLBACK route
 // This is the route Spotify will redirect to after the user has logged in
 app.get('/callback', async (req, res) => {
   // ADD THIS LINE TO SEE EXACTLY WHAT SPOTIFY SENDS BACK
-  console.log('Just reached the /callback route. Full query from Spotify:', req.query);
+  console.log('=== OAUTH CALLBACK RECEIVED ===');
+  console.log('Full query from Spotify:', req.query);
+  console.log('Headers:', req.headers);
+  console.log('User Agent:', req.headers['user-agent']);
+  console.log('Referer:', req.headers['referer']);
+  console.log('Origin:', req.headers['origin']);
+  console.log('================================');
 
-  const { error, code } = req.query;
+  const { error, code, state } = req.query;
 
   if (error) {
     console.error('Error from Spotify:', error);
@@ -116,17 +134,42 @@ app.get('/callback', async (req, res) => {
     console.log('Successfully retrieved access token!');
     console.log('Access Token:', access_token);
     
+    // Store tokens in memory (for this session) and also prepare to send to client
+    // Note: In production, you'd want to store these securely in a database
+    
     // Send the user back to the 'face' of your application
-    // HERE REDIRECT TO SOME OTHER PAGE
     // Check if the request came from mobile or desktop
     const userAgent = req.headers['user-agent'] || '';
     const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
     
-    if (isMobile) {
-      res.redirect('http://192.168.1.4:3000');
-    } else {
-      res.redirect('http://localhost:3000');
-    }
+    console.log('User Agent:', userAgent);
+    console.log('Is Mobile:', isMobile);
+    
+    // Create a temporary token storage that the client can access
+    const tempTokenId = Math.random().toString(36).substring(2, 15);
+    
+    // Store the token temporarily (you could use Redis or similar in production)
+    if (!global.tempTokens) global.tempTokens = {};
+    global.tempTokens[tempTokenId] = {
+      access_token,
+      refresh_token,
+      timestamp: Date.now()
+    };
+    
+    // Clean up old tokens (older than 5 minutes)
+    Object.keys(global.tempTokens).forEach(id => {
+      if (Date.now() - global.tempTokens[id].timestamp > 5 * 60 * 1000) {
+        delete global.tempTokens[id];
+      }
+    });
+    
+    // Always redirect to localhost for local development
+    const redirectUrl = 'http://localhost:3000';
+    
+    console.log('Redirecting to:', `${redirectUrl}?tempToken=${tempTokenId}`);
+    
+    // Redirect with the temporary token ID
+    res.redirect(`${redirectUrl}?tempToken=${tempTokenId}`);
  
   } catch (err) {
     console.error('--- ERROR GETTING TOKENS ---');
@@ -146,10 +189,66 @@ app.get('/me', async (req, res) => {
   }
 });
 
+// POST endpoint for token refresh
+app.post('/me', async (req, res) => {
+  try {
+    const { refresh, refresh_token } = req.body;
+    
+    if (refresh && refresh_token) {
+      console.log('Attempting to refresh token...');
+      
+      // Set the refresh token and try to refresh
+      spotifyApi.setRefreshToken(refresh_token);
+      
+      try {
+        const data = await spotifyApi.refreshAccessToken();
+        const newAccessToken = data.body['access_token'];
+        
+        // Update the API object with new token
+        spotifyApi.setAccessToken(newAccessToken);
+        
+        console.log('Token refreshed successfully');
+        res.json({ token: newAccessToken });
+        return;
+      } catch (refreshErr) {
+        console.error('Error refreshing token:', refreshErr);
+        res.status(401).json({ error: 'Failed to refresh token' });
+        return;
+      }
+    }
+    
+    // If not a refresh request, return error
+    res.status(400).json({ error: 'Invalid request' });
+  } catch (err) {
+    console.error('Error in POST /me:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/logout', (req, res) => {
   spotifyApi.setAccessToken(null);
   spotifyApi.setRefreshToken(null);
   res.sendStatus(200);
+});
+
+// Endpoint to exchange temporary token ID for actual tokens
+app.get('/exchange-token/:tempTokenId', (req, res) => {
+  const { tempTokenId } = req.params;
+  
+  if (!global.tempTokens || !global.tempTokens[tempTokenId]) {
+    return res.status(404).json({ error: 'Token not found or expired' });
+  }
+  
+  const tokens = global.tempTokens[tempTokenId];
+  
+  // Remove the temporary token after use
+  delete global.tempTokens[tempTokenId];
+  
+  // Return the tokens to the client
+  res.json({
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token
+  });
 });
 
 app.get('/analyze-recents', async (req, res) => {

@@ -1,6 +1,76 @@
-body, .main {
+/* Landing page styles */
+.landingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
   background: #101114;
-  min-height: 100vh;
+  color: #f3f3f3;
+  text-align: center;
+  padding: 20px;
+}
+
+.landingCard {
+  max-width: 600px;
+  padding: 40px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #0f0f0f, #1c1c1c);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  position: relative;
+}
+
+.landingTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+.landingSubtitle {
+  font-size: 1.3rem;
+  color: #b3b3b3;
+  margin-bottom: 40px;
+  line-height: 1.6;
+}
+
+.landingHighlight {
+  color: #1db954;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.spotifyLoginButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #1db954;
+  color: #000;
+  text-decoration: none;
+  padding: 16px 32px;
+  border-radius: 25px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(29, 185, 84, 0.3);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.spotifyLoginButton:hover {
+  background: #1ed760;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(29, 185, 84, 0.4);
+}
+
+.spotifyLogo {
+  width: 24px;
+  height: 24px;
 }
 
 /* Sidebar-responsive layout */
