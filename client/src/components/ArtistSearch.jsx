@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from '../app/page.module.css';
+import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../utils/artistCache';
+import { getRecentSearches, saveRecentSearch } from '../utils/recentSearchesCache';
 
 export default function ArtistSearch({ onArtistSelect, placeholder = "Search for an artist..." }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,13 +29,89 @@ export default function ArtistSearch({ onArtistSelect, placeholder = "Search for
       setLoading(true);
       setError('');
       try {
-        const response = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(term)}`);
-        if (!response.ok) throw new Error('Search failed');
-        const data = await response.json();
-        setSuggestions(data.artists || []);
+        // Check cache first
+        const cachedId = getCachedArtistId(term.trim());
+        let spotifySuggestions = [];
+        let tmSuggestions = [];
+        
+        if (cachedId) {
+          console.log(`Found cached Ticketmaster ID for "${term.trim()}": ${cachedId}`);
+          // Use cached data if available
+          const cachedImage = getCachedArtistImage(term.trim());
+          // We'll still search Spotify to get fresh data, but use cached Ticketmaster ID
+        }
+        
+        // Search Spotify
+        const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(term)}`);
+        if (spRes.ok) {
+          const spData = await spRes.json();
+          spotifySuggestions = spData.artists?.map(a => ({
+            name: a.name,
+            spotifyId: a.id,
+            ticketmasterId: null,
+            image: a.image || null,
+            genres: a.genres || [],
+            source: 'spotify'
+          })) || [];
+        }
+        
+        // Search Ticketmaster
+        const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(term)}`);
+        if (tmRes.ok) {
+          const tmData = await tmRes.json();
+          tmSuggestions = tmData._embedded?.attractions
+            ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
+            .map(a => {
+              let spotifyId = (() => {
+                const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
+                if (spotifyLink) {
+                  const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
+                  if (match) return match[1];
+                }
+                return null;
+              })();
+              return {
+                name: a.name,
+                spotifyId,
+                ticketmasterId: a.id || null,
+                image: a.images?.[0]?.url || null,
+                genres: a.genres || [],
+                source: 'ticketmaster'
+              };
+            }) || [];
+        }
+        
+        // Merge by name: if both exist, merge ticketmasterId into spotify suggestion
+        const merged = [];
+        const usedNames = new Set();
+        spotifySuggestions.forEach(sp => {
+          const tm = tmSuggestions.find(t => t.name === sp.name);
+          if (tm) {
+            merged.push({ ...sp, ticketmasterId: tm.ticketmasterId });
+            usedNames.add(sp.name);
+          } else {
+            merged.push(sp);
+            usedNames.add(sp.name);
+          }
+        });
+        tmSuggestions.forEach(tm => {
+          if (!usedNames.has(tm.name)) {
+            merged.push(tm);
+          }
+        });
+        
+        // Cache successful results
+        merged.forEach(artist => {
+          if (artist.ticketmasterId && artist.spotifyId) {
+            setArtistCache(artist.name, artist.ticketmasterId, artist.image, artist.spotifyId);
+          }
+        });
+        
+        setSuggestions(merged);
         setShowSuggestions(true);
         setHighlightedIndex(-1);
       } catch (err) {
+        console.error('Search error:', err);
         setError('Failed to search artists');
         setSuggestions([]);
         setShowSuggestions(false);
@@ -55,6 +133,15 @@ export default function ArtistSearch({ onArtistSelect, placeholder = "Search for
     setSearchTerm(artist.name);
     setShowSuggestions(false);
     setSuggestions([]);
+    
+    // Save to recent searches
+    saveRecentSearch({ 
+      name: artist.name, 
+      spotifyId: artist.spotifyId, 
+      ticketmasterId: artist.ticketmasterId, 
+      image: artist.image 
+    });
+    
     onArtistSelect(artist);
   };
 

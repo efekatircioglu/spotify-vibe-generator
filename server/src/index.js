@@ -27,6 +27,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Define the "scopes" or permissions we need from the user
 const scopes = [
+  'user-read-email',
   'user-read-recently-played',
   'user-top-read',
   'playlist-read-private',
@@ -90,13 +91,32 @@ const ticketmasterService = require('./services/ticketmasterService');
 // The LOGIN route
 // This is where we will redirect the user to Spotify to log in
 app.get('/login', (req, res) => {
+  // Get the destination from query parameters
+  const destination = req.query.destination || 'dashboard';
+  const showDialog = req.query.show_dialog === 'true';
+  
   // Force consistent OAuth behavior across all devices
   // Add parameters to prevent popup/iframe issues on desktop
-  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, null, {
-    show_dialog: false,  // Don't show account selection dialog if already authorized
+  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, destination, {
+    show_dialog: showDialog,  // Show account selection dialog if requested
     response_type: 'code',
-    state: 'desktop_oauth_fix'  // Add state parameter for security
+    state: `desktop_oauth_fix_${destination}`,  // Add state parameter for security and destination
+    // Force fresh login for different account
+    ...(showDialog && {
+      prompt: 'login',  // Force login prompt instead of authorization
+      force_login: 'true',  // Additional parameter to force fresh login
+      // Additional parameters to ensure fresh login
+      scope: scopes.join(' '),
+      consent: 'force'
+    })
   });
+  
+  // For different account login, try to clear any existing session first
+  if (showDialog) {
+    // Clear any existing tokens to force fresh authentication
+    spotifyApi.setAccessToken(null);
+    spotifyApi.setRefreshToken(null);
+  }
   
   console.log('Redirecting to Spotify OAuth:', authorizeURL);
   res.redirect(authorizeURL);
@@ -118,9 +138,40 @@ app.get('/callback', async (req, res) => {
 
   if (error) {
     console.error('Error from Spotify:', error);
+    
+    // Handle access_denied (user cancelled)
+    if (error === 'access_denied') {
+      console.log('User cancelled OAuth flow');
+      
+      // Extract destination from state parameter
+      const destination = state ? state.replace('desktop_oauth_fix_', '') : 'dashboard';
+      
+      // Redirect back to the appropriate page
+      const origin = req.headers.origin || req.headers.referer || 'http://localhost:3000';
+      const redirectUrl = origin.includes('3001') ? 'http://localhost:3001' : 'http://localhost:3000';
+      
+      let finalRedirectUrl;
+      if (destination === 'analytics') {
+        finalRedirectUrl = `${redirectUrl}/dashboard`;
+      } else if (destination === 'concerts') {
+        finalRedirectUrl = `${redirectUrl}/concerts`;
+      } else {
+        finalRedirectUrl = `${redirectUrl}/dashboard`;
+      }
+      
+      console.log('Redirecting cancelled user to:', finalRedirectUrl);
+      res.redirect(finalRedirectUrl);
+      return;
+    }
+    
+    // For other errors, show error message
     res.send(`Error during authentication: ${error}`);
     return;
   }
+
+  // Extract destination from state parameter
+  const destination = state ? state.replace('desktop_oauth_fix_', '') : 'dashboard';
+  console.log('Destination from OAuth state:', destination);
 
   try {
     // Exchange the authorization code for an access token
@@ -164,12 +215,24 @@ app.get('/callback', async (req, res) => {
     });
     
     // Always redirect to localhost for local development
-    const redirectUrl = 'http://localhost:3000';
+    // Get the origin from the request headers to determine the correct redirect URL
+    const origin = req.headers.origin || req.headers.referer || 'http://localhost:3000';
+    const redirectUrl = origin.includes('3001') ? 'http://localhost:3001' : 'http://localhost:3000';
     
-    console.log('Redirecting to:', `${redirectUrl}?tempToken=${tempTokenId}`);
+    // Redirect to the destination page with the tempToken for authentication
+    let finalRedirectUrl;
+    if (destination === 'analytics') {
+      finalRedirectUrl = `${redirectUrl}/dashboard?tempToken=${tempTokenId}`;
+    } else if (destination === 'concerts') {
+      finalRedirectUrl = `${redirectUrl}/concerts?tempToken=${tempTokenId}`;
+    } else {
+      finalRedirectUrl = `${redirectUrl}/dashboard?tempToken=${tempTokenId}`;
+    }
     
-    // Redirect with the temporary token ID
-    res.redirect(`${redirectUrl}?tempToken=${tempTokenId}`);
+    console.log('Redirecting to:', finalRedirectUrl);
+    
+    // Redirect to the destination page with tempToken
+    res.redirect(finalRedirectUrl);
  
   } catch (err) {
     console.error('--- ERROR GETTING TOKENS ---');
@@ -226,9 +289,67 @@ app.post('/me', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
+  // Clear all tokens from the server
   spotifyApi.setAccessToken(null);
   spotifyApi.setRefreshToken(null);
-  res.sendStatus(200);
+  
+  // Clear any global token storage
+  if (global.tempTokens) {
+    global.tempTokens = {};
+  }
+  
+  res.json({ message: 'Logged out successfully' });
+});
+
+// Add a force-logout endpoint for different account login
+app.get('/force-logout', (req, res) => {
+  // Clear all server-side tokens
+  spotifyApi.setAccessToken(null);
+  spotifyApi.setRefreshToken(null);
+  if (global.tempTokens) { global.tempTokens = {}; }
+  
+  const destination = req.query.destination || 'dashboard';
+  
+  // Add timestamp to force Spotify to treat this as a completely new session
+  const timestamp = Date.now();
+  
+  // Create authorization URL with aggressive parameters to force fresh login
+  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, destination, {
+    show_dialog: true,
+    response_type: 'code',
+    state: `desktop_oauth_fix_${destination}_${timestamp}`,
+    prompt: 'login',
+    force_login: 'true',
+    // Additional parameters to ensure fresh login
+    scope: scopes.join(' '),
+    // Force new consent screen
+    consent: 'force'
+  });
+  
+  // Set headers to clear any potential cookies and force fresh session
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
+  
+  res.redirect(authorizeURL);
+});
+
+// Add a cancel endpoint to handle OAuth cancellation
+app.get('/cancel', (req, res) => {
+  const destination = req.query.destination || 'dashboard';
+  const redirectUrl = req.headers.origin || req.headers.referer || 'http://localhost:3000';
+  const finalRedirectUrl = redirectUrl.includes('3001') ? 'http://localhost:3001' : 'http://localhost:3000';
+  
+  // Redirect back to the appropriate page
+  if (destination === 'analytics') {
+    res.redirect(`${finalRedirectUrl}/dashboard`);
+  } else if (destination === 'concerts') {
+    res.redirect(`${finalRedirectUrl}/concerts`);
+  } else {
+    res.redirect(`${finalRedirectUrl}/dashboard`);
+  }
 });
 
 // Endpoint to exchange temporary token ID for actual tokens

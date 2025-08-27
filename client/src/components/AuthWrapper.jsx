@@ -47,7 +47,7 @@ export default function AuthWrapper({ children }) {
 
     const initializeAuth = async () => {
       try {
-        // Check if we have a temporary token from Spotify callback
+        // Check if we have a temporary token from Spotify callback (on any page)
         const urlParams = new URLSearchParams(window.location.search);
         const tempToken = urlParams.get('tempToken');
         
@@ -67,8 +67,10 @@ export default function AuthWrapper({ children }) {
               
               console.log('Successfully exchanged temporary token for access token');
               
-              // Clean up the URL
-              window.history.replaceState({}, document.title, window.location.pathname);
+              // Clean up the URL by removing the tempToken parameter
+              const currentUrl = new URL(window.location.href);
+              currentUrl.searchParams.delete('tempToken');
+              window.history.replaceState({}, document.title, currentUrl.pathname + currentUrl.search);
               
               // Check auth status with new token
               const authStatus = await checkAuthStatus();
@@ -209,63 +211,93 @@ export default function AuthWrapper({ children }) {
     return (
       <div style={{
         display: 'flex',
-        flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         height: '100vh',
         background: '#101114',
         color: '#f3f3f3',
-        textAlign: 'center',
-        padding: '20px'
+        fontSize: '1.2rem'
       }}>
-        <h1 style={{ marginBottom: '20px' }}>Session Expired</h1>
-        <p style={{ marginBottom: '30px', color: '#b3b3b3' }}>
-          Your session has expired. Click "Login Again" to continue with the same account.
-        </p>
-        <button
-          onClick={async () => {
-            try {
-              // Attempt to refresh the token
-              const refreshSuccess = await refreshToken();
-              if (refreshSuccess) {
-                // Token refreshed successfully, re-initialize authentication
-                await reinitializeAuth();
-                return;
-              }
-              // If refresh failed, redirect to landing page
-              if (typeof window !== 'undefined') {
-                window.location.href = '/';
-              }
-            } catch (error) {
-              console.error('Error refreshing token:', error);
-              // If refresh fails, redirect to landing page
-              if (typeof window !== 'undefined') {
-                window.location.href = '/';
-              }
-            }
-          }}
-          style={{
-            background: '#1db954',
-            color: '#000',
-            border: 'none',
-            borderRadius: '25px',
-            padding: '12px 32px',
+        <div style={{
+          textAlign: 'center',
+          maxWidth: '600px',
+          padding: '60px',
+          background: '#181818',
+          borderRadius: '20px',
+          border: '1px solid #333',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)'
+        }}>
+          {/* Exclamation Triangle Icon */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          
+          <h1 style={{
+            fontSize: '2.5rem',
+            marginBottom: '20px',
+            color: '#fff',
+            fontWeight: '600'
+          }}>
+            Session Expired
+          </h1>
+                    <p style={{
             fontSize: '1.1rem',
-            fontWeight: '700',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#1ed760';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#1db954';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          Login Again
-        </button>
+            marginBottom: '40px',
+            color: '#b3b3b3',
+            lineHeight: '1.5'
+          }}>
+            Your session has expired. Please log in again to continue.
+          </p>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            <button
+              onClick={() => window.location.href = 'http://127.0.0.1:8000/login'}
+              style={{
+                padding: '20px 40px',
+                background: '#1db954',
+                color: '#000',
+                border: 'none',
+                borderRadius: '30px',
+                fontSize: '1.1rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 6px 20px rgba(29, 185, 84, 0.3)',
+                minWidth: '280px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#1ed760';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(29, 185, 84, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#1db954';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(29, 185, 84, 0.3)';
+              }}
+            >
+              {/* Sync Icon */}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M3 21V15h6"></path>
+                <path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v6h-6"></path>
+              </svg>
+              Log in again
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

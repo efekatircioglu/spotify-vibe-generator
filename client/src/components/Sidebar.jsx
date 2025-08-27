@@ -15,6 +15,7 @@ export default function Sidebar({ onToggle }) {
   const [highlightedSuggestion, setHighlightedSuggestion] = useState(-1);
   const [recentSearches, setRecentSearches] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const router = useRouter();
   const pathname = usePathname();
   const suggestionsRef = useRef(null);
@@ -49,6 +50,44 @@ export default function Sidebar({ onToggle }) {
     setRecentSearches(getRecentSearches());
   }, []);
 
+  // Load user profile
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const token = localStorage.getItem('spotify_token');
+        if (token) {
+          const response = await fetch('https://api.spotify.com/v1/me', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            console.log('Spotify user data:', userData); // Debug log
+            setUserProfile({
+              name: userData.display_name || 'Spotify User',
+              role: userData.email || 'No email available',
+              image: userData.images?.[0]?.url,
+              initials: (userData.display_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        // Set default profile if fetch fails
+        setUserProfile({
+          name: 'Spotify User',
+          role: 'No email available',
+          image: null,
+          initials: 'U'
+        });
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
   // Close suggestions when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
@@ -69,11 +108,63 @@ export default function Sidebar({ onToggle }) {
 
   // Navigation items
   const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: '🏠' },
-    { label: 'Last 4 Weeks', path: '/last-4-weeks', icon: '🎵' },
-    { label: 'Last 6 Months', path: '/last-6-months', icon: '🎵' },
-    { label: 'Last 12 Months', path: '/last-12-months', icon: '🎵' },
-    { label: 'Concerts', path: '/concerts', icon: '🎭' },
+    { 
+      label: 'Dashboard', 
+      path: '/dashboard', 
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      )
+    },
+    { 
+      label: 'Last 4 Weeks', 
+      path: '/last-4-weeks', 
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      )
+    },
+    { 
+      label: 'Last 6 Months', 
+      path: '/last-6-months', 
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      )
+    },
+    { 
+      label: 'Last 12 Months', 
+      path: '/last-12-months', 
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="12" y2="20"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      )
+    },
+    { 
+      label: 'Concerts', 
+      path: '/concerts', 
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="23"></line>
+          <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+      )
+    },
   ];
 
   // Check if current path is active
@@ -291,17 +382,92 @@ export default function Sidebar({ onToggle }) {
   };
 
   // Handle search submit
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    // Navigate to artist page with search query
-    if (isMobile) {
-      setIsOpen(false);
-      if (onToggle) onToggle(false);
+    try {
+      // Search for the artist to get IDs before navigating
+      let spotifyId = null;
+      let ticketmasterId = null;
+      let image = null;
+      
+      // Check cache first
+      const cachedId = getCachedArtistId(searchQuery.trim());
+      if (cachedId) {
+        console.log(`Found cached Ticketmaster ID for "${searchQuery.trim()}": ${cachedId}`);
+        ticketmasterId = cachedId;
+        // Get cached image if available
+        const cachedImage = getCachedArtistImage(searchQuery.trim());
+        if (cachedImage) {
+          image = cachedImage;
+        }
+      }
+      
+      // Search Spotify for the artist
+      try {
+        const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(searchQuery.trim())}`);
+        if (spRes.ok) {
+          const spData = await spRes.json();
+          const spotifyArtist = spData.artists?.[0];
+          if (spotifyArtist) {
+            spotifyId = spotifyArtist.id;
+            if (!image) {
+              image = spotifyArtist.image;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error searching Spotify:', err);
+      }
+      
+      // Search Ticketmaster if not cached
+      if (!ticketmasterId) {
+        try {
+          const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(searchQuery.trim())}`);
+          if (tmRes.ok) {
+            const tmData = await tmRes.json();
+            const attractions = tmData._embedded?.attractions || [];
+            const exact = attractions.find(a => a.name.toLowerCase() === searchQuery.trim().toLowerCase());
+            if (exact && exact.id) {
+              ticketmasterId = exact.id;
+              // Cache the result
+              setArtistCache(searchQuery.trim(), exact.id, image, spotifyId);
+            }
+          }
+        } catch (err) {
+          console.error('Error searching Ticketmaster:', err);
+        }
+      }
+      
+      // Save to recent searches
+      saveRecentSearch({ name: searchQuery.trim(), spotifyId, ticketmasterId, image });
+      setRecentSearches(getRecentSearches());
+      
+      // Construct URL with all available parameters
+      const urlParamsArr = [`name=${encodeURIComponent(searchQuery.trim())}`];
+      if (spotifyId) urlParamsArr.push(`spotifyId=${spotifyId}`);
+      if (ticketmasterId) urlParamsArr.push(`ticketmasterId=${ticketmasterId}`);
+      const urlParams = urlParamsArr.join('&');
+      
+      // Close sidebar on mobile after navigation
+      if (isMobile) {
+        setIsOpen(false);
+        if (onToggle) onToggle(false);
+      }
+      
+      // Navigate to artist page with all parameters
+      router.push(`/artist?${urlParams}`);
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      // Fallback to just name if search fails
+      if (isMobile) {
+        setIsOpen(false);
+        if (onToggle) onToggle(false);
+      }
+      router.push(`/artist?name=${encodeURIComponent(searchQuery.trim())}`);
     }
-    
-    router.push(`/artist?name=${encodeURIComponent(searchQuery)}`);
   };
 
   // Handle navigation
@@ -339,7 +505,11 @@ export default function Sidebar({ onToggle }) {
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.logo}>
-            <span className={styles.logoIcon}>🎵</span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
             <span className={styles.logoText}>Vibe Gen</span>
           </div>
           <button 
@@ -351,11 +521,36 @@ export default function Sidebar({ onToggle }) {
           </button>
         </div>
 
+        {/* User Profile Section */}
+        {userProfile && (
+          <div className={styles.userProfile}>
+            <div className={styles.userAvatar}>
+              {userProfile.image ? (
+                <img 
+                  src={userProfile.image} 
+                  alt={userProfile.name}
+                  className={styles.userImage}
+                />
+              ) : (
+                <span className={styles.userInitials}>{userProfile.initials}</span>
+              )}
+            </div>
+            <div className={styles.userInfo}>
+              <div className={styles.userName}>{userProfile.name}</div>
+              <div className={styles.userRole}>{userProfile.role}</div>
+            </div>
+            <div className={styles.userStatus}></div>
+          </div>
+        )}
+
         {/* Search Bar */}
         <div className={styles.searchContainer}>
           <form onSubmit={handleSearch} className={styles.searchForm}>
             <div className={styles.searchInputWrapper} style={{ position: 'relative' }}>
-              <span className={styles.searchIcon}>🔍</span>
+              <svg className={styles.searchIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
               <input
                 ref={searchInputRef}
                 type="text"
@@ -464,14 +659,6 @@ export default function Sidebar({ onToggle }) {
 
         {/* Footer */}
         <div className={styles.footer}>
-          <button className={styles.footerButton}>
-            <span className={styles.footerIcon}>⚙️</span>
-            <span className={styles.footerLabel}>Settings</span>
-          </button>
-          <button className={styles.footerButton}>
-            <span className={styles.footerIcon}>❓</span>
-            <span className={styles.footerLabel}>Help</span>
-          </button>
           <button 
             className={styles.footerButton}
             onClick={async () => {
@@ -527,7 +714,22 @@ export default function Sidebar({ onToggle }) {
               e.currentTarget.style.background = 'transparent';
             }}
           >
-            <span className={styles.footerIcon}>🚪</span>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              style={{ color: '#e74c3c' }}
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16,17 21,12 16,7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
             <span className={styles.footerLabel}>Logout</span>
           </button>
         </div>

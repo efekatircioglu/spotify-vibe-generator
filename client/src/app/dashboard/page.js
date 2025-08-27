@@ -1052,767 +1052,183 @@ export default function Home() {
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
       <div className={`${styles.dashboardBackground} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.dashboardContainer}>
-          {/* Top Bar: centered search */}
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-  {/* MODIFIED: Added position: 'relative' to the form */}
-  <form className={styles.topBar} onSubmit={e => e.preventDefault()} style={{ display: 'flex', width: '90%', position: 'relative' }}>
-    <input
-      type="text"
-      className={styles.searchInput}
-      placeholder="Search for an artist..."
-      value={searchArtist || ""}
-      onChange={handleArtistInput}
-      onFocus={handleSearchInputFocus}
-      onKeyDown={handleArtistKeyDown}
-      autoComplete="off"
-      ref={searchInputRef}
-    />
-
-    {/* MODIFIED: Moved the suggestions div inside the form */}
-    {showSuggestions && artistSuggestions.length > 0 && (
-      <div
-        ref={suggestionsRef}
-        style={{
-          position: 'absolute',
-          top: '100%', // This will now be 100% of the form's height
-          left: 0,
-          right: 0,
-          background: '#232323',
-          border: '1px solid #444',
-          borderRadius: '8px',
-          marginTop: '8px', // Added a small gap
-          maxHeight: '320px',
-          overflowY: 'auto',
-          zIndex: 1000,
-          width: '100%', // This is now 100% of the form's width
-        }}
-      >
-        {artistSuggestions.map((artist, index) => (
+        <main className={styles.main} style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh', width: '100vw' }}>
+          {/* New Artist-Style Header */}
           <div
-            key={`${artist.spotifyId || ''}_${artist.ticketmasterId || ''}_${artist.name || ''}_${index}`}
-            onClick={() => handleSuggestionClick(artist)}
+            className="dashboard-header-container"
             style={{
-              padding: '12px 18px',
-              background: highlightedSuggestion === index ? '#181818' : 'transparent',
-              color: highlightedSuggestion === index ? '#fff' : '#e5e7eb',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '1.08rem',
-              borderBottom: '1px solid #232323',
-              transition: 'background 0.18s',
+              position: 'relative',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: '12px',
+              justifyContent: 'center',
+              gap: 'clamp(16px, 3vw, 32px)',
+              minHeight: 'clamp(300px, 50vh, 500px)',
+              width: '100vw',
+              borderRadius: '0 0 32px 32px',
+              boxShadow: '0 4px 32px #0002',
+              padding: 'clamp(24px, 6vh, 48px) clamp(24px, 5vw, 64px)',
+              overflow: 'hidden',
+              zIndex: 10,
+              marginTop: '-32px',
+              background: 'none',
+              boxSizing: 'border-box',
             }}
-            onMouseEnter={() => setHighlightedSuggestion(index)}
           >
-            {artist.image && (
-              <img
-                src={artist.image}
-                alt={artist.name}
+            {/* Blurred, stretched background image */}
+            {user?.images?.[0]?.url && (
+              <div
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  backgroundImage: `url('${user.images[0].url}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'blur(22px) brightness(0.7)',
+                  zIndex: 1,
                 }}
               />
             )}
-            <span>{artist.name}</span>
-          </div>
-        ))}
-      </div>
-    )}
-  </form>
-</div>
-        <main className={styles.main} style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh', width: '100vw' }}>
-          <UserProfile user={user} onLogout={handleLogout} clickableTitle={false} showSubtitle={false}>
-            <h2 className={styles.reportTitle}>Create Your Listening Report</h2>
-            <div className={styles.reportSubtitle}>Explore your top songs, favorite artists, and personal playlists.</div>
+            {/* Dark overlay for contrast */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                background: 'rgba(16,17,20,0.7)',
+                zIndex: 2,
+              }}
+            />
             
-            {/* Analyze Buttons and Time Range Row */}
-            <div className="responsive-container" style={{ 
+            {/* Main content */}
+            {user?.images?.[0]?.url && (
+              <img 
+                src={user.images[0].url} 
+                alt={user.display_name || 'User'} 
+                style={{ 
+                  width: 'clamp(120px, 25vw, 180px)', 
+                  aspectRatio: '1 / 1',
+                  borderRadius: '50%', 
+                  objectFit: 'cover', 
+                  boxShadow: '0 4px 24px #0004', 
+                  border: '4px solid #fff', 
+                  zIndex: 4,
+                  marginTop: 'clamp(16px, 4vh, 24px)'
+                }} 
+              />
+            )}
+            
+            <div style={{ 
               display: 'flex', 
+              flexDirection: 'column', 
               alignItems: 'center', 
-              gap: '16px', 
-              marginTop: '24px',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              flexDirection: 'row'
+              gap: 'clamp(8px, 2vh, 16px)', 
+              zIndex: 4,
+              marginTop: 'clamp(8px, 2vh, 16px)',
+              textAlign: 'center'
             }}>
-              {/* Show Playlists Button */}
-              <button
-                className={styles.mainActionButton}
-                onClick={() => {
-                  if (!showPlaylistsTable) {
-                    handleGenerateFromPlaylist();
-                  } else {
-                    // If playlists are already shown, just scroll to them
-                    setTimeout(() => {
-                      if (playlistsTableRef.current) {
-                        playlistsTableRef.current.scrollIntoView({ 
-                          behavior: 'smooth', 
-                          block: 'start' 
-                        });
-                      }
-                    }, 100);
-                  }
-                }}
-              >
-                Show Playlists
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ 
+                  fontSize: 'clamp(2.5rem, 6vw, 4rem)', 
+                  fontWeight: 900, 
+                  color: '#fff', 
+                  letterSpacing: 1 
+                }}>
+                  {user?.display_name || 'Spotify User'}
+                </span>
+              </div>
               
-              {/* Centered Analyze Your Listening History Dropdown Button */}
+
+              
+              {/* Action Button - Only Show Playlists */}
               <div style={{ 
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                position: 'relative'
+                display: 'flex', 
+                gap: 16, 
+                marginTop: 24, 
+                flexWrap: 'wrap',
+                justifyContent: 'center'
               }}>
                 <button
-  ref={timeRangeButtonRef}
-  className={styles.mainActionButton}
-  onClick={(e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTimeRangeDropdownPosition({
-      top: rect.bottom + window.scrollY + 8,
-      left: rect.left + window.scrollX
-    });
-    setTimeRangeDropdownOpen(!timeRangeDropdownOpen);
-  }}
-  
->
-  Analyze Your Listening History
-  <span style={{
-    transform: timeRangeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-    transition: 'transform 0.2s ease',
-  }}>
-    ▼
-  </span>
-</button>
-                
-                {/* Analyze Your Listening History Dropdown */}
-                {timeRangeDropdownOpen && (
-                  <div
-                    data-dropdown="time-range"
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      background: '#1a1a1a',
-                      border: '1px solid #333',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.9)',
-                      zIndex: 1000,
-                      minWidth: '140px',
-                      overflow: 'hidden',
-                      marginTop: '8px'
-                    }}
-                  >
-                      <button 
-                        className={styles.timeRangeButton}
-                        onClick={(e) => {
-                          console.log('Last Month button clicked!');
-                          e.stopPropagation();
-                          handleTimeRangeNav('/last-4-weeks');
-                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
-                        }}
-                        style={{
-                          width: '100%',
-                          borderRadius: '0',
-                          borderBottom: '1px solid #333',
-                          background: 'transparent',
-                          transition: 'background 0.2s ease',
-                          fontSize: '0.85rem',
-                          padding: '4px 8px'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                        }}
-                      >
-                        Last Month
-                      </button>
-                      <button 
-                        className={styles.timeRangeButton}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTimeRangeNav('/last-6-months');
-                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
-                        }}
-                        style={{
-                          width: '100%',
-                          borderRadius: '0',
-                          borderBottom: '1px solid #333',
-                          background: 'transparent',
-                          transition: 'background 0.2s ease',
-                          fontSize: '0.85rem',
-                          padding: '4px 8px'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                        }}
-                      >
-                        Last 6 Months
-                      </button>
-                      <button 
-                        className={styles.timeRangeButton}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTimeRangeNav('/last-12-months');
-                          setTimeout(() => setTimeRangeDropdownOpen(false), 100);
-                        }}
-                        style={{
-                          width: '100%',
-                          borderRadius: '0',
-                          background: 'transparent',
-                          transition: 'background 0.2s ease',
-                          fontSize: '0.85rem',
-                          padding: '4px 8px'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                        }}
-                      >
-                        Last Year
-                      </button>
-                    </div>
-                )}
+                  className={styles.mainActionButton}
+                  onClick={() => {
+                    if (!showPlaylistsTable) {
+                      handleGenerateFromPlaylist();
+                    } else {
+                      setTimeout(() => {
+                        if (playlistsTableRef.current) {
+                          playlistsTableRef.current.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                          });
+                        }
+                      }, 100);
+                    }
+                  }}
+                  disabled={isAnalyzingPlaylists}
+                  style={{
+                    background: isAnalyzingPlaylists ? '#666' : '#1db954',
+                    color: '#000',
+                    fontWeight: 700,
+                    border: 'none',
+                    borderRadius: 24,
+                    padding: '12px 24px',
+                    fontSize: 'clamp(1rem, 1.5vw, 1.1rem)',
+                    cursor: isAnalyzingPlaylists ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px #1db95433',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isAnalyzingPlaylists) {
+                      e.currentTarget.style.background = '#1ed760';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isAnalyzingPlaylists) {
+                      e.currentTarget.style.background = '#1db954';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
+                    }
+                  }}
+                >
+                  {isAnalyzingPlaylists ? (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="6"></line>
+                        <line x1="12" y1="18" x2="12" y2="22"></line>
+                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                        <line x1="2" y1="12" x2="6" y2="12"></line>
+                        <line x1="18" y1="12" x2="22" y2="12"></line>
+                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                      </svg>
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                      </svg>
+                      Show Playlists
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-              
-              {/* Responsive CSS */}
-              <style jsx>{`
-                @media (max-width: 768px) {
-                  .responsive-container {
-                    flex-direction: column !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                  }
-                
-                  .responsive-container > div {
-                    width: 100% !important;
-                    max-width: 300px !important;
-                    display: flex !important;
-                    justify-content: center !important;
-                  }
+          </div>
 
-                  .profileContainer {
-      /* Keep the container itself centered on the page */
-      text-align: left !important;
-    }
 
-    .profileContainer > div {
-      /* Align all content within the profile box to the left */
-      align-items: flex-start !important;
-      /* Add some space on the left for the profile image */
-      padding-left: 24px !important; 
-    }
-
-    .profileContainer > div > div:first-child {
-      /* This targets the row with the user image and name */
-      justify-content: flex-start !important; /* Align this row to the left */
-      flex-direction: row !important;
-      gap: 16px !important;
-      align-items: center !important;
-      width: 100% !important;
-    }
-    
-    .profileContainer > div > div:first-child > div:first-child {
-      justify-content: flex-start !important;
-    }
-
-    .profileContainer .prettyName {
-      /* Make the username bigger on mobile */
-      font-size: 1.6rem !important; 
-    }
-    
-    .profileContainer > div > div:first-child > div:last-child {
-      /* Reposition the logout button correctly */
-      position: absolute !important;
-      top: 16px !important;
-      right: 16px !important;
-    }
-                  
-                }
-                  /* Fix outer color elements for very small screens */
-                  .profileContainer {
-                    min-width: 280px !important;
-                    max-width: 95% !important;
-                    width: 95% !important;
-                    padding: 20px 16px !important;
-                    margin: 20px auto !important;
-                    border-radius: 12px !important;
-                    overflow: hidden !important;
-                    background: #181818 !important;
-                    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-                  }
-                  
-                  .profileContainer::before {
-                    width: 120% !important;
-                    height: 120% !important;
-                    top: -10% !important;
-                    left: -10% !important;
-                    animation: none !important;
-                  }
-                  
-                  .profileContainer::after {
-                    inset: 1px !important;
-                    border-radius: 11px !important;
-                  }
-                }
-                
-                /* Desktop-specific styles for larger button text */
-              
-                
-                /* Enable outer color elements only for screens > 430px */
-                @media (min-width: 431px) {
-                  .profileContainer {
-                    background: linear-gradient(145deg, #181818 60%, #232323 100%) !important;
-                    border: 2px solid rgba(255, 255, 255, 0.08) !important;
-                    box-shadow: 0 0 24px rgba(0, 255, 255, 0.08) !important;
-                  }
-                  
-                  .profileContainer::before {
-                    display: block !important;
-                  }
-                  
-                  .profileContainer::after {
-                    display: block !important;
-                  }
-                }
-                
-                /* Fix user profile centering on small screens */
-                @media (max-width: 768px) {
-                  .profileContainer {
-                    text-align: center !important;
-                    display: flex !important;
-                    justify-content: center !important;
-                    align-items: center !important;
-                  }
-                  .profileContainer > div {
-                    display: flex !important;
-                    flex-direction: column !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    text-align: center !important;
-                  }
-                  .profileContainer > div > div:first-child {
-                    justify-content: center !important;
-                    flex-direction: column !important;
-                    gap: 16px !important;
-                    align-items: center !important;
-                    width: 100% !important;
-                  }
-                  .profileContainer > div > div:first-child > div:first-child {
-                    justify-content: center !important;
-                    align-items: center !important;
-                    width: 100% !important;
-                  }
-                  .profileContainer > div > div:first-child > div:last-child {
-                    position: absolute !important;
-                    top: 16px !important;
-                    right: 16px !important;
-                  }
-                }
-                
-                /* Make everything smaller on mobile */
-                @media (max-width: 768px) {
-                  .profileContainer {
-                    min-width: 300px !important;
-                    max-width: 95% !important;
-                    width: 95% !important;
-                    padding: 16px !important;
-                    margin-top: 32px !important;
-                    margin-bottom: 64px !important;
-                  }
-                  
-                  .profileContainer > div {
-                    min-height: 120px !important;
-                    padding: 8px !important;
-                    margin: 2px auto !important;
-                    border-radius: 8px !important;
-                    max-width: 70% !important;
-                    width: 70% !important;
-                  }
-                }
-                
-                /* iPhone 15 Pro Max and similar devices (430px width) */
-                @media (max-width: 430px) {
-                  .profileContainer {
-                    min-width: 200px !important;
-                    max-width: 60% !important;
-                    width: 60% !important;
-                    padding: 8px !important;
-                    margin-top: 20px !important;
-                    margin-bottom: 40px !important;
-                  }
-                  
-                  /* Force override with higher specificity */
-                  body .profileContainer,
-                  html .profileContainer,
-                  .main .profileContainer,
-                  [class*="profileContainer"],
-                  div[class*="profileContainer"] {
-                    min-width: 200px !important;
-                    max-width: 60% !important;
-                    width: 60% !important;
-                    padding: 8px !important;
-                    margin-top: 20px !important;
-                    margin-bottom: 40px !important;
-                  }
-                  
-                  .profileContainer > div {
-                    min-height: 60px !important;
-                    padding: 4px !important;
-                    margin: 1px auto !important;
-                    border-radius: 6px !important;
-                    max-width: 45% !important;
-                    width: 45% !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child {
-                    margin-bottom: 4px !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > img {
-                    width: 20px !important;
-                    height: 20px !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > div {
-                    font-size: 0.4rem !important;
-                  }
-                  
-                  /* Mobile styles removed - only apply to iPhone 15 Pro Max and smaller */
-                  
-                  .reportSubtitle {
-                    font-size: 0.3rem !important;
-                    line-height: 1.1 !important;
-                    margin-bottom: 3px !important;
-                  }
-                  
-                  .responsive-container {
-                    margin-top: 4px !important;
-                    gap: 3px !important;
-                  }
-                  
-                  .responsive-container button {
-                    font-size: 0.25rem !important;
-                    padding: 1px 3px !important;
-                    min-width: 30px !important;
-                  }
-                  
-                  /* Time Range button and dropdown buttons */
-                  .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.6rem !important;
-                    padding: 6px 12px !important;
-                    min-width: 120px !important;
-                    min-height: 30px !important;
-                    font-weight: 600 !important;
-                  }
-                  
-                  .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 1rem !important;
-                    padding: 8px 16px !important;
-                    min-height: 40px !important;
-                    font-weight: 600 !important;
-                  }
-                  
-                  /* Make Find Concerts section smaller */
-                  .profileContainer > div > div:nth-child(4) {
-                    margin-top: 8px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 0.7rem !important;
-                    margin-bottom: 3px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.5rem !important;
-                    margin-bottom: 6px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) button {
-                    font-size: 0.5rem !important;
-                    padding: 4px 12px !important;
-                  }
-                }
-                  
-                  .profileContainer > div > div:first-child {
-                    margin-bottom: 8px !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > img {
-                    width: 32px !important;
-                    height: 32px !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > div {
-                    font-size: 0.8rem !important;
-                  }
-                  
-                  .reportTitle {
-                    font-size: 0.7rem !important;
-                    margin-bottom: 4px !important;
-                  }
-                  
-                  .reportSubtitle {
-                    font-size: 0.5rem !important;
-                    line-height: 1.1 !important;
-                    margin-bottom: 6px !important;
-                  }
-                  
-                  .responsive-container {
-                    margin-top: 8px !important;
-                    gap: 6px !important;
-                  }
-                  
-                  .responsive-container button {
-                    font-size: 0.7rem !important;
-                    padding: 6px 12px !important;
-                    min-width: 100px !important;
-                  }
-                  
-                  /* Time Range button and dropdown buttons */
-                  .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.6rem !important;
-                    padding: 6px 12px !important;
-                    min-width: 120px !important;
-                    min-height: 30px !important;
-                    font-weight: 600 !important;
-                  }
-                  
-                  .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 1rem !important;
-                    padding: 8px 16px !important;
-                    min-height: 40px !important;
-                    font-weight: 600 !important;
-                  }
-                  
-                  /* Make Find Concerts section smaller */
-                  .profileContainer > div > div:nth-child(4) {
-                    margin-top: 12px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 0.9rem !important;
-                    margin-bottom: 4px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.65rem !important;
-                    margin-bottom: 8px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) button {
-                    font-size: 0.7rem !important;
-                    padding: 6px 16px !important;
-                  }
-                }
-                
-                /* Ultra compact for phones */
-                @media (max-width: 360px) {
-                  .profileContainer > div {
-                    min-height: 80px !important;
-                    padding: 4px !important;
-                    margin: 1px auto !important;
-                    max-width: 60% !important;
-                    width: 60% !important;
-                  }
-                    
-                  .profileContainer > div > div:first-child > div:first-child > img {
-                    width: 28px !important;
-                    height: 28px !important;
-                  }
-                  
-                  .profileContainer > div > div:first-child > div:first-child > div {
-                    font-size: 0.7rem !important;
-                  }
-                  
-                  .reportTitle {
-                    font-size: 0.85rem !important;
-                    margin-bottom: 6px !important;
-                  }
-                  
-                  .reportSubtitle {
-                    font-size: 0.6rem !important;
-                    margin-bottom: 8px !important;
-                  }
-                  
-                  .responsive-container {
-                    margin-top: 8px !important;
-                    gap: 6px !important;
-                  }
-                  
-                  .responsive-container button {
-                    font-size: 0.55rem !important;
-                    padding: 3px 6px !important;
-                    min-width: 70px !important;
-                  }
-                  
-                  /* Time Range button and dropdown buttons */
-                  .responsive-container button[class*="analyzeButton"] {
-                    font-size: 0.6rem !important;
-                    padding: 6px 12px !important;
-                    min-width: 120px !important;
-                    min-height: 30px !important;
-                    font-weight: 600 !important;
-                  }
-                  
-                  .responsive-container [data-dropdown="time-range"] button {
-                    font-size: 0.5rem !important;
-                    padding: 2px 4px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 0.7rem !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.5rem !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) button {
-                    font-size: 0.55rem !important;
-                    padding: 3px 10px !important;
-                  }
-                }
-                
-                
-                /* Desktop styles - ensure proper sizing for larger screens */
-                @media (min-width: 769px) {
-                  .reportTitle {
-                    font-size: 2.1rem !important;
-                    margin-bottom: 18px !important;
-                  }
-                  
-                  .reportSubtitle {
-                    font-size: 1.3rem !important;
-                    margin-bottom: 28px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 1.5rem !important;
-                    margin-bottom: 8px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 1.1rem !important;
-                    margin-bottom: 20px !important;
-                  }
-                }
-                
-                /* Mobile-specific styles - only for phones */
-                @media (max-width: 430px) {
-                  .reportTitle {
-                    font-size: 1.1rem !important;
-                    margin-bottom: 2px !important;
-                  }
-                  
-                  /* Force override for the title on mobile only */
-                  .profileContainer h2,
-                  .profileContainer .reportTitle,
-                  .profileContainer > div > div:nth-child(2) h2 {
-                    font-size: 1.1rem !important;
-                    margin-bottom: 2px !important;
-                  }
-                  
-                  .reportSubtitle {
-                    font-size: 0.9rem !important;
-                    margin-bottom: 4px !important;
-                  }
-                  
-                  /* Force override for the title on mobile only */
-                  .profileContainer h2,
-                  .profileContainer .reportTitle,
-                  .profileContainer > div > div:nth-child(2) h2 {
-                    font-size: 1.1rem !important;
-                    margin-bottom: 2px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) h3 {
-                    font-size: 1.1rem !important;
-                    margin-bottom: 2px !important;
-                  }
-                  
-                  .profileContainer > div > div:nth-child(4) p {
-                    font-size: 0.9rem !important;
-                    margin-bottom: 3px !important;
-                  }
-                }
-              `}</style>
-            
-
-        
-        {/* Horizontal line */}
-        <div style={{ 
-          width: '100%', 
-          height: '2px', 
-          background: '#333', 
-          margin: '16px 0',
-          opacity: 0.6
-        }}></div>
-        
-        {/* Find Concerts Section */}
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <h3 style={{ 
-            color: '#fff', 
-            fontSize: '2.1rem', 
-            fontWeight: 800, 
-            marginBottom: 10,
-            marginTop: 0
-          }}>
-            Find Concerts For You
-          </h3>
-          <p style={{ 
-            color: '#b3b3b3', 
-            fontSize: '1.1rem', 
-            marginBottom: 24,
-            lineHeight: 1.4,
-            textAlign: 'center'
-          }}>
-            Use your listening report to discover upcoming shows from your favorite artists.
-          </p>
-          <button 
-            onClick={() => router.push('/concerts')} 
-            style={{
-              background: '#1db954',
-              color: '#000',
-              border: 'none',
-              borderRadius: 25,
-              padding: '12px 32px',
-              fontSize: 'clamp(0.9rem, 1.5vw, 1.1rem)',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(29, 185, 84, 0.3)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#1ed760';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(29, 185, 84, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#1db954';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(29, 185, 84, 0.3)';
-            }}
-          >
-            Find Concerts
-          </button>
-        </div>
-          </UserProfile>
           {/* Removed empty state message */}
           {/* Table section for last 50 songs */}
           {showSongsTable && (
