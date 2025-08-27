@@ -860,260 +860,243 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
 
 
 
+// Refactored and Unified Table View
+return (
+  <>
+    <div className="chart-wrapper">
+      {/* The close button is only rendered if the onClose prop is provided. */}
+      {onClose && (
+        <button onClick={onClose} className="close-button" aria-label="Close">
+          ✕
+        </button>
+      )}
 
-
-  // Unified table view - same structure for all screen sizes
-  return (
-    <>
-      <div className="genre-chart-container" style={{
-        background: '#1e1e1e',
-        borderRadius: 18,
-        padding: 'clamp(20px, 3vw, 32px)',
-        margin: 'clamp(20px, 3vw, 32px) auto',
-        maxWidth: 'min(95vw, 1200px)',
-        width: 'min(95vw, 1200px)',
-        boxShadow: '0 4px 32px #0003',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        overflow: 'hidden'
-      }}>
-        <div className="genre-chart-title" style={{
-          fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
-          fontWeight: 700,
-          color: '#f3f3f3',
-          letterSpacing: 1,
-          textShadow: '0 2px 8px #0008',
-          marginBottom: 24,
-          textAlign: 'center',
-          position: 'relative'
-        }}>
-          {title}
-          {onClose && (
-            <button
-              onClick={onClose}
-              style={{
-                position: 'fixed',
-                top: '20px',
-                right: '20px',
-                background: '#1e1e1e',
-                border: '2px solid #374151',
-                color: '#ffffff',
-                fontSize: '24px',
-                cursor: 'pointer',
-                padding: '12px 16px',
-                borderRadius: '50%',
-                transition: 'all 0.3s ease',
-                zIndex: 1001,
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: '48px',
-                minHeight: '48px'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#374151';
-                e.target.style.borderColor = '#4b5563';
-                e.target.style.transform = 'scale(1.1)';
-                e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.7)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#1e1e1e';
-                e.target.style.borderColor = '#374151';
-                e.target.style.transform = 'scale(1)';
-                e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
+      <h2 className="chart-title">{title}</h2>
+      
+     
+      
+      <div className="table-container">
+        {/* Table Header */}
+        <div className="table-header">
+          <div className="header-label">{headerLabel}</div>
+          <div className="header-count">Count</div>
+        </div>
+        
+        {/* Table Body - scrollable if content exceeds max height */}
+        <div 
+          className="table-body" 
+          style={{ 
+            maxHeight: sortedGenres.length > 8 ? '400px' : 'auto',
+            overflowY: sortedGenres.length > 8 ? 'auto' : 'visible'
+          }}
+        >
+          {sortedGenres.map(([name, count], index) => (
+            <div
+              key={index}
+              className="table-row"
+              onClick={() => {
+                if (isGenreData) {
+                  handleGenreClick(name, count);
+                } else if (isArtistData) {
+                  handleArtistClick(name, count);
+                }
               }}
             >
-              ✕
-            </button>
-          )}
-        </div>
-        
-        {/* Click hint */}
-        <div style={{
-          color: '#a0a0a0',
-          fontSize: '0.85rem',
-          textAlign: 'center',
-          marginBottom: '16px',
-          padding: '8px 16px',
-          background: 'rgba(34, 202, 123, 0.1)',
-          borderRadius: '8px',
-          border: '1px solid rgba(34, 202, 123, 0.2)'
-        }}>
-          💡 Click on any {isGenreData ? 'genre' : 'artist'} to explore further
-        </div>
-        
-        {/* Table structure (same as mobile) */}
-        <div style={{ 
-          width: '100%',
-          maxWidth: '800px',
-          marginBottom: 20,
-          background: '#1e1e1e',
-          borderRadius: '12px',
-          border: '1px solid rgba(34, 202, 123, 0.2)',
-          overflow: 'hidden',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-          position: 'relative'
-        }}>
-          {/* Table header */}
-          <div style={{
-            display: 'flex',
-            padding: '16px 20px',
-            background: 'rgba(34, 202, 123, 0.15)',
-            borderBottom: '1px solid rgba(34, 202, 123, 0.3)',
-            fontWeight: '700',
-            fontSize: '1rem',
-            color: '#ffffff'
-          }}>
-            <div style={{ flex: 1, textAlign: 'left' }}>{headerLabel}</div>
-            <div style={{ flex: 0, minWidth: '80px', textAlign: 'center' }}>Count</div>
-          </div>
-          
-          {/* Table body */}
-            <div style={{ 
-            maxHeight: sortedGenres.length > 8 ? '400px' : 'auto',
-            overflowY: sortedGenres.length > 8 ? 'auto' : 'visible',
-            overflowX: 'hidden',
-            padding: '8px 0',
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#22ca7b #1e1e1e',
-            position: 'relative',
-            WebkitOverflowScrolling: 'touch'
-          }}>
-            {sortedGenres.map(([name, count], index) => (
-              <div
-                key={index}
-                style={{ 
-                  display: 'flex',
-                  padding: '12px 20px',
-                  borderBottom: index < sortedGenres.length - 1 ? '1px solid rgba(34, 202, 123, 0.1)' : 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  background: 'transparent'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(34, 202, 123, 0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                }}
-                onClick={() => {
-                  if (isGenreData) {
-                    handleGenreClick(name, count);
-                  } else if (isArtistData) {
-                    // For artist analysis, show songs modal
-                    handleArtistClick(name, count);
-                  }
-                }}
-              >
-            <div style={{
-                  flex: 1,
-                  color: '#e5e5e5',
-                  fontSize: '0.95rem',
-                  fontWeight: '600',
-                  textTransform: 'capitalize',
-                  textAlign: 'left'
-                }}>
-                  {name}
-              </div>
-            <div style={{ 
-                  flex: 0,
-                  minWidth: '80px',
-                  color: '#22ca7b',
-                  fontSize: '1rem',
-                  fontWeight: '700',
-                  textAlign: 'center',
-                  background: 'rgba(34, 202, 123, 0.2)',
-                  padding: '6px 12px',
-                  borderRadius: '16px'
-                }}>
-                  {count}
-              </div>
+              <div className="row-name">{name}</div>
+              <div className="row-count">{count}</div>
             </div>
-            ))}
+          ))}
         </div>
       </div>
-        
-        {/* Dynamic stats summary */}
-      <div className="genre-stats-container" style={{
-        display: 'flex',
-        flexDirection: 'column',
-            gap: '8px',
-        marginTop: 20,
-        padding: '16px 20px',
-            background: 'rgba(34, 202, 123, 0.1)',
-        borderRadius: 12,
-            border: '1px solid rgba(34, 202, 123, 0.2)'
-          }}>
-            <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
-            <strong style={{ color: '#e5e5e5' }}>Total {headerLabel}s:</strong> {Object.keys(genres).length}
-          </div>
-            <div style={{ color: '#a0a0a0', fontSize: '0.9rem', textAlign: 'center' }}>
-            <strong style={{ color: '#e5e5e5' }}>Top {headerLabel}:</strong> {sortedGenres[0]?.[0] || 'N/A'} ({sortedGenres[0]?.[1] || 0})
-          </div>
-        </div>
+      
+      {/* Dynamic Statistics Summary */}
+      <div className="stats-summary">
+        <p>
+          <strong>Total {headerLabel}s:</strong> {Object.keys(genres).length}
+        </p>
+        <p>
+          <strong>Top {headerLabel}:</strong> {sortedGenres[0]?.[0] || 'N/A'} ({sortedGenres[0]?.[1] || 0})
+        </p>
       </div>
+    </div>
 
-      {/* Genre Artists Modal */}
-              <GenreArtistsModal
-          isOpen={showGenreModal}
-          onClose={() => setShowGenreModal(false)}
-          genre={selectedGenre?.name}
-          artistCount={selectedGenre?.count}
-          artists={genreDetails?.[selectedGenre?.name]?.artists?.map(a => a.name) || []}
-          genreDetails={genreDetails}
-          mainArtistsData={mainArtistsData}
-        />
+    {/* Modals remain unchanged but are included for completeness */}
+    <GenreArtistsModal
+      isOpen={showGenreModal}
+      onClose={() => setShowGenreModal(false)}
+      genre={selectedGenre?.name}
+      artistCount={selectedGenre?.count}
+      artists={genreDetails?.[selectedGenre?.name]?.artists?.map(a => a.name) || []}
+      genreDetails={genreDetails}
+      mainArtistsData={mainArtistsData}
+    />
 
-      {/* Artist Songs Modal */}
-      <ArtistSongsModal
-        isOpen={showSongsModal}
-        onClose={() => setShowSongsModal(false)}
-        artist={selectedArtist?.name}
-        artistCount={selectedArtist?.count}
-        songs={artistSongs}
-        loading={loadingSongs}
-        genreDetails={genreDetails}
-        mainArtistsData={mainArtistsData}
-      />
-        
-        {/* Custom CSS for table scrolling */}
-        <style jsx>{`
-          .genre-chart-container {
-            overflow: hidden !important;
-          }
-          
-          .genre-chart-container > div:last-child {
-            overflow: hidden !important;
-          }
-          
-          /* Custom scrollbar styling for webkit browsers */
-          .genre-chart-container div::-webkit-scrollbar {
-            width: 8px;
-          }
-          
-          .genre-chart-container div::-webkit-scrollbar-track {
-            background: #1e1e1e;
-            border-radius: 4px;
-          }
-          
-          .genre-chart-container div::-webkit-scrollbar-thumb {
-            background: #22ca7b;
-            border-radius: 4px;
-          }
-          
-          .genre-chart-container div::-webkit-scrollbar-thumb:hover {
-            background: #1db954;
-          }
-          
-          /* Spinner animation for loading states */
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-    </>
-  );
+    <ArtistSongsModal
+      isOpen={showSongsModal}
+      onClose={() => setShowSongsModal(false)}
+      artist={selectedArtist?.name}
+      artistCount={selectedArtist?.count}
+      songs={artistSongs}
+      loading={loadingSongs}
+      genreDetails={genreDetails}
+      mainArtistsData={mainArtistsData}
+    />
+      
+    {/* Centralized styling using styled-jsx */}
+    <style jsx>{`
+      .chart-wrapper {
+        background: #1e1e1e;
+        border-radius: 18px;
+        padding: clamp(20px, 3vw, 32px);
+        margin: clamp(20px, 3vw, 32px) auto;
+        max-width: min(95vw, 1200px);
+        box-shadow: 0 4px 32px #0003;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .close-button {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        font-size: 20px;
+        cursor: pointer;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        z-index: 10;
+      }
+      
+      .close-button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(1.1);
+      }
+
+      .chart-title {
+        font-size: clamp(1.35rem, 2.5vw, 2.2rem);
+        font-weight: 700;
+        color: #f3f3f3;
+        letter-spacing: 1px;
+        text-shadow: 0 2px 8px #0008;
+        margin-bottom: 8px;
+        text-align: center;
+      }
+
+      .chart-subtitle {
+        color: #a0a0a0;
+        font-size: 0.9rem;
+        margin-bottom: 24px;
+      }
+
+      .table-container {
+        width: 100%;
+        max-width: 800px;
+        background: #1e1e1e;
+        border-radius: 12px;
+        border: 1px solid rgba(34, 202, 123, 0.2);
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      }
+
+      .table-header {
+        display: flex;
+        padding: 16px 20px;
+        background: rgba(34, 202, 123, 0.15);
+        border-bottom: 1px solid rgba(34, 202, 123, 0.3);
+        font-weight: 700;
+        font-size: 1rem;
+        color: #ffffff;
+      }
+
+      .header-label { flex: 1; text-align: left; }
+      .header-count { flex: 0; min-width: 80px; text-align: center; }
+
+      .table-body {
+        padding: 8px 0;
+        scrollbar-width: thin;
+        scrollbar-color: #22ca7b #1e1e1e;
+      }
+      
+      /* Custom scrollbar for WebKit browsers */
+      .table-body::-webkit-scrollbar { width: 8px; }
+      .table-body::-webkit-scrollbar-track { background: #1e1e1e; border-radius: 4px; }
+      .table-body::-webkit-scrollbar-thumb { background: #22ca7b; border-radius: 4px; }
+      .table-body::-webkit-scrollbar-thumb:hover { background: #1db954; }
+
+      .table-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        border-bottom: 1px solid rgba(34, 202, 123, 0.1);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+      
+      .table-row:last-child {
+        border-bottom: none;
+      }
+
+      .table-row:hover {
+        background-color: rgba(34, 202, 123, 0.1);
+      }
+
+      .row-name {
+        flex: 1;
+        color: #e5e5e5;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: capitalize;
+        text-align: left;
+      }
+
+      .row-count {
+        flex: 0;
+        min-width: 80px;
+        color: #22ca7b;
+        font-size: 1rem;
+        font-weight: 700;
+        text-align: center;
+        background: rgba(34, 202, 123, 0.2);
+        padding: 6px 12px;
+        border-radius: 16px;
+      }
+
+      .stats-summary {
+        margin-top: 20px;
+        padding: 16px 20px;
+        background: rgba(34, 202, 123, 0.1);
+        border-radius: 12px;
+        border: 1px solid rgba(34, 202, 123, 0.2);
+        color: #a0a0a0;
+        font-size: 0.9rem;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .stats-summary p {
+        margin: 0;
+      }
+
+      .stats-summary strong {
+        color: #e5e5e5;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
+  </>
+);
 }

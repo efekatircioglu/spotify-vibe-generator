@@ -1,0 +1,145 @@
+/* Container for the whole section (title + grid) */
+.artistsSectionContainer {
+    width: 100%;
+    margin: 32px auto;
+  }
+  
+  /* Make sure the title has some consistent styling */
+  .songsTableTitle {
+    margin-top: 32px;
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    padding-left: 16px;
+    margin-bottom: 24px;
+  }
+  
+  /* This is our responsive grid container */
+  .artistsGridContainer {
+    display: grid;
+    /* This creates responsive columns: they are at least 160px wide, but will grow to fill space. */
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 24px;
+  }
+  
+  /* The main artist card styling */
+  .artistNode {
+    position: relative;
+    cursor: pointer;
+    background-color: #282828;
+    border-radius: 12px;
+    padding: 16px;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden; /* Ensures child elements respect the border-radius */
+  }
+  
+  /* CSS-based hover effect */
+  .artistNode:hover {
+    background-color: #3a3a3a;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Artist Image and Placeholder */
+  .artistImage, .artistImagePlaceholder {
+    width: 100%;
+    aspect-ratio: 1 / 1; /* This keeps the image perfectly square */
+    border-radius: 50%; /* Circular images are common for artists */
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    margin-bottom: 16px;
+  }
+  
+  .artistImagePlaceholder {
+    background: #444;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: 700;
+  }
+  
+  /* Artist Name - with truncation for long names */
+  .artistName {
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    text-align: center;
+    /* The next 3 lines handle long text gracefully */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Number badge styling */
+  .artistNumberBadge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #1db954;
+    color: #000;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+  }
+  
+  /* Loading Overlay and Spinner */
+  .loadingOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 12px; /* Match parent */
+  }
+  
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #1db954;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  /* Keyframes for the spinner animation */
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Media Query for Mobile Devices (like your iPhone) */
+  @media (max-width: 600px) {
+    .artistsGridContainer {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 16px;
+    }
+  
+    .artistNode {
+      padding: 12px;
+    }
+  
+    .artistName {
+      font-size: 14px;
+    }
+    
+    .artistNumberBadge {
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+    }
+  }

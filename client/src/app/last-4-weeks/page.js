@@ -96,6 +96,25 @@ export default function Last4WeeksPage() {
         transition: 'margin-left 0.3s ease'
       }}>
         <main style={{ background: '#101114', minHeight: '100vh' }}>
+          
+          {/* Page Heading */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '32px',
+            paddingTop: '24px'
+          }}>
+            <h1 style={{
+              color: '#f3f3f3',
+              fontSize: 'clamp(2rem, 4vw, 3rem)',
+              fontWeight: 900,
+              letterSpacing: 1,
+              textShadow: '0 2px 8px #0008',
+              margin: 0,
+              lineHeight: 1.2
+            }}>
+              Your Last 4 Weeks' Report
+            </h1>
+          </div>
 
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
@@ -103,12 +122,7 @@ export default function Last4WeeksPage() {
         <div style={{ 
           marginBottom: 48,
           display: 'flex',
-          justifyContent: 'center',
-          width: 'clamp(95vw, 98vw, 98vw)', 
-          maxWidth: '100vw', 
-          boxShadow: 'rgba(0, 0, 0, 0.2) 0px 4px 32px', 
-          position: 'relative', 
-          fontSize: 'clamp(0.75rem, 1vw, 1.08rem)',
+          justifyContent: 'center'
          }}>
           <NewTrackTable
             tracks={data.tracks}
@@ -126,7 +140,26 @@ export default function Last4WeeksPage() {
         </div>
       )}
       {data && data.artists && (
-        <TopArtistsTable artists={data.artists} title="Top Artists" />
+        <>
+          <div style={{
+            textAlign: 'left',
+            marginBottom: '32px',
+            paddingTop: '24px'
+          }}>
+            <h2 style={{
+              color: '#f3f3f3',
+              fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
+              fontWeight: 900,
+              letterSpacing: 1,
+              textShadow: '0 2px 8px #0008',
+              margin: 0,
+              lineHeight: 1.2
+            }}>
+              Top Artists Last 4 Weeks
+            </h2>
+          </div>
+          <TopArtistsTable artists={data.artists} title="" />
+        </>
       )}
       
       {/* Genre Leaderboard Chart */}

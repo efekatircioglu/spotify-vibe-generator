@@ -1851,8 +1851,6 @@ export default function Home() {
              position: 'relative',
              minHeight: 120,
              fontSize: 'clamp(0.85rem, 1.1vw, 1.08rem)',
-             left: '50%',
-             transform: 'translateX(-50%)',
              boxSizing: 'border-box',
            }}>
              <span

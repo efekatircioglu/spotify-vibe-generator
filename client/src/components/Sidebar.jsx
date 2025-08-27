@@ -41,7 +41,6 @@ export default function Sidebar({ onToggle }) {
     { label: 'Last 6 Months', path: '/last-6-months', icon: '🎵' },
     { label: 'Last 12 Months', path: '/last-12-months', icon: '🎵' },
     { label: 'Concerts', path: '/concerts', icon: '🎭' },
-    { label: 'Analytics', path: '/analytics', icon: '📊' },
   ];
 
   // Check if current path is active

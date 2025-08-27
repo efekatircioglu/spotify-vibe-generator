@@ -830,7 +830,7 @@ if (isMobile) {
             display: 'flex', 
             gap: 'clamp(6px, 2vw, 12px)', 
             marginTop: 'clamp(4px, 1.5vw, 8px)', 
-            width: '95%',
+            width: '100%',
             justifyContent: 'center',
             alignItems: 'center',
             flexWrap: 'nowrap'
@@ -929,7 +929,7 @@ if (isMobile) {
           gap: 16,
           maxHeight: '480px',
           overflowY: 'auto',
-          width: '95%',
+          width: '100%',
           margin: '0 auto',
           border: '1px solid #333',
           borderRadius: '12px',
@@ -963,6 +963,25 @@ if (isMobile) {
               }
               .mobile-duration-year {
                 font-size: 0.6rem !important;
+              }
+            }
+            
+            @media (max-width: 450px) {
+              /* Make Breakdown button smaller on very small screens */
+              .mobile-track-list button {
+                font-size: 11px !important;
+                font-weight: 600 !important;
+              }
+              
+              /* Make play button (Spotify link) smaller on very small screens */
+              .mobile-track-list a[href*="open.spotify.com/track"] {
+                width: 30px !important;
+                height: 30px !important;
+              }
+              
+              .mobile-track-list a[href*="open.spotify.com/track"] svg {
+                width: 20px !important;
+                height: 20px !important;
               }
             }
             
@@ -1057,10 +1076,10 @@ if (isMobile) {
               </div>
               {/* 3rd Column: Actions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', position: 'relative' }}>
-                <button
-                  style={{
-                    background: '#232323', color: '#fff', borderRadius: 8, fontWeight: 700, padding: '8px 8px', fontSize: 14, border: 'none', cursor: 'pointer', marginBottom: 4
-                  }}
+                                  <button
+                    style={{
+                      background: '#232323', color: '#fff', borderRadius: 8, fontWeight: 700, padding: '8px 4px', fontSize: 14, border: 'none', cursor: 'pointer'
+                    }}
                   onClick={() => setMobileDropdownOpen(mobileDropdownOpen === idx ? null : idx)}
                 >Breakdown</button>
                 {mobileDropdownOpen === idx && (

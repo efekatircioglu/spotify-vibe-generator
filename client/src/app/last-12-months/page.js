@@ -84,6 +84,25 @@ export default function Last12MonthsPage() {
         transition: 'margin-left 0.3s ease'
       }}>
         <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
+          
+          {/* Page Heading */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '32px',
+            paddingTop: '24px'
+          }}>
+            <h1 style={{
+              color: '#f3f3f3',
+              fontSize: 'clamp(2rem, 4vw, 3rem)',
+              fontWeight: 900,
+              letterSpacing: 1,
+              textShadow: '0 2px 8px #0008',
+              margin: 0,
+              lineHeight: 1.2
+            }}>
+              Your Last 12 Months' Report
+            </h1>
+          </div>
 
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
@@ -101,7 +120,26 @@ export default function Last12MonthsPage() {
    </div>
       )}
       {data && data.artists && (
-        <TopArtistsTable artists={data.artists} title="Top Artists" />
+        <>
+          <div style={{
+            textAlign: 'left',
+            marginBottom: '32px',
+            paddingTop: '24px'
+          }}>
+            <h2 style={{
+              color: '#f3f3f3',
+              fontSize: 'clamp(1.5rem, 3vw, 2.5rem)',
+              fontWeight: 900,
+              letterSpacing: 1,
+              textShadow: '0 2px 8px #0008',
+              margin: 0,
+              lineHeight: 1.2
+            }}>
+              Top Artists Last 12 Months
+            </h2>
+          </div>
+          <TopArtistsTable artists={data.artists} title="" />
+        </>
       )}
       
       {/* Genre Leaderboard Chart */}
