@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import styles from '../page.module.css';
+import Sidebar from '../../components/Sidebar';
 import AlbumSelector from '../../components/AlbumSelector';
 import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
@@ -156,6 +157,9 @@ function findDiscogsGenreStyle(albumName, genreStyleMap) {
 }
 
 export default function ArtistConcertsPage() {
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
   // Load handwriting fonts
   useEffect(() => {
     const link = document.createElement('link');
@@ -764,7 +768,17 @@ export default function ArtistConcertsPage() {
   ];
 
   return (
-    <main style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh' }}>
+    <>
+      <Sidebar onToggle={(open) => setSidebarOpen(open)} />
+      <div style={{ 
+        padding: 0, 
+        margin: 0, 
+        background: '#101114', 
+        minHeight: '100vh',
+        marginLeft: sidebarOpen ? '280px' : '0',
+        transition: 'margin-left 0.3s ease'
+      }}>
+        <main style={{ padding: 0, margin: 0, background: '#101114', minHeight: '100vh' }}>
       {/* Artist Search Section (when no artist is selected) */}
       {!selectedArtist && (
         <div style={{ 
@@ -930,19 +944,6 @@ export default function ArtistConcertsPage() {
               }}
             />
             {/* Main content */}
-            <button
-  onClick={() => router.push('/')}
-  className={styles.backToProfileButton}
-  style={{
-    position: 'absolute',
-    top: 'clamp(16px, 4vh, 32px)',
-    left: 'clamp(16px, 3vw, 32px)',
-    zIndex: 10,
-  }}
->
-  <span style={{ fontSize: '1.3em' }}>←</span>
-  Profile
-</button>
             {artistImage && (
              <img src={artistImage} alt={selectedArtist.name} style={{ 
               width: isMobile ? 'clamp(100px, 25vw, 140px)' : 'clamp(80px, calc(60px + 4vw), 140px)', 
@@ -1714,6 +1715,8 @@ export default function ArtistConcertsPage() {
           100% { transform: rotate(360deg); }
         }
       `}</style>
-    </main>
+        </main>
+      </div>
+    </>
   );
 }

@@ -125,7 +125,7 @@ export default function Home() {
   const [deviceDetectionComplete, setDeviceDetectionComplete] = useState(false);
   
   // Sidebar state
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Wrapped modal state
   const [showWrappedModal, setShowWrappedModal] = useState(false);
@@ -1817,310 +1817,305 @@ export default function Home() {
         </div>
           </UserProfile>
           {/* Removed empty state message */}
-          <div className={styles.dashboardContentArea}>
-            <div className={styles.resultsCard}>
-       {/* Table section for last 50 songs */}
-       {showSongsTable && (
-        <div 
-          ref={tableRef} 
-          style={{ 
-            display: 'flex', 
-            justifyContent: 'center'
-          }}
-        >
-          <NewTrackTable
-            tracks={songs}
-            title="Your Last 50 Songs"
-            playlistKey="last50"
-            loading={isAnalyzingRecents}
-            error={null}
-            onExploreGenre={handleExploreGenre}
+          {/* Table section for last 50 songs */}
+          {showSongsTable && (
+           <div style={{ 
+             marginBottom: 48,
+             display: 'flex',
+             justifyContent: 'center'
+            }}>
+             <NewTrackTable
+               tracks={songs}
+               title="Your Last 50 Songs"
+               playlistKey="last50"
+               loading={isAnalyzingRecents}
+               error={null}
+               onExploreGenre={handleExploreGenre}
+               showCreatePlaylist={true}
+               showViewPlaylist={true}
+               wrappedLabel={'Create Wrapped Analysis'}
+               isArtistContext={false}
+             />
+           </div>
+         )}
+         {/* Table section for playlists */}
+         {showPlaylistsTable && playlists.length > 0 && (
+           <div ref={playlistsTableRef} style={{
+             background: '#181818',
+             borderRadius: 18,
+             padding: '3vw 2vw 2vw 2vw',
+             margin: '3vw auto',
+             maxWidth: '98vw',
+             width: '90vw',
+             boxShadow: '0 4px 32px #0003',
+             position: 'relative',
+             minHeight: 120,
+             fontSize: 'clamp(0.85rem, 1.1vw, 1.08rem)',
+             left: '50%',
+             transform: 'translateX(-50%)',
+             boxSizing: 'border-box',
+           }}>
+             <span
+               style={{ position: 'absolute', top: 8, right: 12, cursor: 'pointer', fontSize: 20, color: '#888', zIndex: 2 }}
+               title="Hide table"
+               onClick={handleHidePlaylistsTable}
+             >
+               ×
+             </span>
+                        <h1 className="text-2xl font-bold mb-6" style={{
+                          fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
+                          fontWeight: 900,
+                          color: '#f3f3f3',
+                          letterSpacing: 1,
+                          textShadow: '0 2px 8px #0008',
+                          marginBottom: 24,
+                        }}>
+                          Your Playlists
+                        </h1>
+                        {/* The grid is responsive. It will show 2 columns on mobile, and more on larger screens. */}
+                        <div className="grid grid-cols-2 gap-4" style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                          gap: 'clamp(12px, 2vw, 24px)',
+                          justifyContent: 'center',
+                          alignItems: 'flex-start',
+                          justifyItems: 'center',
+                          width: '100%',
+                          minHeight: 120,
+                        }}>
+           {/* 
+            * PLAYLIST GRID WITH MOBILE SUPPORT
+            * 
+            * Desktop: Controls appear on hover
+            * Mobile: Controls appear on tap for 3 seconds
+            * 
+            * Each playlist shows:
+            * - Cover image or colored placeholder
+            * - Name and track count
+            * - Overlay with Genres, Artists, and Play buttons
+            * - Mobile indicator showing "3s" countdown
+            */}
+           {playlists.map((playlist, idx) => {
+             const palette = ['#7c6fc9','#b86b4b','#4b8bb8','#000000','#c92b2b','#f7f7c2','#1db954','#f87171','#fbbf24','#818cf8'];
+             const color = palette[idx % palette.length];
+             return (
+                                   <div
+                     key={playlist.id || playlist.name || idx}
+                     className="bg-[#181818] rounded-lg p-3 group"
+                     style={{
+                       background: '#181818',
+                       borderRadius: 8,
+                       padding: 12,
+                       cursor: playlist.external_urls?.spotify ? 'pointer' : 'default',
+                       position: 'relative',
+                       overflow: 'hidden',
+                     }}
+                 onClick={() => {
+                   // Handle mobile press to show controls (only on mobile)
+                   if (isMobile) {
+                     handleMobilePlaylistPress(idx);
+                   } else {
+                     // On desktop, open Spotify playlist if available
+                     if (playlist.external_urls?.spotify) {
+                       window.open(playlist.external_urls.spotify, '_blank');
+                     }
+                   }
+                 }}
+                 onMouseEnter={() => !isMobile && setHoveredPlaylistIndex(idx)}
+                 onMouseLeave={() => !isMobile && setHoveredPlaylistIndex(null)}
+               >
 
-            wrappedLabel={'Create Wrapped Analysis'}
-          />
-        </div>
-      
-      )}
-      {/* Table section for playlists */}
-      {showPlaylistsTable && playlists.length > 0 && (
-        <div ref={playlistsTableRef} style={{
-          background: '#181818',
-          borderRadius: 18,
-          padding: '3vw 2vw 2vw 2vw',
-          margin: '3vw auto',
-          maxWidth: '98vw',
-          width: '90vw',
-          boxShadow: '0 4px 32px #0003',
-          position: 'relative',
-          minHeight: 120,
-          fontSize: 'clamp(0.85rem, 1.1vw, 1.08rem)',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          boxSizing: 'border-box',
-        }}>
-          <span
-            style={{ position: 'absolute', top: 8, right: 12, cursor: 'pointer', fontSize: 20, color: '#888', zIndex: 2 }}
-            title="Hide table"
-            onClick={handleHidePlaylistsTable}
-          >
-            ×
-          </span>
-                     <h1 className="text-2xl font-bold mb-6" style={{
-                       fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
-                       fontWeight: 900,
-                       color: '#f3f3f3',
-                       letterSpacing: 1,
-                       textShadow: '0 2px 8px #0008',
-                       marginBottom: 24,
-                     }}>
-                       Your Playlists
-                     </h1>
-                     {/* The grid is responsive. It will show 2 columns on mobile, and more on larger screens. */}
-                     <div className="grid grid-cols-2 gap-4" style={{
-                       display: 'grid',
-                       gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                       gap: 'clamp(12px, 2vw, 24px)',
+                 {/* Cover */}
+                 <div className="relative mb-3 playlist-card">
+                   {playlist.images && playlist.images.length > 0 ? (
+                     <img
+                       src={playlist.images[0].url}
+                       alt={playlist.name}
+                       className="w-full h-auto rounded-md transition-all duration-300"
+                       style={{
+                         width: '120px',
+                         height: '120px',
+                         borderRadius: 6,
+                         objectFit: 'cover',
+                         transition: 'all 0.3s',
+                       }}
+                     />
+                   ) : (
+                     <div className="w-full h-auto rounded-md transition-all duration-300" style={{
+                       width: '120px',
+                       height: '120px',
+                       borderRadius: 6,
+                       background: color,
+                       color: '#fff',
+                       display: 'flex',
+                       alignItems: 'center',
                        justifyContent: 'center',
-                       alignItems: 'flex-start',
-                       justifyItems: 'center',
-                       width: '100%',
-                       minHeight: 120,
-                     }}>
-            {/* 
-             * PLAYLIST GRID WITH MOBILE SUPPORT
-             * 
-             * Desktop: Controls appear on hover
-             * Mobile: Controls appear on tap for 3 seconds
-             * 
-             * Each playlist shows:
-             * - Cover image or colored placeholder
-             * - Name and track count
-             * - Overlay with Genres, Artists, and Play buttons
-             * - Mobile indicator showing "3s" countdown
-             */}
-            {playlists.map((playlist, idx) => {
-              const palette = ['#7c6fc9','#b86b4b','#4b8bb8','#000000','#c92b2b','#f7f7c2','#1db954','#f87171','#fbbf24','#818cf8'];
-              const color = palette[idx % palette.length];
-              return (
-                                    <div
-                      key={playlist.id || playlist.name || idx}
-                      className="bg-[#181818] rounded-lg p-3 group"
-                      style={{
-                        background: '#181818',
-                        borderRadius: 8,
-                        padding: 12,
-                        cursor: playlist.external_urls?.spotify ? 'pointer' : 'default',
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                  onClick={() => {
-                    // Handle mobile press to show controls (only on mobile)
-                    if (isMobile) {
-                      handleMobilePlaylistPress(idx);
-                    } else {
-                      // On desktop, open Spotify playlist if available
-                      if (playlist.external_urls?.spotify) {
-                        window.open(playlist.external_urls.spotify, '_blank');
-                      }
-                    }
-                  }}
-                  onMouseEnter={() => !isMobile && setHoveredPlaylistIndex(idx)}
-                  onMouseLeave={() => !isMobile && setHoveredPlaylistIndex(null)}
-                >
+                       fontWeight: '900',
+                       fontSize: '1.5rem',
+                       transition: 'all 0.3s',
+                       textTransform: 'uppercase',
+                       letterSpacing: 2,
+                     }}>{playlist.name?.split(' ')[0]?.slice(0,8) || '?'}</div>
+                   )}
+                                   </div>
+                 {/* Playlist name */}
+                 <div>
+                   <h3 className="font-bold text-white text-sm truncate" style={{
+                     fontWeight: 700,
+                     fontSize: '0.875rem',
+                     color: '#fff',
+                     marginTop: 8,
+                     marginBottom: 8,
+                     textAlign: 'left',
+                     width: '100%',
+                     overflow: 'hidden',
+                     textOverflow: 'ellipsis',
+                     whiteSpace: 'nowrap',
+                   }}>{playlist.name}</h3>
+                   <p style={{
+                     color: '#9ca3af',
+                     fontSize: '0.75rem',
+                     marginBottom: 0,
+                     textAlign: 'left',
+                     whiteSpace: 'nowrap',
+                     overflow: 'hidden',
+                     textOverflow: 'ellipsis',
+                     fontWeight: '400',
+                     lineHeight: '1.2',
+                     letterSpacing: '0.025em',
+                     fontFamily: 'inherit',
+                   }}>{playlist.trackCount} tracks • {playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h ${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</p>
+                 </div>
+                 
+                 {/* Overlay with action buttons */}
+                 <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center rounded-md overlay" style={{
+                   position: 'absolute',
+                   inset: 0,
+                   background: mobilePlaylistControlsIndex === idx ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+                   display: 'flex',
+                   flexDirection: 'column',
+                   alignItems: 'center',
+                   justifyContent: 'center',
+                   borderRadius: 6,
+                   opacity: (mobilePlaylistControlsIndex === idx || (!isMobile && hoveredPlaylistIndex === idx)) ? 1 : 0,
+                   transition: 'opacity 0.3s ease',
+                   pointerEvents: (mobilePlaylistControlsIndex === idx || (!isMobile && hoveredPlaylistIndex === idx)) ? 'auto' : 'none',
+                   // Add a subtle glow effect when mobile controls are active
+                   boxShadow: mobilePlaylistControlsIndex === idx ? '0 0 20px rgba(29, 185, 84, 0.3)' : 'none',
+                 }}>
 
-                  {/* Cover */}
-                  <div className="relative mb-3 playlist-card">
-                    {playlist.images && playlist.images.length > 0 ? (
-                      <img
-                        src={playlist.images[0].url}
-                        alt={playlist.name}
-                        className="w-full h-auto rounded-md transition-all duration-300"
-                        style={{
-                          width: '120px',
-                          height: '120px',
-                          borderRadius: 6,
-                          objectFit: 'cover',
-                          transition: 'all 0.3s',
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-auto rounded-md transition-all duration-300" style={{
-                        width: '120px',
-                        height: '120px',
-                        borderRadius: 6,
-                        background: color,
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: '900',
-                        fontSize: '1.5rem',
-                        transition: 'all 0.3s',
-                        textTransform: 'uppercase',
-                        letterSpacing: 2,
-                      }}>{playlist.name?.split(' ')[0]?.slice(0,8) || '?'}</div>
-                    )}
-                                    </div>
-                  {/* Playlist name */}
-                  <div>
-                    <h3 className="font-bold text-white text-sm truncate" style={{
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
-                      color: '#fff',
-                      marginTop: 8,
-                      marginBottom: 8,
-                      textAlign: 'left',
-                      width: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}>{playlist.name}</h3>
-                    <p style={{
-                      color: '#9ca3af',
-                      fontSize: '0.75rem',
-                      marginBottom: 0,
-                      textAlign: 'left',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      fontWeight: '400',
-                      lineHeight: '1.2',
-                      letterSpacing: '0.025em',
-                      fontFamily: 'inherit',
-                    }}>{playlist.trackCount} tracks • {playlist.totalDurationMs ? `${Math.floor(playlist.totalDurationMs / 3600000)}h ${Math.floor((playlist.totalDurationMs % 3600000) / 60000)}m` : ''}</p>
-                  </div>
-                  
-                  {/* Overlay with action buttons */}
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center rounded-md overlay" style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: mobilePlaylistControlsIndex === idx ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: 6,
-                    opacity: (mobilePlaylistControlsIndex === idx || (!isMobile && hoveredPlaylistIndex === idx)) ? 1 : 0,
-                    transition: 'opacity 0.3s ease',
-                    pointerEvents: (mobilePlaylistControlsIndex === idx || (!isMobile && hoveredPlaylistIndex === idx)) ? 'auto' : 'none',
-                    // Add a subtle glow effect when mobile controls are active
-                    boxShadow: mobilePlaylistControlsIndex === idx ? '0 0 20px rgba(29, 185, 84, 0.3)' : 'none',
-                  }}>
-
-                    <button 
-                      className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
-                      style={{
-                        background: '#1db954',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '9999px',
-                        fontWeight: 600,
-                        fontSize: isMobile ? '0.9rem' : '0.75rem',
-                        padding: isMobile ? '8px 16px' : '4px 12px',
-                        marginBottom: 8,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleCreatePlaylistWrapped(playlist);
-                      }}
-                    >
-                      Create Wrapped
-                    </button>
-                    <button 
-                      className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
-                      style={{
-                        background: '#374151',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '9999px',
-                        fontWeight: 600,
-                        fontSize: isMobile ? '0.9rem' : '0.75rem',
-                        padding: isMobile ? '8px 16px' : '4px 12px',
-                        marginBottom: 8,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleAnalyzeNewGenres(playlist);
-                      }}
-                    >
-                      Genre Count
-                    </button>
-                    <button 
-                      className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
-                      style={{
-                        background: '#374151',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '9999px',
-                        fontWeight: 600,
-                        fontSize: isMobile ? '0.9rem' : '0.75rem',
-                        padding: isMobile ? '8px 16px' : '4px 12px',
-                        marginBottom: 8,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleAnalyzeNewArtists(playlist);
-                      }}
-                    >
-                      Artist Count
-                    </button>
-                    <a
-                      href={`https://open.spotify.com/playlist/${playlist.id}`}
-                      target="_blank"
+                   <button 
+                     className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
+                     style={{
+                       background: '#1db954',
+                       color: '#fff',
+                       border: 'none',
+                       borderRadius: '9999px',
+                       fontWeight: 600,
+                       fontSize: isMobile ? '0.9rem' : '0.75rem',
+                       padding: isMobile ? '8px 16px' : '4px 12px',
+                       marginBottom: 8,
+                       cursor: 'pointer',
+                       transition: 'all 0.2s ease',
+                     }}
+                     onClick={e => {
+                       e.stopPropagation();
+                       handleCreatePlaylistWrapped(playlist);
+                     }}
+                   >
+                     Create Wrapped
+                   </button>
+                   <button 
+                     className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
+                     style={{
+                       background: '#374151',
+                       color: '#fff',
+                       border: 'none',
+                       borderRadius: '9999px',
+                       fontWeight: 600,
+                       fontSize: isMobile ? '0.9rem' : '0.75rem',
+                       padding: isMobile ? '8px 16px' : '4px 12px',
+                       marginBottom: 8,
+                       cursor: 'pointer',
+                       transition: 'all 0.2s ease',
+                     }}
+                     onClick={e => {
+                       e.stopPropagation();
+                       handleAnalyzeNewGenres(playlist);
+                     }}
+                   >
+                     Genre Count
+                   </button>
+                   <button 
+                     className="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white font-semibold py-1 px-3 rounded-full text-xs mb-2 transition-all"
+                     style={{
+                       background: '#374151',
+                       color: '#fff',
+                       border: 'none',
+                       borderRadius: '9999px',
+                       fontWeight: 600,
+                       fontSize: isMobile ? '0.9rem' : '0.75rem',
+                       padding: isMobile ? '8px 16px' : '4px 12px',
+                       marginBottom: 8,
+                       cursor: 'pointer',
+                       transition: 'all 0.2s ease',
+                     }}
+                     onClick={e => {
+                       e.stopPropagation();
+                       handleAnalyzeNewArtists(playlist);
+                     }}
+                   >
+                     Artist Count
+                   </button>
+                   <a
+                     href={`https://open.spotify.com/playlist/${playlist.id}`}
+                     target="_blank"
                       rel="noopener noreferrer"
-                      className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center transform transition-transform duration-200 hover:scale-110"
-                      style={{
-                        width: isMobile ? 48 : 40,
-                        height: isMobile ? 48 : 40,
-                        background: '#1db954',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s ease',
-                        textDecoration: 'none',
-                      }}
-                      title="Play on Spotify"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: isMobile ? 24 : 20, height: isMobile ? 24 : 20, color: '#000' }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3l14 9-14 9V3z" />
-                      </svg>
-                    </a>
-                    
+                     className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center transform transition-transform duration-200 hover:scale-110"
+                     style={{
+                       width: isMobile ? 48 : 40,
+                       height: isMobile ? 48 : 40,
+                       background: '#1db954',
+                       borderRadius: '50%',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                       cursor: 'pointer',
+                       transition: 'transform 0.2s ease',
+                       textDecoration: 'none',
+                     }}
+                     title="Play on Spotify"
+                     onClick={e => e.stopPropagation()}
+                   >
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: isMobile ? 24 : 20, height: isMobile ? 24 : 20, color: '#000' }}>
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3l14 9-14 9V3z" />
+                     </svg>
+                   </a>
+                   
 
-                  </div>
-                  
-                    {/* Responsive text sizing CSS */}
-                    {/* Essential CSS only */}
-                    <style jsx>{`
-                      @keyframes pulse {
-                        0% { transform: scale(1); }
-                        50% { transform: scale(1.1); }
-                        100% { transform: scale(1); }
-                      }
-                    `}</style>
-                  
+                 </div>
+                 
+                   {/* Responsive text sizing CSS */}
+                   {/* Essential CSS only */}
+                   <style jsx>{`
+                     @keyframes pulse {
+                       0% { transform: scale(1); }
+                       50% { transform: scale(1.1); }
+                       100% { transform: scale(1); }
+                     }
+                   `}</style>
+                 
 
-                  
+                 
 
-                </div>
-              );
-            })}
-          </div>
+               </div>
+             );
+           })}
+         </div>
 
 
-        </div>
-      )}
-            </div>
-          </div>
+       </div>
+     )}
 
           {/* Genre Analysis Results - Displayed directly in main page */}
           {genreAnalysis && (

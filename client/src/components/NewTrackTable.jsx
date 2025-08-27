@@ -10,7 +10,7 @@ import GeniusSongModal from './GeniusSongModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
 import { useRouter } from 'next/navigation';
 
-function useIsMobile(breakpoint = 760) {
+function useIsMobile(breakpoint = 820) {
   const [isMobile, setIsMobile] = React.useState(
     typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
   );
@@ -781,7 +781,7 @@ const NoContributorData = () => {
 
 
 
-  const isMobile = useIsMobile(760);
+  const isMobile = useIsMobile(820);
 
   useEffect(() => {
     if (mobileDropdownOpen === null) return;
@@ -814,7 +814,18 @@ if (isMobile) {
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 18
         }}>
-          <div style={{ fontWeight: 900, fontSize: '1.2rem', color: '#f3f3f3', letterSpacing: 1, textAlign: 'center' }}>{title || 'Your Last 50 Songs'}</div>
+          <div style={{ 
+            fontWeight: 900, 
+            fontSize: 'clamp(1rem, 3vw, 1.2rem)', 
+            color: '#f3f3f3', 
+            letterSpacing: 1, 
+            textAlign: 'center',
+            maxWidth: '90vw',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            lineHeight: 1.2,
+          }} title={title || 'Your Last 50 Songs'}>{title || 'Your Last 50 Songs'}</div>
           <div style={{ 
             display: 'flex', 
             gap: 'clamp(6px, 2vw, 12px)', 
@@ -1279,19 +1290,36 @@ if (isMobile) {
         <div style={{
   width: '100%',
   display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  flexWrap: 'nowrap',
+  alignItems: 'flex-start',
+  justifyContent: 'center',
+  flexWrap: 'wrap',
   gap: '16px'
 }}>
           <span style={{
-            fontSize: 'clamp(1.35rem, 2.5vw, 2.2rem)',
+            fontSize: 'clamp(1rem, 2.1vw, 1.5rem)',
             fontWeight: 900,
             color: '#f3f3f3',
             letterSpacing: 1,
             textShadow: '0 2px 8px #0008',
-          }}>{title || 'Your Last 50 Songs'}</span>
-          <div style={{ display: 'flex', gap: 'clamp(6px, 2vw, 16px)', flexWrap: 'wrap', alignItems: 'center' }}>
+            maxWidth: 'clamp(200px, 40vw, 600px)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            lineHeight: 1.2,
+            flexShrink: 0,
+            textAlign: 'center',
+            width: '100%',
+          }} title={title || 'Your Last 50 Songs'}>{title || 'Your Last 50 Songs'}</span>
+          <div style={{ 
+            display: 'flex', 
+            gap: 'clamp(6px, 2vw, 16px)', 
+            flexWrap: 'wrap', 
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 1,
+            minWidth: 0,
+            width: '100%',
+          }}>
             {isArtistContext && showContributorsButton && onGetContributors && (
               <button
                 onClick={onGetContributors}
@@ -1523,7 +1551,7 @@ if (isMobile) {
                   </td>
                   <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>{track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')}</td>
                   {playlistKey === 'last50' && (
-                    <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)' }}>
+                    <td style={{ padding: 'clamp(12px, 1.5vw, 16px) 0', color: '#b3b3b3', paddingLeft: 'clamp(4px, 0.8vw, 18px)', paddingRight: 'clamp(4px, 0.8vw, 18px)', textAlign: 'center' }}>
                       {track.played_at ? formatListeningTime(track.played_at) : '--'}
                     </td>
                   )}

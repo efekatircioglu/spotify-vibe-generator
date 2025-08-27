@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
+import Sidebar from '../../components/Sidebar';
 import { Doughnut } from 'react-chartjs-2';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
 import NewTrackTable from '../../components/NewTrackTable';
@@ -23,6 +24,9 @@ import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function Last4WeeksPage() {
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
   const [data, setData] = useState(null);
   const [genreDetails, setGenreDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,31 +86,30 @@ export default function Last4WeeksPage() {
   }, []);
 
   return (
-    <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={() => router.push('/')}
-          className={styles.vibeButton}
-        >
-          Profile
-        </button>
-        <button
-          onClick={() => router.push('/last-6-months')}
-          className={styles.vibeButton}
-        >
-          Last 6 Months
-        </button>
-        <button
-          onClick={() => router.push('/last-12-months')}
-          className={styles.vibeButton}
-        >
-          Last 12 Months
-        </button>
-      </div>
+    <>
+      <Sidebar onToggle={(open) => setSidebarOpen(open)} />
+      <div style={{ 
+        padding: 32, 
+        background: '#101114', 
+        minHeight: '100vh',
+        marginLeft: sidebarOpen ? '280px' : '0',
+        transition: 'margin-left 0.3s ease'
+      }}>
+        <main style={{ background: '#101114', minHeight: '100vh' }}>
+
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
-        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+        <div style={{ 
+          marginBottom: 48,
+          display: 'flex',
+          justifyContent: 'center',
+          width: 'clamp(95vw, 98vw, 98vw)', 
+          maxWidth: '100vw', 
+          boxShadow: 'rgba(0, 0, 0, 0.2) 0px 4px 32px', 
+          position: 'relative', 
+          fontSize: 'clamp(0.75rem, 1vw, 1.08rem)',
+         }}>
           <NewTrackTable
             tracks={data.tracks}
             title="Top Tracks Of Last Month"
@@ -115,8 +118,12 @@ export default function Last4WeeksPage() {
             error={error}
             onExploreGenre={handleExploreGenre}
             onExploreContributions={handleExploreContributions}
+            showCreatePlaylist={true}
+            showViewPlaylist={true}
+            wrappedLabel={'Create Your Custom Wrapped'}
+            isArtistContext={false}
           />
-      </div>
+        </div>
       )}
       {data && data.artists && (
         <TopArtistsTable artists={data.artists} title="Top Artists" />
@@ -146,6 +153,8 @@ export default function Last4WeeksPage() {
       {showContributorModal && selectedTrackForContributors && (
         <NewContributorFinder mbid={selectedTrackForContributors.mbid} track={selectedTrackForContributors} />
       )}
-    </main>
+        </main>
+      </div>
+    </>
   );
 } 

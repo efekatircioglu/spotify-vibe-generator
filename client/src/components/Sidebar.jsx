@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar({ onToggle }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
@@ -26,6 +26,13 @@ export default function Sidebar({ onToggle }) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Notify parent component about initial closed state
+  useEffect(() => {
+    if (onToggle) {
+      onToggle(false); // Notify parent that sidebar starts closed
+    }
+  }, [onToggle]);
 
   // Navigation items
   const navItems = [

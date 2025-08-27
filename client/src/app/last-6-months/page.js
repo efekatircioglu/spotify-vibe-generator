@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
+import Sidebar from '../../components/Sidebar';
 import SongAnalysisModal from '../../components/SongAnalysisModal';
 import NewTrackTable from '../../components/NewTrackTable';
 import TopArtistsTable from '../../components/TopArtistsTable';
@@ -10,6 +11,9 @@ import { lookupTrackMBID } from '../../utils/spotifyIdToMBID';
 import GenreLeaderboardChart from '../../components/GenreLeaderboardChart';
 
 export default function Last6MonthsPage() {
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
   const [data, setData] = useState(null);
   const [genreDetails, setGenreDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,27 +72,17 @@ export default function Last6MonthsPage() {
   };
 
   return (
-    <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={() => router.push('/')}
-          className={styles.vibeButton}
-        >
-          Profile
-        </button>
-        <button
-          onClick={() => router.push('/last-4-weeks')}
-          className={styles.vibeButton}
-        >
-          Last 4 Weeks
-        </button>
-        <button
-          onClick={() => router.push('/last-12-months')}
-          className={styles.vibeButton}
-        >
-          Last 12 Months
-        </button>
-      </div>
+    <>
+      <Sidebar onToggle={(open) => setSidebarOpen(open)} />
+      <div style={{ 
+        padding: 32, 
+        background: '#101114', 
+        minHeight: '100vh',
+        marginLeft: sidebarOpen ? '280px' : '0',
+        transition: 'margin-left 0.3s ease'
+      }}>
+        <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
+
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
@@ -132,6 +126,8 @@ export default function Last6MonthsPage() {
       {showContributorModal && selectedTrackForContributors && (
         <NewContributorFinder mbid={selectedTrackForContributors.mbid} track={selectedTrackForContributors} />
       )}
-    </main>
+        </main>
+      </div>
+    </>
   );
 } 

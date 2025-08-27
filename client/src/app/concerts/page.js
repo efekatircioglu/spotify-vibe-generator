@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
+import Sidebar from '../../components/Sidebar';
 // import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId, setFailedArtistCache } from '../../utils/artistCache';
@@ -10,6 +11,9 @@ import { getCachedTopArtists, setCachedTopArtists } from '../../utils/topArtists
 
 export default function ConcertsPage() {
   const router = useRouter();
+  
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // State for artist selection
   const [searchQuery, setSearchQuery] = useState('');
@@ -823,16 +827,17 @@ export default function ConcertsPage() {
   };
   
   return (
-    <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-        <button
-          onClick={() => router.push('/')}
-          className={styles.vibeButton}
-        >
-          Profile
-        </button>
-      </div>
+    <>
+      <Sidebar onToggle={(open) => setSidebarOpen(open)} />
+      <div style={{ 
+        padding: 32, 
+        background: '#101114', 
+        minHeight: '100vh',
+        marginLeft: sidebarOpen ? '280px' : '0',
+        transition: 'margin-left 0.3s ease'
+      }}>
+        <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
+
       
       <h1 style={{ 
         marginBottom: 32, 
@@ -2206,6 +2211,8 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
           />
         </div>
       )}
-    </main>
+        </main>
+      </div>
+    </>
   );
 } 
