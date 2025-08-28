@@ -57,7 +57,12 @@ export default function UserProfile({ user, onLogout, children }) {
                 style={{ borderRadius: '50%', objectFit: 'cover', border: '2px solid #1db954' }}
               />
             )}
-            <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#fff' }}>{user.display_name}</div>
+            <div style={{ 
+              fontWeight: 700, 
+              fontSize: '1.1rem', 
+              color: '#fff',
+              fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
+            }}>{user.display_name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <button
@@ -132,7 +137,12 @@ export default function UserProfile({ user, onLogout, children }) {
                 style={{ borderRadius: '50%', objectFit: 'cover', border: '2px solid #1db954' }}
               />
             )}
-            <div style={{ fontWeight: 700, fontSize: '1.35rem', color: '#fff' }}>{user.display_name}</div>
+            <div style={{ 
+              fontWeight: 700, 
+              fontSize: '1.35rem', 
+              color: '#fff',
+              fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
+            }}>{user.display_name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button

@@ -8,6 +8,7 @@ import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import AlbumContributorsModal from '../../components/AlbumContributorsModal';
 import ArtistCollaborators from '../../components/ArtistCollaborators';
+import ArtistsMosts from '../../components/ArtistsMosts';
 import { getCachedArtistId, setArtistCache, setFailedArtistCache } from '../../utils/artistCache';
 
 // --- Add this entire helper function ---
@@ -281,14 +282,11 @@ export default function ArtistConcertsPage() {
   // Fetch albums when artist or group changes (but NOT when sort changes)
   useEffect(() => {
     if (!selectedArtist?.id || !selectedArtist?.name) return;
-    console.log('Selected artist for genre/style fetch:', selectedArtist.name);
-    
     const initializeAlbumGroup = async () => {
       // If no album group is set, find the first available one
       if (!albumGroup) {
         const firstAvailable = await findFirstAvailableAlbumType(selectedArtist.id);
         setAlbumGroup(firstAvailable);
-        console.log(`🎯 Auto-selected album group: ${firstAvailable}`);
         return; // Exit early, this will trigger the effect again
       }
       
@@ -308,14 +306,6 @@ export default function ArtistConcertsPage() {
           if (data.albums && data.albums.length > 0) {
             setSelectedAlbumId(data.albums[0].id);
           }
-          console.log(`📊 Albums fetched with popularity data: ${data.albums?.length || 0} albums`);
-          
-          // Debug: Log album data with popularity
-          console.log(`🎵 [CLIENT DEBUG] Album data received:`, data.albums?.map(album => ({
-            name: album.name,
-            popularity: album.popularity,
-            releaseDate: album.releaseDate
-          })));
         })
         .catch(err => {
           setAlbumError(err.message || 'Failed to fetch albums');
@@ -327,18 +317,41 @@ export default function ArtistConcertsPage() {
     
     // Explicitly fetch genre/style map from Discogs
     fetch(`http://localhost:8000/discogs/artist/${encodeURIComponent(selectedArtist.name)}/genre-style-map`)
-      .then(res => res.ok ? res.json() : { map: {} })
-      .then(data => {
-        console.log('Fetched genre/style map:', data.map);
-        setAlbumGenreStyleMap(data.map || {});
+      .then(async (res) => {
+        if (res.ok) {
+          return res.json();
+        }
         
-        // Extract and set unique genres and styles
-        const { genres, styles } = extractDiscogsGenresAndStyles(data.map || {});
-        setDiscogsGenres(genres);
-        setDiscogsStyles(styles);
-      })
+        // Handle specific error cases
+        if (res.status === 429) {
+          console.warn(`[Discogs] Rate limit exceeded for "${selectedArtist.name}". Will retry later.`);
+          return { map: {}, message: 'Rate limit exceeded - will retry automatically' };
+        }
+        
+        if (res.status === 404) {
+                  return { map: {}, message: 'No Discogs data available for this artist' };
+      }
+      
+      // For other errors, try to get error details
+      try {
+        const errorData = await res.json();
+        console.error(`[Discogs] API error ${res.status} for "${selectedArtist.name}":`, errorData);
+      } catch (parseErr) {
+        console.error(`[Discogs] API error ${res.status} for "${selectedArtist.name}":`, res.statusText);
+      }
+      
+      return { map: {}, message: 'Failed to fetch Discogs data' };
+    })
+    .then(data => {
+      setAlbumGenreStyleMap(data.map || {});
+      
+      // Extract and set unique genres and styles
+      const { genres, styles } = extractDiscogsGenresAndStyles(data.map || {});
+      setDiscogsGenres(genres);
+      setDiscogsStyles(styles);
+    })
       .catch((err) => {
-        console.error('Error fetching genre/style map:', err);
+        console.error(`[Discogs] Network error fetching genre/style map for "${selectedArtist.name}":`, err);
         setAlbumGenreStyleMap({});
         setDiscogsGenres([]);
         setDiscogsStyles([]);
@@ -388,12 +401,8 @@ export default function ArtistConcertsPage() {
 
   // Handle getting album contributors
   const handleGetAlbumContributors = async () => {
-    console.log(`\n🎵 [CLIENT] Get Contributors button clicked:`);
-    console.log(`   Album: "${selectedAlbum?.name}"`);
-    console.log(`   Artist: "${selectedArtist?.name}"`);
     
     if (!selectedAlbum?.name || !selectedArtist?.name) {
-      console.log(`❌ [CLIENT] Missing album or artist information`);
       setAlbumContributorsError('Missing album or artist information');
       setShowAlbumContributorsModal(true);
       return;
@@ -404,28 +413,19 @@ export default function ArtistConcertsPage() {
     setAlbumContributorsError(null);
 
     const apiUrl = `http://127.0.0.1:8000/album-contributors?albumTitle=${encodeURIComponent(selectedAlbum.name)}&artistName=${encodeURIComponent(selectedArtist.name)}`;
-    console.log(`🌐 [CLIENT] Making API request to: ${apiUrl}`);
 
     try {
       const startTime = Date.now();
       const response = await fetch(apiUrl);
       const endTime = Date.now();
       
-      console.log(`📡 [CLIENT] Response received:`);
-      console.log(`   Status: ${response.status}`);
-      console.log(`   Duration: ${endTime - startTime}ms`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log(`✅ [CLIENT] Data received successfully:`);
-      console.log(`   Contributors object keys:`, Object.keys(data.contributors || {}));
-      console.log(`   Overall contributors: ${data.contributors?.overallContributors?.length || 0}`);
-      console.log(`   Track contributors: ${data.contributors?.trackContributors?.length || 0}`);
-      console.log(`   Labels: ${data.contributors?.labels?.length || 0}`);
-      console.log(`   Companies: ${data.contributors?.companies?.length || 0}`);
+    
       
       setAlbumContributors(data.contributors);
     } catch (error) {
@@ -500,13 +500,11 @@ export default function ArtistConcertsPage() {
   // Fetch Discogs artist profile when artistName changes
   useEffect(() => {
     if (!artistName) return;
-    console.log("Fetching Discogs profile for:", artistName);
     fetch(`http://localhost:8000/discogs/artist-profile?name=${encodeURIComponent(artistName)}`)
       .then(res => res.json())
       .then(data => {
         setDiscogsProfile(data.profile || null);
         setDiscogsRealName(data.realName || null);
-        console.log("Discogs profile response:", data);
       })
       .catch(err => {
         console.error("Error fetching Discogs profile:", err);
@@ -537,57 +535,9 @@ export default function ArtistConcertsPage() {
     processProfile();
   }, [discogsProfile]);
 
-  // Fetch user's long-term top tracks and find #1 track for this artist
-  const [topTrackLastYear, setTopTrackLastYear] = useState(null);
-  const [topTrackTimeRange, setTopTrackTimeRange] = useState(null); // 'long_term' | 'medium_term' | 'short_term'
-  const [loadingTopTrack, setLoadingTopTrack] = useState(false);
-  const [topTrackError, setTopTrackError] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!spotifyId && !selectedArtist?.name) return;
-      setLoadingTopTrack(true);
-      setTopTrackError('');
-      setTopTrackTimeRange(null);
-      const endpoints = [
-        { url: 'http://127.0.0.1:8000/last-12-months', range: 'long_term' },
-        { url: 'http://127.0.0.1:8000/last-6-months', range: 'medium_term' },
-        { url: 'http://127.0.0.1:8000/last-4-weeks', range: 'short_term' },
-      ];
-      let found = null;
-      let foundRange = null;
-      for (const { url, range } of endpoints) {
-        try {
-          const res = await fetch(url);
-          if (!res.ok) continue;
-          const data = await res.json();
-          const tracks = data?.tracks || [];
-          const match = tracks.find(t => (t?.artists || []).some(a => a?.id === spotifyId || (selectedArtist?.name && a?.name?.toLowerCase() === selectedArtist.name.toLowerCase())));
-          if (match) {
-            found = match;
-            foundRange = range;
-            break;
-          }
-        } catch (_) {
-          // Ignore and try next range
-        }
-      }
-      if (cancelled) return;
-      if (found) {
-        setTopTrackLastYear(found);
-        setTopTrackTimeRange(foundRange);
-        setTopTrackError('');
-      } else {
-        setTopTrackLastYear(null);
-        setTopTrackTimeRange(null);
-        setTopTrackError('No top song found for this artist in your top tracks.');
-      }
-      setLoadingTopTrack(false);
-    };
-    run();
-    return () => { cancelled = true; };
-  }, [spotifyId, selectedArtist?.name]);
+
+
 
   // Retry function for API calls (same as concerts page)
   const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
@@ -597,21 +547,19 @@ export default function ArtistConcertsPage() {
         if (response.ok) {
           return await response.json();
         } else if (response.status === 500 && attempt < maxRetries) {
-          console.log(`Attempt ${attempt} failed with 500 error, retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          delay *= 2; // Exponential backoff
-          continue;
-        } else {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-      } catch (error) {
-        if (attempt === maxRetries) {
-          throw error;
-        }
-        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+                  await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // Exponential backoff
+        continue;
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+    } catch (error) {
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2; // Exponential backoff
+    }
     }
   };
 
@@ -678,14 +626,12 @@ export default function ArtistConcertsPage() {
         const imageUrl = firstArtist.images?.[0]?.url || null;
         const ticketmasterArtistName = firstArtist.name;
         setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId, ticketmasterArtistName);
-        console.log(`[Manual Search] Cached bidirectional mapping: "${artistName}" ↔ "${ticketmasterArtistName}" → ${firstArtist.id} (Spotify ID: ${spotifyId})`);
         
         // Navigate to the artist page with the found ID
         router.push(`/artist?name=${encodeURIComponent(artistName)}&spotifyId=${spotifyId}&ticketmasterId=${firstArtist.id}`);
       } else {
         // Cache the failed search to avoid repeated API calls
         setFailedArtistCache(artistName, spotifyId);
-        console.log(`[Manual Search] Cached failed search for "${artistName}" (Spotify ID: ${spotifyId})`);
         setSearchError('No Ticketmaster artist found. Try a different search term.');
       }
     } catch (err) {
@@ -970,7 +916,8 @@ export default function ArtistConcertsPage() {
   fontSize: isMobile ? 'clamp(1.8rem, 6vw, 2.5rem)' : 'clamp(2rem, 5vw, 4rem)', 
   fontWeight: 900, 
   color: '#fff', 
-  letterSpacing: 1 
+  letterSpacing: 1,
+  fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
 }}>{selectedArtist.name}</span>
               </div>
               {artistFollowers !== null && (
@@ -1016,14 +963,14 @@ export default function ArtistConcertsPage() {
                         fontSize: 'clamp(1.2rem, 2.5vw, 1.8rem)',
                         fontWeight: 500,
                         fontStyle: 'italic',
-                        fontFamily: '"Caveat", "Kalam", "Patrick Hand", "Indie Flower", cursive',
+                        fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive',
                         letterSpacing: '0.5px',
                         display: 'inline-block'
                       }}>
                         {discogsRealName.split(' ').map((word, index) => (
                           <span key={index} style={{ display: 'inline-block', marginRight: '4px' }}>
                             <span style={{
-                              fontSize: 'clamp(1.4rem, 2.8vw, 2rem)',
+                              fontSize: 'clamp(1.3rem, 2.6vw, 2rem)',
                               fontWeight: 700,
                               // color: '#60a5fa'
                             }}>
@@ -1322,129 +1269,21 @@ export default function ArtistConcertsPage() {
                   }}
                 >Play</button>
               </div>
+              
+              {/* Top track card positioned below Follow/Play buttons */}
+              <div style={{ marginTop: 24 }}>
+                <ArtistsMosts 
+                  spotifyId={spotifyId}
+                  artistName={selectedArtist?.name}
+                  isMobile={isMobile}
+                />
+              </div>
             </div>
           </div>
 
 
 
-          {/* Top track last year card */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            width: '100%',
-            marginTop: 12
-          }}>
-            {loadingTopTrack && (
-              <div style={{
-                background: '#181c24',
-                padding: '16px 24px',
-                borderRadius: 12,
-                color: '#b3b3b3',
-                fontSize: '0.95rem',
-                boxShadow: '0 2px 16px #0004',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12
-              }}>
-                <div style={{
-                  width: 20,
-                  height: 20,
-                  border: '2px solid #1db954',
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                Searching for your top {selectedArtist?.name} song...
-              </div>
-            )}
-            {!loadingTopTrack && topTrackLastYear && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                background: '#181c24',
-                padding: 18,
-                borderRadius: 12,
-                width: isMobile ? '95%' : '80vw',
-                maxWidth: isMobile ? '95%' : '80vw',
-                minWidth: 320,
-                boxShadow: '0 2px 16px #0004'
-              }}>
-                {topTrackLastYear?.album?.images?.[0]?.url && (
-                  <img
-                    src={topTrackLastYear.album.images[0].url}
-                    alt={topTrackLastYear.name}
-                    style={{ width: isMobile ? 56 : 72, height: isMobile ? 56 : 72, borderRadius: 8, objectFit: 'cover' }}
-                  />
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ color: '#b3b3b3', fontSize: isMobile ? 12 : 14 }}>
-                    {topTrackTimeRange === 'long_term' && `Your most listened ${selectedArtist?.name} song last year`}
-                    {topTrackTimeRange === 'medium_term' && `Your most listened ${selectedArtist?.name} song in the last 6 months`}
-                    {topTrackTimeRange === 'short_term' && `Your most listened ${selectedArtist?.name} song in the last month`}
-                  </span>
-                  <span style={{ color: '#fff', fontWeight: 800, fontSize: isMobile ? 16 : 20 }}>{topTrackLastYear.name}</span>
-                </div>
-                <a 
-                  href={`https://open.spotify.com/track/${topTrackLastYear.id}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{
-                    marginLeft: 'auto',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: '#1db954',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '50%',
-                    fontWeight: 700,
-                    width: isMobile ? 40 : 45,
-                    height: isMobile ? 40 : 45,
-                    minWidth: isMobile ? 40 : 45,
-                    minHeight: isMobile ? 40 : 45,
-                    maxWidth: isMobile ? 40 : 45,
-                    maxHeight: isMobile ? 40 : 45,
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px #1db95433',
-                    transition: 'all 0.2s ease',
-                    textDecoration: 'none',
-                    flexShrink: 0,
-                    boxSizing: 'border-box',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#1ed760';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#1db954';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
-                  }}
-                  title="Play on Spotify"
-                >
-                  <svg role="img" height="18" width="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
-                  </svg>
-                </a>
-              </div>
-            )}
-            {!loadingTopTrack && !topTrackLastYear && topTrackError && (
-              <div style={{
-                background: '#181c24',
-                padding: '16px 24px',
-                borderRadius: 12,
-                color: '#b3b3b3',
-                fontSize: '0.95rem',
-                boxShadow: '0 2px 16px #0004',
-                maxWidth: isMobile ? '95%' : '600px',
-                textAlign: 'center'
-              }}>
-                No top song found for this artist in your listening history
-              </div>
-            )}
-          </div>
+
 
 
 
@@ -1522,8 +1361,6 @@ export default function ArtistConcertsPage() {
                 <button
                   key={option.value}
                   onClick={() => {
-                    console.log(`🎵 [CLIENT DEBUG] Changing sort from ${albumSortBy} to ${option.value}`);
-                    console.log(`⚡ [CLIENT DEBUG] Sorting ${albums.length} albums client-side (no API call needed)`);
                     setAlbumSortBy(option.value);
                     // Update selected album to first album in new sort order
                     if (albums.length > 0) {
@@ -1708,13 +1545,7 @@ export default function ArtistConcertsPage() {
         error={albumContributorsError}
       />
       
-      {/* Add CSS for spinner animation */}
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+
         </main>
       </div>
     </>

@@ -1135,7 +1135,8 @@ export default function Home() {
                   fontSize: 'clamp(2.5rem, 6vw, 4rem)', 
                   fontWeight: 900, 
                   color: '#fff', 
-                  letterSpacing: 1 
+                  letterSpacing: 1,
+                  fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
                 }}>
                   {user?.display_name || 'Spotify User'}
                 </span>

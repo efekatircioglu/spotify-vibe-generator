@@ -8,7 +8,11 @@ const ScrollingText = ({ texts, className = "" }) => {
       <div className="scroll-text">
         <span className="inline-flex">
           {duplicatedTexts.map((text, index) => (
-            <span key={index} className="px-16 text-4xl md:text-6xl font-bold gradient-text whitespace-nowrap">
+            <span 
+              key={index} 
+              className="px-16 text-4xl md:text-6xl font-bold gradient-text whitespace-nowrap"
+              style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}
+            >
               {text}
             </span>
           ))}

@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from '../page.module.css';
+// import styles from '../page.module.css';
 import Sidebar from '../../components/Sidebar';
 // import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId, setFailedArtistCache } from '../../utils/artistCache';
 import { optimizedConcertApiCall, optimizedArtistSearch } from '../../utils/concertApiOptimizer';
-import { getCachedTopArtists, setCachedTopArtists } from '../../utils/topArtistsCache';
+import { getCachedTopArtists } from '../../utils/topArtistsCache';
 
 export default function ConcertsPage() {
   const router = useRouter();
@@ -128,23 +128,9 @@ export default function ConcertsPage() {
       return;
     }
     
-    // If no cache, fetch from API
-    fetch('http://127.0.0.1:8000/all-artists-deduplicated')
-      .then(res => res.ok ? res.json() : { artists: [] })
-      .then(data => {
-        const artists = data.artists || [];
-        setTopArtists(artists);
-        
-        // Cache the results for future use
-        setCachedTopArtists(artists);
-        
-        console.log('Deduplicated artists breakdown:', data.breakdown);
-      })
-      .catch(err => {
-        console.error('Error fetching deduplicated artists:', err);
-        setTopArtists([]);
-      })
-      .finally(() => setLoadingTop(false));
+    // If no cache, show empty state (caches are managed centrally)
+    setTopArtists([]);
+    setLoadingTop(false);
   }, []);
   
   // Retry function for API calls

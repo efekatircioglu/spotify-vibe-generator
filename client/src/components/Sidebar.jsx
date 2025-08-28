@@ -64,7 +64,7 @@ export default function Sidebar({ onToggle }) {
           
           if (response.ok) {
             const userData = await response.json();
-            console.log('Spotify user data:', userData); // Debug log
+            
             setUserProfile({
               name: userData.display_name || 'Spotify User',
               role: userData.email || 'No email available',
@@ -240,28 +240,60 @@ export default function Sidebar({ onToggle }) {
           })) || [];
           
           // Ticketmaster
-          const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
+          const tmRes = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(value)}`);
           const tmData = tmRes.ok ? await tmRes.json() : {};
-          tmSuggestions = tmData._embedded?.attractions
-            ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
-            .map(a => {
-              let spotifyId = (() => {
-                const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
-                if (spotifyLink) {
-                  const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
-                  if (match) return match[1];
-                }
-                return null;
-              })();
-              return {
-                name: a.name,
-                spotifyId,
-                ticketmasterId: a.id || null,
-                image: a.images?.[0]?.url || null,
-                genres: a.genres || [],
+          
+          // Handle enhanced response format
+          if (tmData.mainArtist || tmData.allAttractions) {
+            // Use enhanced response format
+            if (tmData.mainArtist) {
+              tmSuggestions = [{
+                name: tmData.mainArtist.name,
+                spotifyId: null,
+                ticketmasterId: tmData.mainArtist.ticketmasterId || tmData.mainArtist.id,
+                image: null,
+                genres: [],
                 source: 'ticketmaster'
-              };
-            }) || [];
+              }];
+            } else if (tmData.allAttractions && tmData.allAttractions.length > 0) {
+              // Fallback to first attraction if no main artist
+              const firstAttraction = tmData.allAttractions[0];
+              tmSuggestions = [{
+                name: firstAttraction.name,
+                spotifyId: null,
+                ticketmasterId: firstAttraction.ticketmasterId || firstAttraction.id,
+                image: null,
+                genres: [],
+                source: 'ticketmaster'
+              }];
+            } else {
+              tmSuggestions = [];
+            }
+          } else if (tmData._embedded?.attractions) {
+            // Fallback to old format
+            tmSuggestions = tmData._embedded?.attractions
+              ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
+              .map(a => {
+                let spotifyId = (() => {
+                  const spotifyLink = a.externalLinks?.spotify?.[0]?.url;
+                  if (spotifyLink) {
+                    const match = spotifyLink.match(/artist\/([a-zA-Z0-9]+)/);
+                    if (match) return match[1];
+                  }
+                  return null;
+                })();
+                return {
+                  name: a.name,
+                  spotifyId,
+                  ticketmasterId: a.id || null,
+                  image: a.images?.[0]?.url || null,
+                  genres: a.genres || [],
+                  source: 'ticketmaster'
+                };
+              }) || [];
+          } else {
+            tmSuggestions = [];
+          }
         }
         
         // Merge by name: if both exist, merge ticketmasterId into spotify suggestion
@@ -342,22 +374,38 @@ export default function Sidebar({ onToggle }) {
         image = cachedImage;
       }
     } else {
-      // Always use the Spotify name for Ticketmaster search
-      try {
-        const tmData = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(artist.name)}`);
-        const attractions = tmData._embedded?.attractions || [];
-        // Find an exact name match (case-insensitive)
-        const exact = attractions.find(a => a.name.toLowerCase() === artist.name.toLowerCase());
-        if (exact && exact.id) {
-          ticketmasterId = exact.id;
-          // Cache the successful result with image and Spotify ID
-          const imageUrl = exact.images?.[0]?.url || image;
-          setArtistCache(artist.name, exact.id, imageUrl, spotifyId);
-          console.log(`Cached Ticketmaster ID for "${artist.name}": ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+              // Always use the Spotify name for Ticketmaster search
+        try {
+          const tmRes = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artist.name)}`);
+          const tmData = tmRes.ok ? await tmRes.json() : {};
+          
+          // Handle enhanced response format
+          if (tmData.mainArtist) {
+            ticketmasterId = tmData.mainArtist.ticketmasterId || tmData.mainArtist.id;
+            const imageUrl = image; // Keep existing image
+            setArtistCache(artist.name, ticketmasterId, imageUrl, spotifyId);
+            console.log(`Cached Ticketmaster ID for "${artist.name}": ${ticketmasterId}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+          } else if (tmData.allAttractions && tmData.allAttractions.length > 0) {
+            // Fallback to first attraction if no main artist
+            const firstAttraction = tmData.allAttractions[0];
+            ticketmasterId = firstAttraction.ticketmasterId || firstAttraction.id;
+            const imageUrl = image; // Keep existing image
+            setArtistCache(artist.name, ticketmasterId, imageUrl, spotifyId);
+            console.log(`Cached Ticketmaster ID for "${artist.name}": ${ticketmasterId}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+          } else if (tmData._embedded?.attractions) {
+            // Fallback to old format
+            const attractions = tmData._embedded?.attractions || [];
+            const exact = attractions.find(a => a.name.toLowerCase() === artist.name.toLowerCase());
+            if (exact && exact.id) {
+              ticketmasterId = exact.id;
+              const imageUrl = exact.images?.[0]?.url || image;
+              setArtistCache(artist.name, exact.id, imageUrl, spotifyId);
+              console.log(`Cached Ticketmaster ID for "${artist.name}": ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
+            }
+          }
+        } catch (err) {
+          console.error('Error searching Ticketmaster:', err);
         }
-      } catch (err) {
-        console.error('Error searching Ticketmaster:', err);
-      }
     }
     
     // Save full object to recents
@@ -424,15 +472,27 @@ export default function Sidebar({ onToggle }) {
       // Search Ticketmaster if not cached
       if (!ticketmasterId) {
         try {
-          const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(searchQuery.trim())}`);
+          const tmRes = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery.trim())}`);
           if (tmRes.ok) {
             const tmData = await tmRes.json();
-            const attractions = tmData._embedded?.attractions || [];
-            const exact = attractions.find(a => a.name.toLowerCase() === searchQuery.trim().toLowerCase());
-            if (exact && exact.id) {
-              ticketmasterId = exact.id;
-              // Cache the result
-              setArtistCache(searchQuery.trim(), exact.id, image, spotifyId);
+            
+            // Handle enhanced response format
+            if (tmData.mainArtist) {
+              ticketmasterId = tmData.mainArtist.ticketmasterId || tmData.mainArtist.id;
+              setArtistCache(searchQuery.trim(), ticketmasterId, image, spotifyId);
+            } else if (tmData.allAttractions && tmData.allAttractions.length > 0) {
+              // Fallback to first attraction if no main artist
+              const firstAttraction = tmData.allAttractions[0];
+              ticketmasterId = firstAttraction.ticketmasterId || firstAttraction.id;
+              setArtistCache(searchQuery.trim(), ticketmasterId, image, spotifyId);
+            } else if (tmData._embedded?.attractions) {
+              // Fallback to old format
+              const attractions = tmData._embedded?.attractions || [];
+              const exact = attractions.find(a => a.name.toLowerCase() === searchQuery.trim().toLowerCase());
+              if (exact && exact.id) {
+                ticketmasterId = exact.id;
+                setArtistCache(searchQuery.trim(), exact.id, image, spotifyId);
+              }
             }
           }
         } catch (err) {

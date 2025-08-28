@@ -6,7 +6,7 @@ const BASE_URL = 'https://app.ticketmaster.com/discovery/v2';
 async function searchArtist(artistName) {
   const url = `${BASE_URL}/attractions.json`;
   try {
-    console.log(`🎫 [TICKETMASTER API] 📞 Artist search API call for: "${artistName}"`);
+    console.log(`[TicketmasterService] 🔍 Making API call to search for artist: "${artistName}"`);
     const response = await axios.get(url, {
       params: {
         keyword: artistName,
@@ -14,11 +14,37 @@ async function searchArtist(artistName) {
       },
     });
     const attractions = response.data._embedded?.attractions || [];
-    console.log(`🎫 [TICKETMASTER API] ✅ Artist search completed for "${artistName}" - Found ${attractions.length} attractions`);
+    console.log(`[TicketmasterService] ✅ API call successful, found ${attractions.length} attractions for "${artistName}"`);
+    
+    // Log the first few attractions with their IDs for debugging
+    if (attractions.length > 0) {
+      console.log(`[TicketmasterService] 🔍 First attraction details:`, {
+        name: attractions[0].name,
+        id: attractions[0].id,
+        type: attractions[0].type,
+        classifications: attractions[0].classifications
+      });
+      
+      // Find music attractions and log their IDs
+      const musicAttractions = attractions.filter(a => 
+        a.type === 'attraction' && 
+        a.classifications?.[0]?.segment?.name === 'Music' && 
+        a.classifications?.[0]?.primary
+      );
+      
+      if (musicAttractions.length > 0) {
+        console.log(`[TicketmasterService] 🎵 Found ${musicAttractions.length} music attractions with IDs:`, 
+          musicAttractions.map(a => ({ name: a.name, id: a.id }))
+        );
+      } else {
+        console.log(`[TicketmasterService] ⚠️ No music attractions found in the results`);
+      }
+    }
+    
     // Return the first matching artist or all if needed
     return response.data;
   } catch (error) {
-    console.error(`🎫 [TICKETMASTER API] ❌ Artist search failed for "${artistName}":`, error.message);
+    console.error('Artist search failed:', error.message);
     throw new Error('Failed to search artist on Ticketmaster');
   }
 }
@@ -49,8 +75,7 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
     // Join artist IDs with commas, no spaces
     const attractionIds = artistIds.join(',');
     
-    console.log(`🎫 [TICKETMASTER API] Making batch request for ${artistIds.length} artists`);
-    console.log(`🎫 [TICKETMASTER API] Request URL: ${url}?attractionId=${attractionIds.slice(0, 50)}...`);
+    console.log(`[TicketmasterService] 🔍 Making batch API call for ${artistIds.length} artists (IDs: ${artistIds.slice(0, 3).join(', ')}${artistIds.length > 3 ? '...' : ''})`);
     
     let allEvents = [];
     let page = 0;
@@ -71,14 +96,11 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
         params.city = location;
       }
       
-      console.log(`🎫 [TICKETMASTER API] 📞 API Call #${totalApiCalls + 1} - Fetching page ${page} (size: 200)`);
-      
       const response = await axios.get(url, { params });
       const data = response.data;
       const events = data._embedded?.events || [];
       
       totalApiCalls++;
-      console.log(`🎫 [TICKETMASTER API] ✅ API Call #${totalApiCalls} completed - Found ${events.length} events on page ${page}`);
       
       allEvents = allEvents.concat(events);
       
@@ -89,20 +111,18 @@ async function getEventsByMultipleArtistIds(artistIds, location = null) {
       
       // Safety check to prevent infinite loops
       if (page > 10) {
-        console.log(`🎫 [TICKETMASTER API] ⚠️ Reached maximum page limit (10), stopping pagination`);
         break;
       }
     }
     
-    console.log(`🎫 [TICKETMASTER API] 🏁 Batch request completed: ${totalApiCalls} API calls, ${allEvents.length} total events`);
-    
     // Return both events and API call count
+    console.log(`[TicketmasterService] ✅ Batch API call completed: ${totalApiCalls} API calls, ${allEvents.length} total events found`);
     return { 
       _embedded: { events: allEvents },
       apiCallCount: totalApiCalls
     };
   } catch (error) {
-    console.error('🎫 [TICKETMASTER API] ❌ Batch API error:', error.response?.data || error.message);
+    console.error('Batch API error:', error.response?.data || error.message);
     throw new Error('Failed to get events from Ticketmaster');
   }
 }

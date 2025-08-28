@@ -2,11 +2,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { setupAuthMonitoring, checkAuthStatus, refreshToken } from '../utils/authUtils';
+import { setupCacheMonitoring, initializeAllCaches } from '../utils/cacheManager';
 
 export default function AuthWrapper({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start with false to avoid loading screen
   const [isSessionExpired, setIsSessionExpired] = useState(false);
+  const [isBrowser, setIsBrowser] = useState(false);
+
+  // Set browser flag on mount
+  useEffect(() => {
+    setIsBrowser(true);
+  }, []);
 
   // Function to re-initialize authentication
   const reinitializeAuth = async () => {
@@ -14,7 +21,9 @@ export default function AuthWrapper({ children }) {
       setIsLoading(true);
       setIsSessionExpired(false);
       
-      // Check if we have a token
+      // Check if we have a token (only in browser)
+      if (!isBrowser) return;
+      
       const hasToken = localStorage.getItem('spotify_token');
       if (!hasToken) {
         setIsAuthenticated(false);
@@ -47,6 +56,9 @@ export default function AuthWrapper({ children }) {
 
     const initializeAuth = async () => {
       try {
+        // Only run authentication logic in browser
+        if (!isBrowser) return;
+        
         // Check if we have a temporary token from Spotify callback (on any page)
         const urlParams = new URLSearchParams(window.location.search);
         const tempToken = urlParams.get('tempToken');
@@ -72,6 +84,9 @@ export default function AuthWrapper({ children }) {
               currentUrl.searchParams.delete('tempToken');
               window.history.replaceState({}, document.title, currentUrl.pathname + currentUrl.search);
               
+              // Initialize caches with new token
+              await initializeAllCaches();
+              
               // Check auth status with new token
               const authStatus = await checkAuthStatus();
               setIsAuthenticated(authStatus);
@@ -91,8 +106,8 @@ export default function AuthWrapper({ children }) {
           }
         }
 
-        // Check if user is logging out
-        if (localStorage.getItem('spotify_token') === null) {
+        // Check if user is logging out (only in browser)
+        if (isBrowser && localStorage.getItem('spotify_token') === null) {
           // Check if this is a fresh page load or logout
           const hasLoggedOut = sessionStorage.getItem('userLoggedOut');
           
@@ -119,6 +134,28 @@ export default function AuthWrapper({ children }) {
         if (authStatus) {
           // Setup periodic auth monitoring
           cleanupAuthMonitoring = setupAuthMonitoring();
+          
+          // Setup cache monitoring
+          const cleanupCacheMonitoring = setupCacheMonitoring();
+          
+          // Check if caches exist, if not initialize them
+          const { doCachesExist } = await import('../utils/cacheManager');
+          if (!doCachesExist()) {
+            console.log('[AuthWrapper] Caches don\'t exist, initializing...');
+            const { initializeAllCaches } = await import('../utils/cacheManager');
+            await initializeAllCaches();
+          } else {
+            console.log('[AuthWrapper] Caches already exist');
+          }
+          
+          // Store cleanup function for later
+          if (cleanupAuthMonitoring) {
+            const originalCleanup = cleanupAuthMonitoring;
+            cleanupAuthMonitoring = () => {
+              originalCleanup();
+              cleanupCacheMonitoring();
+            };
+          }
         } else {
           // Session expired, not manually logged out
           setIsSessionExpired(true);
@@ -132,7 +169,10 @@ export default function AuthWrapper({ children }) {
       }
     };
 
-    initializeAuth();
+    // Only initialize auth when we're in the browser
+    if (isBrowser) {
+      initializeAuth();
+    }
 
     // Cleanup function
     return () => {
@@ -140,10 +180,13 @@ export default function AuthWrapper({ children }) {
         cleanupAuthMonitoring();
       }
     };
-  }, []);
+  }, [isBrowser]);
 
   // Listen for logout events
   useEffect(() => {
+    // Only set up event listeners in browser
+    if (!isBrowser) return;
+    
     const handleStorageChange = (e) => {
       if (e.key === 'spotify_token' && e.newValue === null) {
         // Token was removed, user is logging out
@@ -172,7 +215,7 @@ export default function AuthWrapper({ children }) {
     
     // Also check for direct localStorage changes
     const checkTokenRemoval = () => {
-      if (localStorage.getItem('spotify_token') === null && isAuthenticated) {
+      if (isBrowser && localStorage.getItem('spotify_token') === null && isAuthenticated) {
         if (typeof window !== 'undefined') {
           window.location.href = '/';
         }
@@ -187,169 +230,137 @@ export default function AuthWrapper({ children }) {
       window.removeEventListener('tokenRefreshed', handleTokenRefreshed);
       clearInterval(interval);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isBrowser]);
 
-  // Show loading state while checking auth
-  if (isLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#101114',
-        color: '#f3f3f3',
-        fontSize: '1.2rem'
-      }}>
-        Checking authentication...
-      </div>
-    );
-  }
+  // Always render children while authentication happens in background
+  // Only show authentication screens if absolutely necessary (like when redirecting to login)
+  
+  // Debug logging
+  console.log('[AuthWrapper] Render state:', {
+    isBrowser,
+    isSessionExpired,
+    isAuthenticated,
+    hasToken: isBrowser ? !!localStorage.getItem('spotify_token') : 'N/A',
+    showOverlay: isBrowser && (isSessionExpired || (isAuthenticated === false && !localStorage.getItem('spotify_token')))
+  });
 
-  // Show initial visit page (black background, "get your wrapped")
-  if (isSessionExpired) {
+  // Only show auth overlay if:
+  // 1. Session is expired, OR
+  // 2. We're definitely not authenticated AND have no token
+  // Don't show if we have a token but auth check is still pending (isAuthenticated === null)
+  if (isBrowser && (isSessionExpired || (isAuthenticated === false && !localStorage.getItem('spotify_token')))) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#101114',
-        color: '#f3f3f3',
-        fontSize: '1.2rem'
-      }}>
+      <>
+        {/* Show the page content in background */}
+        <div style={{ opacity: 0.3, pointerEvents: 'none' }}>
+          {children}
+        </div>
+        
+        {/* Minimal authentication overlay */}
         <div style={{
-          textAlign: 'center',
-          maxWidth: '600px',
-          padding: '60px',
-          background: '#181818',
-          borderRadius: '20px',
-          border: '1px solid #333',
-          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)'
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(16, 17, 20, 0.95)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '20px'
         }}>
-          {/* Exclamation Triangle Icon */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-          </div>
-          
-          <h1 style={{
-            fontSize: '2.5rem',
-            marginBottom: '20px',
-            color: '#fff',
-            fontWeight: '600'
-          }}>
-            Session Expired
-          </h1>
-                    <p style={{
-            fontSize: '1.1rem',
-            marginBottom: '40px',
-            color: '#b3b3b3',
-            lineHeight: '1.5'
-          }}>
-            Your session has expired. Please log in again to continue.
-          </p>
-          
           <div style={{
-            display: 'flex',
-            justifyContent: 'center'
+            background: '#181818',
+            padding: '30px',
+            borderRadius: '16px',
+            border: '1px solid #333',
+            maxWidth: '400px',
+            textAlign: 'center'
           }}>
+            <h2 style={{ 
+              color: '#f3f3f3', 
+              marginBottom: '16px',
+              fontSize: '1.5rem'
+            }}>
+              {isSessionExpired ? 'Session Expired' : 'Authentication Required'}
+            </h2>
+            <p style={{ 
+              color: '#b3b3b3', 
+              marginBottom: '24px',
+              fontSize: '0.9rem'
+            }}>
+              {isSessionExpired 
+                ? 'Your session has expired. Please log in again to continue.'
+                : 'Please log in to access this feature.'
+              }
+            </p>
             <button
               onClick={() => window.location.href = 'http://127.0.0.1:8000/login'}
               style={{
-                padding: '20px 40px',
                 background: '#1db954',
                 color: '#000',
                 border: 'none',
-                borderRadius: '30px',
-                fontSize: '1.1rem',
-                fontWeight: '700',
+                borderRadius: '8px',
+                padding: '12px 24px',
+                fontSize: '1rem',
+                fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 6px 20px rgba(29, 185, 84, 0.3)',
-                minWidth: '280px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px'
+                transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#1ed760';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(29, 185, 84, 0.4)';
+                e.target.style.background = '#1ed760';
+                e.target.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#1db954';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(29, 185, 84, 0.3)';
+                e.target.style.background = '#1db954';
+                e.target.style.transform = 'translateY(0)';
               }}
             >
-              {/* Sync Icon */}
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-                <path d="M3 21V15h6"></path>
-                <path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-                <path d="M21 3v6h-6"></path>
-              </svg>
-              Log in again
+              Login to Spotify
             </button>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
-  // If not authenticated, show login prompt
-  if (!isAuthenticated) {
-    return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#101114',
-        color: '#f3f3f3',
-        textAlign: 'center',
-        padding: '20px'
-      }}>
-        <h1 style={{ marginBottom: '20px' }}>Session Expired</h1>
-        <p style={{ marginBottom: '30px', color: '#b3b3b3' }}>
-          Your session has expired. Please log in again to continue.
-        </p>
-        <button
-          onClick={() => window.location.href = 'http://127.0.0.1:8000/login'}
-          style={{
-            background: '#1db954',
-            color: '#000',
-            border: 'none',
-            borderRadius: '25px',
-            padding: '12px 32px',
-            fontSize: '1.1rem',
-            fontWeight: '700',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#1ed760';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#1db954';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          Login Again
-        </button>
-      </div>
-    );
-  }
-
-  // If authenticated, render the children
-  if (isAuthenticated) {
-    return children;
-  }
+  // Normal case: render children with background authentication
+  return (
+    <>
+      {children}
+      
+      {/* Subtle loading indicator in top-right corner when checking auth */}
+      {isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(24, 24, 27, 0.9)',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          padding: '8px 12px',
+          fontSize: '0.8rem',
+          color: '#b3b3b3',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{
+            width: '12px',
+            height: '12px',
+            border: '2px solid #1db954',
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          Checking auth...
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+    </>
+  );
 }

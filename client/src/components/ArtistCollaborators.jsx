@@ -13,6 +13,7 @@ import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
 export default function ArtistCollaborators({ artistId, artistName, collaborators = [], loading = false, error = '', stats = null, onAnalyze }) {
   const selectedAlbumTypes = 'album,single,compilation,appears_on'; // Always use all types
   const [expandedCollaborator, setExpandedCollaborator] = useState(null);
+  const [isComponentExpanded, setIsComponentExpanded] = useState(false); // Main expand/collapse state - starts collapsed
   const hasTriggeredAnalysis = useRef(false);
   
   // Dropdown states
@@ -39,17 +40,32 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
 
   const handleAnalyzeClick = () => {
     if (onAnalyze) {
+      // Start the analysis
       onAnalyze(selectedAlbumTypes);
+      
+      // Automatically expand the component to show loading state
+      setIsComponentExpanded(true);
+      
+      // Mark that analysis has been triggered
+      hasTriggeredAnalysis.current = true;
     }
   };
 
+  // Remove automatic analysis trigger - now optional
+  // useEffect(() => {
+  //   // Trigger analysis when component mounts if no collaborators data yet
+  //   if (!loading && !collaborators?.length && !error && artistId && !hasTriggeredAnalysis.current) {
+  //     hasTriggeredAnalysis.current = true;
+  //     handleAnalyzeClick();
+  //   }
+  // }, [artistId]);
+
+  // Auto-expand when results are available
   useEffect(() => {
-    // Trigger analysis when component mounts if no collaborators data yet
-    if (!loading && !collaborators?.length && !error && artistId && !hasTriggeredAnalysis.current) {
-      hasTriggeredAnalysis.current = true;
-      handleAnalyzeClick();
+    if (collaborators.length > 0 && !loading && !error) {
+      setIsComponentExpanded(true);
     }
-  }, [artistId]);
+  }, [collaborators.length, loading, error]);
 
 
 
@@ -270,23 +286,66 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
         border: '1px solid #333'
       }}>
         {/* Header */}
-        <div style={{
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          gap: 8, 
-          marginBottom: 18,
-          width: '95%',
-          margin: '0 auto 18px'
-        }}>
+        <div 
+          onClick={() => {
+            // Only allow clicking if we have results or analysis is in progress
+            if (collaborators.length > 0 || loading || stats) {
+              setIsComponentExpanded(!isComponentExpanded);
+            }
+          }}
+          style={{
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            gap: 8, 
+            marginBottom: 18,
+            width: '95%',
+            margin: '0 auto 18px',
+            cursor: (collaborators.length > 0 || loading || stats) ? 'pointer' : 'default',
+            padding: '8px',
+            borderRadius: '8px',
+            transition: 'background-color 0.2s ease',
+            position: 'relative'
+          }}
+          onMouseEnter={(e) => {
+            // Only show hover effect if clickable
+            if (collaborators.length > 0 || loading || stats) {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+        >
           <div style={{ 
             fontWeight: 900, 
             fontSize: '1.6rem', 
             color: '#f3f3f3', 
             letterSpacing: 1, 
-            textAlign: 'center' 
+            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
           }}>
-            Frequent Collaborators {artistName && `for ${artistName}`}
+            <span>Frequent Collaborators {artistName && `for ${artistName}`}</span>
+            
+            {/* Show expand/collapse button only if we have results or have started analysis */}
+            {(collaborators.length > 0 || loading || stats) ? (
+              <span 
+                onClick={() => setIsComponentExpanded(!isComponentExpanded)}
+                style={{ 
+                  color: '#1db954', 
+                  fontWeight: 'bold', 
+                  fontSize: '20px',
+                  transition: 'transform 0.2s ease',
+                  transform: isComponentExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                  cursor: 'pointer'
+                }}
+              >
+                ▼
+              </span>
+            ) : null}
           </div>
           
           {stats && (
@@ -324,7 +383,56 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
           )}
         </div>
 
-        {loading && (
+        {/* Show start button when no analysis has been done and not currently loading */}
+        {!loading && !error && collaborators.length === 0 && !stats && !hasTriggeredAnalysis.current && (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '20px',
+            background: 'rgba(255, 255, 255, 0.02)',
+            margin: '0 20px',
+            borderRadius: '8px'
+          }}>
+            <div style={{ 
+              color: '#b3b3b3', 
+              fontSize: '0.9rem', 
+              marginBottom: '16px' 
+            }}>
+              Discover who {artistName} frequently collaborates with
+            </div>
+            <button 
+              onClick={handleAnalyzeClick}
+              style={{
+                backgroundColor: '#1db954',
+                color: '#000',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(29, 185, 84, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#1ed760';
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(29, 185, 84, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#1db954';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 2px 8px rgba(29, 185, 84, 0.3)';
+              }}
+            >
+              Start Collaboration Analysis
+            </button>
+          </div>
+        )}
+
+        {/* Show content only when expanded */}
+        {isComponentExpanded && (
+          <>
+            {loading && (
           <div style={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -355,26 +463,7 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
           </div>
         )}
 
-        {!loading && !error && collaborators.length === 0 && !stats && (
-          <div style={{ textAlign: 'center', padding: '20px' }}>
-            <button 
-              onClick={handleAnalyzeClick}
-              style={{
-                backgroundColor: '#1db954',
-                color: '#000',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              Analyze Collaborations
-            </button>
-          </div>
-        )}
+
 
         {!loading && !error && collaborators.length === 0 && stats && (
           <div style={{ color: '#b3b3b3', textAlign: 'center', padding: '20px' }}>
@@ -845,6 +934,8 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
               </div>
             ))}
           </div>
+        )}
+          </>
         )}
         
         {/* Mobile modals */}

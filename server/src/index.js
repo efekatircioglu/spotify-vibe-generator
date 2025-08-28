@@ -942,7 +942,6 @@ app.get('/top-artists', async (req, res) => {
 
 // Helper to get top data for a given time range
 async function getTopData(time_range) {
-  console.log(`🎵 [SPOTIFY API] 📞 Fetching top data for time_range: ${time_range} (tracks + artists)`);
   const [tracksRes, artistsRes] = await Promise.all([
     spotifyApi.getMyTopTracks({ time_range, limit: 50 }),
     spotifyApi.getMyTopArtists({ time_range, limit: 50 })
@@ -953,9 +952,6 @@ async function getTopData(time_range) {
   // Increment counter for 2 API calls (tracks + artists)
   globalApiCallCounter.spotify += 2;
   globalApiCallCounter.total += 2;
-  
-  console.log(`🎵 [SPOTIFY API] ✅ Top data fetched for ${time_range}: ${tracks.length} tracks, ${artists.length} artists`);
-  console.log(`📊 [API COUNTER] Spotify: ${globalApiCallCounter.spotify}, Total: ${globalApiCallCounter.total}`);
   
   // Collect genres from top artists with artist details
   let genreData = {};
@@ -1108,16 +1104,12 @@ app.get('/all-artists-deduplicated', async (req, res) => {
       ticketmasterConcertSearch: 0,
       total: 0
     };
-    console.log(`📊 [API COUNTER] Reset for new session`);
-    
-    console.log(`🎵 [SPOTIFY API] 📞 Starting deduplicated artists fetch (3 time periods)`);
     // Fetch artists from all three time periods
     const [data12Months, data6Months, data4Weeks] = await Promise.all([
       getTopData('long_term'),
       getTopData('medium_term'),
       getTopData('short_term')
     ]);
-    console.log(`🎵 [SPOTIFY API] ✅ All time periods fetched, starting deduplication`);
 
     // Create a map to track seen artists and their time periods
     const artistMap = new Map();
@@ -1166,9 +1158,6 @@ app.get('/all-artists-deduplicated', async (req, res) => {
       '6_months': allArtists.filter(a => a.timePeriod === '6_months').length,
       '4_weeks': allArtists.filter(a => a.timePeriod === '4_weeks').length
     };
-
-    console.log(`🎵 [SPOTIFY API] ✅ Deduplication completed: ${allArtists.length} unique artists`);
-    console.log(`🎵 [SPOTIFY API] Breakdown: 12m=${breakdown['12_months']}, 6m=${breakdown['6_months']}, 4w=${breakdown['4_weeks']}`);
 
     res.json({
       artists: allArtists,
@@ -1385,8 +1374,6 @@ app.get('/artist-albums/:artistId', async (req, res) => {
 
     // If sorting by popularity, fetch popularity data for albums in batches
     if (sortParam === 'popularity') {
-      console.log(`🎵 [ALBUM POPULARITY DEBUG] Fetching popularity data for ${albums.length} albums using batch API...`);
-      
       // Spotify allows up to 20 albums per batch call
       const BATCH_SIZE = 20;
       const albumIds = albums.map(album => album.id);
@@ -1404,7 +1391,6 @@ app.get('/artist-albums/:artistId', async (req, res) => {
             const globalIndex = i + batchIndex;
             if (globalIndex < albums.length) {
               albums[globalIndex].popularity = albumDetails.popularity || 0;
-              console.log(`🎵 [ALBUM POPULARITY DEBUG] Batch ${Math.floor(i/BATCH_SIZE) + 1}: "${albums[globalIndex].name}" = ${albums[globalIndex].popularity}`);
             }
           });
           
@@ -1421,34 +1407,19 @@ app.get('/artist-albums/:artistId', async (req, res) => {
           }
         }
       }
-      
-      console.log(`🎵 [ALBUM POPULARITY DEBUG] Finished fetching popularity data using batch API`);
     }
 
-    // Debug: Log popularity data
-    console.log(`🎵 [ALBUM POPULARITY DEBUG] Sort by: ${sortParam}`);
-    console.log(`🎵 [ALBUM POPULARITY DEBUG] Raw album data:`, albums.map(a => ({
-      name: a.name,
-      popularity: a.popularity,
-      releaseDate: a.releaseDate
-    })));
-    
     // Check if we have any popularity data
     const albumsWithPopularity = albums.filter(a => a.popularity > 0);
-    console.log(`🎵 [ALBUM POPULARITY DEBUG] Albums with popularity > 0: ${albumsWithPopularity.length}/${albums.length}`);
     
     if (albumsWithPopularity.length === 0 && sortParam === 'popularity') {
-      console.log(`⚠️ [ALBUM POPULARITY DEBUG] No popularity data available, falling back to release date sort`);
+      // Fall back to release date sort if no popularity data available
     }
 
     // Sort albums based on the sort parameter
     switch (sortParam) {
       case 'popularity':
         albums.sort((a, b) => b.popularity - a.popularity); // Highest popularity first
-        console.log(`🎵 [ALBUM POPULARITY DEBUG] After popularity sort:`, albums.map(a => ({
-          name: a.name,
-          popularity: a.popularity
-        })));
         break;
       case 'release_date':
       default:
@@ -1459,10 +1430,6 @@ app.get('/artist-albums/:artistId', async (req, res) => {
           if (!b.releaseDate) return -1;
           return b.releaseDate.localeCompare(a.releaseDate);
         });
-        console.log(`🎵 [ALBUM POPULARITY DEBUG] After release date sort:`, albums.map(a => ({
-          name: a.name,
-          releaseDate: a.releaseDate
-        })));
         break;
     }
 
@@ -1559,7 +1526,7 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
     // Step 1: Get specific album types (much faster than fetching all)
     let allAlbums = [];
     
-    console.log(`🎵 Starting collaborators analysis for artist ${artistId}...`);
+
     
     // Add initial delay to prevent hitting rate limits
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -2034,15 +2001,12 @@ app.delete('/me/following/artist/:id', async (req, res) => {
 // Get all followed artists
 app.get('/me/following/artists', async (req, res) => {
   try {
-    console.log(`🎵 [SPOTIFY API] 📞 Fetching followed artists (limit: 50)`);
     const { body } = await spotifyApi.getFollowedArtists({ limit: 50 });
     globalApiCallCounter.spotify++;
     globalApiCallCounter.total++;
-    console.log(`🎵 [SPOTIFY API] ✅ Found ${body.artists.items.length} followed artists`);
-    console.log(`📊 [API COUNTER] Spotify: ${globalApiCallCounter.spotify}, Total: ${globalApiCallCounter.total}`);
     res.json({ artists: body.artists.items });
   } catch (err) {
-    console.error('🎵 [SPOTIFY API] ❌ Error fetching followed artists:', err);
+    console.error('Error fetching followed artists:', err);
     res.status(500).json({ error: 'Failed to fetch followed artists' });
   }
 });
@@ -2086,7 +2050,9 @@ app.get('/api/artist-search-navigate', async (req, res) => {
     
     // 2. Try to get Ticketmaster ID for concerts
     let ticketmasterId = null;
+    let ticketmasterSource = 'not_found';
     try {
+      console.log(`[Artist Search Navigate] 🔍 Making Ticketmaster API call for "${artistName}"`);
       const ticketmasterData = await ticketmasterService.searchArtist(artistName);
       if (ticketmasterData._embedded?.attractions) {
         const exactMatch = ticketmasterData._embedded.attractions.find(
@@ -2094,11 +2060,14 @@ app.get('/api/artist-search-navigate', async (req, res) => {
         );
         if (exactMatch) {
           ticketmasterId = exactMatch.id;
-          console.log(`[Artist Search Navigate] Found Ticketmaster ID: ${ticketmasterId}`);
+          ticketmasterSource = 'api_call';
+          console.log(`[Artist Search Navigate] ✅ Found Ticketmaster ID via API call: ${ticketmasterId}`);
+        } else {
+          console.log(`[Artist Search Navigate] ⚠️ No exact match found in Ticketmaster API results for "${artistName}"`);
         }
       }
     } catch (ticketmasterErr) {
-      console.log(`[Artist Search Navigate] Ticketmaster search failed:`, ticketmasterErr.message);
+      console.log(`[Artist Search Navigate] ❌ Ticketmaster API call failed:`, ticketmasterErr.message);
     }
     
     // 3. Build navigation parameters
@@ -2118,6 +2087,7 @@ app.get('/api/artist-search-navigate', async (req, res) => {
       success: true,
       artist: bestMatch,
       ticketmasterId,
+      ticketmasterSource, // Include the source of the Ticketmaster ID
       params: params,
       navigationUrl: `/artist?${params.join('&')}`
     });
@@ -2138,26 +2108,63 @@ app.get('/ticketmaster/search-artist', async (req, res) => {
   const { artistName } = req.query;
   if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
   try {
-    console.log(`🔍 [ARTIST SEARCH] Searching for artist: "${artistName}"`);
+    console.log(`[Ticketmaster Search] 🔍 Making API call to search for artist: "${artistName}"`);
     const data = await ticketmasterService.searchArtist(artistName);
     const attractions = data._embedded?.attractions || [];
-    const musicArtists = attractions.filter(artist => {
-      const isMusic = artist.classifications && 
-        artist.classifications.some(classification => 
-          classification.segment && classification.segment.name === 'Music'
-        );
-      return isMusic;
+    
+    // Find the best match (exact name match first, then similar names)
+    const exactMatch = attractions.find(a => 
+      a.type === 'attraction' && 
+      a.id && 
+      a.name.toLowerCase() === artistName.toLowerCase()
+    );
+    
+    const similarMatches = attractions.filter(a => 
+      a.type === 'attraction' && 
+      a.id && 
+      a.name.toLowerCase().includes(artistName.toLowerCase()) &&
+      a.name.toLowerCase() !== artistName.toLowerCase()
+    );
+    
+    // Create enhanced response with main artist and related attractions
+    const enhancedData = {
+      ...data,
+      mainArtist: exactMatch ? {
+        name: exactMatch.name,
+        id: exactMatch.id,
+        ticketmasterId: exactMatch.id,
+        type: exactMatch.type,
+        classifications: exactMatch.classifications
+      } : null,
+      relatedAttractions: similarMatches.map(a => ({
+        name: a.name,
+        id: a.id,
+        ticketmasterId: a.id,
+        type: a.type,
+        classifications: a.classifications
+      })),
+      allAttractions: attractions.filter(a => a.type === 'attraction' && a.id).map(a => ({
+        name: a.name,
+        id: a.id,
+        ticketmasterId: a.id,
+        type: a.type
+      }))
+    };
+    
+    console.log(`[Ticketmaster Search] 🎵 Enhanced response created:`, {
+      mainArtist: enhancedData.mainArtist,
+      relatedAttractions: enhancedData.relatedAttractions.length,
+      totalAttractions: enhancedData.allAttractions.length
     });
     
     // Increment counter for artist search
     globalApiCallCounter.ticketmasterArtistSearch++;
     globalApiCallCounter.total++;
     
-    console.log(`🔍 [ARTIST SEARCH] ✅ Found ${musicArtists.length} music artists for "${artistName}"`);
-    console.log(`📊 [API COUNTER] Ticketmaster Artist Search: ${globalApiCallCounter.ticketmasterArtistSearch}, Total: ${globalApiCallCounter.total}`);
-    res.json(data);
+    console.log(`[Ticketmaster Search] ✅ API call completed for "${artistName}": ${enhancedData.allAttractions.length} attractions with IDs found`);
+    res.json(enhancedData);
   } catch (err) {
-    console.error(`🔍 [ARTIST SEARCH] ❌ Error searching artist "${artistName}":`, err);
+    console.error('Error searching artist:', err);
     res.status(500).json({ error: 'Failed to search artist' });
   }
 });
@@ -2169,12 +2176,11 @@ app.get('/discogs/artist-profile', async (req, res) => {
   try {
     const result = await getArtistBio(name);
     if (result.error) {
-      console.log(`[Discogs API] No profile found for:`, name, '| Error:', result.error);
       return res.status(404).json({ error: result.error });
     }
-    console.log(`[Discogs API] Profile found for:`, name);
+    res.json(result);
   } catch (e) {
-    console.error(`[Discogs API] Error fetching profile for:`, name, e);
+    console.error('Error fetching profile:', e);
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
@@ -2195,11 +2201,41 @@ app.get('/discogs/artist/:name', async (req, res) => {
 app.get('/discogs/artist/:name/genre-style-map', async (req, res) => {
   const artistName = req.params.name;
   if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
+  
   try {
+    console.log(`[Discogs] Fetching genre/style map for artist: "${artistName}"`);
     const map = await getAlbumGenreStyleMapByArtistName(artistName);
+    
+    if (!map || Object.keys(map).length === 0) {
+      console.log(`[Discogs] No genre/style data found for artist: "${artistName}"`);
+      return res.json({ map: {}, message: 'No genre/style information available for this artist' });
+    }
+    
+    console.log(`[Discogs] Successfully fetched genre/style map for "${artistName}" with ${Object.keys(map).length} albums`);
     res.json({ map });
+    
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch genre/style map', details: err.message });
+    console.error(`[Discogs] Error fetching genre/style map for "${artistName}":`, err);
+    
+    // Provide more specific error messages based on error type
+    if (err.message.includes('429')) {
+      res.status(429).json({ 
+        error: 'Discogs API rate limit exceeded', 
+        details: 'Too many requests to Discogs API. Please try again later.',
+        retryAfter: 60 // Suggest waiting 1 minute
+      });
+    } else if (err.message.includes('404')) {
+      res.status(404).json({ 
+        error: 'Artist not found on Discogs', 
+        details: 'This artist may not have any releases cataloged on Discogs.'
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to fetch genre/style map', 
+        details: err.message,
+        suggestion: 'This might be a temporary issue. Please try again later.'
+      });
+    }
   }
 });
 
@@ -2321,7 +2357,6 @@ app.post('/reset-api-counter', (req, res) => {
     ticketmasterConcertSearch: 0,
     total: 0
   };
-  console.log(`📊 [API COUNTER] Reset to zero`);
   res.json({ message: 'API counter reset', counter: globalApiCallCounter });
 });
 
@@ -2338,9 +2373,6 @@ app.post('/concerts/events/optimized-batch', async (req, res) => {
   }
   
   try {
-    console.log(`🎯 [API CALLS] Starting optimized batch concert search for ${artistIds.length} artists`);
-    console.log(`🎯 [API CALLS] Artist IDs: ${artistIds.slice(0, 5).join(', ')}${artistIds.length > 5 ? '...' : ''}`);
-    
     // Make a single API call to Ticketmaster with all artist IDs
     const data = await ticketmasterService.getEventsByMultipleArtistIds(artistIds);
     const events = data._embedded?.events || [];
@@ -2349,9 +2381,6 @@ app.post('/concerts/events/optimized-batch', async (req, res) => {
     // Increment counter for concert search API calls
     globalApiCallCounter.ticketmasterConcertSearch += concertApiCalls;
     globalApiCallCounter.total += concertApiCalls;
-    
-    console.log(`🎯 [API CALLS] Found ${events.length} concerts from Ticketmaster API`);
-    console.log(`📊 [API COUNTER] Ticketmaster Concert Search: ${globalApiCallCounter.ticketmasterConcertSearch}, Total: ${globalApiCallCounter.total}`);
     
     // Add artist info to each event (match by attraction ID)
     const eventsWithArtistInfo = events.map(event => {
@@ -2363,16 +2392,6 @@ app.post('/concerts/events/optimized-batch', async (req, res) => {
       };
     });
     
-    console.log(`🎯 [API CALLS] ✅ Optimized batch search completed: ${eventsWithArtistInfo.length} concerts for ${artistIds.length} artists`);
-    
-    // Display final API call summary
-    console.log(`\n📊 [FINAL API SUMMARY] ==========================================`);
-    console.log(`📊 [FINAL API SUMMARY] 🎵 Spotify API Calls: ${globalApiCallCounter.spotify}`);
-    console.log(`📊 [FINAL API SUMMARY] 🔍 Ticketmaster Artist Search Calls: ${globalApiCallCounter.ticketmasterArtistSearch}`);
-    console.log(`📊 [FINAL API SUMMARY] 🎫 Ticketmaster Concert Search Calls: ${globalApiCallCounter.ticketmasterConcertSearch}`);
-    console.log(`📊 [FINAL API SUMMARY] 📈 TOTAL API CALLS: ${globalApiCallCounter.total}`);
-    console.log(`📊 [FINAL API SUMMARY] ==========================================\n`);
-    
     res.json({ 
       concerts: eventsWithArtistInfo,
       totalEvents: eventsWithArtistInfo.length,
@@ -2380,7 +2399,7 @@ app.post('/concerts/events/optimized-batch', async (req, res) => {
       apiCallSummary: globalApiCallCounter
     });
   } catch (err) {
-    console.error('🎯 [API CALLS] ❌ Optimized batch error:', err);
+    console.error('Optimized batch error:', err);
     res.status(500).json({ error: 'Failed to fetch optimized batch concerts', details: err.message });
   }
 });
@@ -3167,7 +3186,6 @@ app.get('/album-contributors', async (req, res) => {
 
     // Final summary log
     const totalApiCalls = searchAttempts + fetchAttempts;
-    console.log(`📊 Completed: ${searchAttempts} search attempts, ${fetchAttempts} fetch attempts (${totalApiCalls} total API calls)`);
 
     res.json({ contributors });
     

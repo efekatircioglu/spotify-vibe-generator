@@ -43,7 +43,7 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col justify-center items-center px-4 z-10">
         <div className="text-center mb-16 animate-scale-in">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 gradient-text relative z-20">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 gradient-text relative z-20" style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}>
             Vibe Generator
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed relative z-20">
@@ -111,7 +111,7 @@ const Index = () => {
       <section className="py-20 px-4 relative z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 gradient-text">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 gradient-text" style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}>
               Choose Your Journey
             </h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
@@ -159,7 +159,7 @@ const Index = () => {
       {/* Final CTA Section */}
       <section className="py-20 px-4 text-center relative z-10">
         <div className="max-w-4xl mx-auto animate-fade-in-up">
-          <h3 className="text-3xl md:text-4xl font-bold mb-6 gradient-text">
+          <h3 className="text-3xl md:text-4xl font-bold mb-6 gradient-text" style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}>
             Ready to Enhance Your Spotify Experience?
           </h3>
           <p className="text-xl text-muted-foreground mb-8">

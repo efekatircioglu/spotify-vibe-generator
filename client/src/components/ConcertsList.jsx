@@ -344,9 +344,6 @@ export default function ConcertsList({
                             selectedArtist.split(', ').some(artistName => {
                               const matches = attraction.name.toLowerCase().includes(artistName.toLowerCase()) ||
                                 artistName.toLowerCase().includes(attraction.name.toLowerCase());
-                              if (matches) {
-                                console.log(`Highlighting: "${attraction.name}" matches "${artistName}"`);
-                              }
                               return matches;
                             });
                           
