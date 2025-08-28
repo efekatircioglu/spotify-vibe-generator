@@ -1084,12 +1084,26 @@ export default function ArtistConcertsPage() {
                   {discogsRealName && (
                     <div>
                       <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
                         color: '#ffffff',
                         fontSize: 'clamp(0.8rem, 1.5vw, 1rem)',
                         fontWeight: 600,
                         marginBottom: 8,
                         opacity: 0.9
                       }}>
+                        <img 
+                          src="/3580649-200.png" 
+                          alt="Artist Icon" 
+                          style={{ 
+                            width: '24px', 
+                            height: '24px', 
+                            objectFit: 'contain',
+                            opacity: 0.8,
+                            filter: 'brightness(0) saturate(100%) invert(100%)'
+                          }} 
+                        />
                         Real Name
                       </div>
                       <div style={{

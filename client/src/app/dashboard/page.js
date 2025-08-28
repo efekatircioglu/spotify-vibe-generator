@@ -15,6 +15,7 @@ import WrappedAnalysisModal from '../../components/WrappedAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../../utils/artistCache';
 import { getRecentSearches, saveRecentSearch } from '../../utils/recentSearchesCache';
 import '../../utils/storageMonitor'; // Import storage monitoring utilities
+import QuickStats from '../../components/QuickStats';
 
 
 
@@ -1369,6 +1370,8 @@ export default function Home() {
             </div>
           </div>
 
+          {/* QuickStats Section */}
+          <QuickStats isMobile={isMobile} />
 
           {/* Removed empty state message */}
           {/* Table section for last 50 songs */}
