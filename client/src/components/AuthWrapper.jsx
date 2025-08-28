@@ -140,12 +140,13 @@ export default function AuthWrapper({ children }) {
           
           // Check if caches exist, if not initialize them
           const { doCachesExist } = await import('../utils/cacheManager');
+          
           if (!doCachesExist()) {
             console.log('[AuthWrapper] Caches don\'t exist, initializing...');
             const { initializeAllCaches } = await import('../utils/cacheManager');
             await initializeAllCaches();
           } else {
-            console.log('[AuthWrapper] Caches already exist');
+            console.log('[AuthWrapper] Caches already exist, skipping initialization');
           }
           
           // Store cleanup function for later
@@ -236,14 +237,7 @@ export default function AuthWrapper({ children }) {
   // Only show authentication screens if absolutely necessary (like when redirecting to login)
   
   // Debug logging
-  console.log('[AuthWrapper] Render state:', {
-    isBrowser,
-    isSessionExpired,
-    isAuthenticated,
-    hasToken: isBrowser ? !!localStorage.getItem('spotify_token') : 'N/A',
-    showOverlay: isBrowser && (isSessionExpired || (isAuthenticated === false && !localStorage.getItem('spotify_token')))
-  });
-
+  
   // Only show auth overlay if:
   // 1. Session is expired, OR
   // 2. We're definitely not authenticated AND have no token

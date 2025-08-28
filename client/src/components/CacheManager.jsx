@@ -10,28 +10,14 @@ export default function CacheManager() {
     // Setup centralized cache monitoring
     const cleanupCacheMonitoring = setupCacheMonitoring();
     
-    // Clear cache when user leaves the app
-    const handleBeforeUnload = () => {
-      clearAllCaches();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        clearAllCaches();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Don't clear caches on tab switch or minimize - only when token expires
+    // This prevents the aggressive cache clearing that was causing issues
 
     return () => {
       // Cleanup cache monitoring
       if (cleanupCacheMonitoring) {
         cleanupCacheMonitoring();
       }
-      
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

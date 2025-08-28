@@ -240,17 +240,135 @@ export default function ArtistConcertsPage() {
   // Album group filter state - will be set dynamically based on available content
   const [albumGroup, setAlbumGroup] = useState(null);
   const albumGroups = [
-    { label: 'Albums', value: 'album' },
-    { label: 'Singles', value: 'single' },
-    { label: 'Compilations', value: 'compilation' },
-    { label: 'Appears On', value: 'appears_on' },
+    { 
+      label: 'Albums', 
+      value: 'album',
+      icon: (
+        <svg 
+          width={16} 
+          height={16} 
+          viewBox="0 0 24 24" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="12" width="18" height="8" rx="2" ry="2"></rect>
+          <rect x="3" y="4" width="18" height="8" rx="2" ry="2"></rect>
+          <line x1="7" y1="8" x2="7.01" y2="8"></line>
+          <line x1="7" y1="16" x2="7.01" y2="16"></line>
+        </svg>
+      )
+    },
+    { 
+      label: 'Singles', 
+      value: 'single',
+      icon: (
+        <svg 
+          width={16} 
+          height={16} 
+          viewBox="0 0 24 24" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      )
+    },
+    { 
+      label: 'Compilations', 
+      value: 'compilation',
+      icon: (
+        <svg 
+          width={16} 
+          height={16} 
+          viewBox="0 0 24 24" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M8 6h13"></path>
+          <path d="M8 12h13"></path>
+          <path d="M8 18h13"></path>
+          <path d="M3 6h.01"></path>
+          <path d="M3 12h.01"></path>
+          <path d="M3 18h.01"></path>
+        </svg>
+      )
+    },
+    { 
+      label: 'Appears On', 
+      value: 'appears_on',
+      icon: (
+        <svg 
+          width={16} 
+          height={16} 
+          viewBox="0 0 24 24" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <path d="M20 8v6"></path>
+          <path d="m22 12-2-2-2 2"></path>
+        </svg>
+      )
+    },
   ];
   
   // Album sorting state
-  const [albumSortBy, setAlbumSortBy] = useState('release_date');
+  const [albumSortBy, setAlbumSortBy] = useState('popularity');
   const albumSortOptions = [
-    { label: 'Release Date', value: 'release_date' },
-    { label: 'Popularity', value: 'popularity' },
+    { 
+      label: 'Release Date', 
+      value: 'release_date',
+      icon: (
+        <svg 
+          width={16} 
+          height={16} 
+          viewBox="0 0 24 24" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      )
+    },
+    { 
+      label: 'Popularity', 
+      value: 'popularity',
+      icon: (
+        <svg 
+          width={16} 
+          height={16} 
+          viewBox="0 0 24 24" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+          <polyline points="17 6 23 6 23 12"></polyline>
+        </svg>
+      )
+    },
   ];
   const [isBioExpanded, setIsBioExpanded] = useState(false); // <-- Add this line
   const [isHeaderBioExpanded, setIsHeaderBioExpanded] = useState(false); // <-- Add this line for header bio
@@ -924,9 +1042,25 @@ export default function ArtistConcertsPage() {
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
-                  gap: 16, 
+                  gap: 12, 
                   marginTop: 2 
                 }}>
+                  <svg 
+                    width={isMobile ? 20 : 24} 
+                    height={isMobile ? 20 : 24} 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ color: '#b3b3b3', opacity: 0.8 }}
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
                   <span style={{ 
                     color: '#b3b3b3', 
                     fontSize: isMobile ? 'clamp(0.85rem, 2.5vw, 1.1rem)' : 'clamp(0.9rem, 2vw, 1.25rem)', 
@@ -989,12 +1123,30 @@ export default function ArtistConcertsPage() {
                   {(artistGenres.length > 0 || discogsGenres.length > 0) && (
                     <div>
                       <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
                         color: '#ffffff',
                         fontSize: isMobile ? 'clamp(0.75rem, 2vw, 0.9rem)' : 'clamp(0.8rem, 1.5vw, 1rem)',
                         fontWeight: 600,
                         marginBottom: isMobile ? 6 : 8,
                         opacity: 0.9
                       }}>
+                        <svg 
+                          width={isMobile ? 16 : 18} 
+                          height={isMobile ? 16 : 18} 
+                          viewBox="0 0 24 24" 
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path d="M9 18V5l12-2v13"></path>
+                          <circle cx="6" cy="18" r="3"></circle>
+                          <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
                         Genres
                       </div>
                       <div style={{
@@ -1076,12 +1228,28 @@ export default function ArtistConcertsPage() {
                   {discogsStyles.length > 0 && (
                     <div>
                       <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
                         color: '#ffffff',
                         fontSize: 'clamp(0.8rem, 1.5vw, 1rem)',
                         fontWeight: 600,
                         marginBottom: 8,
                         opacity: 0.9
                       }}>
+                        <svg 
+                          width={isMobile ? 16 : 18} 
+                          height={isMobile ? 16 : 18} 
+                          viewBox="0 0 24 24" 
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
                         Styles
                       </div>
                       <div style={{
@@ -1127,12 +1295,30 @@ export default function ArtistConcertsPage() {
                   {discogsProfile && discogsProfile.trim().length > 0 && (
                     <div>
                       <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
                         color: '#ffffff',
                         fontSize: 'clamp(0.8rem, 1.5vw, 1rem)',
                         fontWeight: 600,
                         marginBottom: 8,
                         opacity: 0.9
                       }}>
+                        <svg 
+                          width={isMobile ? 16 : 18} 
+                          height={isMobile ? 16 : 18} 
+                          viewBox="0 0 24 24" 
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ opacity: 0.8 }}
+                        >
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
                         About
                       </div>
                       <div style={{
@@ -1198,11 +1384,11 @@ export default function ArtistConcertsPage() {
               }}>
                 <button
                   style={{
-                    background: isFollowing ? '#232323' : '#1db954',
-                    color: isFollowing ? '#1db954' : '#181818',
+                    background: isFollowing ? 'rgba(255, 255, 255, 0.1)' : '#1db954',
+                    color: isFollowing ? '#fff' : '#181818',
                     fontWeight: 700,
-                    border: 'none',
-                    borderRadius: 24,
+                    border: isFollowing ? '1px solid rgba(255, 255, 255, 0.2)' : 'none',
+                    borderRadius: 20,
                     padding: isMobile 
                       ? `clamp(6px, 1.5vh, 10px) clamp(16px, 2.5vw, 24px)` 
                       : `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
@@ -1210,13 +1396,13 @@ export default function ArtistConcertsPage() {
                       ? `clamp(0.8rem, 2vw, 1rem)` 
                       : `clamp(0.9rem, 1.5vw, 1.1rem)`,
                     cursor: followLoading || isFollowing === null ? 'wait' : 'pointer',
-                    boxShadow: '0 2px 8px #0001',
+                    boxShadow: isFollowing ? '0 2px 8px rgba(0, 0, 0, 0.2)' : '0 2px 8px #1db95433',
                     display: 'flex',
                     alignItems: 'center',
                     gap: isMobile ? 6 : 8,
                     opacity: followLoading || isFollowing === null ? 0.7 : 1,
                     pointerEvents: followLoading || isFollowing === null ? 'none' : 'auto',
-                    transition: 'background 0.2s, color 0.2s, padding 0.2s, font-size 0.2s',
+                    transition: 'all 0.2s ease',
                   }}
                   disabled={followLoading || isFollowing === null}
                   onClick={async () => {
@@ -1238,20 +1424,50 @@ export default function ArtistConcertsPage() {
                 >
                   {isFollowing ? (
                     <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6 }}>
-                      <svg width={isMobile ? 16 : 18} height={isMobile ? 16 : 18} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10" fill="#1db954"/><path d="M6 10.5L9 13.5L14 8.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg 
+                        width={isMobile ? 16 : 18} 
+                        height={isMobile ? 16 : 18} 
+                        viewBox="0 0 24 24" 
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <polyline points="17 11 19 13 23 9"></polyline>
+                      </svg>
                       Followed
                     </span>
                   ) : (
-                    'Follow'
+                    <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6 }}>
+                      <svg 
+                        width={isMobile ? 16 : 18} 
+                        height={isMobile ? 16 : 18} 
+                        viewBox="0 0 24 24" 
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="17" y1="11" x2="23" y2="11"></line>
+                      </svg>
+                      Follow
+                    </span>
                   )}
                 </button>
                 <button
                   style={{
-                    background: '#232323',
+                    background: 'rgba(255, 255, 255, 0.1)',
                     color: '#fff',
                     fontWeight: 700,
-                    border: 'none',
-                    borderRadius: 24,
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: 20,
                     padding: isMobile 
                       ? `clamp(6px, 1.5vh, 10px) clamp(16px, 2.5vw, 24px)` 
                       : `clamp(8px, 2vh, 12px) clamp(20px, 3vw, 32px)`,
@@ -1259,15 +1475,32 @@ export default function ArtistConcertsPage() {
                       ? `clamp(0.8rem, 2vw, 1rem)` 
                       : `clamp(0.9rem, 1.5vw, 1.1rem)`,
                     cursor: 'pointer',
-                    boxShadow: '0 2px 8px #0001',
-                    transition: 'padding 0.2s, font-size 0.2s',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isMobile ? 6 : 8,
                   }}
                   onClick={() => {
                     if (spotifyId) {
                       window.open(`https://open.spotify.com/artist/${spotifyId}`, '_blank', 'noopener,noreferrer');
                     }
                   }}
-                >Play</button>
+                >
+                  <svg 
+                    width={isMobile ? 16 : 18} 
+                    height={isMobile ? 16 : 18} 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  Play
+                </button>
               </div>
               
               {/* Top track card positioned below Follow/Play buttons */}
@@ -1330,9 +1563,13 @@ export default function ArtistConcertsPage() {
                     boxShadow: albumGroup === group.value ? '0 2px 8px #1db95433' : 'none',
                     transition: 'background 0.18s, color 0.18s',
                     opacity: albumGroup === null ? 0.6 : 1, // Dim buttons when loading
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
                   }}
                   disabled={albumGroup === null} // Disable buttons while determining first available type
                 >
+                  {group.icon}
                   {group.label}
                 </button>
               ))}
@@ -1391,8 +1628,12 @@ export default function ArtistConcertsPage() {
                     cursor: 'pointer',
                     boxShadow: albumSortBy === option.value ? '0 2px 6px #1db95433' : 'none',
                     transition: 'background 0.18s, color 0.18s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
                   }}
                 >
+                  {option.icon}
                   {option.label}
                 </button>
               ))}

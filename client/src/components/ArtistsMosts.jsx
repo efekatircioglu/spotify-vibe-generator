@@ -135,21 +135,30 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
   return (
     <div style={{
       display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
       justifyContent: 'center',
+      alignItems: isMobile ? 'center' : 'flex-start',
+      gap: isMobile ? 16 : 24,
       width: '100%',
-      marginTop: 12
+      marginTop: 12,
+      padding: isMobile ? '0 16px' : '0 32px',
+      flexWrap: 'wrap'
     }}>
       {loadingTopTrack && (
         <div style={{
-          background: '#181c24',
+          background: 'rgba(255, 255, 255, 0.1)',
           padding: '16px 24px',
-          borderRadius: 12,
+          borderRadius: 20,
           color: '#b3b3b3',
           fontSize: '0.95rem',
-          boxShadow: '0 2px 16px #0004',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
           display: 'flex',
           alignItems: 'center',
-          gap: 12
+          gap: 12,
+          width: isMobile ? '100%' : '500px',
+          height: isMobile ? '120px' : '140px',
+          justifyContent: 'center'
         }}>
           <div style={{
             width: 20,
@@ -167,23 +176,26 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
           display: 'flex',
           alignItems: 'center',
           gap: isMobile ? 12 : 16,
-          background: '#181c24',
-          padding: isMobile ? 14 : 18,
-          borderRadius: 12,
-          width: isMobile ? '95%' : '600px',
-          maxWidth: isMobile ? '95%' : '600px',
-          boxShadow: '0 2px 16px #0004'
+          background: 'rgba(255, 255, 255, 0.1)',
+          padding: isMobile ? 16 : 24,
+          borderRadius: 20,
+          width: isMobile ? '100%' : '500px',
+          height: isMobile ? '120px' : '140px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
           {topTrackLastYear?.album?.images?.[0]?.url && (
             <img
               src={topTrackLastYear.album.images[0].url}
               alt={topTrackLastYear.name}
               style={{ 
-                width: isMobile ? 40 : 64, 
-                height: isMobile ? 40 : 64, 
+                width: isMobile ? 56 : 64, 
+                height: isMobile ? 56 : 64, 
                 borderRadius: 8, 
                 objectFit: 'cover', 
-                flexShrink: 0 
+                flexShrink: 0,
+                marginLeft: isMobile ? -8 : 0,
+                marginTop: isMobile ? -8 : 0
               }}
             />
           )}
@@ -266,43 +278,6 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
               </div>
             )}
           </div>
-          <a 
-            href={`https://open.spotify.com/track/${topTrackLastYear.id}`} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: '#1db954',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '50%',
-              fontWeight: 700,
-              width: isMobile ? 32 : 44,
-              height: isMobile ? 32 : 44,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px #1db95433',
-              transition: 'all 0.2s ease',
-              textDecoration: 'none',
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#1ed760';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 16px #1db95440';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#1db954';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px #1db95433';
-            }}
-            title="Play on Spotify"
-          >
-            <svg role="img" height={isMobile ? 12 : 18} width={isMobile ? 12 : 18} aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
-              <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
-            </svg>
-          </a>
         </div>
       )}
       
@@ -312,30 +287,32 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
           display: 'flex',
           alignItems: 'center',
           gap: isMobile ? 12 : 16,
-          background: '#181c24',
-          padding: isMobile ? 14 : 18,
-          borderRadius: 12,
-          width: isMobile ? '95%' : '600px',
-          maxWidth: isMobile ? '95%' : '600px',
-          marginTop: 16,
-          boxShadow: '0 2px 16px #0004'
+          background: 'rgba(255, 255, 255, 0.1)',
+          padding: isMobile ? 16 : 24,
+          borderRadius: 20,
+          width: isMobile ? '100%' : '500px',
+          height: isMobile ? '120px' : '140px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
           {artistRankings.artist.images && artistRankings.artist.images[0] && (
             <img
               src={artistRankings.artist.images[0].url}
               alt={artistName}
               style={{ 
-                width: isMobile ? 40 : 64, 
-                height: isMobile ? 40 : 64, 
+                width: isMobile ? 56 : 64, 
+                height: isMobile ? 56 : 64, 
                 borderRadius: 8, 
                 objectFit: 'cover', 
-                flexShrink: 0 
+                flexShrink: 0,
+                marginLeft: isMobile ? -8 : 0,
+                marginTop: isMobile ? -8 : 0
               }}
             />
           )}
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
             <span style={{ color: '#b3b3b3', fontSize: isMobile ? 11 : 13 }}>
-              Your ranking for {artistName}
+              Your ranking over time
             </span>
             <span style={{ 
               color: '#fff', 
@@ -343,31 +320,8 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
               fontSize: isMobile ? 15 : 18, 
               marginBottom: isMobile ? 6 : 8 
             }}>
-              Artist Rankings
+              {artistName}
             </span>
-            
-            {/* Artist Stats */}
-            {artistRankings.artistInfo && (
-              <div style={{ 
-                display: 'flex', 
-                gap: isMobile ? 8 : 12, 
-                marginBottom: isMobile ? 6 : 8,
-                flexWrap: 'wrap'
-              }}>
-                {artistRankings.artistInfo.genres && artistRankings.artistInfo.genres.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: isMobile ? 3 : 4,
-                    color: '#b3b3b3',
-                    fontSize: isMobile ? '10px' : '12px'
-                  }}>
-                    <span>🎵</span>
-                    <span>{artistRankings.artistInfo.genres[0]}</span>
-                  </div>
-                )}
-              </div>
-            )}
             
             {/* Show artist rankings */}
             <div style={{ 
@@ -436,6 +390,7 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
         </div>
       )}
       
+      {/* Hidden: No top song found message
       {!loadingTopTrack && !topTrackLastYear && topTrackError && (
         <div style={{
           background: '#181c24',
@@ -450,6 +405,7 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
           No top song found for this artist in your listening history
         </div>
       )}
+      */}
       
       {/* Add CSS for spinner animation */}
       <style jsx>{`

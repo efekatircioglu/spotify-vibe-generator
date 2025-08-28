@@ -7,11 +7,8 @@ import { fetchAndCacheTopData } from './topDataCache';
 
 const CACHE_KEYS = {
   SPOTIFY_TOP_ARTISTS: 'spotify_top_artists',
-  UNIFIED_TOP_TRACKS: 'unified_top_tracks',
-  CACHE_TIMESTAMP: 'cache_timestamp'
+  UNIFIED_TOP_TRACKS: 'unified_top_tracks'
 };
-
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Initialize all caches when a new token is generated
@@ -19,11 +16,13 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
  */
 export const initializeAllCaches = async () => {
   try {
-    console.log('[CacheManager] Initializing all caches...');
+    // Check if caches already exist to prevent unnecessary re-initialization
+    if (doCachesExist()) {
+      console.log('[CacheManager] Caches already exist, skipping initialization');
+      return true;
+    }
     
-    // Set cache timestamp
-    const timestamp = Date.now();
-    localStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, timestamp.toString());
+    console.log('[CacheManager] Initializing all caches...');
     
     console.log('[CacheManager] Starting artists cache initialization...');
     // Initialize both caches in parallel
@@ -68,7 +67,6 @@ export const clearAllCaches = () => {
     // Clear both caches
     localStorage.removeItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
     localStorage.removeItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
-    localStorage.removeItem(CACHE_KEYS.CACHE_TIMESTAMP);
     
     console.log('[CacheManager] All caches cleared');
     return true;
@@ -80,15 +78,12 @@ export const clearAllCaches = () => {
 };
 
 /**
- * Check if caches are valid and not expired
+ * Check if caches are valid (always true since we don't use time-based expiration)
  */
 export const areCachesValid = () => {
   try {
-    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
-    if (!timestamp) return false;
-    
-    const age = Date.now() - parseInt(timestamp);
-    return age < CACHE_DURATION;
+    // Since we don't use time-based expiration, caches are valid as long as they exist
+    return doCachesExist();
     
   } catch (error) {
     console.error('[CacheManager] Error checking cache validity:', error);
@@ -110,7 +105,11 @@ export const doCachesExist = () => {
     const artistsData = JSON.parse(artistsCache);
     const tracksData = JSON.parse(tracksCache);
     
-    return artistsData?.artists?.length > 0 && tracksData?.length > 0;
+    // More lenient check - just ensure the data structures exist
+    const hasArtists = artistsData && typeof artistsData === 'object' && artistsData.artists;
+    const hasTracks = tracksData && Array.isArray(tracksData);
+    
+    return hasArtists && hasTracks;
     
   } catch (error) {
     console.error('[CacheManager] Error checking cache existence:', error);
@@ -147,21 +146,12 @@ export const forceRefreshAllCaches = async () => {
  */
 export const getCacheStatus = () => {
   try {
-    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
     const artistsCache = localStorage.getItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
     const tracksCache = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
     
-    const now = Date.now();
-    const age = timestamp ? now - parseInt(timestamp) : 0;
-    const isValid = age < CACHE_DURATION;
-    
     return {
       exists: !!(artistsCache && tracksCache),
-      valid: isValid,
-      age: age,
-      ageMinutes: Math.floor(age / (60 * 1000)),
-      expiresIn: Math.max(0, CACHE_DURATION - age),
-      expiresInMinutes: Math.max(0, Math.floor((CACHE_DURATION - age) / (60 * 1000))),
+      valid: true, // Always valid since we don't use time-based expiration
       artistsCount: artistsCache ? JSON.parse(artistsCache)?.artists?.length || 0 : 0,
       tracksCount: tracksCache ? JSON.parse(tracksCache)?.length || 0 : 0
     };
@@ -171,10 +161,6 @@ export const getCacheStatus = () => {
     return {
       exists: false,
       valid: false,
-      age: 0,
-      ageMinutes: 0,
-      expiresIn: 0,
-      expiresInMinutes: 0,
       artistsCount: 0,
       tracksCount: 0
     };
@@ -205,11 +191,8 @@ export const setupCacheMonitoring = () => {
     
     // Monitor for token refresh events
     const handleTokenRefreshed = () => {
-      console.log('[CacheManager] Token refreshed, checking cache validity...');
-      if (!areCachesValid()) {
-        console.log('[CacheManager] Caches expired, reinitializing...');
-        initializeAllCaches();
-      }
+      console.log('[CacheManager] Token refreshed, caches remain valid');
+      // No need to reinitialize caches on token refresh since we don't use time-based expiration
     };
     
     // Add event listeners

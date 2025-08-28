@@ -1047,6 +1047,9 @@ export default function Home() {
     );
   }
 
+  // Desktop vs Mobile layout logic
+  const isDesktop = !isMobile;
+
   return (
     <>
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
@@ -1059,15 +1062,15 @@ export default function Home() {
             style={{
               position: 'relative',
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: isDesktop ? 'row' : 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'clamp(16px, 3vw, 32px)',
-              minHeight: 'clamp(300px, 50vh, 500px)',
+              justifyContent: isDesktop ? 'flex-start' : 'center',
+              gap: isDesktop ? '48px' : 'clamp(16px, 3vw, 32px)',
+              minHeight: isDesktop ? '400px' : 'clamp(300px, 50vh, 500px)',
               width: '100vw',
               borderRadius: '0 0 32px 32px',
               boxShadow: '0 4px 32px #0002',
-              padding: 'clamp(24px, 6vh, 48px) clamp(24px, 5vw, 64px)',
+              padding: isDesktop ? '48px 64px' : 'clamp(24px, 6vh, 48px) clamp(24px, 5vw, 64px)',
               overflow: 'hidden',
               zIndex: 10,
               marginTop: '-32px',
@@ -1109,14 +1112,14 @@ export default function Home() {
                 src={user.images[0].url} 
                 alt={user.display_name || 'User'} 
                 style={{ 
-                  width: 'clamp(120px, 25vw, 180px)', 
+                  width: isDesktop ? '200px' : 'clamp(120px, 25vw, 180px)', 
                   aspectRatio: '1 / 1',
                   borderRadius: '50%', 
                   objectFit: 'cover', 
                   boxShadow: '0 4px 24px #0004', 
                   border: '4px solid #fff', 
                   zIndex: 4,
-                  marginTop: 'clamp(16px, 4vh, 24px)'
+                  marginTop: isDesktop ? '0' : 'clamp(16px, 4vh, 24px)'
                 }} 
               />
             )}
@@ -1124,15 +1127,16 @@ export default function Home() {
             <div style={{ 
               display: 'flex', 
               flexDirection: 'column', 
-              alignItems: 'center', 
-              gap: 'clamp(8px, 2vh, 16px)', 
+              alignItems: isDesktop ? 'flex-start' : 'center', 
+              gap: isDesktop ? '24px' : 'clamp(8px, 2vh, 16px)', 
               zIndex: 4,
-              marginTop: 'clamp(8px, 2vh, 16px)',
-              textAlign: 'center'
+              marginTop: isDesktop ? '0' : 'clamp(8px, 2vh, 16px)',
+              textAlign: isDesktop ? 'left' : 'center',
+              flex: 1
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ 
-                  fontSize: 'clamp(2.5rem, 6vw, 4rem)', 
+                  fontSize: isDesktop ? '3.5rem' : 'clamp(2.5rem, 6vw, 4rem)', 
                   fontWeight: 900, 
                   color: '#fff', 
                   letterSpacing: 1,
@@ -1142,15 +1146,151 @@ export default function Home() {
                 </span>
               </div>
               
+              {/* Additional user info */}
+              <div style={{
+                display: 'flex',
+                flexDirection: isDesktop ? 'row' : 'column',
+                gap: isDesktop ? 24 : 8,
+                alignItems: isDesktop ? 'center' : 'flex-start',
+                flexWrap: 'wrap'
+              }}>
+                                 {/* Follower count */}
+                 {user?.followerCount !== null && user?.followerCount !== undefined && (
+                   <div style={{
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: 8,
+                     color: '#b3b3b3',
+                     fontSize: isDesktop ? '1rem' : '0.9rem',
+                     fontWeight: 500,
+                     padding: '8px 16px',
+                     background: 'rgba(255, 255, 255, 0.1)',
+                     borderRadius: '20px',
+                     border: '1px solid rgba(255, 255, 255, 0.2)'
+                   }}>
+                     <svg 
+                       width={isDesktop ? 18 : 16} 
+                       height={isDesktop ? 18 : 16} 
+                       viewBox="0 0 24 24" 
+                       fill="none"
+                       stroke="currentColor"
+                       strokeWidth="2"
+                       strokeLinecap="round"
+                       strokeLinejoin="round"
+                       style={{ opacity: 0.8 }}
+                     >
+                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                       <circle cx="9" cy="7" r="4"></circle>
+                       <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                       <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                     </svg>
+                                          <span>
+                       {user.followerCount.toLocaleString()} {user.followerCount === 1 ? 'follower' : 'followers'}
+                     </span>
+                   </div>
+                 )}
+                 
+                 {/* Following count - using the Follow icon */}
+                 {user?.followingCount !== null && user?.followingCount !== undefined && (
+                   <div style={{
+                     display: 'flex',
+                     alignItems: 'center',
+                     gap: 8,
+                     color: '#b3b3b3',
+                     fontSize: isDesktop ? '1rem' : '0.9rem',
+                     fontWeight: 500,
+                     padding: '8px 16px',
+                     background: 'rgba(255, 255, 255, 0.1)',
+                     borderRadius: '20px',
+                     border: '1px solid rgba(255, 255, 255, 0.2)'
+                   }}>
+                     <svg 
+                       width={isDesktop ? 18 : 16} 
+                       height={isDesktop ? 18 : 16} 
+                       viewBox="0 0 24 24" 
+                       fill="none"
+                       stroke="currentColor"
+                       strokeWidth="2"
+                       strokeLinecap="round"
+                       strokeLinejoin="round"
+                       style={{ opacity: 0.8 }}
+                     >
+                       <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                       <circle cx="8.5" cy="7" r="4"></circle>
+                       <line x1="20" y1="8" x2="20" y2="14"></line>
+                       <line x1="17" y1="11" x2="23" y2="11"></line>
+                     </svg>
+                     <span>
+                       {user.followingCount.toLocaleString()} following
+                     </span>
+                   </div>
+                 )}
+                 
+                 {/* Account type */}
+                {user?.product && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    color: '#1db954',
+                    fontSize: isDesktop ? '1rem' : '0.9rem',
+                    fontWeight: 600,
+                    padding: '8px 16px',
+                    background: 'rgba(29, 185, 84, 0.1)',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(29, 185, 84, 0.3)'
+                  }}>
+                    <svg 
+                      width={isDesktop ? 18 : 16} 
+                      height={isDesktop ? 18 : 16} 
+                      viewBox="0 0 24 24" 
+                      fill="currentColor"
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <span>
+                      {user.product === 'premium' ? 'Premium' : user.product === 'free' ? 'Free' : user.product}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Country */}
+                {user?.country && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    color: '#b3b3b3',
+                    fontSize: isDesktop ? '1rem' : '0.9rem',
+                    fontWeight: 500,
+                    padding: '8px 16px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                  }}>
+                    <svg 
+                      width={isDesktop ? 18 : 16} 
+                      height={isDesktop ? 18 : 16} 
+                      viewBox="0 0 24 24" 
+                      fill="currentColor"
+                      style={{ opacity: 0.8 }}
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    <span>{user.country}</span>
+                  </div>
+                )}
+              </div>
+              
 
               
               {/* Action Button - Only Show Playlists */}
               <div style={{ 
                 display: 'flex', 
                 gap: 16, 
-                marginTop: 24, 
+                marginTop: isDesktop ? 0 : 24, 
                 flexWrap: 'wrap',
-                justifyContent: 'center'
+                justifyContent: isDesktop ? 'flex-start' : 'center'
               }}>
                 <button
                   className={styles.mainActionButton}
@@ -1175,8 +1315,8 @@ export default function Home() {
                     fontWeight: 700,
                     border: 'none',
                     borderRadius: 24,
-                    padding: '12px 24px',
-                    fontSize: 'clamp(1rem, 1.5vw, 1.1rem)',
+                    padding: isDesktop ? '16px 32px' : '12px 24px',
+                    fontSize: isDesktop ? '1.2rem' : 'clamp(1rem, 1.5vw, 1.1rem)',
                     cursor: isAnalyzingPlaylists ? 'not-allowed' : 'pointer',
                     boxShadow: '0 2px 8px #1db95433',
                     transition: 'all 0.2s ease',
@@ -1287,8 +1427,8 @@ export default function Home() {
                         {/* The grid is responsive. It will show 2 columns on mobile, and more on larger screens. */}
                         <div className="grid grid-cols-2 gap-4" style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                          gap: 'clamp(12px, 2vw, 24px)',
+                          gridTemplateColumns: isDesktop ? 'repeat(auto-fill, minmax(200px, 1fr))' : 'repeat(auto-fit, minmax(140px, 1fr))',
+                          gap: isDesktop ? '32px' : 'clamp(12px, 2vw, 24px)',
                           justifyContent: 'center',
                           alignItems: 'flex-start',
                           justifyItems: 'center',
@@ -1345,8 +1485,8 @@ export default function Home() {
                        alt={playlist.name}
                        className="w-full h-auto rounded-md transition-all duration-300"
                        style={{
-                         width: '120px',
-                         height: '120px',
+                         width: isDesktop ? '180px' : '120px',
+                         height: isDesktop ? '180px' : '120px',
                          borderRadius: 6,
                          objectFit: 'cover',
                          transition: 'all 0.3s',
@@ -1354,8 +1494,8 @@ export default function Home() {
                      />
                    ) : (
                      <div className="w-full h-auto rounded-md transition-all duration-300" style={{
-                       width: '120px',
-                       height: '120px',
+                       width: isDesktop ? '180px' : '120px',
+                       height: isDesktop ? '180px' : '120px',
                        borderRadius: 6,
                        background: color,
                        color: '#fff',
@@ -1363,7 +1503,7 @@ export default function Home() {
                        alignItems: 'center',
                        justifyContent: 'center',
                        fontWeight: '900',
-                       fontSize: '1.5rem',
+                       fontSize: isDesktop ? '2rem' : '1.5rem',
                        transition: 'all 0.3s',
                        textTransform: 'uppercase',
                        letterSpacing: 2,
@@ -1374,10 +1514,10 @@ export default function Home() {
                  <div>
                    <h3 className="font-bold text-white text-sm truncate" style={{
                      fontWeight: 700,
-                     fontSize: '0.875rem',
+                     fontSize: isDesktop ? '1.1rem' : '0.875rem',
                      color: '#fff',
-                     marginTop: 8,
-                     marginBottom: 8,
+                     marginTop: isDesktop ? 16 : 8,
+                     marginBottom: isDesktop ? 12 : 8,
                      textAlign: 'left',
                      width: '100%',
                      overflow: 'hidden',
@@ -1386,7 +1526,7 @@ export default function Home() {
                    }}>{playlist.name}</h3>
                    <p style={{
                      color: '#9ca3af',
-                     fontSize: '0.75rem',
+                     fontSize: isDesktop ? '0.9rem' : '0.75rem',
                      marginBottom: 0,
                      textAlign: 'left',
                      whiteSpace: 'nowrap',
@@ -1424,9 +1564,9 @@ export default function Home() {
                        border: 'none',
                        borderRadius: '9999px',
                        fontWeight: 600,
-                       fontSize: isMobile ? '0.9rem' : '0.75rem',
-                       padding: isMobile ? '8px 16px' : '4px 12px',
-                       marginBottom: 8,
+                       fontSize: isDesktop ? '1rem' : (isMobile ? '0.9rem' : '0.75rem'),
+                       padding: isDesktop ? '12px 20px' : (isMobile ? '8px 16px' : '4px 12px'),
+                       marginBottom: isDesktop ? 12 : 8,
                        cursor: 'pointer',
                        transition: 'all 0.2s ease',
                      }}
@@ -1445,9 +1585,9 @@ export default function Home() {
                        border: 'none',
                        borderRadius: '9999px',
                        fontWeight: 600,
-                       fontSize: isMobile ? '0.9rem' : '0.75rem',
-                       padding: isMobile ? '8px 16px' : '4px 12px',
-                       marginBottom: 8,
+                       fontSize: isDesktop ? '1rem' : (isMobile ? '0.9rem' : '0.75rem'),
+                       padding: isDesktop ? '12px 20px' : (isMobile ? '8px 16px' : '4px 12px'),
+                       marginBottom: isDesktop ? 12 : 8,
                        cursor: 'pointer',
                        transition: 'all 0.2s ease',
                      }}
@@ -1466,9 +1606,9 @@ export default function Home() {
                        border: 'none',
                        borderRadius: '9999px',
                        fontWeight: 600,
-                       fontSize: isMobile ? '0.9rem' : '0.75rem',
-                       padding: isMobile ? '8px 16px' : '4px 12px',
-                       marginBottom: 8,
+                       fontSize: isDesktop ? '1rem' : (isMobile ? '0.9rem' : '0.75rem'),
+                       padding: isDesktop ? '12px 20px' : (isMobile ? '8px 16px' : '4px 12px'),
+                       marginBottom: isDesktop ? 12 : 8,
                        cursor: 'pointer',
                        transition: 'all 0.2s ease',
                      }}
@@ -1479,30 +1619,30 @@ export default function Home() {
                    >
                      Artist Count
                    </button>
-                   <a
-                     href={`https://open.spotify.com/playlist/${playlist.id}`}
-                     target="_blank"
-                      rel="noopener noreferrer"
-                     className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center transform transition-transform duration-200 hover:scale-110"
-                     style={{
-                       width: isMobile ? 48 : 40,
-                       height: isMobile ? 48 : 40,
-                       background: '#1db954',
-                       borderRadius: '50%',
-                       display: 'flex',
-                       alignItems: 'center',
-                       justifyContent: 'center',
-                       cursor: 'pointer',
-                       transition: 'transform 0.2s ease',
-                       textDecoration: 'none',
-                     }}
-                     title="Play on Spotify"
-                     onClick={e => e.stopPropagation()}
-                   >
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: isMobile ? 24 : 20, height: isMobile ? 24 : 20, color: '#000' }}>
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3l14 9-14 9V3z" />
-                     </svg>
-                   </a>
+                                        <a
+                       href={`https://open.spotify.com/playlist/${playlist.id}`}
+                       target="_blank"
+                        rel="noopener noreferrer"
+                       className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center transform transition-transform duration-200 hover:scale-110"
+                       style={{
+                         width: isDesktop ? 56 : (isMobile ? 48 : 40),
+                         height: isDesktop ? 56 : (isMobile ? 48 : 40),
+                         background: '#1db954',
+                         borderRadius: '50%',
+                         display: 'flex',
+                         alignItems: 'center',
+                         justifyContent: 'center',
+                         cursor: 'pointer',
+                         transition: 'transform 0.2s ease',
+                         textDecoration: 'none',
+                       }}
+                       title="Play on Spotify"
+                       onClick={e => e.stopPropagation()}
+                     >
+                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: isDesktop ? 28 : (isMobile ? 24 : 20), height: isDesktop ? 28 : (isMobile ? 24 : 20), color: '#000' }}>
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3l14 9-14 9V3z" />
+                       </svg>
+                     </a>
                    
 
                  </div>

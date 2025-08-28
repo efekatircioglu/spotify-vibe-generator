@@ -245,7 +245,32 @@ app.get('/callback', async (req, res) => {
 app.get('/me', async (req, res) => {
   try {
     const { body } = await spotifyApi.getMe();
-    res.json(body);
+    
+    // Get user's public profile to access follower count and following count
+    let followerCount = null;
+    let followingCount = null;
+    try {
+      const { body: profileBody } = await spotifyApi.getUser(body.id);
+      followerCount = profileBody.followers?.total || null;
+      
+      // Get following count (artists and users the user follows)
+      try {
+        const { body: followingBody } = await spotifyApi.getFollowedArtists();
+        followingCount = followingBody.artists?.total || 0;
+      } catch (followingErr) {
+        console.log('Could not fetch following count:', followingErr.message);
+      }
+    } catch (profileErr) {
+      console.log('Could not fetch user profile for followers:', profileErr.message);
+      // Continue without follower count if there's an error
+    }
+    
+    // Return user data with follower count and following count
+    res.json({
+      ...body,
+      followerCount,
+      followingCount
+    });
   } catch (err) {
     console.error('Could not get user data:', err);
     res.status(401).json({ error: 'Invalid or expired token' });
