@@ -21,17 +21,9 @@ export default function AuthWrapper({ children }) {
       setIsLoading(true);
       setIsSessionExpired(false);
       
-      // Check if we have a token (only in browser)
+      // Check auth status with backend (session-based)
       if (!isBrowser) return;
       
-      const hasToken = localStorage.getItem('spotify_token');
-      if (!hasToken) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // Check auth status with backend
       const authStatus = await checkAuthStatus();
       setIsAuthenticated(authStatus);
       
@@ -39,7 +31,7 @@ export default function AuthWrapper({ children }) {
         // Setup periodic auth monitoring
         setupAuthMonitoring();
       } else {
-        // Still not authenticated
+        // Not authenticated
         setIsSessionExpired(true);
       }
     } catch (error) {
@@ -107,7 +99,7 @@ export default function AuthWrapper({ children }) {
         }
 
         // Check if user is logging out (only in browser)
-        if (isBrowser && localStorage.getItem('spotify_token') === null) {
+        if (isBrowser) {
           // Check if this is a fresh page load or logout
           const hasLoggedOut = sessionStorage.getItem('userLoggedOut');
           
@@ -119,12 +111,6 @@ export default function AuthWrapper({ children }) {
               return;
             }
           }
-          
-          // No token and no logout flag - session expired
-          setIsAuthenticated(false);
-          setIsSessionExpired(true);
-          setIsLoading(false);
-          return;
         }
 
         // Check initial auth status

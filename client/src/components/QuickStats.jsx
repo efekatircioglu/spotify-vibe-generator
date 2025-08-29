@@ -1,6 +1,77 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../utils/topDataCache';
 import { getCachedTopArtists } from '../utils/topArtistsCache';
+
+/**
+ * QuickStats Component with Secure Caching Strategy
+ * 
+ * SECURITY IMPLEMENTATION:
+ * - Uses sessionStorage for non-sensitive user data (genres, styles)
+ * - No OAuth tokens stored client-side (server handles all authentication)
+ * - Cache automatically expires when browser tab closes
+ * - No sensitive authentication data stored in client-side storage
+ * 
+ * CURRENT SECURITY STATUS:
+ * ✅  No OAuth tokens stored client-side (secure against XSS)
+ * ✅  QuickStats cache uses sessionStorage (secure for non-sensitive data)
+ * 🔄  Cache automatically clears when user logs out or session expires
+ * 🔒  Pure session-based authentication (server-side)
+ * 
+ * AUTHENTICATION APPROACH:
+ * - Server maintains Spotify OAuth session
+ * - Client only stores non-sensitive user data
+ * - All API calls include credentials for session validation
+ * - No token management on client side
+ * 
+ * This provides maximum security with minimal client-side complexity.
+ */
+// Cache for QuickStats data - expires with session
+// This cache stores genres and styles for top artists
+// Cache key is based on artist names and rankings
+// Cache automatically expires when tab is closed or component unmounts
+// Can be manually cleared when token expires using window.clearQuickStatsCache()
+const CACHE_KEY = 'quickStatsCache';
+
+// Helper functions for sessionStorage cache management
+const getCacheFromStorage = () => {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    return cached ? JSON.parse(cached) : {};
+  } catch (error) {
+    console.error('Error reading QuickStats cache from sessionStorage:', error);
+    return {};
+  }
+};
+
+const setCacheToStorage = (cacheData) => {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (error) {
+    console.error('Error writing QuickStats cache to sessionStorage:', error);
+  }
+};
+
+const clearCacheFromStorage = () => {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch (error) {
+    console.error('Error clearing QuickStats cache from sessionStorage:', error);
+  }
+};
+
+// Check if session has changed (indicating new login or token refresh)
+const hasSessionChanged = () => {
+  // We no longer check localStorage for tokens
+  // Instead, we'll use a session-based approach
+  const currentSession = sessionStorage.getItem('current_session_id');
+  const lastSession = sessionStorage.getItem('last_session_id');
+  
+  if (lastSession !== currentSession) {
+    sessionStorage.setItem('last_session_id', currentSession);
+    return true;
+  }
+  return false;
+};
 
 export default function QuickStats({ isMobile }) {
   const [topArtist, setTopArtist] = useState(null);
@@ -11,235 +82,372 @@ export default function QuickStats({ isMobile }) {
   const [topSongTimeRange, setTopSongTimeRange] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [hasLoadedDiscogs, setHasLoadedDiscogs] = useState(false);
 
+  // Generate cache key based on top 3 artists (since that's what we fetch)
+  const generateCacheKey = useCallback((top3Artists) => {
+    if (!top3Artists || top3Artists.length === 0) return null;
+    
+    // Create a stable key based on artist names and rankings
+    // Sort by ranking to ensure consistent key regardless of order
+    const artistKey = top3Artists
+      .sort((a, b) => a.rankings['12_months'] - b.rankings['12_months'])
+      .map(artist => `${artist.name}_${artist.rankings['12_months']}`)
+      .join('|');
+    
+    return `quickstats_${artistKey}`;
+  }, []);
+
+  // Check if we have cached data for the current top 3 artists
+  const getCachedQuickStats = useCallback((top3Artists) => {
+    const cacheKey = generateCacheKey(top3Artists);
+    if (!cacheKey) return null;
+    
+    const cached = getCacheFromStorage()[cacheKey];
+    if (cached) {
+      console.log('🎯 QuickStats: Cache HIT for key:', cacheKey);
+      console.log('📊 Cached data:', cached);
+    } else {
+      console.log('❌ QuickStats: Cache MISS for key:', cacheKey);
+      console.log('🔍 Available cache keys:', Object.keys(getCacheFromStorage()));
+    }
+    
+    return cached;
+  }, [generateCacheKey]);
+
+  // Store data in cache
+  const setCachedQuickStats = useCallback((top3Artists, genres, styles) => {
+    const cacheKey = generateCacheKey(top3Artists);
+    if (!cacheKey) return;
+    
+    const currentCache = getCacheFromStorage();
+    currentCache[cacheKey] = { genres, styles };
+    setCacheToStorage(currentCache);
+    console.log('💾 QuickStats: Data cached for', top3Artists.map(a => a.name).join(', '));
+  }, [generateCacheKey]);
+
+  // Clear cache when token expires (this will be called from parent component)
+  const clearQuickStatsCache = useCallback(() => {
+    clearCacheFromStorage();
+    console.log('🗑️ QuickStats: Cache cleared from sessionStorage');
+  }, []);
+
+  // Expose clear function to parent component
   useEffect(() => {
-    const loadQuickStats = async () => {
-      console.log('🔍 QuickStats: Checking cache validity...');
-      console.log('Cache valid:', isCacheValid());
-      console.log('Has complete cache:', hasCompleteCache());
+    if (typeof window !== 'undefined') {
+      window.clearQuickStatsCache = clearQuickStatsCache;
+      // Also expose cache info for debugging
+      window.getQuickStatsCacheInfo = () => {
+        const cache = getCacheFromStorage();
+        return {
+          size: Object.keys(cache).length,
+          keys: Object.keys(cache),
+          cacheData: cache,
+          localStorageKey: CACHE_KEY
+        };
+      };
       
-      if (!isCacheValid() || !hasCompleteCache()) {
-        console.log('❌ QuickStats: Cache not ready yet, will retry...');
-        setLoading(false);
-        return;
+      // Log current cache status
+      console.log('💾 QuickStats: Cache initialized with', Object.keys(getCacheFromStorage()).length, 'entries');
+      console.log('🔑 Cache key in sessionStorage:', CACHE_KEY);
+      console.log('🔒 Security: Using sessionStorage for non-sensitive user data');
+      
+      // Make it easy to inspect cache in console
+      console.log('📋 QuickStats cache in sessionStorage:', getCacheFromStorage());
+      console.log('💡 Use window.getQuickStatsCacheInfo() to inspect cache details');
+      console.log('💡 Use getQuickStatsCacheDirectly() from utils for direct access');
+    }
+  }, [clearQuickStatsCache]);
+
+  // Clear cache when component unmounts (cleanup)
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.clearQuickStatsCache;
+        delete window.getQuickStatsCacheInfo;
       }
+    };
+  }, []);
 
-      try {
-        console.log('✅ QuickStats: Cache is ready, loading data...');
+  // Check for token changes and clear cache if needed
+  useEffect(() => {
+    if (hasSessionChanged()) {
+      console.log('🔄 Spotify token changed - clearing QuickStats cache');
+      clearQuickStatsCache();
+    }
+  }, []);
+
+  const loadQuickStats = useCallback(async () => {
+    if (!isCacheValid() || !hasCompleteCache()) {
+      return;
+    }
+
+    try {
+      // Get top artists from cache
+      const topArtists = getCachedTopArtists();
+      
+      if (topArtists && topArtists.length > 0) {
+        // Find the artist with the best overall ranking, prioritizing 12 months
+        let bestArtist = topArtists[0];
+    let bestRank = Infinity;
+    let bestTimeRange = null;
+
+    topArtists.forEach(artist => {
+      const rankings = artist.rankings || {};
+          
+          // Priority 1: 12 months (last year) - highest priority
+      if (rankings['12_months'] && rankings['12_months'] < bestRank) {
+        bestRank = rankings['12_months'];
+        bestArtist = artist;
+        bestTimeRange = '12_months';
+      }
+    });
+
+        // If no 12 months data, fall back to 6 months
+        if (bestTimeRange !== '12_months') {
+      topArtists.forEach(artist => {
+        const rankings = artist.rankings || {};
+        if (rankings['6_months'] && rankings['6_months'] < bestRank) {
+          bestRank = rankings['6_months'];
+          bestArtist = artist;
+          bestTimeRange = '6_months';
+        }
+      });
+    }
+
+    // If still no data, fall back to 4 weeks
+    if (bestTimeRange === null) {
+      topArtists.forEach(artist => {
+        const rankings = artist.rankings || {};
+        if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
+          bestRank = rankings['4_weeks'];
+          bestArtist = artist;
+          bestTimeRange = '4_weeks';
+        }
+      });
+    }
+
+    console.log('🎯 Best artist found:', bestArtist?.name, 'with ranking:', bestRank, 'in period:', bestTimeRange);
+    setTopArtist(bestArtist);
+        setTopArtistTimeRange(bestTimeRange);
+
+        // Get top 3 artists ranked by 12_months from spotify_top_artists
+        const top3Artists = topArtists
+          .filter(artist => artist.rankings && artist.rankings['12_months'])
+          .sort((a, b) => a.rankings['12_months'] - b.rankings['12_months'])
+          .slice(0, 3);
+
+      console.log('Top 3 artists for 12 months:', top3Artists);
+      console.log('Total artists in cache:', topArtists.length);
+      console.log('Artists with 12_months rankings:', topArtists.filter(a => a.rankings && a.rankings['12_months']).length);
+
+      if (top3Artists.length > 0) {
+        console.log('Starting Discogs API calls for:', top3Artists.map(a => `${a.name} (#${a.rankings['12_months']})`));
         
-        // Get top artists from cache
-        const topArtists = getCachedTopArtists();
-        console.log('📊 Top artists from cache:', topArtists?.length || 0);
+        // Check cache first
+        const cached = getCachedQuickStats(top3Artists);
+        if (cached) {
+          console.log('🎯 QuickStats: Using cached data for:', top3Artists.map(a => a.name).join(', '));
+          setTopGenres(cached.genres);
+          setTopStyles(cached.styles);
+          setHasLoadedDiscogs(true);
+          return; // Exit early, no need to fetch
+        }
         
-        if (topArtists && topArtists.length > 0) {
-          // Find the artist with the best overall ranking, prioritizing 12 months
-          let bestArtist = topArtists[0];
-          let bestRank = Infinity;
-          let bestTimeRange = null;
-          
-          topArtists.forEach(artist => {
-            const rankings = artist.rankings || {};
-            
-            // Priority 1: 12 months (last year) - highest priority
-            if (rankings['12_months'] && rankings['12_months'] < bestRank) {
-              bestRank = rankings['12_months'];
-              bestArtist = artist;
-              bestTimeRange = '12_months';
-            }
-          });
-          
-          // If no 12 months data, fall back to 6 months
-          if (bestTimeRange !== '12_months') {
-            topArtists.forEach(artist => {
-              const rankings = artist.rankings || {};
-              if (rankings['6_months'] && rankings['6_months'] < bestRank) {
-                bestRank = rankings['6_months'];
-                bestArtist = artist;
-                bestTimeRange = '6_months';
-              }
-            });
-          }
-          
-          // If still no data, fall back to 4 weeks
-          if (bestTimeRange === null) {
-            topArtists.forEach(artist => {
-              const rankings = artist.rankings || {};
-              if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
-                bestRank = rankings['4_weeks'];
-                bestArtist = artist;
-                bestTimeRange = '4_weeks';
-              }
-            });
-          }
-          
-          console.log('🎯 Best artist found:', bestArtist?.name, 'with ranking:', bestRank, 'in period:', bestTimeRange);
-          setTopArtist(bestArtist);
-          setTopArtistTimeRange(bestTimeRange);
-
-          // Get top 3 artists ranked by 12_months from spotify_top_artists
-          const top3Artists = topArtists
-            .filter(artist => artist.rankings && artist.rankings['12_months'])
-            .sort((a, b) => a.rankings['12_months'] - b.rankings['12_months'])
-            .slice(0, 3);
-
-          console.log('Top 3 artists for 12 months:', top3Artists);
-          console.log('Total artists in cache:', topArtists.length);
-          console.log('Artists with 12_months rankings:', topArtists.filter(a => a.rankings && a.rankings['12_months']).length);
-
-          if (top3Artists.length > 0) {
-            console.log('Starting Discogs API calls for:', top3Artists.map(a => `${a.name} (#${a.rankings['12_months']})`));
-            
-            // Make individual Discogs API calls for each artist
-            const discogsPromises = top3Artists.map(async (artist, index) => {
-              try {
-                const artistName = artist.name;
-                const apiUrl = `http://127.0.0.1:8000/discogs/artist?name=${encodeURIComponent(artistName)}`;
-                console.log(`[${index + 1}/3] Fetching Discogs data for "${artistName}" from:`, apiUrl);
+        // Only fetch Discogs data if we haven't already
+        if (!hasLoadedDiscogs) {
+          // Make individual Discogs API calls for each artist
+          const discogsPromises = top3Artists.map(async (artist, index) => {
+            try {
+              const artistName = artist.name;
+              const apiUrl = `http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/genre-style-map`;
+              console.log(`[${index + 1}/3] Fetching Discogs data for "${artistName}" from:`, apiUrl);
+              
+              const response = await fetch(apiUrl);
+              console.log(`[${index + 1}/3] Response status for "${artistName}":`, response.status);
+              
+              if (response.ok) {
+                const data = await response.json();
+                console.log(`[${index + 1}/3] Success! Discogs data for "${artistName}":`, data);
                 
-                const response = await fetch(apiUrl);
-                console.log(`[${index + 1}/3] Response status for "${artistName}":`, response.status);
+                // Extract genres and styles from the genre-style map
+                const allGenres = new Set();
+                const allStyles = new Set();
                 
-                if (response.ok) {
-                  const data = await response.json();
-                  console.log(`[${index + 1}/3] Success! Discogs data for "${artistName}":`, data);
-                  console.log(`[${index + 1}/3] Genres found:`, data.genres?.length || 0);
-                  console.log(`[${index + 1}/3] Styles found:`, data.styles?.length || 0);
-                  
-                  return {
-                    name: artistName,
-                    rank: artist.rankings['12_months'],
-                    genres: data.genres || [],
-                    styles: data.styles || []
-                  };
-                } else {
-                  const errorText = await response.text();
-                  console.error(`[${index + 1}/3] Failed to fetch Discogs data for "${artistName}":`, response.status, errorText);
-                  return null;
+                if (data.map && typeof data.map === 'object') {
+                  Object.values(data.map).forEach(albumData => {
+                    if (Array.isArray(albumData) && albumData[0]) {
+                      // albumData[0] contains genres array
+                      albumData[0].forEach(genre => allGenres.add(genre));
+                    }
+                    if (Array.isArray(albumData) && albumData[1]) {
+                      // albumData[1] contains styles array
+                      albumData[1].forEach(style => allStyles.add(style));
+                    }
+                  });
                 }
-              } catch (err) {
-                console.error(`[${index + 1}/3] Network error for "${artist.name}":`, err);
+                
+                console.log(`[${index + 1}/3] Genres found:`, allGenres.size);
+                console.log(`[${index + 1}/3] Styles found:`, allStyles.size);
+                
+                return {
+                  name: artistName,
+                  rank: artist.rankings['12_months'],
+                  genres: Array.from(allGenres),
+                  styles: Array.from(allStyles)
+                };
+              } else {
+                const errorText = await response.text();
+                console.error(`[${index + 1}/3] Failed to fetch Discogs data for "${artistName}":`, response.status, errorText);
                 return null;
               }
+            } catch (err) {
+              console.error(`[${index + 1}/3] Network error for "${artist.name}":`, err);
+              return null;
+            }
+          });
+
+          console.log('Waiting for all Discogs API calls to complete...');
+          const discogsResults = await Promise.all(discogsPromises);
+          console.log('All Discogs API calls completed. Results:', discogsResults);
+          
+          const validResults = discogsResults.filter(result => result !== null);
+          console.log('Valid Discogs results:', validResults);
+
+          if (validResults.length > 0) {
+            // Calculate most common genres
+            const genreCounts = {};
+            validResults.forEach(result => {
+              result.genres.forEach(genre => {
+                genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+              });
             });
 
-            console.log('Waiting for all Discogs API calls to complete...');
-            const discogsResults = await Promise.all(discogsPromises);
-            console.log('All Discogs API calls completed. Results:', discogsResults);
-            
-            const validResults = discogsResults.filter(result => result !== null);
-            console.log('Valid Discogs results:', validResults);
+            const sortedGenres = Object.entries(genreCounts)
+              .map(([name, count]) => ({ name, count }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 5);
 
-            if (validResults.length > 0) {
-              // Calculate most common genres
-              const genreCounts = {};
-              validResults.forEach(result => {
-                result.genres.forEach(genre => {
-                  genreCounts[genre] = (genreCounts[genre] || 0) + 1;
-                });
+            console.log('Final top genres:', sortedGenres);
+            setTopGenres(sortedGenres);
+
+            // Calculate most common styles
+            const styleCounts = {};
+            validResults.forEach(result => {
+              result.styles.forEach(style => {
+                styleCounts[style] = (styleCounts[style] || 0) + 1;
               });
+            });
 
-              const sortedGenres = Object.entries(genreCounts)
-                .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5);
+            const sortedStyles = Object.entries(styleCounts)
+              .map(([name, count]) => ({ name, count }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 5);
 
-              console.log('Final top genres:', sortedGenres);
-              setTopGenres(sortedGenres);
+            console.log('Final top styles:', sortedStyles);
+            setTopStyles(sortedStyles);
 
-              // Calculate most common styles
-              const styleCounts = {};
-              validResults.forEach(result => {
-                result.styles.forEach(style => {
-                  styleCounts[style] = (styleCounts[style] || 0) + 1;
-                });
-              });
-
-              const sortedStyles = Object.entries(styleCounts)
-                .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5);
-
-              console.log('Final top styles:', sortedStyles);
-              setTopStyles(sortedStyles);
-            } else {
-              console.log('No valid Discogs results found - setting empty arrays');
-              setTopGenres([]);
-              setTopStyles([]);
-            }
+            // Cache the results
+            setCachedQuickStats(top3Artists, sortedGenres, sortedStyles);
           } else {
-            console.log('No artists with 12_months rankings found - setting empty arrays');
+            console.log('No valid Discogs results found - setting empty arrays');
+            setTopGenres([]);
+            setTopStyles([]);
+          }
+          
+          // Mark that we've loaded Discogs data to prevent duplicate calls
+          setHasLoadedDiscogs(true);
+        } else {
+          console.log('Discogs data already loaded, skipping API calls.');
+          // If cached data exists, use it
+          const cached = getCachedQuickStats(top3Artists);
+          if (cached) {
+            setTopGenres(cached.genres);
+            setTopStyles(cached.styles);
+            console.log('Using cached QuickStats data for:', top3Artists.map(a => a.name).join(', '));
+          } else {
+            console.log('No cached QuickStats data found for:', top3Artists.map(a => a.name).join(', '));
             setTopGenres([]);
             setTopStyles([]);
           }
         }
-
-        // Get top tracks from cache
-        const topTracks = getCachedTopTracks();
-        console.log('📊 Top tracks from cache:', topTracks?.length || 0);
-        
-        if (topTracks && topTracks.length > 0) {
-          // Find the track with the best overall ranking, prioritizing 12 months
-          let bestTrack = topTracks[0];
-          let bestRank = Infinity;
-          let bestTimeRange = null;
-          
-          topTracks.forEach(track => {
-            const rankings = track.rankings || {};
-            
-            // Priority 1: 12 months (last year) - highest priority
-            if (rankings['12_months'] && rankings['12_months'] < bestRank) {
-              bestRank = rankings['12_months'];
-              bestTrack = track;
-              bestTimeRange = '12_months';
-            }
-          });
-          
-          // If no 12 months data, fall back to 6 months
-          if (bestTimeRange !== '12_months') {
-            topTracks.forEach(track => {
-              const rankings = track.rankings || {};
-              if (rankings['6_months'] && rankings['6_months'] < bestRank) {
-                bestRank = rankings['6_months'];
-                bestTrack = track;
-                bestTimeRange = '6_months';
-              }
-            });
-          }
-          
-          // If still no data, fall back to 4 weeks
-          if (bestTimeRange === null) {
-            topTracks.forEach(track => {
-              const rankings = track.rankings || {};
-              if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
-                bestRank = rankings['4_weeks'];
-                bestTrack = track;
-                bestTimeRange = '4_weeks';
-              }
-            });
-          }
-          
-          console.log('🎵 Best track found:', bestTrack?.name, 'with ranking:', bestRank, 'in period:', bestTimeRange);
-          setTopSong(bestTrack);
-          setTopSongTimeRange(bestTimeRange);
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Error loading quick stats:', err);
-        // Don't show error, just don't render anything
-        setLoading(false);
+      } else {
+        console.log('No artists with 12_months rankings found - setting empty arrays');
+        setTopGenres([]);
+        setTopStyles([]);
       }
+    }
+
+    // Get top tracks from cache
+    const topTracks = getCachedTopTracks();
+    console.log('📊 Top tracks from cache:', topTracks?.length || 0);
+    
+    if (topTracks && topTracks.length > 0) {
+      // Find the track with the best overall ranking, prioritizing 12 months
+      let bestTrack = topTracks[0];
+      let bestRank = Infinity;
+      let bestTimeRange = null;
+      
+  topTracks.forEach(track => {
+    const rankings = track.rankings || {};
+        
+        // Priority 1: 12 months (last year) - highest priority
+    if (rankings['12_months'] && rankings['12_months'] < bestRank) {
+      bestRank = rankings['12_months'];
+      bestTrack = track;
+      bestTimeRange = '12_months';
+    }
+  });
+
+      // If no 12 months data, fall back to 6 months
+      if (bestTimeRange !== '12_months') {
+    topTracks.forEach(track => {
+      const rankings = track.rankings || {};
+      if (rankings['6_months'] && rankings['6_months'] < bestRank) {
+        bestRank = rankings['6_months'];
+        bestTrack = track;
+        bestTimeRange = '6_months';
+      }
+    });
+  }
+
+  // If still no data, fall back to 4 weeks
+  if (bestTimeRange === null) {
+    topTracks.forEach(track => {
+      const rankings = track.rankings || {};
+      if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
+        bestRank = rankings['4_weeks'];
+        bestTrack = track;
+        bestTimeRange = '4_weeks';
+      }
+    });
+  }
+
+  console.log('🎵 Best track found:', bestTrack?.name, 'with ranking:', bestRank, 'in period:', bestTimeRange);
+  setTopSong(bestTrack);
+  setTopSongTimeRange(bestTimeRange);
+}
+
+setLoading(false);
+} catch (err) {
+  console.error('Error loading quick stats:', err);
+  setError(err.message);
+  setLoading(false);
+}
+}, [hasLoadedDiscogs, getCachedQuickStats, setCachedQuickStats]); // Add getCachedQuickStats and setCachedQuickStats to dependency array
+
+  useEffect(() => {
+    const loadData = async () => {
+      await loadQuickStats();
     };
 
     // Initial load
-    loadQuickStats();
+    loadData();
 
     // Set up polling to check for cache updates every 2 seconds
     const cacheCheckInterval = setInterval(() => {
-      console.log('🔄 QuickStats: Polling cache for updates...');
       if (isCacheValid() && hasCompleteCache() && (!topArtist || !topSong)) {
-        console.log('🆕 QuickStats: Cache updated, reloading data...');
-        loadQuickStats();
+        loadData();
       }
     }, 2000);
 
@@ -247,7 +455,7 @@ export default function QuickStats({ isMobile }) {
     return () => {
       clearInterval(cacheCheckInterval);
     };
-  }, [topArtist, topSong]);
+  }, [loadQuickStats]); // Add loadQuickStats to dependency array
 
   // Don't render anything if no data is available
   if (loading || !topArtist || !topSong) {

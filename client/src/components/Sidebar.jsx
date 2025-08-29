@@ -726,9 +726,13 @@ export default function Sidebar({ onToggle }) {
                 // Set logout flag to prevent immediate re-authentication
                 sessionStorage.setItem('userLoggedOut', 'true');
                 
-                // Clear the spotify token first to prevent auth redirect loops
-                localStorage.removeItem('spotify_token');
-                localStorage.removeItem('spotify_refresh_token');
+                // Clear QuickStats cache from sessionStorage
+                if (typeof window !== 'undefined' && window.clearQuickStatsCache) {
+                  window.clearQuickStatsCache();
+                }
+                
+                // Clear all sessionStorage data
+                sessionStorage.clear();
                 
                 // Clear all playlist URLs from localStorage
                 localStorage.removeItem('last4weeks_playlist_url');
@@ -748,8 +752,10 @@ export default function Sidebar({ onToggle }) {
                 console.error('Logout error:', error);
                 // Even if API fails, clear local data
                 sessionStorage.setItem('userLoggedOut', 'true');
-                localStorage.removeItem('spotify_token');
-                localStorage.removeItem('spotify_refresh_token');
+                sessionStorage.clear();
+                if (typeof window !== 'undefined' && window.clearQuickStatsCache) {
+                  window.clearQuickStatsCache();
+                }
                 window.dispatchEvent(new CustomEvent('userLogout'));
               }
             }}

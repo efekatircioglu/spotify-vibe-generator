@@ -64,16 +64,27 @@ export const clearAllCaches = () => {
   try {
     console.log('[CacheManager] Clearing all caches...');
     
-    // Clear both caches
+    // Clear localStorage caches
     localStorage.removeItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
     localStorage.removeItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
     
-    console.log('[CacheManager] All caches cleared');
-    return true;
+    // Clear QuickStats cache from sessionStorage
+    if (typeof window !== 'undefined' && window.clearQuickStatsCache) {
+      window.clearQuickStatsCache();
+    } else {
+      // Fallback: clear directly from sessionStorage
+      try {
+        sessionStorage.removeItem('quickStatsCache');
+        console.log('[CacheManager] QuickStats cache cleared from sessionStorage');
+      } catch (error) {
+        console.warn('[CacheManager] Could not clear QuickStats cache:', error);
+      }
+    }
+    
+    console.log('[CacheManager] All caches cleared successfully');
     
   } catch (error) {
     console.error('[CacheManager] Error clearing caches:', error);
-    return false;
   }
 };
 
@@ -168,42 +179,39 @@ export const getCacheStatus = () => {
 };
 
 /**
- * Setup cache monitoring for token changes
+ * Setup cache monitoring for session changes
  * This should be called once when the app initializes
  */
 export const setupCacheMonitoring = () => {
   try {
     console.log('[CacheManager] Setting up cache monitoring...');
     
-    // Monitor localStorage changes for token removal
-    const handleStorageChange = (e) => {
-      if (e.key === 'spotify_token' && e.newValue === null) {
-        // Token was removed (user logged out or token expired)
-        console.log('[CacheManager] Token removed, clearing caches...');
-        clearAllCaches();
-      } else if (e.key === 'spotify_token' && e.newValue && e.oldValue === null) {
-        // New token was added (user just authenticated)
-        console.log('[CacheManager] New token detected, initializing caches...');
-        // Small delay to ensure token is fully set
-        setTimeout(() => initializeAllCaches(), 100);
-      }
+    // Monitor for session changes instead of localStorage tokens
+    const handleSessionChange = () => {
+      // Check if user is still authenticated
+      checkAuthStatus().then(isAuthenticated => {
+        if (!isAuthenticated) {
+          console.log('[CacheManager] User not authenticated, clearing caches...');
+          clearAllCaches();
+        }
+      });
     };
     
     // Monitor for token refresh events
     const handleTokenRefreshed = () => {
-      console.log('[CacheManager] Token refreshed, caches remain valid');
-      // No need to reinitialize caches on token refresh since we don't use time-based expiration
+      console.log('[CacheManager] Session refreshed, caches remain valid');
+      // No need to reinitialize caches on session refresh
     };
     
     // Add event listeners
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', handleSessionChange);
     window.addEventListener('tokenRefreshed', handleTokenRefreshed);
     
     console.log('[CacheManager] Cache monitoring setup complete');
     
     // Return cleanup function
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('storage', handleSessionChange);
       window.removeEventListener('tokenRefreshed', handleTokenRefreshed);
     };
     

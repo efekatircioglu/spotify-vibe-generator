@@ -1,23 +1,18 @@
 // Cache keys for localStorage
 const CACHE_KEYS = {
-  UNIFIED_TOP_TRACKS: 'unified_top_tracks',
-  CACHE_VERSION: 'top_data_cache_version'
+  UNIFIED_TOP_TRACKS: 'unified_top_tracks'
 };
-
-const CACHE_VERSION = '1.0';
 
 // Check if cache exists and is valid
 export const isCacheValid = () => {
   try {
-    const version = localStorage.getItem(CACHE_KEYS.CACHE_VERSION);
     const data = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
     
-    if (!version || !data) return false;
+    if (!data) return false;
     
-    const isValidVersion = version === CACHE_VERSION;
     const hasData = JSON.parse(data)?.length > 0;
     
-    return isValidVersion && hasData;
+    return hasData;
   } catch (error) {
     console.error('Error checking cache validity:', error);
     return false;
@@ -194,9 +189,6 @@ export const fetchAndCacheTopData = async () => {
     
     // Cache the unified tracks
     localStorage.setItem(CACHE_KEYS.UNIFIED_TOP_TRACKS, JSON.stringify(unifiedTracks));
-    
-    // Set cache version
-    localStorage.setItem(CACHE_KEYS.CACHE_VERSION, CACHE_VERSION);
     
     const successCount = results.filter(r => r.success).length;
     console.log(`✅ Built unified cache with ${unifiedTracks.length} unique tracks from ${successCount}/3 time ranges`);
@@ -387,7 +379,7 @@ export const getCacheStats = () => {
       hasCache: isCacheValid(),
       isComplete: hasCompleteCache(),
       age: age ? Math.round(age / (1000 * 60)) : null, // age in minutes
-      version: localStorage.getItem(CACHE_KEYS.CACHE_VERSION),
+      version: null, // Removed version as it's always "1.0"
       size: Math.round(totalSize / 1024), // size in KB
       trackCount
     };
