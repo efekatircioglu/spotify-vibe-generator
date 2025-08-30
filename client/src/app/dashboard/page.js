@@ -15,7 +15,7 @@ import WrappedAnalysisModal from '../../components/WrappedAnalysisModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../../utils/artistCache';
 import { getRecentSearches, saveRecentSearch } from '../../utils/recentSearchesCache';
 import '../../utils/storageMonitor'; // Import storage monitoring utilities
-import QuickStats from '../../components/QuickStats';
+import QuickStats from '../../components/QuickStats/index';
 import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
 import { initializeAllCaches } from '../../utils/cacheManager';
 
