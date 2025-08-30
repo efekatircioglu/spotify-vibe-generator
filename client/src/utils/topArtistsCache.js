@@ -473,6 +473,16 @@ export const calculateAveragePopularity = () => {
         genres: artist.genres || []
       }));
     
+    // 🚀 NEW: Get top 5 least popular artists (hidden gems)
+    const hiddenGems = artistsWithPopularity
+      .sort((a, b) => a.popularity - b.popularity)
+      .slice(0, 5)
+      .map(artist => ({
+        name: artist.name,
+        popularity: artist.popularity,
+        genres: artist.genres || []
+      }));
+    
     return {
       average,
       total,
@@ -480,6 +490,7 @@ export const calculateAveragePopularity = () => {
       min,
       max,
       topPopular,
+      hiddenGems, // 🚀 NEW: Hidden gems array
       message: `Average popularity: ${average}/100 (${popularities.length} artists)`
     };
     

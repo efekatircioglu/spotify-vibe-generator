@@ -59,6 +59,35 @@ const clearCacheFromStorage = () => {
   }
 };
 
+// 🚀 NEW: Comprehensive cache for all calculated results
+const COMPREHENSIVE_CACHE_KEY = 'quickStatsComprehensiveCache';
+
+const getComprehensiveCacheFromStorage = () => {
+  try {
+    const cached = sessionStorage.getItem(COMPREHENSIVE_CACHE_KEY);
+    return cached ? JSON.parse(cached) : {};
+  } catch (error) {
+    console.error('Error reading comprehensive QuickStats cache from sessionStorage:', error);
+    return {};
+  }
+};
+
+const setComprehensiveCacheToStorage = (cacheData) => {
+  try {
+    sessionStorage.setItem(COMPREHENSIVE_CACHE_KEY, JSON.stringify(cacheData));
+  } catch (error) {
+    console.error('Error writing comprehensive QuickStats cache to sessionStorage:', error);
+  }
+};
+
+const clearComprehensiveCacheFromStorage = () => {
+  try {
+    sessionStorage.removeItem(COMPREHENSIVE_CACHE_KEY);
+  } catch (error) {
+    console.error('Error clearing comprehensive QuickStats cache from sessionStorage:', error);
+  }
+};
+
 // Check if session has changed (indicating new login or token refresh)
 const hasSessionChanged = () => {
   // We no longer check localStorage for tokens
@@ -91,6 +120,19 @@ export default function QuickStats({ isMobile }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hasLoadedDiscogs, setHasLoadedDiscogs] = useState(false);
+  
+  // 🚀 Progressive loading states - track what's ready
+  const [loadingStates, setLoadingStates] = useState({
+    basicStats: false,      // Top artist/song
+    genresStyles: false,    // Genres and styles
+    albumsDecades: false,   // Top albums and decades
+    popularity: false,      // Average popularity
+    yearAnalysis: false,    // Year analysis
+    trackPopularity: false, // Track popularity
+    listeningEvolution: false, // Listening evolution
+    timeOfDay: false,      // Time of day
+    listenerType: false    // Listener type
+  });
 
   // Generate cache key based on top 3 artists (since that's what we fetch)
   const generateCacheKey = useCallback((top3Artists) => {
@@ -125,9 +167,67 @@ export default function QuickStats({ isMobile }) {
     setCacheToStorage(currentCache);
   }, [generateCacheKey]);
 
+  // 🚀 NEW: Generate comprehensive cache key based on all data sources
+  const generateComprehensiveCacheKey = useCallback((topArtists, topTracks) => {
+    if (!topArtists || !topTracks) return null;
+    
+    // 🚀 SIMPLIFIED: Use user ID and data hash for reliable caching
+    const userHash = topArtists.length + '_' + topTracks.length;
+    const dataHash = topArtists.length + '_' + topTracks.length + '_' + 
+                    (topArtists[0]?.name || '') + '_' + 
+                    (topTracks[0]?.name || '');
+    
+    return `quickstats_${userHash}_${dataHash}`;
+  }, []);
+
+  // 🚀 NEW: Check if we have comprehensive cached data
+  const getCachedComprehensiveStats = useCallback((topArtists, topTracks) => {
+    const cacheKey = generateComprehensiveCacheKey(topArtists, topTracks);
+    if (!cacheKey) return null;
+    
+    const cached = getComprehensiveCacheFromStorage()[cacheKey];
+    return cached;
+  }, [generateComprehensiveCacheKey]);
+
+  // 🚀 NEW: Store comprehensive data in cache
+  const setCachedComprehensiveStats = useCallback((topArtists, topTracks, comprehensiveData) => {
+    const cacheKey = generateComprehensiveCacheKey(topArtists, topTracks);
+    if (!cacheKey) return;
+    
+    const currentCache = getComprehensiveCacheFromStorage();
+    currentCache[cacheKey] = {
+      ...comprehensiveData,
+      timestamp: Date.now(),
+      cacheKey
+    };
+    setComprehensiveCacheToStorage(currentCache);
+  }, [generateComprehensiveCacheKey]);
+
+  // 🚀 NEW: Individual section cache functions
+  const getCachedSection = useCallback((sectionName, topArtists, topTracks) => {
+    const cacheKey = generateComprehensiveCacheKey(topArtists, topTracks);
+    if (!cacheKey) return null;
+    
+    const cached = getComprehensiveCacheFromStorage()[cacheKey];
+    return cached?.[sectionName] || null;
+  }, [generateComprehensiveCacheKey]);
+
+  const setCachedSection = useCallback((sectionName, data, topArtists, topTracks) => {
+    const cacheKey = generateComprehensiveCacheKey(topArtists, topTracks);
+    if (!cacheKey) return;
+    
+    const currentCache = getComprehensiveCacheFromStorage();
+    if (!currentCache[cacheKey]) {
+      currentCache[cacheKey] = { timestamp: Date.now() };
+    }
+    currentCache[cacheKey][sectionName] = data;
+    setComprehensiveCacheToStorage(currentCache);
+  }, [generateComprehensiveCacheKey]);
+
   // Clear cache when token expires (this will be called from parent component)
   const clearQuickStatsCache = useCallback(() => {
     clearCacheFromStorage();
+    clearComprehensiveCacheFromStorage(); // 🚀 NEW: Also clear comprehensive cache
   }, []);
 
   // Expose clear function to parent component
@@ -163,426 +263,12 @@ export default function QuickStats({ isMobile }) {
   useEffect(() => {
     if (hasSessionChanged()) {
       clearQuickStatsCache();
+      clearComprehensiveCacheFromStorage(); // 🚀 NEW: Also clear comprehensive cache
     }
   }, []);
 
-  const loadQuickStats = useCallback(async () => {
-    if (!isCacheValid() || !hasCompleteCache()) {
-      return;
-    }
-
-    try {
-      // Get top artists from cache
-      const topArtists = getCachedTopArtists();
-      
-      if (topArtists && topArtists.length > 0) {
-        // Find the artist with the best overall ranking, prioritizing 12 months
-        let bestArtist = topArtists[0];
-    let bestRank = Infinity;
-    let bestTimeRange = null;
-
-    topArtists.forEach(artist => {
-      const rankings = artist.rankings || {};
-          
-          // Priority 1: 12 months (last year) - highest priority
-      if (rankings['12_months'] && rankings['12_months'] < bestRank) {
-        bestRank = rankings['12_months'];
-        bestArtist = artist;
-        bestTimeRange = '12_months';
-      }
-    });
-
-        // If no 12 months data, fall back to 6 months
-        if (bestTimeRange !== '12_months') {
-      topArtists.forEach(artist => {
-        const rankings = artist.rankings || {};
-        if (rankings['6_months'] && rankings['6_months'] < bestRank) {
-          bestRank = rankings['6_months'];
-          bestArtist = artist;
-          bestTimeRange = '6_months';
-        }
-      });
-    }
-
-    // If still no data, fall back to 4 weeks
-    if (bestTimeRange === null) {
-      topArtists.forEach(artist => {
-        const rankings = artist.rankings || {};
-        if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
-          bestRank = rankings['4_weeks'];
-          bestArtist = artist;
-          bestTimeRange = '4_weeks';
-        }
-      });
-    }
-
-    setTopArtist(bestArtist);
-        setTopArtistTimeRange(bestTimeRange);
-
-        // Get top 3 artists ranked by 12_months from spotify_top_artists
-        const top3Artists = topArtists
-          .filter(artist => artist.rankings && artist.rankings['12_months'])
-          .sort((a, b) => a.rankings['12_months'] - b.rankings['12_months'])
-          .slice(0, 3);
-
-      if (top3Artists.length > 0) {
-        
-        // Check cache first
-        const cached = getCachedQuickStats(top3Artists);
-        if (cached) {
-          setTopGenres(cached.genres);
-          setTopStyles(cached.styles);
-          setHasLoadedDiscogs(true);
-          return; // Exit early, no need to fetch
-        }
-        
-        // Only fetch Discogs data if we haven't already
-        if (!hasLoadedDiscogs) {
-          // Make individual Discogs API calls for each artist
-          const discogsPromises = top3Artists.map(async (artist, index) => {
-            try {
-              const artistName = artist.name;
-              const apiUrl = `http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/genre-style-map`;
-              
-              const response = await fetch(apiUrl);
-              
-              if (response.ok) {
-                const data = await response.json();
-                
-                // Extract genres and styles from the genre-style map
-                const allGenres = new Set();
-                const allStyles = new Set();
-                
-                if (data.map && typeof data.map === 'object') {
-                  Object.values(data.map).forEach(albumData => {
-                    if (Array.isArray(albumData) && albumData[0]) {
-                      // albumData[0] contains genres array
-                      albumData[0].forEach(genre => allGenres.add(genre));
-                    }
-                    if (Array.isArray(albumData) && albumData[1]) {
-                      // albumData[1] contains styles array
-                      albumData[1].forEach(style => allStyles.add(style));
-                    }
-                  });
-                }
-                
-                return {
-                  name: artistName,
-                  rank: artist.rankings['12_months'],
-                  genres: Array.from(allGenres),
-                  styles: Array.from(allStyles)
-                };
-              } else {
-                const errorText = await response.text();
-                console.error(`[${index + 1}/3] Failed to fetch Discogs data for "${artistName}":`, response.status, errorText);
-                return null;
-              }
-            } catch (err) {
-              console.error(`[${index + 1}/3] Network error for "${artist.name}":`, err);
-              return null;
-            }
-          });
-
-          const discogsResults = await Promise.all(discogsPromises);
-          
-          const validResults = discogsResults.filter(result => result !== null);
-
-          if (validResults.length > 0) {
-            // Calculate most common genres
-            const genreCounts = {};
-            validResults.forEach(result => {
-              result.genres.forEach(genre => {
-                genreCounts[genre] = (genreCounts[genre] || 0) + 1;
-              });
-            });
-
-            const sortedGenres = Object.entries(genreCounts)
-              .map(([name, count]) => ({ name, count }))
-              .sort((a, b) => b.count - a.count)
-              .filter(genre => genre.count >= 2); // Only show genres with 2+ artists
-
-            setTopGenres(sortedGenres);
-
-            // Calculate most common styles
-            const styleCounts = {};
-            validResults.forEach(result => {
-              result.styles.forEach(style => {
-                styleCounts[style] = (styleCounts[style] || 0) + 1;
-              });
-            });
-
-            const sortedStyles = Object.entries(styleCounts)
-              .map(([name, count]) => ({ name, count }))
-              .sort((a, b) => b.count - a.count)
-              .filter(style => style.count >= 2); // Only show styles with 2+ artists
-            setTopStyles(sortedStyles);
-
-            // Cache the results
-            setCachedQuickStats(top3Artists, sortedGenres, sortedStyles);
-          } else {
-            setTopGenres([]);
-            setTopStyles([]);
-          }
-          
-          // Mark that we've loaded Discogs data to prevent duplicate calls
-          setHasLoadedDiscogs(true);
-        } else {
-          // If cached data exists, use it
-          const cached = getCachedQuickStats(top3Artists);
-          if (cached) {
-            setTopGenres(cached.genres);
-            setTopStyles(cached.styles);
-          } else {
-            setTopGenres([]);
-            setTopStyles([]);
-          }
-        }
-      } else {
-        setTopGenres([]);
-        setTopStyles([]);
-      }
-    }
-
-    // Get top tracks from cache
-    const topTracks = getCachedTopTracks();
-    
-    if (topTracks && topTracks.length > 0) {
-      // Find the track with the best overall ranking, prioritizing 12 months
-      let bestTrack = topTracks[0];
-      let bestRank = Infinity;
-      let bestTimeRange = null;
-      
-  topTracks.forEach(track => {
-    const rankings = track.rankings || {};
-        
-        // Priority 1: 12 months (last year) - highest priority
-    if (rankings['12_months'] && rankings['12_months'] < bestRank) {
-      bestRank = rankings['12_months'];
-      bestTrack = track;
-      bestTimeRange = '12_months';
-    }
-  });
-
-      // If no 12 months data, fall back to 6 months
-      if (bestTimeRange !== '12_months') {
-    topTracks.forEach(track => {
-      const rankings = track.rankings || {};
-      if (rankings['6_months'] && rankings['6_months'] < bestRank) {
-        bestRank = rankings['6_months'];
-        bestTrack = track;
-        bestTimeRange = '6_months';
-      }
-    });
-  }
-
-  // If still no data, fall back to 4 weeks
-  if (bestTimeRange === null) {
-    topTracks.forEach(track => {
-      const rankings = track.rankings || {};
-      if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
-        bestRank = rankings['4_weeks'];
-        bestTrack = track;
-        bestTimeRange = '4_weeks';
-      }
-    });
-  }
-
-  setTopSong(bestTrack);
-  setTopSongTimeRange(bestTimeRange);
-
-  // Calculate top 3 albums from all tracks
-  const calculateTopAlbums = (tracks) => {
-    const albumCounts = {};
-    
-    tracks.forEach(track => {
-      if (track.album && track.album.name) {
-        const albumKey = `${track.album.name}_${track.album.id}`;
-        if (!albumCounts[albumKey]) {
-          albumCounts[albumKey] = {
-            name: track.album.name,
-            id: track.album.id,
-            images: track.album.images || [],
-            artist: track.artists && track.artists[0] ? track.artists[0].name : 'Unknown Artist',
-            count: 0,
-            tracks: []
-          };
-        }
-        albumCounts[albumKey].count++;
-        albumCounts[albumKey].tracks.push({
-          name: track.name,
-          ranking: track.rankings ? Math.min(...Object.values(track.rankings).filter(r => r !== null)) : null
-        });
-      }
-    });
-    
-    // Sort by count and get top 3 albums
-    const sortedAlbums = Object.values(albumCounts)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-    
-    return sortedAlbums;
-  };
-
-  // Calculate top 3 decades from all tracks
-  const calculateTopDecades = (tracks) => {
-    const decadeCounts = {};
-    
-    tracks.forEach(track => {
-      let trackYear = null;
-      
-      // Try to get release date from track
-      if (track.release_date) {
-        trackYear = new Date(track.release_date).getFullYear();
-      }
-      // Try to get release date from album
-      else if (track.album && track.album.release_date) {
-        trackYear = new Date(track.album.release_date).getFullYear();
-      }
-      
-      if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
-        const decade = Math.floor(trackYear / 10) * 10;
-        const decadeLabel = `${decade}s`;
-        
-        if (!decadeCounts[decadeLabel]) {
-          decadeCounts[decadeLabel] = {
-            decade: decade,
-            label: decadeLabel,
-            count: 0,
-            tracks: []
-          };
-        }
-        decadeCounts[decadeLabel].count++;
-        decadeCounts[decadeLabel].tracks.push({
-          name: track.name,
-          artist: track.artists && track.artists[0] ? track.artists[0].name : 'Unknown Artist',
-          year: trackYear,
-          ranking: track.rankings ? Math.min(...Object.values(track.rankings).filter(r => r !== null)) : null
-        });
-      }
-    });
-    
-    // Sort by count and get top 3 decades
-    const sortedDecades = Object.values(decadeCounts)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-    
-    return sortedDecades;
-  };
-
-  // Calculate top albums and decades
-  const topAlbumsResult = calculateTopAlbums(topTracks);
-  const topDecadesResult = calculateTopDecades(topTracks);
-
-  setTopAlbums(topAlbumsResult);
-  setTopDecades(topDecadesResult);
-
-  // Calculate average popularity of top artists
-  const popularityStats = calculateAveragePopularity();
-  setAveragePopularity(popularityStats);
-
-  // Analyze publish years for different time periods
-  const analyzePublishYears = (tracks) => {
-    const yearData = {
-      '4_weeks': { years: [], average: 0, count: 0 },
-      '6_months': { years: [], average: 0, count: 0 },
-      '12_months': { years: [], average: 0, count: 0 },
-      'recent_50': { years: [], average: 0, count: 0 }
-    };
-
-    // Analyze tracks by time period
-    tracks.forEach(track => {
-      let trackYear = null;
-      
-      // Try to get release date from track
-      if (track.release_date) {
-        trackYear = new Date(track.release_date).getFullYear();
-      }
-      // Try to get release date from album
-      else if (track.album && track.album.release_date) {
-        trackYear = new Date(track.album.release_date).getFullYear();
-      }
-      
-      if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
-        // Add to appropriate time periods based on rankings
-        if (track.rankings) {
-          if (track.rankings['4_weeks']) {
-            yearData['4_weeks'].years.push(trackYear);
-          }
-          if (track.rankings['6_months']) {
-            yearData['6_months'].years.push(trackYear);
-          }
-          if (track.rankings['12_months']) {
-            yearData['12_months'].years.push(trackYear);
-          }
-        }
-      }
-    });
-
-    // Calculate averages for each time period
-    Object.keys(yearData).forEach(period => {
-      const years = yearData[period].years;
-      if (years.length > 0) {
-        yearData[period].average = Math.round(years.reduce((sum, year) => sum + year, 0) / years.length);
-        yearData[period].count = years.length;
-      }
-    });
-
-    // Get recent 50 songs (we'll need to fetch this separately)
-    return yearData;
-  };
-
-  const yearAnalysisResult = analyzePublishYears(topTracks);
-  setYearAnalysis(yearAnalysisResult);
-
-  // Analyze track popularity for different time periods
-  const analyzeTrackPopularity = (tracks) => {
-    const popularityData = {
-      '4_weeks': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
-      '6_months': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
-      '12_months': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
-      'all_tracks': { popularities: [], average: 0, count: 0, min: 0, max: 0 }
-    };
-
-    // Analyze tracks by time period
-    tracks.forEach(track => {
-      if (track.popularity !== null && track.popularity !== undefined && !isNaN(track.popularity)) {
-        // Add to all tracks
-        popularityData.all_tracks.popularities.push(track.popularity);
-        
-        // Add to specific time periods based on rankings
-        if (track.rankings) {
-          if (track.rankings['4_weeks']) {
-            popularityData['4_weeks'].popularities.push(track.popularity);
-          }
-          if (track.rankings['6_months']) {
-            popularityData['6_months'].popularities.push(track.popularity);
-          }
-          if (track.rankings['12_months']) {
-            popularityData['12_months'].popularities.push(track.popularity);
-          }
-        }
-      }
-    });
-
-    // Calculate statistics for each time period
-    Object.keys(popularityData).forEach(period => {
-      const popularities = popularityData[period].popularities;
-      if (popularities.length > 0) {
-        popularityData[period].average = Math.round(popularities.reduce((sum, pop) => sum + pop, 0) / popularities.length);
-        popularityData[period].count = popularities.length;
-        popularityData[period].min = Math.min(...popularities);
-        popularityData[period].max = Math.max(...popularities);
-      }
-    });
-
-    return popularityData;
-  };
-
-  const trackPopularityResult = analyzeTrackPopularity(topTracks);
-  setTrackPopularityAnalysis(trackPopularityResult);
-
-  // Analyze listening evolution - newly discovered vs. taking a break
-  const analyzeListeningEvolution = async (tracks) => {
+  // 🚀 OPTIMIZED ANALYSIS FUNCTIONS - Accept data as parameters instead of fetching
+  const analyzeListeningEvolution = async (tracks, recentTracks) => {
     const evolution = {
       newSongs: [],
       newArtists: [],
@@ -590,119 +276,112 @@ export default function QuickStats({ isMobile }) {
       breakArtists: []
     };
 
-    // Get recent tracks for comparison
     try {
-      const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
-      if (recentResponse.ok) {
-        const recentData = await recentResponse.json();
-        const recentTracks = recentData.tracks || [];
-        
-        // Create sets for easy comparison
-        const recentSongIds = new Set(recentTracks.map(track => track.id));
-        const recentArtistIds = new Set();
-        recentTracks.forEach(track => {
-          if (track.artists && track.artists.length > 0) {
-            track.artists.forEach(artist => recentArtistIds.add(artist.id));
-          }
-        });
+      // Create sets for easy comparison
+      const recentSongIds = new Set(recentTracks.map(track => track.id));
+      const recentArtistIds = new Set();
+      recentTracks.forEach(track => {
+        if (track.artists && track.artists.length > 0) {
+          track.artists.forEach(artist => recentArtistIds.add(artist.id));
+        }
+      });
 
-        // Get 4 weeks tracks (last month)
-        const fourWeeksTracks = tracks.filter(track => track.rankings && track.rankings['4_weeks']);
-        const fourWeeksSongIds = new Set(fourWeeksTracks.map(track => track.id));
-        const fourWeeksArtistIds = new Set();
-        fourWeeksTracks.forEach(track => {
-          if (track.artists && track.artists.length > 0) {
-            track.artists.forEach(artist => fourWeeksArtistIds.add(artist.id));
-          }
-        });
+      // Get 4 weeks tracks (last month)
+      const fourWeeksTracks = tracks.filter(track => track.rankings && track.rankings['4_weeks']);
+      const fourWeeksSongIds = new Set(fourWeeksTracks.map(track => track.id));
+      const fourWeeksArtistIds = new Set();
+      fourWeeksTracks.forEach(track => {
+        if (track.artists && track.artists.length > 0) {
+          track.artists.forEach(artist => fourWeeksArtistIds.add(artist.id));
+        }
+      });
 
-        // Get 6-12 months tracks (longer term)
-        const longTermTracks = tracks.filter(track => 
-          (track.rankings && track.rankings['6_months']) || 
-          (track.rankings && track.rankings['12_months'])
-        );
-        const longTermSongIds = new Set(longTermTracks.map(track => track.id));
-        const longTermArtistIds = new Set();
-        longTermTracks.forEach(track => {
-          if (track.artists && track.artists.length > 0) {
-            track.artists.forEach(artist => longTermArtistIds.add(artist.id));
-          }
-        });
+      // Get 6-12 months tracks (longer term)
+      const longTermTracks = tracks.filter(track => 
+        (track.rankings && track.rankings['6_months']) || 
+        (track.rankings && track.rankings['12_months'])
+      );
+      const longTermSongIds = new Set(longTermTracks.map(track => track.id));
+      const longTermArtistIds = new Set();
+      longTermTracks.forEach(track => {
+        if (track.artists && track.artists.length > 0) {
+          track.artists.forEach(artist => longTermArtistIds.add(artist.id));
+        }
+      });
 
-        // Find newly discovered songs (in recent + 4 weeks but not in 6-12 months)
-        const recentAndFourWeeksSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
-        tracks.forEach(track => {
-          if (recentAndFourWeeksSongIds.has(track.id) && !longTermSongIds.has(track.id)) {
-            evolution.newSongs.push({
-              id: track.id,
-              name: track.name,
-              artists: track.artists,
-              album: track.album,
-              rankings: track.rankings
-            });
-          }
-        });
+      // Find newly discovered songs (in recent + 4 weeks but not in 6-12 months)
+      const recentAndFourWeeksSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
+      tracks.forEach(track => {
+        if (recentAndFourWeeksSongIds.has(track.id) && !longTermSongIds.has(track.id)) {
+          evolution.newSongs.push({
+            id: track.id,
+            name: track.name,
+            artists: track.artists,
+            album: track.album,
+            rankings: track.rankings
+          });
+        }
+      });
 
-        // Find songs taking a break (in 6-12 months but not in recent + 4 weeks)
-        const allRecentSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
-        longTermTracks.forEach(track => {
-          if (!allRecentSongIds.has(track.id)) {
-            evolution.breakSongs.push({
-              id: track.id,
-              name: track.name,
-              artists: track.artists,
-              album: track.album,
-              rankings: track.rankings
-            });
-          }
-        });
+      // Find songs taking a break (in 6-12 months but not in recent + 4 weeks)
+      const allRecentSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
+      longTermTracks.forEach(track => {
+        if (!allRecentSongIds.has(track.id)) {
+          evolution.breakSongs.push({
+            id: track.id,
+            name: track.name,
+            artists: track.artists,
+            album: track.album,
+            rankings: track.rankings
+          });
+        }
+      });
 
-        // Find newly discovered artists (in recent + 4 weeks but not in 6-12 months)
-        const recentAndFourWeeksArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
-        tracks.forEach(track => {
-          if (track.artists && track.artists.length > 0) {
-            track.artists.forEach(artist => {
-              if (recentAndFourWeeksArtistIds.has(artist.id) && !longTermArtistIds.has(artist.id)) {
-                const existingArtist = evolution.newArtists.find(a => a.id === artist.id);
-                if (!existingArtist) {
-                  evolution.newArtists.push({
-                    id: artist.id,
-                    name: artist.name,
-                    trackCount: 1
-                  });
-                } else {
-                  existingArtist.trackCount++;
-                }
+      // Find newly discovered artists (in recent + 4 weeks but not in 6-12 months)
+      const recentAndFourWeeksArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
+      tracks.forEach(track => {
+        if (track.artists && track.artists.length > 0) {
+          track.artists.forEach(artist => {
+            if (recentAndFourWeeksArtistIds.has(artist.id) && !longTermArtistIds.has(artist.id)) {
+              const existingArtist = evolution.newArtists.find(a => a.id === artist.id);
+              if (!existingArtist) {
+                evolution.newArtists.push({
+                  id: artist.id,
+                  name: artist.name,
+                  trackCount: 1
+                });
+              } else {
+                existingArtist.trackCount++;
               }
-            });
-          }
-        });
+            }
+          });
+        }
+      });
 
-        // Find artists taking a break (in 6-12 months but not in recent + 4 weeks)
-        const allRecentArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
-        longTermTracks.forEach(track => {
-          if (track.artists && track.artists.length > 0) {
-            track.artists.forEach(artist => {
-              if (!allRecentArtistIds.has(artist.id)) {
-                const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
-                if (!existingArtist) {
-                  evolution.breakArtists.push({
-                    id: artist.id,
-                    name: artist.name,
-                    trackCount: 1
-                  });
-                } else {
-                  existingArtist.trackCount++;
-                }
+      // Find artists taking a break (in 6-12 months but not in recent + 4 weeks)
+      const allRecentArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
+      longTermTracks.forEach(track => {
+        if (track.artists && track.artists.length > 0) {
+          track.artists.forEach(artist => {
+            if (!allRecentArtistIds.has(artist.id)) {
+              const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
+              if (!existingArtist) {
+                evolution.breakArtists.push({
+                  id: artist.id,
+                  name: artist.name,
+                  trackCount: 1
+                });
+              } else {
+                existingArtist.trackCount++;
               }
-            });
-          }
-        });
+            }
+          });
+        }
+      });
 
-        // Sort by track count for artists
-        evolution.newArtists.sort((a, b) => b.trackCount - a.trackCount);
-        evolution.breakArtists.sort((a, b) => b.trackCount - a.trackCount);
-      }
+      // Sort by track count for artists
+      evolution.newArtists.sort((a, b) => b.trackCount - a.trackCount);
+      evolution.breakArtists.sort((a, b) => b.trackCount - a.trackCount);
     } catch (error) {
       console.error('Error analyzing listening evolution:', error);
     }
@@ -710,11 +389,7 @@ export default function QuickStats({ isMobile }) {
     return evolution;
   };
 
-  const listeningEvolutionResult = await analyzeListeningEvolution(topTracks);
-  setListeningEvolution(listeningEvolutionResult);
-
-  // Analyze time of day listening patterns
-  const analyzeTimeOfDay = async () => {
+  const analyzeTimeOfDay = async (recentTracks) => {
     const timeSlots = {
       '8-12 AM': { start: 8, end: 12, count: 0, songs: [] },        // 8:00 - 12:00
       '12-4 PM': { start: 12, end: 16, count: 0, songs: [] },       // 12:00 - 16:00
@@ -724,69 +399,63 @@ export default function QuickStats({ isMobile }) {
     };
 
     try {
-      const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
-      if (recentResponse.ok) {
-        const recentData = await recentResponse.json();
-        const recentTracks = recentData.tracks || [];
-        
-        // Process each track
-        recentTracks.forEach(track => {
-          if (track.played_at) {
-            // Convert to UTC+2 (assuming user is in UTC+2 timezone)
-            const playedAt = new Date(track.played_at);
-            const utcPlus2 = new Date(playedAt.getTime() + (2 * 60 * 60 * 1000)); // UTC+2
-            const hour = utcPlus2.getUTCHours();
-            
-            // Find which time slot this hour belongs to
-            let slotFound = false;
-            Object.keys(timeSlots).forEach(slotName => {
-              const slot = timeSlots[slotName];
-              if (slot.start <= slot.end) {
-                // Normal case: start < end (e.g., 9-12)
-                if (hour >= slot.start && hour < slot.end) {
-                  slot.count++;
-                  slot.songs.push({
-                    name: track.name,
-                    artists: track.artists,
-                    played_at: utcPlus2,
-                    hour: hour
-                  });
-                  slotFound = true;
-                }
-              } else {
-                // Wrapping case: start > end (e.g., 21-5 for night)
-                if (hour >= slot.start || hour < slot.end) {
-                  slot.count++;
-                  slot.songs.push({
-                    name: track.name,
-                    artists: track.artists,
-                    played_at: utcPlus2,
-                    hour: hour
-                  });
-                  slotFound = true;
-                }
+      // Process each track
+      recentTracks.forEach(track => {
+        if (track.played_at) {
+          // Convert to UTC+2 (assuming user is in UTC+2 timezone)
+          const playedAt = new Date(track.played_at);
+          const utcPlus2 = new Date(playedAt.getTime() + (2 * 60 * 60 * 1000)); // UTC+2
+          const hour = utcPlus2.getUTCHours();
+          
+          // Find which time slot this hour belongs to
+          let slotFound = false;
+          Object.keys(timeSlots).forEach(slotName => {
+            const slot = timeSlots[slotName];
+            if (slot.start <= slot.end) {
+              // Normal case: start < end (e.g., 9-12)
+              if (hour >= slot.start && hour < slot.end) {
+                slot.count++;
+                slot.songs.push({
+                  name: track.name,
+                  artists: track.artists,
+                  played_at: utcPlus2,
+                  hour: hour
+                });
+                slotFound = true;
               }
-            });
-          }
-        });
+            } else {
+              // Wrapping case: start > end (e.g., 21-5 for night)
+              if (hour >= slot.start || hour < slot.end) {
+                slot.count++;
+                slot.songs.push({
+                  name: track.name,
+                  artists: track.artists,
+                  played_at: utcPlus2,
+                  hour: hour
+                });
+                slotFound = true;
+              }
+            }
+          });
+        }
+      });
 
-        // Find the most active time slot
-        let mostActiveSlot = null;
-        let maxCount = 0;
-        Object.keys(timeSlots).forEach(slotName => {
-          if (timeSlots[slotName].count > maxCount) {
-            maxCount = timeSlots[slotName].count;
-            mostActiveSlot = slotName;
-          }
-        });
+      // Find the most active time slot
+      let mostActiveSlot = null;
+      let maxCount = 0;
+      Object.keys(timeSlots).forEach(slotName => {
+        if (timeSlots[slotName].count > maxCount) {
+          maxCount = timeSlots[slotName].count;
+          mostActiveSlot = slotName;
+        }
+      });
 
-        return {
-          timeSlots,
-          mostActiveSlot,
-          totalSongs: recentTracks.length,
-          analyzedSongs: Object.values(timeSlots).reduce((sum, slot) => sum + slot.count, 0)
-        };
-      }
+      return {
+        timeSlots,
+        mostActiveSlot,
+        totalSongs: recentTracks.length,
+        analyzedSongs: Object.values(timeSlots).reduce((sum, slot) => sum + slot.count, 0)
+      };
     } catch (error) {
       console.error('Error analyzing time of day:', error);
     }
@@ -794,11 +463,7 @@ export default function QuickStats({ isMobile }) {
     return null;
   };
 
-  const timeOfDayResult = await analyzeTimeOfDay();
-  setTimeOfDayAnalysis(timeOfDayResult);
-
-  // Analyze listener type - Superfan vs Artist Explorer
-  const analyzeListenerType = async () => {
+  const analyzeListenerType = async (recentTracks) => {
     const analysis = {
       type: null,
       confidence: 0,
@@ -809,104 +474,97 @@ export default function QuickStats({ isMobile }) {
     };
 
     try {
-      // Get recent tracks for analysis
-      const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
-      if (recentResponse.ok) {
-        const recentData = await recentResponse.json();
-        const recentTracks = recentData.tracks || [];
-        
-        // Count unique artists in recent tracks
-        const artistCounts = {};
-        recentTracks.forEach(track => {
-          if (track.artists && track.artists.length > 0) {
-            track.artists.forEach(artist => {
-              artistCounts[artist.id] = {
-                id: artist.id,
-                name: artist.name,
-                count: (artistCounts[artist.id]?.count || 0) + 1
-              };
-            });
-          }
-        });
-
-        // Calculate diversity metrics
-        const uniqueArtists = Object.keys(artistCounts).length;
-        const totalSongs = recentTracks.length;
-        const artistDiversity = uniqueArtists / totalSongs; // Higher = more diverse
-
-        // Find top artist in recent tracks
-        const sortedArtists = Object.values(artistCounts).sort((a, b) => b.count - a.count);
-        const topRecentArtist = sortedArtists[0];
-        const topArtistPercentage = (topRecentArtist.count / totalSongs) * 100;
-
-        // Get top artists from cache for comparison
-        const topArtists = getCachedTopArtists();
-        const topArtistFromCache = topArtists && topArtists.length > 0 ? topArtists[0] : null;
-
-        // Superfan indicators
-        const superfanIndicators = {
-          highTopArtistPercentage: topArtistPercentage > 30, // More than 30% from one artist
-          lowDiversity: artistDiversity < 0.3, // Less than 30% unique artists
-          consistentTopArtist: topRecentArtist && topArtistFromCache && 
-                              topRecentArtist.id === topArtistFromCache.id,
-          artistConcentration: topArtistPercentage
-        };
-
-        // Explorer indicators
-        const explorerIndicators = {
-          lowTopArtistPercentage: topArtistPercentage < 15, // Less than 15% from one artist
-          highDiversity: artistDiversity > 0.6, // More than 60% unique artists
-          manyUniqueArtists: uniqueArtists > 20, // More than 20 unique artists
-          artistDiversity: artistDiversity
-        };
-
-        // Calculate superfan score
-        let superfanScore = 0;
-        if (superfanIndicators.highTopArtistPercentage) superfanScore += 30;
-        if (superfanIndicators.lowDiversity) superfanScore += 25;
-        if (superfanIndicators.consistentTopArtist) superfanScore += 25;
-        superfanScore += Math.min(superfanIndicators.artistConcentration / 2, 20);
-
-        // Calculate explorer score
-        let explorerScore = 0;
-        if (explorerIndicators.lowTopArtistPercentage) explorerScore += 30;
-        if (explorerIndicators.highDiversity) explorerScore += 25;
-        if (explorerIndicators.manyUniqueArtists) explorerScore += 25;
-        explorerScore += Math.min(explorerIndicators.artistDiversity * 50, 20);
-
-        // Determine listener type
-        if (superfanScore > explorerScore && superfanScore > 50) {
-          analysis.type = 'Superfan';
-          analysis.confidence = Math.min(superfanScore, 100);
-          analysis.topArtist = topRecentArtist;
-          analysis.artistDiversity = artistDiversity;
-          analysis.superfanMetrics = {
-            topArtistPercentage: topArtistPercentage,
-            uniqueArtists: uniqueArtists,
-            totalSongs: totalSongs,
-            score: superfanScore
-          };
-        } else if (explorerScore > superfanScore && explorerScore > 50) {
-          analysis.type = 'Artist Explorer';
-          analysis.confidence = Math.min(explorerScore, 100);
-          analysis.topArtist = topRecentArtist;
-          analysis.artistDiversity = artistDiversity;
-          analysis.explorerMetrics = {
-            topArtistPercentage: topArtistPercentage,
-            uniqueArtists: uniqueArtists,
-            totalSongs: totalSongs,
-            score: explorerScore
-          };
-        } else {
-          analysis.type = 'Balanced Listener';
-          analysis.confidence = Math.max(superfanScore, explorerScore);
-          analysis.topArtist = topRecentArtist;
-          analysis.artistDiversity = artistDiversity;
+      // Count unique artists in recent tracks
+      const artistCounts = {};
+      recentTracks.forEach(track => {
+        if (track.artists && track.artists.length > 0) {
+          track.artists.forEach(artist => {
+            artistCounts[artist.id] = {
+              id: artist.id,
+              name: artist.name,
+              count: (artistCounts[artist.id]?.count || 0) + 1
+            };
+          });
         }
+      });
 
-        // Add all artists for display
-        analysis.allArtists = sortedArtists;
+      // Calculate diversity metrics
+      const uniqueArtists = Object.keys(artistCounts).length;
+      const totalSongs = recentTracks.length;
+      const artistDiversity = uniqueArtists / totalSongs; // Higher = more diverse
+
+      // Find top artist in recent tracks
+      const sortedArtists = Object.values(artistCounts).sort((a, b) => b.count - a.count);
+      const topRecentArtist = sortedArtists[0];
+      const topArtistPercentage = (topRecentArtist.count / totalSongs) * 100;
+
+      // Get top artists from cache for comparison
+      const topArtists = getCachedTopArtists();
+      const topArtistFromCache = topArtists && topArtists.length > 0 ? topArtists[0] : null;
+
+      // Superfan indicators
+      const superfanIndicators = {
+        highTopArtistPercentage: topArtistPercentage > 30, // More than 30% from one artist
+        lowDiversity: artistDiversity < 0.3, // Less than 30% unique artists
+        consistentTopArtist: topRecentArtist && topArtistFromCache && 
+                            topRecentArtist.id === topArtistFromCache.id,
+        artistConcentration: topArtistPercentage
+      };
+
+      // Explorer indicators
+      const explorerIndicators = {
+        lowTopArtistPercentage: topArtistPercentage < 15, // Less than 15% from one artist
+        highDiversity: artistDiversity > 0.6, // More than 60% unique artists
+        manyUniqueArtists: uniqueArtists > 20, // More than 20 unique artists
+        artistDiversity: artistDiversity
+      };
+
+      // Calculate superfan score
+      let superfanScore = 0;
+      if (superfanIndicators.highTopArtistPercentage) superfanScore += 30;
+      if (superfanIndicators.lowDiversity) superfanScore += 25;
+      if (superfanIndicators.consistentTopArtist) superfanScore += 25;
+      superfanScore += Math.min(superfanIndicators.artistConcentration / 2, 20);
+
+      // Calculate explorer score
+      let explorerScore = 0;
+      if (explorerIndicators.lowTopArtistPercentage) explorerScore += 30;
+      if (explorerIndicators.highDiversity) explorerScore += 25;
+      if (explorerIndicators.manyUniqueArtists) explorerScore += 25;
+      explorerScore += Math.min(explorerIndicators.artistDiversity * 50, 20);
+
+      // Determine listener type
+      if (superfanScore > explorerScore && superfanScore > 50) {
+        analysis.type = 'Superfan';
+        analysis.confidence = Math.min(superfanScore, 100);
+        analysis.topArtist = topRecentArtist;
+        analysis.artistDiversity = artistDiversity;
+        analysis.superfanMetrics = {
+          topArtistPercentage: topArtistPercentage,
+          uniqueArtists: uniqueArtists,
+          totalSongs: totalSongs,
+          score: superfanScore
+        };
+      } else if (explorerScore > superfanScore && explorerScore > 50) {
+        analysis.type = 'Artist Explorer';
+        analysis.confidence = Math.min(explorerScore, 100);
+        analysis.topArtist = topRecentArtist;
+        analysis.artistDiversity = artistDiversity;
+        analysis.explorerMetrics = {
+          topArtistPercentage: topArtistPercentage,
+          uniqueArtists: uniqueArtists,
+          totalSongs: totalSongs,
+          score: explorerScore
+        };
+      } else {
+        analysis.type = 'Balanced Listener';
+        analysis.confidence = Math.max(superfanScore, explorerScore);
+        analysis.topArtist = topRecentArtist;
+        analysis.artistDiversity = artistDiversity;
       }
+
+      // Add all artists for display
+      analysis.allArtists = sortedArtists;
     } catch (error) {
       console.error('Error analyzing listener type:', error);
     }
@@ -914,53 +572,555 @@ export default function QuickStats({ isMobile }) {
     return analysis;
   };
 
-  const listenerTypeResult = await analyzeListenerType();
-  setListenerTypeAnalysis(listenerTypeResult);
-
-  // Fetch recent 50 songs for comparison
-  try {
-    const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
-    if (recentResponse.ok) {
-      const recentData = await recentResponse.json();
-      const recentTracks = recentData.tracks || [];
-      
-      // Analyze recent tracks
-      const recentYears = [];
-      recentTracks.forEach(track => {
-        let trackYear = null;
-        
-        if (track.release_date) {
-          trackYear = new Date(track.release_date).getFullYear();
-        } else if (track.album && track.album.release_date) {
-          trackYear = new Date(track.album.release_date).getFullYear();
-        }
-        
-        if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
-          recentYears.push(trackYear);
-        }
-      });
-      
-      if (recentYears.length > 0) {
-        yearAnalysisResult.recent_50 = {
-          years: recentYears,
-          average: Math.round(recentYears.reduce((sum, year) => sum + year, 0) / recentYears.length),
-          count: recentYears.length
-        };
-        setYearAnalysis({ ...yearAnalysisResult });
-      }
+    const loadQuickStats = useCallback(async () => {
+    if (!isCacheValid() || !hasCompleteCache()) {
+      return;
     }
-  } catch (error) {
-    console.error('Error fetching recent tracks:', error);
-  }
-}
 
-  setLoading(false);
-} catch (err) {
-  console.error('Error loading quick stats:', err);
-  setError(err.message);
-  setLoading(false);
-}
-}, [hasLoadedDiscogs, getCachedQuickStats, setCachedQuickStats]); // Add getCachedQuickStats and setCachedQuickStats to dependency array
+    try {
+      // Get top artists from cache
+      const topArtists = getCachedTopArtists();
+      const topTracks = getCachedTopTracks();
+      
+      // 🚀 NEW: Check partial cache for each section
+      const checkAndSetCachedSection = (sectionName, setter, loadingStateKey) => {
+        const cached = getCachedSection(sectionName, topArtists, topTracks);
+        if (cached) {
+          setter(cached);
+          setLoadingStates(prev => ({ ...prev, [loadingStateKey]: true }));
+          return true; // Cache hit
+        }
+        return false; // Cache miss
+      };
+      
+      if (topArtists && topArtists.length > 0) {
+        // 🚀 Check cache for basic stats first
+        const cachedBasicStats = checkAndSetCachedSection('basicStats', (data) => {
+          setTopArtist(data.bestArtist);
+          setTopArtistTimeRange(data.bestTimeRange);
+        }, 'basicStats');
+        
+        if (!cachedBasicStats) {
+          // Calculate basic stats
+          let bestArtist = topArtists[0];
+          let bestRank = Infinity;
+          let bestTimeRange = null;
+
+          topArtists.forEach(artist => {
+            const rankings = artist.rankings || {};
+            
+            // Priority 1: 12 months (last year) - highest priority
+            if (rankings['12_months'] && rankings['12_months'] < bestRank) {
+              bestRank = rankings['12_months'];
+              bestArtist = artist;
+              bestTimeRange = '12_months';
+            }
+          });
+
+          // If no 12 months data, fall back to 6 months
+          if (bestTimeRange !== '12_months') {
+            topArtists.forEach(artist => {
+              const rankings = artist.rankings || {};
+              if (rankings['6_months'] && rankings['6_months'] < bestRank) {
+                bestRank = rankings['6_months'];
+                bestArtist = artist;
+                bestTimeRange = '6_months';
+              }
+            });
+          }
+
+          // If still no data, fall back to 4 weeks
+          if (bestTimeRange === null) {
+            topArtists.forEach(artist => {
+              const rankings = artist.rankings || {};
+              if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
+                bestRank = rankings['4_weeks'];
+                bestArtist = artist;
+                bestTimeRange = '4_weeks';
+              }
+            });
+          }
+
+          setTopArtist(bestArtist);
+          setTopArtistTimeRange(bestTimeRange);
+
+          // 🚀 Mark basic stats as ready
+          setLoadingStates(prev => ({ ...prev, basicStats: true }));
+          
+          // 🚀 Cache basic stats
+          setCachedSection('basicStats', { bestArtist, bestTimeRange }, topArtists, topTracks);
+        }
+
+        // Get top 3 artists ranked by 12_months from spotify_top_artists
+        const top3Artists = topArtists
+          .filter(artist => artist.rankings && artist.rankings['12_months'])
+          .sort((a, b) => a.rankings['12_months'] - b.rankings['12_months'])
+          .slice(0, 3);
+
+        if (top3Artists.length > 0) {
+          
+          // Check cache first
+          const cached = getCachedQuickStats(top3Artists);
+          if (cached) {
+            setTopGenres(cached.genres);
+            setTopStyles(cached.styles);
+            setHasLoadedDiscogs(true);
+          } else {
+            // Only fetch Discogs data if we haven't already
+            if (!hasLoadedDiscogs) {
+              // Make individual Discogs API calls for each artist
+              const discogsPromises = top3Artists.map(async (artist, index) => {
+                try {
+                  const artistName = artist.name;
+                  const apiUrl = `http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/genre-style-map`;
+                  
+                  const response = await fetch(apiUrl);
+                  
+                  if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Extract genres and styles from the genre-style map
+                    const allGenres = new Set();
+                    const allStyles = new Set();
+                    
+                    if (data.map && typeof data.map === 'object') {
+                      Object.values(data.map).forEach(albumData => {
+                        if (Array.isArray(albumData) && albumData[0]) {
+                          // albumData[0] contains genres array
+                          albumData[0].forEach(genre => allGenres.add(genre));
+                        }
+                        if (Array.isArray(albumData) && albumData[1]) {
+                          // albumData[1] contains styles array
+                          albumData[1].forEach(style => allStyles.add(style));
+                        }
+                      });
+                    }
+                    
+                    return {
+                      name: artistName,
+                      rank: artist.rankings['12_months'],
+                      genres: Array.from(allGenres),
+                      styles: Array.from(allStyles)
+                    };
+                  } else {
+                    const errorText = await response.text();
+                    console.error(`[${index + 1}/3] Failed to fetch Discogs data for "${artistName}":`, response.status, errorText);
+                    return null;
+                  }
+                } catch (err) {
+                  console.error(`[${index + 1}/3] Network error for "${artist.name}":`, err);
+                  return null;
+                }
+              });
+
+              const discogsResults = await Promise.all(discogsPromises);
+              
+              const validResults = discogsResults.filter(result => result !== null);
+
+              if (validResults.length > 0) {
+                // Calculate most common genres
+                const genreCounts = {};
+                validResults.forEach(result => {
+                  result.genres.forEach(genre => {
+                    genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+                  });
+                });
+
+                const sortedGenres = Object.entries(genreCounts)
+                  .map(([name, count]) => ({ name, count }))
+                  .sort((a, b) => b.count - a.count)
+                  .filter(genre => genre.count >= 2); // Only show genres with 2+ artists
+
+                setTopGenres(sortedGenres);
+
+                // Calculate most common styles
+                const styleCounts = {};
+                validResults.forEach(result => {
+                  result.styles.forEach(style => {
+                    styleCounts[style] = (styleCounts[style] || 0) + 1;
+                  });
+                });
+
+                const sortedStyles = Object.entries(styleCounts)
+                  .map(([name, count]) => ({ name, count }))
+                  .sort((a, b) => b.count - a.count)
+                  .filter(style => style.count >= 2); // Only show styles with 2+ artists
+                setTopStyles(sortedStyles);
+
+                // Cache the results
+                setCachedQuickStats(top3Artists, sortedGenres, sortedStyles);
+              } else {
+                setTopGenres([]);
+                setTopStyles([]);
+              }
+              
+              // Mark that we've loaded Discogs data to prevent duplicate calls
+              setHasLoadedDiscogs(true);
+              
+              // 🚀 Mark genres/styles as ready
+              setLoadingStates(prev => ({ ...prev, genresStyles: true }));
+            } else {
+              // If cached data exists, use it
+              const cached = getCachedQuickStats(top3Artists);
+              if (cached) {
+                setTopGenres(cached.genres);
+                setTopStyles(cached.styles);
+              } else {
+                setTopGenres([]);
+                setTopStyles([]);
+              }
+              
+              // 🚀 Mark genres/styles as ready (cached case)
+              setLoadingStates(prev => ({ ...prev, genresStyles: true }));
+            }
+          }
+        } else {
+          setTopGenres([]);
+          setTopStyles([]);
+          
+          // 🚀 Mark genres/styles as ready (no artists case)
+          setLoadingStates(prev => ({ ...prev, genresStyles: true }));
+        }
+      }
+
+      // Get top tracks from cache (already declared above)
+      if (topTracks && topTracks.length > 0) {
+        // Find the track with the best overall ranking, prioritizing 12 months
+        let bestTrack = topTracks[0];
+        let bestRank = Infinity;
+        let bestTimeRange = null;
+        
+        topTracks.forEach(track => {
+          const rankings = track.rankings || {};
+          
+          // Priority 1: 12 months (last year) - highest priority
+          if (rankings['12_months'] && rankings['12_months'] < bestRank) {
+            bestRank = rankings['12_months'];
+            bestTrack = track;
+            bestTimeRange = '12_months';
+          }
+        });
+
+        // If no 12 months data, fall back to 6 months
+        if (bestTimeRange !== '12_months') {
+          topTracks.forEach(track => {
+            const rankings = track.rankings || {};
+            if (rankings['6_months'] && rankings['6_months'] < bestRank) {
+              bestRank = rankings['6_months'];
+              bestTrack = track;
+              bestTimeRange = '6_months';
+            }
+          });
+        }
+
+        // If still no data, fall back to 4 weeks
+        if (bestTimeRange === null) {
+          topTracks.forEach(track => {
+            const rankings = track.rankings || {};
+            if (rankings['4_weeks'] && rankings['4_weeks'] < bestRank) {
+              bestRank = rankings['4_weeks'];
+              bestTrack = track;
+              bestTimeRange = '4_weeks';
+            }
+          });
+        }
+
+        setTopSong(bestTrack);
+        setTopSongTimeRange(bestTimeRange);
+
+        // Calculate top 3 albums from all tracks
+        const calculateTopAlbums = (tracks) => {
+          const albumCounts = {};
+          
+          tracks.forEach(track => {
+            if (track.album && track.album.name) {
+              const albumKey = `${track.album.name}_${track.album.id}`;
+              if (!albumCounts[albumKey]) {
+                albumCounts[albumKey] = {
+                  name: track.album.name,
+                  id: track.album.id,
+                  images: track.album.images || [],
+                  artist: track.artists && track.artists[0] ? track.artists[0].name : 'Unknown Artist',
+                  count: 0,
+                  tracks: []
+                };
+              }
+              albumCounts[albumKey].count++;
+              albumCounts[albumKey].tracks.push({
+                name: track.name,
+                ranking: track.rankings ? Math.min(...Object.values(track.rankings).filter(r => r !== null)) : null
+              });
+            }
+          });
+          
+          // Sort by count and get top 3 albums
+          const sortedAlbums = Object.values(albumCounts)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3);
+          
+          return sortedAlbums;
+        };
+
+        // Calculate top 3 decades from all tracks
+        const calculateTopDecades = (tracks) => {
+          const decadeCounts = {};
+          
+          tracks.forEach(track => {
+            let trackYear = null;
+            
+            // Try to get release date from track
+            if (track.release_date) {
+              trackYear = new Date(track.release_date).getFullYear();
+            }
+            // Try to get release date from album
+            else if (track.album && track.album.release_date) {
+              trackYear = new Date(track.album.release_date).getFullYear();
+            }
+            
+            if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
+              const decade = Math.floor(trackYear / 10) * 10;
+              const decadeLabel = `${decade}s`;
+              
+              if (!decadeCounts[decadeLabel]) {
+                decadeCounts[decadeLabel] = {
+                  decade: decade,
+                  label: decadeLabel,
+                  count: 0,
+                  tracks: []
+                };
+              }
+              decadeCounts[decadeLabel].count++;
+              decadeCounts[decadeLabel].tracks.push({
+                name: track.name,
+                artist: track.artists && track.artists[0] ? track.artists[0].name : 'Unknown Artist',
+                year: trackYear,
+                ranking: track.rankings ? Math.min(...Object.values(track.rankings).filter(r => r !== null)) : null
+              });
+            }
+          });
+          
+          // Sort by count and get top 3 decades
+          const sortedDecades = Object.values(decadeCounts)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3);
+          
+          return sortedDecades;
+        };
+
+        // Calculate top albums and decades
+        const topAlbumsResult = calculateTopAlbums(topTracks);
+        const topDecadesResult = calculateTopDecades(topTracks);
+
+        setTopAlbums(topAlbumsResult);
+        setTopDecades(topDecadesResult);
+
+        // 🚀 Mark albums/decades as ready
+        setLoadingStates(prev => ({ ...prev, albumsDecades: true }));
+
+        // Calculate average popularity of top artists
+        const popularityStats = calculateAveragePopularity();
+        setAveragePopularity(popularityStats);
+
+        // 🚀 Mark popularity as ready
+        setLoadingStates(prev => ({ ...prev, popularity: true }));
+
+        // Analyze publish years for different time periods
+        const analyzePublishYears = (tracks) => {
+          const yearData = {
+            '4_weeks': { years: [], average: 0, count: 0 },
+            '6_months': { years: [], average: 0, count: 0 },
+            '12_months': { years: [], average: 0, count: 0 },
+            'recent_50': { years: [], average: 0, count: 0 }
+          };
+
+          // Analyze tracks by time period
+          tracks.forEach(track => {
+            let trackYear = null;
+            
+            // Try to get release date from track
+            if (track.release_date) {
+              trackYear = new Date(track.release_date).getFullYear();
+            }
+            // Try to get release date from album
+            else if (track.album && track.album.release_date) {
+              trackYear = new Date(track.album.release_date).getFullYear();
+            }
+            
+            if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
+              // Add to appropriate time periods based on rankings
+              if (track.rankings) {
+                if (track.rankings['4_weeks']) {
+                  yearData['4_weeks'].years.push(trackYear);
+                }
+                if (track.rankings['6_months']) {
+                  yearData['6_months'].years.push(trackYear);
+                }
+                if (track.rankings['12_months']) {
+                  yearData['12_months'].years.push(trackYear);
+                }
+              }
+            }
+          });
+
+          // Calculate averages for each time period
+          Object.keys(yearData).forEach(period => {
+            const years = yearData[period].years;
+            if (years.length > 0) {
+              yearData[period].average = Math.round(years.reduce((sum, year) => sum + year, 0) / years.length);
+              yearData[period].count = years.length;
+            }
+          });
+
+          // Get recent 50 songs (we'll need to fetch this separately)
+          return yearData;
+        };
+
+        const yearAnalysisResult = analyzePublishYears(topTracks);
+        setYearAnalysis(yearAnalysisResult);
+
+        // 🚀 Mark year analysis as ready
+        setLoadingStates(prev => ({ ...prev, yearAnalysis: true }));
+
+        // Analyze track popularity for different time periods
+        const analyzeTrackPopularity = (tracks) => {
+          const popularityData = {
+            '4_weeks': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
+            '6_months': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
+            '12_months': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
+            'all_tracks': { popularities: [], average: 0, count: 0, min: 0, max: 0 }
+          };
+
+          // Analyze tracks by time period
+          tracks.forEach(track => {
+            if (track.popularity !== null && track.popularity !== undefined && !isNaN(track.popularity)) {
+              // Add to all tracks
+              popularityData.all_tracks.popularities.push(track.popularity);
+              
+              // Add to specific time periods based on rankings
+              if (track.rankings) {
+                if (track.rankings['4_weeks']) {
+                  popularityData['4_weeks'].popularities.push(track.popularity);
+                }
+                if (track.rankings['6_months']) {
+                  popularityData['6_months'].popularities.push(track.popularity);
+                }
+                if (track.rankings['12_months']) {
+                  popularityData['12_months'].popularities.push(track.popularity);
+                }
+              }
+            }
+          });
+
+          // Calculate statistics for each time period
+          Object.keys(popularityData).forEach(period => {
+            const popularities = popularityData[period].popularities;
+            if (popularities.length > 0) {
+              popularityData[period].average = Math.round(popularities.reduce((sum, pop) => sum + pop, 0) / popularities.length);
+              popularityData[period].count = popularities.length;
+              popularityData[period].min = Math.min(...popularities);
+              popularityData[period].max = Math.max(...popularities);
+            }
+          });
+
+          return popularityData;
+        };
+
+        const trackPopularityResult = analyzeTrackPopularity(topTracks);
+        setTrackPopularityAnalysis(trackPopularityResult);
+
+        // 🚀 Mark track popularity as ready
+        setLoadingStates(prev => ({ ...prev, trackPopularity: true }));
+
+        // 🚀 OPTIMIZATION: Fetch all external data in parallel
+        const [recentTracksResponse] = await Promise.all([
+          fetch('http://127.0.0.1:8000/recent-tracks')
+        ]);
+
+        let recentTracks = [];
+        if (recentTracksResponse.ok) {
+          const recentData = await recentTracksResponse.json();
+          recentTracks = recentData.tracks || [];
+        }
+
+        // 🚀 OPTIMIZATION: Run all analyses in parallel with shared data
+        const [
+          listeningEvolutionResult,
+          timeOfDayResult,
+          listenerTypeResult
+        ] = await Promise.all([
+          analyzeListeningEvolution(topTracks, recentTracks),
+          analyzeTimeOfDay(recentTracks),
+          analyzeListenerType(recentTracks)
+        ]);
+
+        setListeningEvolution(listeningEvolutionResult);
+        setTimeOfDayAnalysis(timeOfDayResult);
+        setListenerTypeAnalysis(listenerTypeResult);
+
+        // 🚀 Mark external analyses as ready
+        setLoadingStates(prev => ({ 
+          ...prev, 
+          listeningEvolution: true,
+          timeOfDay: true,
+          listenerType: true
+        }));
+
+        // Update year analysis with recent tracks
+        if (recentTracks.length > 0) {
+          const recentYears = [];
+          recentTracks.forEach(track => {
+            let trackYear = null;
+            
+            if (track.release_date) {
+              trackYear = new Date(track.release_date).getFullYear();
+            } else if (track.album && track.album.release_date) {
+              trackYear = new Date(track.album.release_date).getFullYear();
+            }
+            
+            if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
+              recentYears.push(trackYear);
+            }
+          });
+          
+          if (recentYears.length > 0) {
+            yearAnalysisResult.recent_50 = {
+              years: recentYears,
+              average: Math.round(recentYears.reduce((sum, year) => sum + year, 0) / recentYears.length),
+              count: recentYears.length
+            };
+            setYearAnalysis({ ...yearAnalysisResult });
+          }
+        }
+      }
+
+      setLoading(false);
+      
+      // 🚀 NEW: Store comprehensive results in cache for next time
+      const comprehensiveData = {
+        topArtist,
+        topArtistTimeRange,
+        topSong,
+        topSongTimeRange,
+        topGenres,
+        topStyles,
+        topAlbums,
+        topDecades,
+        averagePopularity,
+        yearAnalysis,
+        trackPopularityAnalysis,
+        listeningEvolution,
+        timeOfDayAnalysis,
+        listenerTypeAnalysis
+      };
+      
+      setCachedComprehensiveStats(topArtists, topTracks, comprehensiveData);
+      console.log('🚀 Comprehensive cache stored for next load!');
+    } catch (err) {
+      console.error('Error loading quick stats:', err);
+      setError(err.message);
+      setLoading(false);
+    }
+  }, [hasLoadedDiscogs, getCachedQuickStats, setCachedQuickStats, getCachedSection, setCachedSection]); // Add new cache functions to dependency array
 
   useEffect(() => {
     const loadData = async () => {
@@ -970,12 +1130,12 @@ export default function QuickStats({ isMobile }) {
     // Initial load
     loadData();
 
-    // Set up polling to check for cache updates every 2 seconds
+    // Set up polling to check for cache updates every 5 seconds (reduced from 2 seconds)
     const cacheCheckInterval = setInterval(() => {
       if (isCacheValid() && hasCompleteCache() && (!topArtist || !topSong)) {
         loadData();
       }
-    }, 2000);
+    }, 5000);
 
     // Cleanup interval on unmount
     return () => {
@@ -987,6 +1147,11 @@ export default function QuickStats({ isMobile }) {
   if (loading || !topArtist || !topSong) {
     return null;
   }
+
+  // 🚀 Progressive loading - show cards as they become ready
+  const shouldShowCard = (cardType) => {
+    return loadingStates[cardType] || false;
+  };
 
   // Show loading state while fetching Discogs data
   if (topGenres.length === 0 && topStyles.length === 0) {
@@ -1015,6 +1180,7 @@ export default function QuickStats({ isMobile }) {
           alignItems: 'start'
         }}>
           {/* Top Artist Card */}
+          {shouldShowCard('basicStats') && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -1159,8 +1325,10 @@ export default function QuickStats({ isMobile }) {
               </div>
             )}
           </div>
+          )}
 
           {/* Top Song Card */}
+          {shouldShowCard('basicStats') && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -1309,6 +1477,7 @@ export default function QuickStats({ isMobile }) {
               </div>
             )}
           </div>
+          )}
 
           {/* Loading message for genres and styles */}
           <div style={{
@@ -1680,7 +1849,7 @@ export default function QuickStats({ isMobile }) {
         </div>
 
         {/* Top Genres Card - Only show if there are genres with 2+ artists */}
-        {topGenres.length > 0 && (
+        {shouldShowCard('genresStyles') && topGenres.length > 0 && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -1811,7 +1980,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Top Styles Card - Only show if there are styles with 2+ artists */}
-        {topStyles.length > 0 && (
+        {shouldShowCard('genresStyles') && topStyles.length > 0 && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -1941,7 +2110,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Top Albums Card - Show top 3 albums */}
-        {topAlbums.length > 0 && (
+        {shouldShowCard('albumsDecades') && topAlbums.length > 0 && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -2095,7 +2264,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Top Decades Card - Show top 3 decades */}
-        {topDecades.length > 0 && (
+        {shouldShowCard('albumsDecades') && topDecades.length > 0 && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -2237,7 +2406,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Average Popularity Card */}
-        {averagePopularity && averagePopularity.count > 0 && (
+        {shouldShowCard('popularity') && averagePopularity && averagePopularity.count > 0 && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -2415,12 +2584,82 @@ export default function QuickStats({ isMobile }) {
                   </div>
                 </div>
               )}
+
+              {/* 🚀 NEW: Hidden Gems */}
+              {averagePopularity.hiddenGems && averagePopularity.hiddenGems.length > 0 && (
+                <div>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>💎</span>
+                    Hidden Gems
+                  </h5>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    {averagePopularity.hiddenGems.map((artist, index) => (
+                      <div key={artist.name} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: 'rgba(34, 197, 94, 0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(34, 197, 94, 0.1)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span style={{
+                            background: '#22c55e',
+                            color: '#000',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.7rem',
+                            fontWeight: '700'
+                          }}>
+                            💎
+                          </span>
+                          <span style={{
+                            color: '#fff',
+                            fontSize: '0.9rem',
+                            fontWeight: '500'
+                          }}>
+                            {artist.name}
+                          </span>
+                        </div>
+                        <span style={{
+                          color: '#22c55e',
+                          fontSize: '0.8rem',
+                          fontWeight: '600'
+                        }}>
+                          {artist.popularity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* Year Analysis Card */}
-        {yearAnalysis && (
+        {shouldShowCard('yearAnalysis') && yearAnalysis && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -2639,7 +2878,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Track Popularity Analysis Card */}
-        {trackPopularityAnalysis && (
+        {shouldShowCard('trackPopularity') && trackPopularityAnalysis && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -2865,7 +3104,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Listening Evolution Card */}
-        {listeningEvolution && (
+        {shouldShowCard('listeningEvolution') && listeningEvolution && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -3269,7 +3508,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Time of Day Analysis Card */}
-        {timeOfDayAnalysis && (
+        {shouldShowCard('timeOfDay') && timeOfDayAnalysis && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
@@ -3585,7 +3824,7 @@ export default function QuickStats({ isMobile }) {
         )}
 
         {/* Listener Type Analysis Card */}
-        {listenerTypeAnalysis && (
+        {shouldShowCard('listenerType') && listenerTypeAnalysis && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '20px',
