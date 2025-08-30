@@ -1,4 +1,6 @@
 import React from 'react';
+import { useRouter } from 'next/navigation';
+import { getRecentSearches } from '../../../utils/recentSearchesCache';
 
 /**
  * TimeOfDayCard Component
@@ -13,6 +15,50 @@ import React from 'react';
  * ✅ Optimizable - can optimize its own rendering
  */
 export default function TimeOfDayCard({ timeAnalysis }) {
+  const router = useRouter();
+
+  // Navigation utility function
+  const navigateToArtistPage = async (artistName, artistId) => {
+    try {
+      console.log(`[TimeOfDayCard] Searching for artist: ${artistName}`);
+      
+      // Make server-side API call for enhanced artist search
+      const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log(`[TimeOfDayCard] Server search successful for: ${artistName}`, data);
+          
+          // Navigate using server-provided parameters
+          router.push(data.navigationUrl);
+          return;
+        } else {
+          console.log(`[TimeOfDayCard] Server search failed for: ${artistName}`, data.message);
+        }
+      } else {
+        console.log(`[TimeOfDayCard] Server search failed for: ${artistName}`, response.status);
+      }
+    } catch (error) {
+      console.error(`[TimeOfDayCard] Error during server search for: ${artistName}`, error);
+    }
+    
+    // Fallback to basic navigation if server search fails
+    console.log(`[TimeOfDayCard] Using fallback navigation for: ${artistName}`);
+    
+    const params = [`name=${encodeURIComponent(artistName)}`];
+    
+    // Check localStorage for ticketmasterId (now protected)
+    const recents = getRecentSearches();
+    const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+    if (cachedArtist?.ticketmasterId) {
+      params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+    }
+    
+    // Navigate to artist page
+    router.push(`/artist?${params.join('&')}`);
+  };
   if (!timeAnalysis) {
     return (
       <div style={{
@@ -110,9 +156,18 @@ export default function TimeOfDayCard({ timeAnalysis }) {
               color: '#f59e0b',
               fontSize: '1.1rem',
               fontWeight: '600',
-              margin: '0 0 8px 0'
+              margin: '0 0 8px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}>
-              🎵 Your Most Active Time
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+              </svg>
+              Your Most Active Time
             </h4>
             <p style={{
               color: '#fff',
@@ -240,7 +295,7 @@ export default function TimeOfDayCard({ timeAnalysis }) {
               fontWeight: '600',
               margin: '0 0 12px 0'
             }}>
-              Sample Songs from {timeAnalysis.mostActiveSlot}
+              Most Recent Songs from {timeAnalysis.mostActiveSlot}
             </h5>
             <div style={{
               display: 'flex',
@@ -261,22 +316,91 @@ export default function TimeOfDayCard({ timeAnalysis }) {
                     alignItems: 'center',
                     justifyContent: 'space-between'
                   }}>
-                    <div>
-                      <p style={{
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        margin: '0 0 2px 0'
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      flex: 1
+                    }}>
+                      {/* Artist Image */}
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        flexShrink: 0
                       }}>
-                        {song.name}
-                      </p>
-                      <p style={{
-                        color: '#b3b3b3',
-                        fontSize: '0.8rem',
-                        margin: '0'
-                      }}>
-                        {song.artists.map(artist => artist.name).join(', ')}
-                      </p>
+                        {song.artists && song.artists[0] && song.artists[0].images && song.artists[0].images[0] && song.artists[0].images[0].url ? (
+                          <img 
+                            src={song.artists[0].images[0].url} 
+                            alt={song.artists[0].name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        ) : song.album && song.album.images && song.album.images[0] && song.album.images[0].url ? (
+                          <img 
+                            src={song.album.images[0].url} 
+                            alt={song.album.name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: '1.2rem',
+                            fontWeight: '600'
+                          }}>
+                            {song.artists && song.artists[0] ? song.artists[0].name.charAt(0).toUpperCase() : '?'}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div style={{ flex: 1 }}>
+                        <p style={{
+                          color: '#fff',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          margin: '0 0 2px 0'
+                        }}>
+                          {song.name}
+                        </p>
+                        <p style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem',
+                          margin: '0'
+                        }}>
+                          {song.artists.map((artist, artistIndex) => (
+                            <span key={artist.id}>
+                              <span
+                                style={{
+                                  color: '#b3b3b3',
+                                  cursor: 'pointer',
+                                  transition: 'color 0.2s ease',
+                                  textDecoration: 'underline'
+                                }}
+                                onMouseEnter={(e) => { e.target.style.color = '#f59e0b'; }}
+                                onMouseLeave={(e) => { e.target.style.color = '#b3b3b3'; }}
+                                onClick={() => navigateToArtistPage(artist.name, artist.id)}
+                              >
+                                {artist.name}
+                              </span>
+                              {artistIndex < song.artists.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
                     </div>
                     <span style={{
                       background: '#f59e0b',
@@ -286,7 +410,7 @@ export default function TimeOfDayCard({ timeAnalysis }) {
                       fontSize: '0.7rem',
                       fontWeight: '600'
                     }}>
-                      {song.hour.toString().padStart(2, '0')}:00
+                      {song.hour.toString().padStart(2, '0')}:{song.minute ? song.minute.toString().padStart(2, '0') : '00'}
                     </span>
                   </div>
                 </div>

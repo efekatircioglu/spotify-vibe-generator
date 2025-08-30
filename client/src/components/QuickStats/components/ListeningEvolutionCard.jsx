@@ -1,4 +1,54 @@
 import React from 'react';
+import { useRouter } from 'next/navigation';
+import { getRecentSearches } from '../../../utils/recentSearchesCache';
+
+// Shared utility function for navigating to artist page with server-side search
+const navigateToArtistPage = async (router, artistName, artistId) => {
+  try {
+    console.log(`[ListeningEvolutionCard] Searching for artist: ${artistName}`);
+    
+    // Make server-side API call for enhanced artist search
+    const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`[ListeningEvolutionCard] Server search successful for: ${artistName}`, data);
+        
+        // Navigate using server-provided parameters
+        router.push(data.navigationUrl);
+        return;
+      } else {
+        console.log(`[ListeningEvolutionCard] Server search failed for: ${artistName}`, data.message);
+      }
+    } else {
+      console.log(`[ListeningEvolutionCard] Server search failed for: ${artistName}`, response.status);
+    }
+  } catch (error) {
+    console.error(`[ListeningEvolutionCard] Error during server search for: ${artistName}`, error);
+  }
+  
+  // Fallback to basic navigation if server search fails
+  console.log(`[ListeningEvolutionCard] Using fallback navigation for: ${artistName}`);
+  
+  const params = [`name=${encodeURIComponent(artistName)}`];
+  
+  // Add spotifyId if available
+  if (artistId) {
+    params.push(`spotifyId=${encodeURIComponent(artistId)}`);
+  }
+  
+  // Check localStorage for ticketmasterId (now protected)
+  const recents = getRecentSearches();
+  const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+  if (cachedArtist?.ticketmasterId) {
+    params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+  }
+  
+  // Navigate to artist page
+  router.push(`/artist?${params.join('&')}`);
+};
 
 /**
  * ListeningEvolutionCard Component
@@ -11,8 +61,11 @@ import React from 'react';
  * ✅ Reusable - can be used in other parts of the app
  * ✅ Testable - easy to test in isolation
  * ✅ Optimizable - can optimize its own rendering
+ * ✅ Clickable - artist names navigate to artist pages
  */
 export default function ListeningEvolutionCard({ evolution }) {
+  const router = useRouter();
+
   if (!evolution) {
     return (
       <div style={{
@@ -128,9 +181,44 @@ export default function ListeningEvolutionCard({ evolution }) {
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between'
+                    gap: '12px'
                   }}>
-                    <div>
+                    {/* Album Image */}
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {song.album && song.album.images && song.album.images[0] && song.album.images[0].url ? (
+                        <img
+                          src={song.album.images[0].url}
+                          alt={song.album.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#000',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
+                          🎵
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
                       <p style={{
                         color: '#fff',
                         fontSize: '0.9rem',
@@ -144,9 +232,29 @@ export default function ListeningEvolutionCard({ evolution }) {
                         fontSize: '0.8rem',
                         margin: '0'
                       }}>
-                        {song.artists.map(artist => artist.name).join(', ')}
+                        {song.artists.map(artist => (
+                          <span
+                            key={artist.id}
+                            style={{
+                              color: '#22c55e',
+                              cursor: 'pointer',
+                              transition: 'color 0.2s ease',
+                              textDecoration: 'underline'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.color = '#16a34a';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.color = '#22c55e';
+                            }}
+                            onClick={() => navigateToArtistPage(router, artist.name, artist.id)}
+                          >
+                            {artist.name}
+                          </span>
+                        )).reduce((prev, curr) => [prev, ', ', curr])}
                       </p>
                     </div>
+                    
                     <span style={{
                       background: '#22c55e',
                       color: '#000',
@@ -201,15 +309,72 @@ export default function ListeningEvolutionCard({ evolution }) {
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between'
+                    gap: '12px'
                   }}>
-                    <div>
-                      <p style={{
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        margin: '0 0 2px 0'
-                      }}>
+                    {/* Artist Image */}
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {artist.images && artist.images[0] && artist.images[0].url ? (
+                        <img
+                          src={artist.images[0].url}
+                          alt={artist.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : artist.albumImage ? (
+                        <img
+                          src={artist.albumImage}
+                          alt={artist.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: '14px',
+                          fontWeight: 'bold'
+                        }}>
+                          {artist.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      <p 
+                        style={{
+                          color: '#3b82f6',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          margin: '0 0 2px 0',
+                          cursor: 'pointer',
+                          transition: 'color 0.2s ease',
+                          textDecoration: 'underline'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.color = '#2563eb';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.color = '#3b82f6';
+                        }}
+                        onClick={() => navigateToArtistPage(router, artist.name, artist.id)}
+                      >
                         {artist.name}
                       </p>
                       <p style={{
@@ -220,6 +385,7 @@ export default function ListeningEvolutionCard({ evolution }) {
                         {artist.trackCount} track{artist.trackCount !== 1 ? 's' : ''}
                       </p>
                     </div>
+                    
                     <span style={{
                       background: '#3b82f6',
                       color: '#fff',
@@ -274,9 +440,44 @@ export default function ListeningEvolutionCard({ evolution }) {
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between'
+                    gap: '12px'
                   }}>
-                    <div>
+                    {/* Album Image */}
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {song.album && song.album.images && song.album.images[0] && song.album.images[0].url ? (
+                        <img
+                          src={song.album.images[0].url}
+                          alt={song.album.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#000',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
+                          🎵
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
                       <p style={{
                         color: '#fff',
                         fontSize: '0.9rem',
@@ -290,9 +491,29 @@ export default function ListeningEvolutionCard({ evolution }) {
                         fontSize: '0.8rem',
                         margin: '0'
                       }}>
-                        {song.artists.map(artist => artist.name).join(', ')}
+                        {song.artists.map(artist => (
+                          <span
+                            key={artist.id}
+                            style={{
+                              color: '#f59e0b',
+                              cursor: 'pointer',
+                              transition: 'color 0.2s ease',
+                              textDecoration: 'underline'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.color = '#d97706';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.color = '#f59e0b';
+                            }}
+                            onClick={() => navigateToArtistPage(router, artist.name, artist.id)}
+                          >
+                            {artist.name}
+                          </span>
+                        )).reduce((prev, curr) => [prev, ', ', curr])}
                       </p>
                     </div>
+                    
                     <span style={{
                       background: '#f59e0b',
                       color: '#000',
@@ -347,15 +568,72 @@ export default function ListeningEvolutionCard({ evolution }) {
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between'
+                    gap: '12px'
                   }}>
-                    <div>
-                      <p style={{
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        margin: '0 0 2px 0'
-                      }}>
+                    {/* Artist Image */}
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {artist.images && artist.images[0] && artist.images[0].url ? (
+                        <img
+                          src={artist.images[0].url}
+                          alt={artist.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : artist.albumImage ? (
+                        <img
+                          src={artist.albumImage}
+                          alt={artist.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: '14px',
+                          fontWeight: 'bold'
+                        }}>
+                          {artist.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      <p 
+                        style={{
+                          color: '#ef4444',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          margin: '0 0 2px 0',
+                          cursor: 'pointer',
+                          transition: 'color 0.2s ease',
+                          textDecoration: 'underline'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.color = '#dc2626';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.color = '#ef4444';
+                        }}
+                        onClick={() => navigateToArtistPage(router, artist.name, artist.id)}
+                      >
                         {artist.name}
                       </p>
                       <p style={{
@@ -366,6 +644,7 @@ export default function ListeningEvolutionCard({ evolution }) {
                         {artist.trackCount} track{artist.trackCount !== 1 ? 's' : ''}
                       </p>
                     </div>
+                    
                     <span style={{
                       background: '#ef4444',
                       color: '#fff',

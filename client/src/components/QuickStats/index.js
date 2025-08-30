@@ -46,6 +46,7 @@ export default function QuickStats({ isMobile }) {
     topArtist: null,
     topSong: null,
     topGenres: [],
+    genreDetails: {},
 
     topAlbums: [],
     topDecades: [],
@@ -132,10 +133,10 @@ export default function QuickStats({ isMobile }) {
 
       // Load genres
       const cachedGenres = checkAndSetCachedSection('genres', (data) => {
-        setData(prev => ({
+                setData(prev => ({
           ...prev,
           topGenres: data.genres,
-  
+          genreDetails: data.genreDetails
         }));
               }, 'genres');
 
@@ -242,7 +243,7 @@ export default function QuickStats({ isMobile }) {
         timeOfDayResult,
         listenerTypeResult
       ] = await Promise.all([
-        analyzeListeningEvolution(topTracks, recentTracks),
+        analyzeListeningEvolution(topTracks, recentTracks, topArtists),
         analyzeTimeOfDay(recentTracks),
         analyzeListenerType(recentTracks)
       ]);
@@ -441,7 +442,7 @@ export default function QuickStats({ isMobile }) {
             {/* 5. Top Genres */}
             {shouldShowCard('genres') && data.topGenres.length > 0 && (
               <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <TopGenresCard genres={data.topGenres} />
+                <TopGenresCard genres={data.topGenres} genreDetails={data.genreDetails} />
               </div>
             )}
 
@@ -525,12 +526,12 @@ export default function QuickStats({ isMobile }) {
               </div>
             )}
 
-            {/* 6. Top Genres */}
-            {shouldShowCard('genres') && data.topGenres.length > 0 && (
-              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <TopGenresCard genres={data.topGenres} />
-              </div>
-            )}
+                    {/* 6. Top Genres */}
+        {shouldShowCard('genres') && data.topGenres.length > 0 && (
+          <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+            <TopGenresCard genres={data.topGenres} genreDetails={data.genreDetails} />
+          </div>
+        )}
 
             {/* 7. Track Popularity */}
             {shouldShowCard('trackPopularity') && data.trackPopularityAnalysis && (
@@ -636,25 +637,44 @@ const calculateBasicStats = (topArtists, topTracks) => {
 
 const loadGenres = async (topArtists, hasLoadedDiscogs) => {
   if (!topArtists || topArtists.length === 0) {
-    return { genres: [] };
+    return { genres: [], genreDetails: {} };
   }
 
   // Calculate genres
   const genreCounts = {};
+  const genreDetails = {};
+  
   topArtists.forEach(artist => {
     if (artist.genres) {
       artist.genres.forEach(genre => {
         genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+        
+        // Build genreDetails object
+        if (!genreDetails[genre]) {
+          genreDetails[genre] = {
+            artists: []
+          };
+        }
+        
+        // Add artist to genre if not already present
+        const existingArtist = genreDetails[genre].artists.find(a => a.name === artist.name);
+        if (!existingArtist) {
+          genreDetails[genre].artists.push({
+            name: artist.name,
+            spotifyId: artist.id,
+            image: artist.images?.[0]?.url,
+            images: artist.images
+          });
+        }
       });
     }
   });
 
   const genres = Object.entries(genreCounts)
-    .filter(([_, count]) => count >= 2)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
 
-  return { genres };
+  return { genres, genreDetails };
 };
 
 const calculateAlbumsAndDecades = async (topTracks) => {

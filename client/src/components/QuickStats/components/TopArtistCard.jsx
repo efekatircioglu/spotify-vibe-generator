@@ -1,4 +1,54 @@
 import React from 'react';
+import { useRouter } from 'next/navigation';
+import { getRecentSearches } from '../../../utils/recentSearchesCache';
+
+// Shared utility function for navigating to artist page with server-side search
+const navigateToArtistPage = async (router, artistName, artistId) => {
+  try {
+    console.log(`[TopArtistCard] Searching for artist: ${artistName}`);
+    
+    // Make server-side API call for enhanced artist search
+    const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`[TopArtistCard] Server search successful for: ${artistName}`, data);
+        
+        // Navigate using server-provided parameters
+        router.push(data.navigationUrl);
+        return;
+      } else {
+        console.log(`[TopArtistCard] Server search failed for: ${artistName}`, data.message);
+      }
+    } else {
+      console.log(`[TopArtistCard] Server search failed for: ${artistName}`, response.status);
+    }
+  } catch (error) {
+    console.error(`[TopArtistCard] Error during server search for: ${artistName}`, error);
+  }
+  
+  // Fallback to basic navigation if server search fails
+  console.log(`[TopArtistCard] Using fallback navigation for: ${artistName}`);
+  
+  const params = [`name=${encodeURIComponent(artistName)}`];
+  
+  // Add spotifyId if available
+  if (artistId) {
+    params.push(`spotifyId=${encodeURIComponent(artistId)}`);
+  }
+  
+  // Check localStorage for ticketmasterId (now protected)
+  const recents = getRecentSearches();
+  const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+  if (cachedArtist?.ticketmasterId) {
+    params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+  }
+  
+  // Navigate to artist page
+  router.push(`/artist?${params.join('&')}`);
+};
 
 /**
  * TopArtistCard Component
@@ -9,8 +59,11 @@ import React from 'react';
  * ✅ Testable - easy to test in isolation
  * ✅ Optimizable - can optimize its own rendering
  * ✅ Maintainable - small, focused file
+ * ✅ Clickable - artist name navigates to artist page
  */
 export default function TopArtistCard({ artist, timeRange }) {
+  const router = useRouter();
+
   if (!artist) {
     return (
       <div style={{
@@ -122,12 +175,23 @@ export default function TopArtistCard({ artist, timeRange }) {
         )}
         
         <div style={{ flex: 1 }}>
-          <h4 style={{
-            color: '#fff',
-            fontSize: '1.3rem',
-            fontWeight: '700',
-            margin: '0 0 8px 0'
-          }}>
+          <h4 
+            style={{
+              color: '#fff',
+              fontSize: '1.3rem',
+              fontWeight: '700',
+              margin: '0 0 8px 0',
+              cursor: 'pointer',
+              transition: 'color 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#1db954';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = '#fff';
+            }}
+            onClick={() => navigateToArtistPage(router, artist.name, artist.id)}
+          >
             {artist.name || 'Unknown Artist'}
           </h4>
           

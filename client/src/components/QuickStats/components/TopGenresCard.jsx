@@ -1,10 +1,403 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getRecentSearches } from '../../../utils/recentSearchesCache';
+
+// Shared utility function for navigating to artist page with server-side search
+const navigateToArtistPage = async (router, artistName, genreDetails) => {
+  try {
+    console.log(`[View Full Profile] Searching for artist: ${artistName}`);
+    
+    // Make server-side API call for enhanced artist search
+    const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`[View Full Profile] Server search successful for: ${artistName}`, data);
+        
+        // Navigate using server-provided parameters
+        router.push(data.navigationUrl);
+        return;
+      } else {
+        console.log(`[View Full Profile] Server search failed for: ${artistName}`, data.message);
+      }
+    } else {
+      console.log(`[View Full Profile] Server search failed for: ${artistName}`, response.status);
+    }
+  } catch (error) {
+    console.error(`[View Full Profile] Error during server search for: ${artistName}`, error);
+  }
+  
+  // Fallback to basic navigation if server search fails
+  console.log(`[View Full Profile] Using fallback navigation for: ${artistName}`);
+  
+  const params = [`name=${encodeURIComponent(artistName)}`];
+  
+  // Try to get spotifyId from genreDetails if available
+  if (genreDetails && genreDetails[artistName]) {
+    const spotifyId = genreDetails[artistName].spotifyId;
+    if (spotifyId) {
+      params.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+    }
+  }
+  
+  // Check localStorage for ticketmasterId (now protected)
+  const recents = getRecentSearches();
+  const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+  if (cachedArtist?.ticketmasterId) {
+    params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+  }
+  
+  // Navigate to artist page
+  router.push(`/artist?${params.join('&')}`);
+};
+
+// Genre Artists Modal Component
+function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genreDetails }) {
+  const router = useRouter();
+
+  // Lock/unlock body scroll when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      // Store current scroll position
+      const scrollY = window.scrollY;
+      
+      // Lock scroll when modal opens
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+    } else {
+      // Get the stored scroll position
+      const scrollY = document.body.style.top;
+      
+      // Unlock scroll when modal closes
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      
+      // Restore scroll position
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    }
+
+    // Cleanup function to restore scroll when component unmounts
+    return () => {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    }}>
+      <div style={{
+        background: '#1e1e1e',
+        borderRadius: 18,
+        padding: '24px',
+        maxWidth: '500px',
+        width: '100%',
+        maxHeight: '80vh',
+        overflow: 'auto',
+        boxShadow: '0 8px 32px #0006',
+        position: 'relative'
+      }}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            background: 'none',
+            border: 'none',
+            color: '#a0a0a0',
+            fontSize: '24px',
+            cursor: 'pointer',
+            padding: '4px',
+            borderRadius: '4px',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        >
+          ×
+        </button>
+
+        {/* Modal content */}
+        <div style={{ marginBottom: '20px' }}>
+          <h2 style={{
+            color: '#f3f3f3',
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            marginBottom: '8px',
+            textTransform: 'capitalize'
+          }}>
+            {genre}
+          </h2>
+          <p style={{
+            color: '#a0a0a0',
+            fontSize: '1rem',
+            marginBottom: '20px'
+          }}>
+            {artistCount} artist{artistCount !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {/* Artists list */}
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{
+            color: '#e5e5e5',
+            fontSize: '1.1rem',
+            fontWeight: '600',
+            marginBottom: '16px'
+          }}>
+            Artists in this genre:
+          </h3>
+          
+          {artists && artists.length > 0 ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              {artists.map((artistName, index) => {
+                const artistObj = genreDetails?.[genre]?.artists?.find(a => a.name === artistName);
+                
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      padding: '16px 20px',
+                      background: 'rgba(34, 202, 123, 0.15)',
+                      borderRadius: '12px',
+                      border: '2px solid rgba(34, 202, 123, 0.3)',
+                      color: '#e5e5e5',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(34, 202, 123, 0.25)';
+                      e.currentTarget.style.borderColor = 'rgba(34, 202, 123, 0.5)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(34, 202, 123, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(34, 202, 123, 0.15)';
+                      e.currentTarget.style.borderColor = 'rgba(34, 202, 123, 0.3)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onClick={async () => {
+                      // Make server-side API call for artist search (just like View Full Artist Profile)
+                      try {
+                        console.log(`[Genre Modal] Searching for artist: ${artistName}`);
+                        
+                        const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          
+                          if (data.success) {
+                            console.log(`[Genre Modal] Server search successful for: ${artistName}`, data);
+                            
+                            // Navigate using server-provided parameters
+                            router.push(data.navigationUrl);
+                          } else {
+                            console.log(`[Genre Modal] Server search failed for: ${artistName}`, data.message);
+                            
+                            // Fallback to basic navigation
+                            const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
+                            
+                            // Try to get spotifyId from genreDetails if available
+                            if (genreDetails && genreDetails[artistName]) {
+                              const spotifyId = genreDetails[artistName].spotifyId;
+                              if (spotifyId) {
+                                fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+                              }
+                            }
+                            
+                            // Check localStorage for ticketmasterId (now protected)
+                            const recents = getRecentSearches();
+                            const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                            if (cachedArtist?.ticketmasterId) {
+                              fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+                            }
+                            
+                            router.push(`/artist?${fallbackParams.join('&')}`);
+                          }
+                        } else {
+                          console.log(`[Genre Modal] Server search failed for: ${artistName}`, response.status);
+                          
+                          // Fallback to basic navigation
+                          const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
+                          
+                          // Try to get spotifyId from genreDetails if available
+                          if (genreDetails && genreDetails[artistName]) {
+                            const spotifyId = genreDetails[artistName].spotifyId;
+                            if (spotifyId) {
+                              fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+                            }
+                          }
+                          
+                          // Check localStorage for ticketmasterId (now protected)
+                          const recents = getRecentSearches();
+                          const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                          if (cachedArtist?.ticketmasterId) {
+                            fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+                          }
+                          
+                          router.push(`/artist?${fallbackParams.join('&')}`);
+                        }
+                      } catch (error) {
+                        console.error(`[Genre Modal] Error during server search for: ${artistName}`, error);
+                        
+                        // Fallback to basic navigation
+                        const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
+                        
+                        // Try to get spotifyId from genreDetails if available
+                        if (genreDetails && genreDetails[artistName]) {
+                          const spotifyId = genreDetails[artistName].spotifyId;
+                          if (spotifyId) {
+                            fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+                          }
+                        }
+                        
+                        // Check localStorage for ticketmasterId (now protected)
+                        const recents = getRecentSearches();
+                        const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+                        if (cachedArtist?.ticketmasterId) {
+                          fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+                        }
+                        
+                        router.push(`/artist?${fallbackParams.join('&')}`);
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {/* Artist image or placeholder */}
+                      {artistObj?.image || artistObj?.images?.[0]?.url ? (
+                        <img
+                          src={artistObj.image || artistObj.images[0].url}
+                          alt={artistName}
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          background: 'rgba(34, 202, 123, 0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#22ca7b',
+                          fontSize: '18px',
+                          fontWeight: 'bold'
+                        }}>
+                          {artistName[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                      
+                      <span>{artistName}</span>
+                    </div>
+                    
+                    {/* Arrow indicator */}
+                    <div style={{
+                      color: '#22ca7b',
+                      fontSize: '18px',
+                      transition: 'transform 0.2s ease'
+                    }}>
+                      →
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{
+              padding: '20px',
+              textAlign: 'center',
+              color: '#a0a0a0',
+              fontSize: '0.9rem',
+              background: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: '8px'
+            }}>
+              Artist data not available yet. 
+              <br />
+              <small>Backend needs to be updated to include artist lists per genre.</small>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '12px'
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '8px',
+              color: '#e5e5e5',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * TopGenresCard Component
  * 
  * Displays the most common genres from user's top artists
- * Only shows genres that appear in 2+ artists
+ * Shows all available genres from top artists
  * Shows top 5 initially with scrollable list for more
  * 
  * BENEFITS:
@@ -13,8 +406,14 @@ import React from 'react';
  * ✅ Testable - easy to test in isolation
  * ✅ Optimizable - can optimize its own rendering
  * ✅ Scrollable - shows top 5 with scroll for more
+ * ✅ Clickable - each genre opens modal with artists
+ * ✅ Navigable - artists link to their pages
  */
-export default function TopGenresCard({ genres }) {
+export default function TopGenresCard({ genres, genreDetails }) {
+  const router = useRouter();
+  const [selectedGenre, setSelectedGenre] = useState(null);
+  const [showGenreModal, setShowGenreModal] = useState(false);
+
   if (!genres || genres.length === 0) {
     return (
       <div style={{
@@ -28,7 +427,14 @@ export default function TopGenresCard({ genres }) {
     );
   }
 
+  // Handle genre click
+  const handleGenreClick = (genre, count) => {
+    setSelectedGenre({ name: genre, count });
+    setShowGenreModal(true);
+  };
+
   return (
+    <>
     <div style={{
       background: 'rgba(255, 255, 255, 0.1)',
       borderRadius: '20px',
@@ -85,7 +491,6 @@ export default function TopGenresCard({ genres }) {
           }}>
             From your top artists
           </p>
-
         </div>
       </div>
       
@@ -99,15 +504,31 @@ export default function TopGenresCard({ genres }) {
       }}
       className="custom-scrollbar">
         {genres.map((genre, index) => (
-          <div key={genre.name} style={{
+            <div 
+              key={genre.name} 
+              style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px',
             background: 'rgba(255, 255, 255, 0.05)',
             borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
-          }}>
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(34, 202, 123, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(34, 202, 123, 0.3)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+              onClick={() => handleGenreClick(genre.name, genre.count)}
+            >
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -139,6 +560,11 @@ export default function TopGenresCard({ genres }) {
               </span>
             </div>
             
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
             <span style={{
               color: '#b3b3b3',
               fontSize: '0.9rem',
@@ -146,6 +572,14 @@ export default function TopGenresCard({ genres }) {
             }}>
               {genre.count} artists
             </span>
+                <span style={{
+                  color: '#22ca7b',
+                  fontSize: '16px',
+                  transition: 'transform 0.2s ease'
+                }}>
+                  →
+                </span>
+              </div>
           </div>
         ))}
       </div>
@@ -167,5 +601,16 @@ export default function TopGenresCard({ genres }) {
         }
       `}</style>
     </div>
+
+      {/* Genre Artists Modal */}
+      <GenreArtistsModal
+        isOpen={showGenreModal}
+        onClose={() => setShowGenreModal(false)}
+        genre={selectedGenre?.name}
+        artistCount={selectedGenre?.count}
+        artists={genreDetails?.[selectedGenre?.name]?.artists?.map(a => a.name) || []}
+        genreDetails={genreDetails}
+      />
+    </>
   );
 }

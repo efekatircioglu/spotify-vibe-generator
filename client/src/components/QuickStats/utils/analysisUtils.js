@@ -14,7 +14,29 @@
 /**
  * Analyze listening evolution by comparing recent vs long-term listening patterns
  */
-export const analyzeListeningEvolution = async (tracks, recentTracks) => {
+export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists = []) => {
+  // Helper function to get artist data with images from localStorage
+  const getArtistDataWithImages = (artistId, artistName) => {
+    try {
+      const topArtistsData = localStorage.getItem('spotify_top_artists');
+      if (!topArtistsData) return null;
+      
+      const topArtistsCache = JSON.parse(topArtistsData);
+      if (!topArtistsCache.artists || !Array.isArray(topArtistsCache.artists)) return null;
+      
+      // Find the artist in the cache
+      const artist = topArtistsCache.artists.find(a => {
+        if (artistId && a.id === artistId) return true;
+        if (artistName && a.name && a.name.toLowerCase() === artistName.toLowerCase()) return true;
+        return false;
+      });
+      
+      return artist;
+    } catch (error) {
+      console.error('Error getting artist data with images:', error);
+      return null;
+    }
+  };
   const evolution = {
     newSongs: [],
     newArtists: [],
@@ -91,9 +113,28 @@ export const analyzeListeningEvolution = async (tracks, recentTracks) => {
           if (recentAndFourWeeksArtistIds.has(artist.id) && !longTermArtistIds.has(artist.id)) {
             const existingArtist = evolution.newArtists.find(a => a.id === artist.id);
             if (!existingArtist) {
+              // Try to get artist image from localStorage cache
+              const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
+              
+              // Try to find album image from tracks featuring this artist
+              let albumImage = null;
+              const artistTracks = tracks.filter(track => 
+                track.artists && track.artists.some(a => a.id === artist.id)
+              );
+              if (artistTracks.length > 0) {
+                const trackWithAlbum = artistTracks.find(track => 
+                  track.album && track.album.images && track.album.images[0] && track.album.images[0].url
+                );
+                if (trackWithAlbum) {
+                  albumImage = trackWithAlbum.album.images[0].url;
+                }
+              }
+              
               evolution.newArtists.push({
                 id: artist.id,
                 name: artist.name,
+                images: artistDataWithImages?.images || artist.images,
+                albumImage: albumImage,
                 trackCount: 1
               });
             } else {
@@ -112,9 +153,28 @@ export const analyzeListeningEvolution = async (tracks, recentTracks) => {
           if (!allRecentArtistIds.has(artist.id)) {
             const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
             if (!existingArtist) {
+              // Try to get artist image from localStorage cache
+              const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
+              
+              // Try to find album image from tracks featuring this artist
+              let albumImage = null;
+              const artistTracks = tracks.filter(track => 
+                track.artists && track.artists.some(a => a.id === artist.id)
+              );
+              if (artistTracks.length > 0) {
+                const trackWithAlbum = artistTracks.find(track => 
+                  track.album && track.album.images && track.album.images[0] && track.album.images[0].url
+                );
+                if (trackWithAlbum) {
+                  albumImage = trackWithAlbum.album.images[0].url;
+                }
+              }
+              
               evolution.breakArtists.push({
                 id: artist.id,
                 name: artist.name,
+                images: artistDataWithImages?.images || artist.images,
+                albumImage: albumImage,
                 trackCount: 1
               });
             } else {
@@ -139,6 +199,28 @@ export const analyzeListeningEvolution = async (tracks, recentTracks) => {
  * Analyze time of day patterns from recent tracks
  */
 export const analyzeTimeOfDay = async (recentTracks) => {
+  // Helper function to get artist data with images from localStorage
+  const getArtistDataWithImages = (artistId, artistName) => {
+    try {
+      const topArtistsData = localStorage.getItem('spotify_top_artists');
+      if (!topArtistsData) return null;
+      
+      const topArtistsCache = JSON.parse(topArtistsData);
+      if (!topArtistsCache.artists || !Array.isArray(topArtistsCache.artists)) return null;
+      
+      // Find the artist in the cache
+      const artist = topArtistsCache.artists.find(a => {
+        if (artistId && a.id === artistId) return true;
+        if (artistName && a.name && a.name.toLowerCase() === artistName.toLowerCase()) return true;
+        return false;
+      });
+      
+      return artist;
+    } catch (error) {
+      console.error('Error getting artist data with images:', error);
+      return null;
+    }
+  };
   const timeSlots = {
     '8-12 AM': { start: 8, end: 12, count: 0, songs: [] },        // 8:00 - 12:00
     '12-4 PM': { start: 12, end: 16, count: 0, songs: [] },       // 12:00 - 16:00
@@ -164,11 +246,22 @@ export const analyzeTimeOfDay = async (recentTracks) => {
             // Normal case: start < end (e.g., 9-12)
             if (hour >= slot.start && hour < slot.end) {
               slot.count++;
+              // Get enhanced artist data with images
+              const enhancedArtists = track.artists.map(artist => {
+                const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
+                return {
+                  ...artist,
+                  images: artistDataWithImages?.images || artist.images
+                };
+              });
+              
               slot.songs.push({
                 name: track.name,
-                artists: track.artists,
+                artists: enhancedArtists,
+                album: track.album,
                 played_at: utcPlus2,
-                hour: hour
+                hour: hour,
+                minute: utcPlus2.getUTCMinutes()
               });
               slotFound = true;
             }
@@ -176,17 +269,33 @@ export const analyzeTimeOfDay = async (recentTracks) => {
             // Wrapping case: start > end (e.g., 21-5 for night)
             if (hour >= slot.start || hour < slot.end) {
               slot.count++;
+              // Get enhanced artist data with images
+              const enhancedArtists = track.artists.map(artist => {
+                const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
+                return {
+                  ...artist,
+                  images: artistDataWithImages?.images || artist.images
+                };
+              });
+              
               slot.songs.push({
                 name: track.name,
-                artists: track.artists,
+                artists: enhancedArtists,
+                album: track.album,
                 played_at: utcPlus2,
-                hour: hour
+                hour: hour,
+                minute: utcPlus2.getUTCMinutes()
               });
               slotFound = true;
             }
           }
         });
       }
+    });
+
+    // Sort songs by most recent in each slot
+    Object.keys(timeSlots).forEach(slotName => {
+      timeSlots[slotName].songs.sort((a, b) => new Date(b.played_at) - new Date(a.played_at));
     });
 
     // Find the most active time slot
