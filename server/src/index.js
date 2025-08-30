@@ -13,6 +13,9 @@ const geniusService = require('./services/geniusService');
 const app = express();
 const PORT = 8000;
 
+// Add session management
+const session = require('express-session');
+
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
   origin: ['http://localhost:3000', 'http://192.168.1.4:3000', 'http://127.0.0.1:3000'],
@@ -20,6 +23,26 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Configure session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Middleware to set access token from session
+const setAccessTokenFromSession = (req, res, next) => {
+  if (req.session && req.session.access_token) {
+    spotifyApi.setAccessToken(req.session.access_token);
+  }
+  next();
+};
 
 // Parse JSON bodies for POST requests with increased limit for large playlists
 app.use(express.json({ limit: '50mb' }));
@@ -185,8 +208,19 @@ app.get('/callback', async (req, res) => {
     console.log('Successfully retrieved access token!');
     console.log('Access Token:', access_token);
     
-    // Store tokens in memory (for this session) and also prepare to send to client
-    // Note: In production, you'd want to store these securely in a database
+    // Store tokens in session for persistent authentication
+    req.session.access_token = access_token;
+    req.session.refresh_token = refresh_token;
+    req.session.user_id = null; // Will be set when we get user info
+    
+    // Save session
+    req.session.save((err) => {
+      if (err) {
+        console.error('Error saving session:', err);
+      } else {
+        console.log('Session saved successfully');
+      }
+    });
     
     // Send the user back to the 'face' of your application
     // Check if the request came from mobile or desktop
@@ -196,42 +230,24 @@ app.get('/callback', async (req, res) => {
     console.log('User Agent:', userAgent);
     console.log('Is Mobile:', isMobile);
     
-    // Create a temporary token storage that the client can access
-    const tempTokenId = Math.random().toString(36).substring(2, 15);
-    
-    // Store the token temporarily (you could use Redis or similar in production)
-    if (!global.tempTokens) global.tempTokens = {};
-    global.tempTokens[tempTokenId] = {
-      access_token,
-      refresh_token,
-      timestamp: Date.now()
-    };
-    
-    // Clean up old tokens (older than 5 minutes)
-    Object.keys(global.tempTokens).forEach(id => {
-      if (Date.now() - global.tempTokens[id].timestamp > 5 * 60 * 1000) {
-        delete global.tempTokens[id];
-      }
-    });
-    
     // Always redirect to localhost for local development
     // Get the origin from the request headers to determine the correct redirect URL
     const origin = req.headers.origin || req.headers.referer || 'http://localhost:3000';
     const redirectUrl = origin.includes('3001') ? 'http://localhost:3001' : 'http://localhost:3000';
     
-    // Redirect to the destination page with the tempToken for authentication
+    // Redirect to the destination page directly (session is already established)
     let finalRedirectUrl;
     if (destination === 'analytics') {
-      finalRedirectUrl = `${redirectUrl}/dashboard?tempToken=${tempTokenId}`;
+      finalRedirectUrl = `${redirectUrl}/dashboard`;
     } else if (destination === 'concerts') {
-      finalRedirectUrl = `${redirectUrl}/concerts?tempToken=${tempTokenId}`;
+      finalRedirectUrl = `${redirectUrl}/concerts`;
     } else {
-      finalRedirectUrl = `${redirectUrl}/dashboard?tempToken=${tempTokenId}`;
+      finalRedirectUrl = `${redirectUrl}/dashboard`;
     }
     
     console.log('Redirecting to:', finalRedirectUrl);
     
-    // Redirect to the destination page with tempToken
+    // Redirect to the destination page
     res.redirect(finalRedirectUrl);
  
   } catch (err) {
@@ -244,6 +260,11 @@ app.get('/callback', async (req, res) => {
 // API endpoint for the frontend to check auth status and get user data.
 app.get('/me', async (req, res) => {
   try {
+    // Set the access token from session if available
+    if (req.session && req.session.access_token) {
+      spotifyApi.setAccessToken(req.session.access_token);
+    }
+    
     const { body } = await spotifyApi.getMe();
     
     // Get user's public profile to access follower count and following count
@@ -269,10 +290,13 @@ app.get('/me', async (req, res) => {
     res.json({
       ...body,
       followerCount,
-      followingCount
+      followingCount,
+      authenticated: true
     });
   } catch (err) {
     console.error('Could not get user data:', err);
+    // Clear session if token is invalid
+    req.session.destroy();
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 });
@@ -317,6 +341,15 @@ app.get('/logout', (req, res) => {
   // Clear all tokens from the server
   spotifyApi.setAccessToken(null);
   spotifyApi.setRefreshToken(null);
+  
+  // Clear session
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+    } else {
+      console.log('Session destroyed successfully');
+    }
+  });
   
   // Clear any global token storage
   if (global.tempTokens) {
@@ -409,12 +442,21 @@ app.get('/analyze-recents', async (req, res) => {
   }
 });
 
-app.get('/recent-tracks', async (req, res) => {
+app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
   try {
     // Fetch up to 50 recently played tracks
     const { body } = await spotifyApi.getMyRecentlyPlayedTracks({ limit: 50 });
+    
+    // Extract track IDs to fetch detailed information
+    const trackIds = body.items.map(item => item.track.id).filter(Boolean);
+    
+    // Fetch detailed track information including release dates
+    const { body: detailedTracksBody } = await spotifyApi.getTracks(trackIds);
+    const detailedTracks = detailedTracksBody.tracks;
+    
     // Get all first artist IDs
     const artistIds = body.items.map(item => item.track && item.track.artists && item.track.artists[0] && item.track.artists[0].id).filter(Boolean);
+    
     // Fetch artist genres in batches of 50
     let artistGenres = {};
     for (let i = 0; i < artistIds.length; i += 50) {
@@ -424,19 +466,37 @@ app.get('/recent-tracks', async (req, res) => {
         artistGenres[artist.id] = artist.genres && artist.genres.length > 0 ? artist.genres[0] : null;
       });
     }
-    // Map to array of { name, artist, uri, album, release_year, album_image, duration_ms, id, genre, played_at }
-    const tracks = body.items.map(item => ({
-      name: item.track.name,
-      artist: item.track.artists.map(a => a.name).join(', '),
-      uri: item.track.uri,
-      album: item.track.album.name,
-      release_year: item.track.album.release_date ? item.track.album.release_date.split('-')[0] : '',
-      album_image: item.track.album.images && item.track.album.images.length > 0 ? item.track.album.images[0].url : '',
-      duration_ms: item.track.duration_ms,
-      id: item.track.id,
-      genre: item.track.artists && item.track.artists[0] && artistGenres[item.track.artists[0].id] ? artistGenres[item.track.artists[0].id] : 'Unknown',
-      played_at: item.played_at // Add the timestamp when the track was played
-    }));
+    
+    // Create a map of track ID to detailed track info
+    const trackDetailsMap = {};
+    detailedTracks.forEach(track => {
+      trackDetailsMap[track.id] = track;
+    });
+    
+    // Map to array with detailed information
+    const tracks = body.items.map(item => {
+      const detailedTrack = trackDetailsMap[item.track.id];
+      return {
+        name: item.track.name,
+        artist: item.track.artists.map(a => a.name).join(', '),
+        uri: item.track.uri,
+        album: item.track.album.name,
+        release_date: detailedTrack?.release_date || item.track.album.release_date,
+        album_release_date: detailedTrack?.album?.release_date || item.track.album.release_date,
+        release_year: detailedTrack?.release_date ? detailedTrack.release_date.split('-')[0] : 
+                     detailedTrack?.album?.release_date ? detailedTrack.album.release_date.split('-')[0] :
+                     item.track.album.release_date ? item.track.album.release_date.split('-')[0] : '',
+        album_image: item.track.album.images && item.track.album.images.length > 0 ? item.track.album.images[0].url : '',
+        duration_ms: item.track.duration_ms,
+        id: item.track.id,
+        genre: item.track.artists && item.track.artists[0] && artistGenres[item.track.artists[0].id] ? artistGenres[item.track.artists[0].id] : 'Unknown',
+        played_at: item.played_at,
+        // Add detailed track information
+        artists: detailedTrack?.artists || item.track.artists,
+        album: detailedTrack?.album || item.track.album
+      };
+    });
+    
     res.json({ tracks });
   } catch (err) {
     console.error('Error fetching recent tracks:', err);
@@ -971,12 +1031,24 @@ async function getTopData(time_range) {
     spotifyApi.getMyTopTracks({ time_range, limit: 50 }),
     spotifyApi.getMyTopArtists({ time_range, limit: 50 })
   ]);
-  const tracks = tracksRes.body.items;
+  const basicTracks = tracksRes.body.items;
   const artists = artistsRes.body.items;
   
   // Increment counter for 2 API calls (tracks + artists)
   globalApiCallCounter.spotify += 2;
   globalApiCallCounter.total += 2;
+  
+  // Fetch detailed track information including release dates
+  const trackIds = basicTracks.map(track => track.id);
+  const detailedTracksRes = await spotifyApi.getTracks(trackIds);
+  const detailedTracks = detailedTracksRes.body.tracks;
+  
+  // Debug: Check if detailed tracks have release date information
+  console.log('Sample detailed track:', detailedTracks[0]);
+  
+  // Increment counter for detailed tracks API call
+  globalApiCallCounter.spotify += 1;
+  globalApiCallCounter.total += 1;
   
   // Collect genres from top artists with artist details
   let genreData = {};
@@ -1006,14 +1078,14 @@ async function getTopData(time_range) {
   });
   
   return { 
-    tracks, 
+    tracks: detailedTracks, 
     artists, 
     genres: genreCounts,
     genreDetails: genreData  // New field with detailed genre information
   };
 }
 
-app.get('/last-4-weeks', async (req, res) => {
+app.get('/last-4-weeks', setAccessTokenFromSession, async (req, res) => {
   try {
     const data = await getTopData('short_term');
     res.json(data);
@@ -1023,7 +1095,7 @@ app.get('/last-4-weeks', async (req, res) => {
   }
 });
 
-app.get('/last-6-months', async (req, res) => {
+app.get('/last-6-months', setAccessTokenFromSession, async (req, res) => {
   try {
     const data = await getTopData('medium_term');
     res.json(data);
@@ -1033,7 +1105,7 @@ app.get('/last-6-months', async (req, res) => {
   }
 });
 
-app.get('/last-12-months', async (req, res) => {
+app.get('/last-12-months', setAccessTokenFromSession, async (req, res) => {
   try {
     const data = await getTopData('long_term');
     res.json(data);
@@ -1044,7 +1116,7 @@ app.get('/last-12-months', async (req, res) => {
 });
 
 // New endpoint to get detailed genre information with artists
-app.get('/genre-details/:timeRange', async (req, res) => {
+app.get('/genre-details/:timeRange', setAccessTokenFromSession, async (req, res) => {
   try {
     const { timeRange } = req.params;
     let time_range;
@@ -1120,7 +1192,7 @@ app.get('/search-artist', async (req, res) => {
 });
 
 // New endpoint to get all artists from all time periods, deduplicated
-app.get('/all-artists-deduplicated', async (req, res) => {
+app.get('/all-artists-deduplicated', setAccessTokenFromSession, async (req, res) => {
   try {
     // Reset API counter at the start of a new session
     globalApiCallCounter = {

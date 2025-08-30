@@ -51,53 +51,6 @@ export default function AuthWrapper({ children }) {
         // Only run authentication logic in browser
         if (!isBrowser) return;
         
-        // Check if we have a temporary token from Spotify callback (on any page)
-        const urlParams = new URLSearchParams(window.location.search);
-        const tempToken = urlParams.get('tempToken');
-        
-        if (tempToken) {
-          console.log('Found temporary token, exchanging for access token...');
-          try {
-            // Exchange temporary token for actual tokens
-            const response = await fetch(`http://127.0.0.1:8000/exchange-token/${tempToken}`);
-            if (response.ok) {
-              const data = await response.json();
-              
-              // Store the tokens
-              localStorage.setItem('spotify_token', data.access_token);
-              if (data.refresh_token) {
-                localStorage.setItem('spotify_refresh_token', data.refresh_token);
-              }
-              
-              console.log('Successfully exchanged temporary token for access token');
-              
-              // Clean up the URL by removing the tempToken parameter
-              const currentUrl = new URL(window.location.href);
-              currentUrl.searchParams.delete('tempToken');
-              window.history.replaceState({}, document.title, currentUrl.pathname + currentUrl.search);
-              
-              // Initialize caches with new token
-              await initializeAllCaches();
-              
-              // Check auth status with new token
-              const authStatus = await checkAuthStatus();
-              setIsAuthenticated(authStatus);
-              
-              if (authStatus) {
-                // Setup periodic auth monitoring
-                cleanupAuthMonitoring = setupAuthMonitoring();
-              }
-              
-              setIsLoading(false);
-              return;
-            } else {
-              console.error('Failed to exchange temporary token');
-            }
-          } catch (error) {
-            console.error('Error exchanging temporary token:', error);
-          }
-        }
-
         // Check if user is logging out (only in browser)
         if (isBrowser) {
           // Check if this is a fresh page load or logout
@@ -113,7 +66,7 @@ export default function AuthWrapper({ children }) {
           }
         }
 
-        // Check initial auth status
+        // Check initial auth status using session
         const authStatus = await checkAuthStatus();
         setIsAuthenticated(authStatus);
         

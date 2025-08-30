@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../utils/topDataCache';
-import { getCachedTopArtists } from '../utils/topArtistsCache';
+import { getCachedTopArtists, calculateAveragePopularity } from '../utils/topArtistsCache';
 
 /**
  * QuickStats Component with Secure Caching Strategy
@@ -78,6 +78,14 @@ export default function QuickStats({ isMobile }) {
   const [topSong, setTopSong] = useState(null);
   const [topGenres, setTopGenres] = useState([]);
   const [topStyles, setTopStyles] = useState([]);
+  const [topAlbums, setTopAlbums] = useState([]);
+  const [topDecades, setTopDecades] = useState([]);
+  const [averagePopularity, setAveragePopularity] = useState(null);
+  const [yearAnalysis, setYearAnalysis] = useState(null);
+  const [trackPopularityAnalysis, setTrackPopularityAnalysis] = useState(null);
+  const [listeningEvolution, setListeningEvolution] = useState(null);
+  const [timeOfDayAnalysis, setTimeOfDayAnalysis] = useState(null);
+  const [listenerTypeAnalysis, setListenerTypeAnalysis] = useState(null);
   const [topArtistTimeRange, setTopArtistTimeRange] = useState(null);
   const [topSongTimeRange, setTopSongTimeRange] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,14 +112,6 @@ export default function QuickStats({ isMobile }) {
     if (!cacheKey) return null;
     
     const cached = getCacheFromStorage()[cacheKey];
-    if (cached) {
-      console.log('🎯 QuickStats: Cache HIT for key:', cacheKey);
-      console.log('📊 Cached data:', cached);
-    } else {
-      console.log('❌ QuickStats: Cache MISS for key:', cacheKey);
-      console.log('🔍 Available cache keys:', Object.keys(getCacheFromStorage()));
-    }
-    
     return cached;
   }, [generateCacheKey]);
 
@@ -123,13 +123,11 @@ export default function QuickStats({ isMobile }) {
     const currentCache = getCacheFromStorage();
     currentCache[cacheKey] = { genres, styles };
     setCacheToStorage(currentCache);
-    console.log('💾 QuickStats: Data cached for', top3Artists.map(a => a.name).join(', '));
   }, [generateCacheKey]);
 
   // Clear cache when token expires (this will be called from parent component)
   const clearQuickStatsCache = useCallback(() => {
     clearCacheFromStorage();
-    console.log('🗑️ QuickStats: Cache cleared from sessionStorage');
   }, []);
 
   // Expose clear function to parent component
@@ -147,15 +145,7 @@ export default function QuickStats({ isMobile }) {
         };
       };
       
-      // Log current cache status
-      console.log('💾 QuickStats: Cache initialized with', Object.keys(getCacheFromStorage()).length, 'entries');
-      console.log('🔑 Cache key in sessionStorage:', CACHE_KEY);
-      console.log('🔒 Security: Using sessionStorage for non-sensitive user data');
-      
-      // Make it easy to inspect cache in console
-      console.log('📋 QuickStats cache in sessionStorage:', getCacheFromStorage());
-      console.log('💡 Use window.getQuickStatsCacheInfo() to inspect cache details');
-      console.log('💡 Use getQuickStatsCacheDirectly() from utils for direct access');
+      // Cache initialized silently
     }
   }, [clearQuickStatsCache]);
 
@@ -172,7 +162,6 @@ export default function QuickStats({ isMobile }) {
   // Check for token changes and clear cache if needed
   useEffect(() => {
     if (hasSessionChanged()) {
-      console.log('🔄 Spotify token changed - clearing QuickStats cache');
       clearQuickStatsCache();
     }
   }, []);
@@ -227,7 +216,6 @@ export default function QuickStats({ isMobile }) {
       });
     }
 
-    console.log('🎯 Best artist found:', bestArtist?.name, 'with ranking:', bestRank, 'in period:', bestTimeRange);
     setTopArtist(bestArtist);
         setTopArtistTimeRange(bestTimeRange);
 
@@ -237,17 +225,11 @@ export default function QuickStats({ isMobile }) {
           .sort((a, b) => a.rankings['12_months'] - b.rankings['12_months'])
           .slice(0, 3);
 
-      console.log('Top 3 artists for 12 months:', top3Artists);
-      console.log('Total artists in cache:', topArtists.length);
-      console.log('Artists with 12_months rankings:', topArtists.filter(a => a.rankings && a.rankings['12_months']).length);
-
       if (top3Artists.length > 0) {
-        console.log('Starting Discogs API calls for:', top3Artists.map(a => `${a.name} (#${a.rankings['12_months']})`));
         
         // Check cache first
         const cached = getCachedQuickStats(top3Artists);
         if (cached) {
-          console.log('🎯 QuickStats: Using cached data for:', top3Artists.map(a => a.name).join(', '));
           setTopGenres(cached.genres);
           setTopStyles(cached.styles);
           setHasLoadedDiscogs(true);
@@ -261,14 +243,11 @@ export default function QuickStats({ isMobile }) {
             try {
               const artistName = artist.name;
               const apiUrl = `http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/genre-style-map`;
-              console.log(`[${index + 1}/3] Fetching Discogs data for "${artistName}" from:`, apiUrl);
               
               const response = await fetch(apiUrl);
-              console.log(`[${index + 1}/3] Response status for "${artistName}":`, response.status);
               
               if (response.ok) {
                 const data = await response.json();
-                console.log(`[${index + 1}/3] Success! Discogs data for "${artistName}":`, data);
                 
                 // Extract genres and styles from the genre-style map
                 const allGenres = new Set();
@@ -287,9 +266,6 @@ export default function QuickStats({ isMobile }) {
                   });
                 }
                 
-                console.log(`[${index + 1}/3] Genres found:`, allGenres.size);
-                console.log(`[${index + 1}/3] Styles found:`, allStyles.size);
-                
                 return {
                   name: artistName,
                   rank: artist.rankings['12_months'],
@@ -307,12 +283,9 @@ export default function QuickStats({ isMobile }) {
             }
           });
 
-          console.log('Waiting for all Discogs API calls to complete...');
           const discogsResults = await Promise.all(discogsPromises);
-          console.log('All Discogs API calls completed. Results:', discogsResults);
           
           const validResults = discogsResults.filter(result => result !== null);
-          console.log('Valid Discogs results:', validResults);
 
           if (validResults.length > 0) {
             // Calculate most common genres
@@ -326,9 +299,8 @@ export default function QuickStats({ isMobile }) {
             const sortedGenres = Object.entries(genreCounts)
               .map(([name, count]) => ({ name, count }))
               .sort((a, b) => b.count - a.count)
-              .slice(0, 5);
+              .filter(genre => genre.count >= 2); // Only show genres with 2+ artists
 
-            console.log('Final top genres:', sortedGenres);
             setTopGenres(sortedGenres);
 
             // Calculate most common styles
@@ -342,15 +314,12 @@ export default function QuickStats({ isMobile }) {
             const sortedStyles = Object.entries(styleCounts)
               .map(([name, count]) => ({ name, count }))
               .sort((a, b) => b.count - a.count)
-              .slice(0, 5);
-
-            console.log('Final top styles:', sortedStyles);
+              .filter(style => style.count >= 2); // Only show styles with 2+ artists
             setTopStyles(sortedStyles);
 
             // Cache the results
             setCachedQuickStats(top3Artists, sortedGenres, sortedStyles);
           } else {
-            console.log('No valid Discogs results found - setting empty arrays');
             setTopGenres([]);
             setTopStyles([]);
           }
@@ -358,21 +327,17 @@ export default function QuickStats({ isMobile }) {
           // Mark that we've loaded Discogs data to prevent duplicate calls
           setHasLoadedDiscogs(true);
         } else {
-          console.log('Discogs data already loaded, skipping API calls.');
           // If cached data exists, use it
           const cached = getCachedQuickStats(top3Artists);
           if (cached) {
             setTopGenres(cached.genres);
             setTopStyles(cached.styles);
-            console.log('Using cached QuickStats data for:', top3Artists.map(a => a.name).join(', '));
           } else {
-            console.log('No cached QuickStats data found for:', top3Artists.map(a => a.name).join(', '));
             setTopGenres([]);
             setTopStyles([]);
           }
         }
       } else {
-        console.log('No artists with 12_months rankings found - setting empty arrays');
         setTopGenres([]);
         setTopStyles([]);
       }
@@ -380,7 +345,6 @@ export default function QuickStats({ isMobile }) {
 
     // Get top tracks from cache
     const topTracks = getCachedTopTracks();
-    console.log('📊 Top tracks from cache:', topTracks?.length || 0);
     
     if (topTracks && topTracks.length > 0) {
       // Find the track with the best overall ranking, prioritizing 12 months
@@ -423,12 +387,574 @@ export default function QuickStats({ isMobile }) {
     });
   }
 
-  console.log('🎵 Best track found:', bestTrack?.name, 'with ranking:', bestRank, 'in period:', bestTimeRange);
   setTopSong(bestTrack);
   setTopSongTimeRange(bestTimeRange);
+
+  // Calculate top 3 albums from all tracks
+  const calculateTopAlbums = (tracks) => {
+    const albumCounts = {};
+    
+    tracks.forEach(track => {
+      if (track.album && track.album.name) {
+        const albumKey = `${track.album.name}_${track.album.id}`;
+        if (!albumCounts[albumKey]) {
+          albumCounts[albumKey] = {
+            name: track.album.name,
+            id: track.album.id,
+            images: track.album.images || [],
+            artist: track.artists && track.artists[0] ? track.artists[0].name : 'Unknown Artist',
+            count: 0,
+            tracks: []
+          };
+        }
+        albumCounts[albumKey].count++;
+        albumCounts[albumKey].tracks.push({
+          name: track.name,
+          ranking: track.rankings ? Math.min(...Object.values(track.rankings).filter(r => r !== null)) : null
+        });
+      }
+    });
+    
+    // Sort by count and get top 3 albums
+    const sortedAlbums = Object.values(albumCounts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    
+    return sortedAlbums;
+  };
+
+  // Calculate top 3 decades from all tracks
+  const calculateTopDecades = (tracks) => {
+    const decadeCounts = {};
+    
+    tracks.forEach(track => {
+      let trackYear = null;
+      
+      // Try to get release date from track
+      if (track.release_date) {
+        trackYear = new Date(track.release_date).getFullYear();
+      }
+      // Try to get release date from album
+      else if (track.album && track.album.release_date) {
+        trackYear = new Date(track.album.release_date).getFullYear();
+      }
+      
+      if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
+        const decade = Math.floor(trackYear / 10) * 10;
+        const decadeLabel = `${decade}s`;
+        
+        if (!decadeCounts[decadeLabel]) {
+          decadeCounts[decadeLabel] = {
+            decade: decade,
+            label: decadeLabel,
+            count: 0,
+            tracks: []
+          };
+        }
+        decadeCounts[decadeLabel].count++;
+        decadeCounts[decadeLabel].tracks.push({
+          name: track.name,
+          artist: track.artists && track.artists[0] ? track.artists[0].name : 'Unknown Artist',
+          year: trackYear,
+          ranking: track.rankings ? Math.min(...Object.values(track.rankings).filter(r => r !== null)) : null
+        });
+      }
+    });
+    
+    // Sort by count and get top 3 decades
+    const sortedDecades = Object.values(decadeCounts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+    
+    return sortedDecades;
+  };
+
+  // Calculate top albums and decades
+  const topAlbumsResult = calculateTopAlbums(topTracks);
+  const topDecadesResult = calculateTopDecades(topTracks);
+
+  setTopAlbums(topAlbumsResult);
+  setTopDecades(topDecadesResult);
+
+  // Calculate average popularity of top artists
+  const popularityStats = calculateAveragePopularity();
+  setAveragePopularity(popularityStats);
+
+  // Analyze publish years for different time periods
+  const analyzePublishYears = (tracks) => {
+    const yearData = {
+      '4_weeks': { years: [], average: 0, count: 0 },
+      '6_months': { years: [], average: 0, count: 0 },
+      '12_months': { years: [], average: 0, count: 0 },
+      'recent_50': { years: [], average: 0, count: 0 }
+    };
+
+    // Analyze tracks by time period
+    tracks.forEach(track => {
+      let trackYear = null;
+      
+      // Try to get release date from track
+      if (track.release_date) {
+        trackYear = new Date(track.release_date).getFullYear();
+      }
+      // Try to get release date from album
+      else if (track.album && track.album.release_date) {
+        trackYear = new Date(track.album.release_date).getFullYear();
+      }
+      
+      if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
+        // Add to appropriate time periods based on rankings
+        if (track.rankings) {
+          if (track.rankings['4_weeks']) {
+            yearData['4_weeks'].years.push(trackYear);
+          }
+          if (track.rankings['6_months']) {
+            yearData['6_months'].years.push(trackYear);
+          }
+          if (track.rankings['12_months']) {
+            yearData['12_months'].years.push(trackYear);
+          }
+        }
+      }
+    });
+
+    // Calculate averages for each time period
+    Object.keys(yearData).forEach(period => {
+      const years = yearData[period].years;
+      if (years.length > 0) {
+        yearData[period].average = Math.round(years.reduce((sum, year) => sum + year, 0) / years.length);
+        yearData[period].count = years.length;
+      }
+    });
+
+    // Get recent 50 songs (we'll need to fetch this separately)
+    return yearData;
+  };
+
+  const yearAnalysisResult = analyzePublishYears(topTracks);
+  setYearAnalysis(yearAnalysisResult);
+
+  // Analyze track popularity for different time periods
+  const analyzeTrackPopularity = (tracks) => {
+    const popularityData = {
+      '4_weeks': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
+      '6_months': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
+      '12_months': { popularities: [], average: 0, count: 0, min: 0, max: 0 },
+      'all_tracks': { popularities: [], average: 0, count: 0, min: 0, max: 0 }
+    };
+
+    // Analyze tracks by time period
+    tracks.forEach(track => {
+      if (track.popularity !== null && track.popularity !== undefined && !isNaN(track.popularity)) {
+        // Add to all tracks
+        popularityData.all_tracks.popularities.push(track.popularity);
+        
+        // Add to specific time periods based on rankings
+        if (track.rankings) {
+          if (track.rankings['4_weeks']) {
+            popularityData['4_weeks'].popularities.push(track.popularity);
+          }
+          if (track.rankings['6_months']) {
+            popularityData['6_months'].popularities.push(track.popularity);
+          }
+          if (track.rankings['12_months']) {
+            popularityData['12_months'].popularities.push(track.popularity);
+          }
+        }
+      }
+    });
+
+    // Calculate statistics for each time period
+    Object.keys(popularityData).forEach(period => {
+      const popularities = popularityData[period].popularities;
+      if (popularities.length > 0) {
+        popularityData[period].average = Math.round(popularities.reduce((sum, pop) => sum + pop, 0) / popularities.length);
+        popularityData[period].count = popularities.length;
+        popularityData[period].min = Math.min(...popularities);
+        popularityData[period].max = Math.max(...popularities);
+      }
+    });
+
+    return popularityData;
+  };
+
+  const trackPopularityResult = analyzeTrackPopularity(topTracks);
+  setTrackPopularityAnalysis(trackPopularityResult);
+
+  // Analyze listening evolution - newly discovered vs. taking a break
+  const analyzeListeningEvolution = async (tracks) => {
+    const evolution = {
+      newSongs: [],
+      newArtists: [],
+      breakSongs: [],
+      breakArtists: []
+    };
+
+    // Get recent tracks for comparison
+    try {
+      const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json();
+        const recentTracks = recentData.tracks || [];
+        
+        // Create sets for easy comparison
+        const recentSongIds = new Set(recentTracks.map(track => track.id));
+        const recentArtistIds = new Set();
+        recentTracks.forEach(track => {
+          if (track.artists && track.artists.length > 0) {
+            track.artists.forEach(artist => recentArtistIds.add(artist.id));
+          }
+        });
+
+        // Get 4 weeks tracks (last month)
+        const fourWeeksTracks = tracks.filter(track => track.rankings && track.rankings['4_weeks']);
+        const fourWeeksSongIds = new Set(fourWeeksTracks.map(track => track.id));
+        const fourWeeksArtistIds = new Set();
+        fourWeeksTracks.forEach(track => {
+          if (track.artists && track.artists.length > 0) {
+            track.artists.forEach(artist => fourWeeksArtistIds.add(artist.id));
+          }
+        });
+
+        // Get 6-12 months tracks (longer term)
+        const longTermTracks = tracks.filter(track => 
+          (track.rankings && track.rankings['6_months']) || 
+          (track.rankings && track.rankings['12_months'])
+        );
+        const longTermSongIds = new Set(longTermTracks.map(track => track.id));
+        const longTermArtistIds = new Set();
+        longTermTracks.forEach(track => {
+          if (track.artists && track.artists.length > 0) {
+            track.artists.forEach(artist => longTermArtistIds.add(artist.id));
+          }
+        });
+
+        // Find newly discovered songs (in recent + 4 weeks but not in 6-12 months)
+        const recentAndFourWeeksSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
+        tracks.forEach(track => {
+          if (recentAndFourWeeksSongIds.has(track.id) && !longTermSongIds.has(track.id)) {
+            evolution.newSongs.push({
+              id: track.id,
+              name: track.name,
+              artists: track.artists,
+              album: track.album,
+              rankings: track.rankings
+            });
+          }
+        });
+
+        // Find songs taking a break (in 6-12 months but not in recent + 4 weeks)
+        const allRecentSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
+        longTermTracks.forEach(track => {
+          if (!allRecentSongIds.has(track.id)) {
+            evolution.breakSongs.push({
+              id: track.id,
+              name: track.name,
+              artists: track.artists,
+              album: track.album,
+              rankings: track.rankings
+            });
+          }
+        });
+
+        // Find newly discovered artists (in recent + 4 weeks but not in 6-12 months)
+        const recentAndFourWeeksArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
+        tracks.forEach(track => {
+          if (track.artists && track.artists.length > 0) {
+            track.artists.forEach(artist => {
+              if (recentAndFourWeeksArtistIds.has(artist.id) && !longTermArtistIds.has(artist.id)) {
+                const existingArtist = evolution.newArtists.find(a => a.id === artist.id);
+                if (!existingArtist) {
+                  evolution.newArtists.push({
+                    id: artist.id,
+                    name: artist.name,
+                    trackCount: 1
+                  });
+                } else {
+                  existingArtist.trackCount++;
+                }
+              }
+            });
+          }
+        });
+
+        // Find artists taking a break (in 6-12 months but not in recent + 4 weeks)
+        const allRecentArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
+        longTermTracks.forEach(track => {
+          if (track.artists && track.artists.length > 0) {
+            track.artists.forEach(artist => {
+              if (!allRecentArtistIds.has(artist.id)) {
+                const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
+                if (!existingArtist) {
+                  evolution.breakArtists.push({
+                    id: artist.id,
+                    name: artist.name,
+                    trackCount: 1
+                  });
+                } else {
+                  existingArtist.trackCount++;
+                }
+              }
+            });
+          }
+        });
+
+        // Sort by track count for artists
+        evolution.newArtists.sort((a, b) => b.trackCount - a.trackCount);
+        evolution.breakArtists.sort((a, b) => b.trackCount - a.trackCount);
+      }
+    } catch (error) {
+      console.error('Error analyzing listening evolution:', error);
+    }
+
+    return evolution;
+  };
+
+  const listeningEvolutionResult = await analyzeListeningEvolution(topTracks);
+  setListeningEvolution(listeningEvolutionResult);
+
+  // Analyze time of day listening patterns
+  const analyzeTimeOfDay = async () => {
+    const timeSlots = {
+      '8-12 AM': { start: 8, end: 12, count: 0, songs: [] },        // 8:00 - 12:00
+      '12-4 PM': { start: 12, end: 16, count: 0, songs: [] },       // 12:00 - 16:00
+      '4-8 PM': { start: 16, end: 20, count: 0, songs: [] },        // 16:00 - 20:00
+      '8-12 PM': { start: 20, end: 24, count: 0, songs: [] },       // 20:00 - 24:00
+      '12-8 AM': { start: 0, end: 8, count: 0, songs: [] },         // 0:00 - 8:00
+    };
+
+    try {
+      const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json();
+        const recentTracks = recentData.tracks || [];
+        
+        // Process each track
+        recentTracks.forEach(track => {
+          if (track.played_at) {
+            // Convert to UTC+2 (assuming user is in UTC+2 timezone)
+            const playedAt = new Date(track.played_at);
+            const utcPlus2 = new Date(playedAt.getTime() + (2 * 60 * 60 * 1000)); // UTC+2
+            const hour = utcPlus2.getUTCHours();
+            
+            // Find which time slot this hour belongs to
+            let slotFound = false;
+            Object.keys(timeSlots).forEach(slotName => {
+              const slot = timeSlots[slotName];
+              if (slot.start <= slot.end) {
+                // Normal case: start < end (e.g., 9-12)
+                if (hour >= slot.start && hour < slot.end) {
+                  slot.count++;
+                  slot.songs.push({
+                    name: track.name,
+                    artists: track.artists,
+                    played_at: utcPlus2,
+                    hour: hour
+                  });
+                  slotFound = true;
+                }
+              } else {
+                // Wrapping case: start > end (e.g., 21-5 for night)
+                if (hour >= slot.start || hour < slot.end) {
+                  slot.count++;
+                  slot.songs.push({
+                    name: track.name,
+                    artists: track.artists,
+                    played_at: utcPlus2,
+                    hour: hour
+                  });
+                  slotFound = true;
+                }
+              }
+            });
+          }
+        });
+
+        // Find the most active time slot
+        let mostActiveSlot = null;
+        let maxCount = 0;
+        Object.keys(timeSlots).forEach(slotName => {
+          if (timeSlots[slotName].count > maxCount) {
+            maxCount = timeSlots[slotName].count;
+            mostActiveSlot = slotName;
+          }
+        });
+
+        return {
+          timeSlots,
+          mostActiveSlot,
+          totalSongs: recentTracks.length,
+          analyzedSongs: Object.values(timeSlots).reduce((sum, slot) => sum + slot.count, 0)
+        };
+      }
+    } catch (error) {
+      console.error('Error analyzing time of day:', error);
+    }
+
+    return null;
+  };
+
+  const timeOfDayResult = await analyzeTimeOfDay();
+  setTimeOfDayAnalysis(timeOfDayResult);
+
+  // Analyze listener type - Superfan vs Artist Explorer
+  const analyzeListenerType = async () => {
+    const analysis = {
+      type: null,
+      confidence: 0,
+      topArtist: null,
+      artistDiversity: 0,
+      superfanMetrics: {},
+      explorerMetrics: {}
+    };
+
+    try {
+      // Get recent tracks for analysis
+      const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json();
+        const recentTracks = recentData.tracks || [];
+        
+        // Count unique artists in recent tracks
+        const artistCounts = {};
+        recentTracks.forEach(track => {
+          if (track.artists && track.artists.length > 0) {
+            track.artists.forEach(artist => {
+              artistCounts[artist.id] = {
+                id: artist.id,
+                name: artist.name,
+                count: (artistCounts[artist.id]?.count || 0) + 1
+              };
+            });
+          }
+        });
+
+        // Calculate diversity metrics
+        const uniqueArtists = Object.keys(artistCounts).length;
+        const totalSongs = recentTracks.length;
+        const artistDiversity = uniqueArtists / totalSongs; // Higher = more diverse
+
+        // Find top artist in recent tracks
+        const sortedArtists = Object.values(artistCounts).sort((a, b) => b.count - a.count);
+        const topRecentArtist = sortedArtists[0];
+        const topArtistPercentage = (topRecentArtist.count / totalSongs) * 100;
+
+        // Get top artists from cache for comparison
+        const topArtists = getCachedTopArtists();
+        const topArtistFromCache = topArtists && topArtists.length > 0 ? topArtists[0] : null;
+
+        // Superfan indicators
+        const superfanIndicators = {
+          highTopArtistPercentage: topArtistPercentage > 30, // More than 30% from one artist
+          lowDiversity: artistDiversity < 0.3, // Less than 30% unique artists
+          consistentTopArtist: topRecentArtist && topArtistFromCache && 
+                              topRecentArtist.id === topArtistFromCache.id,
+          artistConcentration: topArtistPercentage
+        };
+
+        // Explorer indicators
+        const explorerIndicators = {
+          lowTopArtistPercentage: topArtistPercentage < 15, // Less than 15% from one artist
+          highDiversity: artistDiversity > 0.6, // More than 60% unique artists
+          manyUniqueArtists: uniqueArtists > 20, // More than 20 unique artists
+          artistDiversity: artistDiversity
+        };
+
+        // Calculate superfan score
+        let superfanScore = 0;
+        if (superfanIndicators.highTopArtistPercentage) superfanScore += 30;
+        if (superfanIndicators.lowDiversity) superfanScore += 25;
+        if (superfanIndicators.consistentTopArtist) superfanScore += 25;
+        superfanScore += Math.min(superfanIndicators.artistConcentration / 2, 20);
+
+        // Calculate explorer score
+        let explorerScore = 0;
+        if (explorerIndicators.lowTopArtistPercentage) explorerScore += 30;
+        if (explorerIndicators.highDiversity) explorerScore += 25;
+        if (explorerIndicators.manyUniqueArtists) explorerScore += 25;
+        explorerScore += Math.min(explorerIndicators.artistDiversity * 50, 20);
+
+        // Determine listener type
+        if (superfanScore > explorerScore && superfanScore > 50) {
+          analysis.type = 'Superfan';
+          analysis.confidence = Math.min(superfanScore, 100);
+          analysis.topArtist = topRecentArtist;
+          analysis.artistDiversity = artistDiversity;
+          analysis.superfanMetrics = {
+            topArtistPercentage: topArtistPercentage,
+            uniqueArtists: uniqueArtists,
+            totalSongs: totalSongs,
+            score: superfanScore
+          };
+        } else if (explorerScore > superfanScore && explorerScore > 50) {
+          analysis.type = 'Artist Explorer';
+          analysis.confidence = Math.min(explorerScore, 100);
+          analysis.topArtist = topRecentArtist;
+          analysis.artistDiversity = artistDiversity;
+          analysis.explorerMetrics = {
+            topArtistPercentage: topArtistPercentage,
+            uniqueArtists: uniqueArtists,
+            totalSongs: totalSongs,
+            score: explorerScore
+          };
+        } else {
+          analysis.type = 'Balanced Listener';
+          analysis.confidence = Math.max(superfanScore, explorerScore);
+          analysis.topArtist = topRecentArtist;
+          analysis.artistDiversity = artistDiversity;
+        }
+
+        // Add all artists for display
+        analysis.allArtists = sortedArtists;
+      }
+    } catch (error) {
+      console.error('Error analyzing listener type:', error);
+    }
+
+    return analysis;
+  };
+
+  const listenerTypeResult = await analyzeListenerType();
+  setListenerTypeAnalysis(listenerTypeResult);
+
+  // Fetch recent 50 songs for comparison
+  try {
+    const recentResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
+    if (recentResponse.ok) {
+      const recentData = await recentResponse.json();
+      const recentTracks = recentData.tracks || [];
+      
+      // Analyze recent tracks
+      const recentYears = [];
+      recentTracks.forEach(track => {
+        let trackYear = null;
+        
+        if (track.release_date) {
+          trackYear = new Date(track.release_date).getFullYear();
+        } else if (track.album && track.album.release_date) {
+          trackYear = new Date(track.album.release_date).getFullYear();
+        }
+        
+        if (trackYear && trackYear >= 1900 && trackYear <= 2030) {
+          recentYears.push(trackYear);
+        }
+      });
+      
+      if (recentYears.length > 0) {
+        yearAnalysisResult.recent_50 = {
+          years: recentYears,
+          average: Math.round(recentYears.reduce((sum, year) => sum + year, 0) / recentYears.length),
+          count: recentYears.length
+        };
+        setYearAnalysis({ ...yearAnalysisResult });
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching recent tracks:', error);
+  }
 }
 
-setLoading(false);
+  setLoading(false);
 } catch (err) {
   console.error('Error loading quick stats:', err);
   setError(err.message);
@@ -1153,23 +1679,24 @@ setLoading(false);
           )}
         </div>
 
-        {/* Top Genres Card */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '20px',
-          padding: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-4px)';
-          e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
-        }}>
+        {/* Top Genres Card - Only show if there are genres with 2+ artists */}
+        {topGenres.length > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1281,24 +1808,26 @@ setLoading(false);
             )}
           </div>
         </div>
+        )}
 
-        {/* Top Styles Card */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '20px',
-          padding: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-4px)';
-          e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
-        }}>
+        {/* Top Styles Card - Only show if there are styles with 2+ artists */}
+        {topStyles.length > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1409,6 +1938,1944 @@ setLoading(false);
             )}
           </div>
         </div>
+        )}
+
+        {/* Top Albums Card - Show top 3 albums */}
+        {topAlbums.length > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #8b5cf6, #a855f7)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="9" cy="9" r="2"></circle>
+                  <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Top Albums
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Most songs per album
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {topAlbums.map((album, index) => (
+                <div key={album.id} style={{
+                  padding: '12px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '8px'
+                  }}>
+                    <span style={{
+                      background: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : '#d97706',
+                      color: '#000',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600'
+                    }}>
+                      #{index + 1}
+                    </span>
+                    <span style={{
+                      color: '#b3b3b3',
+                      fontSize: '0.8rem'
+                    }}>
+                      {album.count} songs
+                    </span>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    {album.images && album.images[0] ? (
+                      <img
+                        src={album.images[0].url}
+                        alt={album.name}
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '8px',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: 'linear-gradient(135deg, #10b981, #34d399)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#000',
+                        fontWeight: '700',
+                        fontSize: '1rem'
+                      }}>
+                        🎵
+                      </div>
+                    )}
+                    
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{
+                        color: '#fff',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        margin: '0 0 4px 0'
+                      }}>
+                        {album.name}
+                      </h4>
+                      <p style={{
+                        color: '#b3b3b3',
+                        fontSize: '0.9rem',
+                        margin: '0'
+                      }}>
+                        {album.artist}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top Decades Card - Show top 3 decades */}
+        {topDecades.length > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Top Decades
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Most songs from each era
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {topDecades.map((decade, index) => (
+                <div key={decade.decade} style={{
+                  padding: '12px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '8px'
+                  }}>
+                    <span style={{
+                      background: index === 0 ? '#fbbf24' : index === 1 ? '#9ca3af' : '#d97706',
+                      color: '#000',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600'
+                    }}>
+                      #{index + 1}
+                    </span>
+                    <span style={{
+                      color: '#b3b3b3',
+                      fontSize: '0.8rem'
+                    }}>
+                      {decade.count} songs
+                    </span>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      background: 'linear-gradient(135deg, #10b981, #34d399)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#000',
+                      fontWeight: '700',
+                      fontSize: '1rem'
+                    }}>
+                      {decade.decade}
+                    </div>
+                    
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{
+                        color: '#fff',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        margin: '0 0 4px 0'
+                      }}>
+                        {decade.label}
+                      </h4>
+                      <p style={{
+                        color: '#b3b3b3',
+                        fontSize: '0.9rem',
+                        margin: '0'
+                      }}>
+                        {decade.decade}-{decade.decade + 9}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Average Popularity Card */}
+        {averagePopularity && averagePopularity.count > 0 && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #ec4899, #f472b6)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Artist Popularity
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Average of your top artists
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Main Stats */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                <div>
+                  <h4 style={{
+                    color: '#fff',
+                    fontSize: '2rem',
+                    fontWeight: '700',
+                    margin: '0 0 4px 0'
+                  }}>
+                    {averagePopularity.average}
+                  </h4>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.9rem',
+                    margin: '0'
+                  }}>
+                    Average / 100
+                  </p>
+                </div>
+                <div style={{
+                  textAlign: 'right'
+                }}>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.8rem',
+                    margin: '0 0 4px 0'
+                  }}>
+                    Range
+                  </p>
+                  <p style={{
+                    color: '#fff',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    margin: '0'
+                  }}>
+                    {averagePopularity.min} - {averagePopularity.max}
+                  </p>
+                </div>
+              </div>
+
+              {/* Top Popular Artists */}
+              {averagePopularity.topPopular && averagePopularity.topPopular.length > 0 && (
+                <div>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0'
+                  }}>
+                    Most Popular Artists
+                  </h5>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    {averagePopularity.topPopular.map((artist, index) => (
+                      <div key={artist.name} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.05)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span style={{
+                            background: index === 0 ? '#ffd700' : 
+                                       index === 1 ? '#c0c0c0' : 
+                                       index === 2 ? '#cd7f32' : '#ec4899',
+                            color: index < 3 ? '#000' : '#fff',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.7rem',
+                            fontWeight: '700'
+                          }}>
+                            {index + 1}
+                          </span>
+                          <span style={{
+                            color: '#fff',
+                            fontSize: '0.9rem',
+                            fontWeight: '500'
+                          }}>
+                            {artist.name}
+                          </span>
+                        </div>
+                        <span style={{
+                          color: '#ec4899',
+                          fontSize: '0.8rem',
+                          fontWeight: '600'
+                        }}>
+                          {artist.popularity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Year Analysis Card */}
+        {yearAnalysis && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #10b981, #34d399)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Music Timeline
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Nostalgia vs New Releases
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Time Period Comparisons */}
+              {Object.entries(yearAnalysis).map(([period, data]) => {
+                if (data.count === 0) return null;
+                
+                const currentYear = new Date().getFullYear();
+                const yearsDiff = currentYear - data.average;
+                const isNostalgic = yearsDiff > 5;
+                const isNew = yearsDiff <= 2;
+                
+                let trendLabel = 'Balanced';
+                let trendColor = '#10b981';
+                
+                if (isNostalgic) {
+                  trendLabel = 'Nostalgic';
+                  trendColor = '#f59e0b';
+                } else if (isNew) {
+                  trendLabel = 'Fresh';
+                  trendColor = '#3b82f6';
+                }
+                
+                return (
+                  <div key={period} style={{
+                    padding: '16px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '12px'
+                    }}>
+                      <div>
+                        <h4 style={{
+                          color: '#fff',
+                          fontSize: '1.1rem',
+                          fontWeight: '600',
+                          margin: '0 0 4px 0',
+                          textTransform: 'capitalize'
+                        }}>
+                          {period.replace('_', ' ')}
+                        </h4>
+                        <p style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem',
+                          margin: '0'
+                        }}>
+                          {data.count} songs analyzed
+                        </p>
+                      </div>
+                      <span style={{
+                        background: trendColor,
+                        color: '#000',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: '600'
+                      }}>
+                        {trendLabel}
+                      </span>
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <h5 style={{
+                          color: '#fff',
+                          fontSize: '1.5rem',
+                          fontWeight: '700',
+                          margin: '0 0 4px 0'
+                        }}>
+                          {data.average}
+                        </h5>
+                        <p style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem',
+                          margin: '0'
+                        }}>
+                          Average Year
+                        </p>
+                      </div>
+                      <div style={{
+                        textAlign: 'right'
+                      }}>
+                        <p style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem',
+                          margin: '0 0 4px 0'
+                        }}>
+                          {yearsDiff > 0 ? `${yearsDiff} years ago` : `${Math.abs(yearsDiff)} years ahead`}
+                        </p>
+                        <p style={{
+                          color: '#fff',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          margin: '0'
+                        }}>
+                          {isNostalgic ? '🎵 Classic Vibes' : isNew ? '🚀 Fresh Finds' : '⚖️ Balanced Mix'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Summary */}
+              {yearAnalysis.recent_50 && yearAnalysis['12_months'] && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  marginTop: '8px'
+                }}>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 8px 0'
+                  }}>
+                    Listening Pattern Analysis
+                  </h5>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.9rem',
+                    margin: '0',
+                    lineHeight: '1.4'
+                  }}>
+                    {(() => {
+                      const recentAvg = yearAnalysis.recent_50.average;
+                      const longTermAvg = yearAnalysis['12_months'].average;
+                      const diff = recentAvg - longTermAvg;
+                      
+                      if (diff > 2) {
+                        return "You're exploring newer music lately! Your recent listens are fresher than your long-term favorites.";
+                      } else if (diff < -2) {
+                        return "You're diving into classics! Your recent listens are more nostalgic than your usual taste.";
+                      } else {
+                        return "Your recent listening pattern matches your long-term music taste - consistent vibes!";
+                      }
+                    })()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Track Popularity Analysis Card */}
+        {trackPopularityAnalysis && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #8b5cf6, #a855f7)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Track Popularity
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Average popularity of your songs
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Time Period Comparisons */}
+              {Object.entries(trackPopularityAnalysis).map(([period, data]) => {
+                if (data.count === 0) return null;
+                
+                let popularityLabel = 'Unknown';
+                let popularityColor = '#8b5cf6';
+                
+                if (data.average >= 80) {
+                  popularityLabel = 'Very Popular';
+                  popularityColor = '#10b981';
+                } else if (data.average >= 60) {
+                  popularityLabel = 'Popular';
+                  popularityColor = '#3b82f6';
+                } else if (data.average >= 40) {
+                  popularityLabel = 'Moderate';
+                  popularityColor = '#f59e0b';
+                } else if (data.average >= 20) {
+                  popularityLabel = 'Niche';
+                  popularityColor = '#ef4444';
+                } else {
+                  popularityLabel = 'Underground';
+                  popularityColor = '#6b7280';
+                }
+                
+                return (
+                  <div key={period} style={{
+                    padding: '16px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '12px'
+                    }}>
+                      <div>
+                        <h4 style={{
+                          color: '#fff',
+                          fontSize: '1.1rem',
+                          fontWeight: '600',
+                          margin: '0 0 4px 0',
+                          textTransform: 'capitalize'
+                        }}>
+                          {period.replace('_', ' ')}
+                        </h4>
+                        <p style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem',
+                          margin: '0'
+                        }}>
+                          {data.count} songs analyzed
+                        </p>
+                      </div>
+                      <span style={{
+                        background: popularityColor,
+                        color: '#000',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: '600'
+                      }}>
+                        {popularityLabel}
+                      </span>
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <h5 style={{
+                          color: '#fff',
+                          fontSize: '1.5rem',
+                          fontWeight: '700',
+                          margin: '0 0 4px 0'
+                        }}>
+                          {data.average}
+                        </h5>
+                        <p style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem',
+                          margin: '0'
+                        }}>
+                          Average / 100
+                        </p>
+                      </div>
+                      <div style={{
+                        textAlign: 'right'
+                      }}>
+                        <p style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem',
+                          margin: '0 0 4px 0'
+                        }}>
+                          Range: {data.min} - {data.max}
+                        </p>
+                        <p style={{
+                          color: '#fff',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          margin: '0'
+                        }}>
+                          {data.average >= 80 ? '🔥 Mainstream' : 
+                           data.average >= 60 ? '⭐ Trending' : 
+                           data.average >= 40 ? '📻 Radio Friendly' : 
+                           data.average >= 20 ? '🎵 Alternative' : '🎧 Hidden Gems'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Summary */}
+              {trackPopularityAnalysis.all_tracks && trackPopularityAnalysis['12_months'] && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  marginTop: '8px'
+                }}>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 8px 0'
+                  }}>
+                    Popularity Pattern Analysis
+                  </h5>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.9rem',
+                    margin: '0',
+                    lineHeight: '1.4'
+                  }}>
+                    {(() => {
+                      const overallAvg = trackPopularityAnalysis.all_tracks.average;
+                      const longTermAvg = trackPopularityAnalysis['12_months'].average;
+                      
+                      if (overallAvg >= 80) {
+                        return "You love mainstream hits! Your music taste leans heavily toward popular, chart-topping tracks.";
+                      } else if (overallAvg >= 60) {
+                        return "You enjoy trending music! You're into popular songs but also discover some hidden gems.";
+                      } else if (overallAvg >= 40) {
+                        return "You have a balanced taste! You mix popular hits with more alternative and niche tracks.";
+                      } else if (overallAvg >= 20) {
+                        return "You're an alternative music lover! You prefer less mainstream, more unique tracks.";
+                      } else {
+                        return "You're a true music explorer! You discover underground and hidden gems that most people haven't heard.";
+                      }
+                    })()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Listening Evolution Card */}
+        {listeningEvolution && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                  <path d="M12 2v20"></path>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Listening Evolution
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Your music discovery journey
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Newly Discovered Songs */}
+              {listeningEvolution.newSongs.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(34, 197, 94, 0.2)'
+                }}>
+                  <h4 style={{
+                    color: '#22c55e',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>🆕</span>
+                    Newly Discovered Songs ({listeningEvolution.newSongs.length})
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                  }}>
+                    {listeningEvolution.newSongs.map((song, index) => (
+                      <div key={song.id} style={{
+                        padding: '8px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <p style={{
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              margin: '0 0 2px 0'
+                            }}>
+                              {song.name}
+                            </p>
+                            <p style={{
+                              color: '#b3b3b3',
+                              fontSize: '0.8rem',
+                              margin: '0'
+                            }}>
+                              {song.artists.map(artist => artist.name).join(', ')}
+                            </p>
+                          </div>
+                          <span style={{
+                            background: '#22c55e',
+                            color: '#000',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            New
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Newly Discovered Artists */}
+              {listeningEvolution.newArtists.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(59, 130, 246, 0.2)'
+                }}>
+                  <h4 style={{
+                    color: '#3b82f6',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>🎤</span>
+                    Newly Discovered Artists ({listeningEvolution.newArtists.length})
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                  }}>
+                    {listeningEvolution.newArtists.map((artist, index) => (
+                      <div key={artist.id} style={{
+                        padding: '8px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <p style={{
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              margin: '0 0 2px 0'
+                            }}>
+                              {artist.name}
+                            </p>
+                            <p style={{
+                              color: '#b3b3b3',
+                              fontSize: '0.8rem',
+                              margin: '0'
+                            }}>
+                              {artist.trackCount} track{artist.trackCount !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <span style={{
+                            background: '#3b82f6',
+                            color: '#fff',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            New
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Songs Taking a Break */}
+              {listeningEvolution.breakSongs.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(245, 158, 11, 0.2)'
+                }}>
+                  <h4 style={{
+                    color: '#f59e0b',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>⏸️</span>
+                    Songs Taking a Break ({listeningEvolution.breakSongs.length})
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                  }}>
+                    {listeningEvolution.breakSongs.map((song, index) => (
+                      <div key={song.id} style={{
+                        padding: '8px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <p style={{
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              margin: '0 0 2px 0'
+                            }}>
+                              {song.name}
+                            </p>
+                            <p style={{
+                              color: '#b3b3b3',
+                              fontSize: '0.8rem',
+                              margin: '0'
+                            }}>
+                              {song.artists.map(artist => artist.name).join(', ')}
+                            </p>
+                          </div>
+                          <span style={{
+                            background: '#f59e0b',
+                            color: '#000',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            Break
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Artists Taking a Break */}
+              {listeningEvolution.breakArtists.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                }}>
+                  <h4 style={{
+                    color: '#ef4444',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>🎭</span>
+                    Artists Taking a Break ({listeningEvolution.breakArtists.length})
+                  </h4>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                  }}>
+                    {listeningEvolution.breakArtists.map((artist, index) => (
+                      <div key={artist.id} style={{
+                        padding: '8px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <p style={{
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              margin: '0 0 2px 0'
+                            }}>
+                              {artist.name}
+                            </p>
+                            <p style={{
+                              color: '#b3b3b3',
+                              fontSize: '0.8rem',
+                              margin: '0'
+                            }}>
+                              {artist.trackCount} track{artist.trackCount !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <span style={{
+                            background: '#ef4444',
+                            color: '#fff',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            Break
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Summary */}
+              <div style={{
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                marginTop: '8px'
+              }}>
+                <h5 style={{
+                  color: '#fff',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  margin: '0 0 8px 0'
+                }}>
+                  Listening Pattern Analysis
+                </h5>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0',
+                  lineHeight: '1.4'
+                }}>
+                  {(() => {
+                    const newSongsCount = listeningEvolution.newSongs.length;
+                    const breakSongsCount = listeningEvolution.breakSongs.length;
+                    const newArtistsCount = listeningEvolution.newArtists.length;
+                    const breakArtistsCount = listeningEvolution.breakArtists.length;
+                    
+                    if (newSongsCount > breakSongsCount && newArtistsCount > breakArtistsCount) {
+                      return "You're actively discovering new music! Your listening habits show a strong trend toward exploring fresh artists and songs.";
+                    } else if (newSongsCount > breakSongsCount) {
+                      return "You're discovering new songs while maintaining some of your favorite artists. A balanced approach to music exploration.";
+                    } else if (newArtistsCount > breakArtistsCount) {
+                      return "You're exploring new artists but sticking to familiar songs. You like to discover new voices through trusted tracks.";
+                    } else if (breakSongsCount > 0 || breakArtistsCount > 0) {
+                      return "You're taking breaks from some of your previous favorites, possibly making room for new discoveries or returning to classics.";
+                    } else {
+                      return "Your listening patterns are stable, with consistent favorites across different time periods.";
+                    }
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Time of Day Analysis Card */}
+        {timeOfDayAnalysis && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#000',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <polyline points="12,1 12,3"></polyline>
+                  <polyline points="12,21 12,23"></polyline>
+                  <polyline points="4.22,4.22 5.64,5.64"></polyline>
+                  <polyline points="18.36,18.36 19.78,19.78"></polyline>
+                  <polyline points="1,12 3,12"></polyline>
+                  <polyline points="21,12 23,12"></polyline>
+                  <polyline points="4.22,19.78 5.64,18.36"></polyline>
+                  <polyline points="18.36,5.64 19.78,4.22"></polyline>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Time of Day Analysis
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  When you listen to music most
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Most Active Time */}
+              {timeOfDayAnalysis.mostActiveSlot && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{
+                    color: '#f59e0b',
+                    fontSize: '1.1rem',
+                    fontWeight: '600',
+                    margin: '0 0 8px 0'
+                  }}>
+                    🎵 Your Most Active Time
+                  </h4>
+                  <p style={{
+                    color: '#fff',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    margin: '0 0 4px 0'
+                  }}>
+                    {timeOfDayAnalysis.mostActiveSlot}
+                  </p>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.9rem',
+                    margin: '0'
+                  }}>
+                    {timeOfDayAnalysis.timeSlots[timeOfDayAnalysis.mostActiveSlot].count} songs played
+                  </p>
+                </div>
+              )}
+
+              {/* Time Slots Breakdown */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '12px'
+              }}>
+                {Object.entries(timeOfDayAnalysis.timeSlots).map(([slotName, slot]) => {
+                  if (slot.count === 0) return null;
+                  
+                  const isMostActive = slotName === timeOfDayAnalysis.mostActiveSlot;
+                  const percentage = Math.round((slot.count / timeOfDayAnalysis.analyzedSongs) * 100);
+                  
+                  return (
+                    <div key={slotName} style={{
+                      padding: '16px',
+                      background: isMostActive ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                      borderRadius: '12px',
+                      border: isMostActive ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      position: 'relative'
+                    }}>
+                      {isMostActive && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-8px',
+                          background: '#f59e0b',
+                          color: '#000',
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '0.7rem',
+                          fontWeight: '600'
+                        }}>
+                          Most Active
+                        </div>
+                      )}
+                      
+                      <h5 style={{
+                        color: '#fff',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        margin: '0 0 8px 0'
+                      }}>
+                        {slotName}
+                      </h5>
+                      
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{
+                          color: '#fff',
+                          fontSize: '1.5rem',
+                          fontWeight: '700'
+                        }}>
+                          {slot.count}
+                        </span>
+                        <span style={{
+                          color: '#b3b3b3',
+                          fontSize: '0.8rem'
+                        }}>
+                          {percentage}%
+                        </span>
+                      </div>
+                      
+                      <div style={{
+                        width: '100%',
+                        height: '6px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '3px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${percentage}%`,
+                          height: '100%',
+                          background: isMostActive ? '#f59e0b' : '#3b82f6',
+                          borderRadius: '3px',
+                          transition: 'width 0.3s ease'
+                        }}></div>
+                      </div>
+                      
+                      <p style={{
+                        color: '#b3b3b3',
+                        fontSize: '0.8rem',
+                        margin: '8px 0 0 0'
+                      }}>
+                        {slot.start.toString().padStart(2, '0')}:00 - {slot.end.toString().padStart(2, '0')}:00
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Sample Songs from Most Active Time */}
+              {timeOfDayAnalysis.mostActiveSlot && timeOfDayAnalysis.timeSlots[timeOfDayAnalysis.mostActiveSlot].songs.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0'
+                  }}>
+                    Sample Songs from {timeOfDayAnalysis.mostActiveSlot}
+                  </h5>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    maxHeight: '200px',
+                    overflowY: 'auto'
+                  }}>
+                    {timeOfDayAnalysis.timeSlots[timeOfDayAnalysis.mostActiveSlot].songs.slice(0, 8).map((song, index) => (
+                      <div key={index} style={{
+                        padding: '8px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <p style={{
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              margin: '0 0 2px 0'
+                            }}>
+                              {song.name}
+                            </p>
+                            <p style={{
+                              color: '#b3b3b3',
+                              fontSize: '0.8rem',
+                              margin: '0'
+                            }}>
+                              {song.artists.map(artist => artist.name).join(', ')}
+                            </p>
+                          </div>
+                          <span style={{
+                            background: '#f59e0b',
+                            color: '#000',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            {song.hour.toString().padStart(2, '0')}:00
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Summary */}
+              <div style={{
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                marginTop: '8px'
+              }}>
+                <h5 style={{
+                  color: '#fff',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  margin: '0 0 8px 0'
+                }}>
+                  Listening Pattern Summary
+                </h5>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0',
+                  lineHeight: '1.4'
+                }}>
+                  {(() => {
+                    const mostActive = timeOfDayAnalysis.mostActiveSlot;
+                    const count = timeOfDayAnalysis.timeSlots[mostActive].count;
+                    const total = timeOfDayAnalysis.analyzedSongs;
+                    const percentage = Math.round((count / total) * 100);
+                    
+                    if (mostActive === '8-12 AM') {
+                      return `You're a morning person! ${percentage}% of your music listening happens during morning hours (8:00-12:00). You start your day with great tunes!`;
+                    } else if (mostActive === '12-4 PM') {
+                      return `You're an afternoon listener! ${percentage}% of your music happens during afternoon hours (12:00-16:00). Perfect timing for a midday energy boost!`;
+                    } else if (mostActive === '4-8 PM') {
+                      return `You're an evening music lover! ${percentage}% of your listening happens during evening hours (16:00-20:00). Great way to unwind after work!`;
+                    } else if (mostActive === '8-12 PM') {
+                      return `You're a night owl! ${percentage}% of your music listening happens during night hours (20:00-24:00). Music keeps you company during late hours!`;
+                    } else  {
+                      return `You're a late-night/early-morning listener! ${percentage}% of your music happens during late night, or early morning hours (0:00-8:00). Music accompanies your late night activities or early morning wakeups!`;
+                    } 
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Listener Type Analysis Card */}
+        {listenerTypeAnalysis && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: listenerTypeAnalysis.type === 'Superfan' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
+                           listenerTypeAnalysis.type === 'Artist Explorer' ? 'linear-gradient(135deg, #10b981, #059669)' :
+                           'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: '700',
+                fontSize: '1.2rem'
+              }}>
+                {listenerTypeAnalysis.type === 'Superfan' ? '🎵' :
+                 listenerTypeAnalysis.type === 'Artist Explorer' ? '🔍' : '⚖️'}
+              </div>
+              <div>
+                <h3 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  Listener Type Analysis
+                </h3>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Your music discovery style
+                </p>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Listener Type Badge */}
+              <div style={{
+                padding: '20px',
+                background: listenerTypeAnalysis.type === 'Superfan' ? 'rgba(239, 68, 68, 0.1)' :
+                           listenerTypeAnalysis.type === 'Artist Explorer' ? 'rgba(16, 185, 129, 0.1)' :
+                           'rgba(139, 92, 246, 0.1)',
+                borderRadius: '12px',
+                border: listenerTypeAnalysis.type === 'Superfan' ? '1px solid rgba(239, 68, 68, 0.2)' :
+                        listenerTypeAnalysis.type === 'Artist Explorer' ? '1px solid rgba(16, 185, 129, 0.2)' :
+                        '1px solid rgba(139, 92, 246, 0.2)',
+                textAlign: 'center'
+              }}>
+                <h4 style={{
+                  color: listenerTypeAnalysis.type === 'Superfan' ? '#ef4444' :
+                         listenerTypeAnalysis.type === 'Artist Explorer' ? '#10b981' : '#8b5cf6',
+                  fontSize: '1.3rem',
+                  fontWeight: '700',
+                  margin: '0 0 8px 0'
+                }}>
+                  {listenerTypeAnalysis.type === 'Superfan' ? '🎵 Superfan' :
+                   listenerTypeAnalysis.type === 'Artist Explorer' ? '🔍 Artist Explorer' : '⚖️ Balanced Listener'}
+                </h4>
+                <p style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0 0 4px 0'
+                }}>
+                  {listenerTypeAnalysis.confidence}% Confidence
+                </p>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0'
+                }}>
+                  Based on your recent listening patterns
+                </p>
+              </div>
+
+              {/* Key Metrics */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: '12px'
+              }}>
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  textAlign: 'center'
+                }}>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    margin: '0 0 4px 0'
+                  }}>
+                    {Math.round(listenerTypeAnalysis.artistDiversity * 100)}%
+                  </h5>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.8rem',
+                    margin: '0'
+                  }}>
+                    Artist Diversity
+                  </p>
+                </div>
+
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  textAlign: 'center'
+                }}>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    margin: '0 0 4px 0'
+                  }}>
+                    {listenerTypeAnalysis.allArtists.length}
+                  </h5>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.8rem',
+                    margin: '0'
+                  }}>
+                    Unique Artists
+                  </p>
+                </div>
+
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  textAlign: 'center'
+                }}>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    margin: '0 0 4px 0'
+                  }}>
+                    {listenerTypeAnalysis.topArtist ? Math.round((listenerTypeAnalysis.topArtist.count / (listenerTypeAnalysis.superfanMetrics?.totalSongs || listenerTypeAnalysis.explorerMetrics?.totalSongs || 1)) * 100) : 0}%
+                  </h5>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.8rem',
+                    margin: '0'
+                  }}>
+                    Top Artist %
+                  </p>
+                </div>
+              </div>
+
+              {/* Top Artists List */}
+              {listenerTypeAnalysis.allArtists.length > 0 && (
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}>
+                  <h5 style={{
+                    color: '#fff',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    margin: '0 0 12px 0'
+                  }}>
+                    Recent Artist Activity
+                  </h5>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    maxHeight: '200px',
+                    overflowY: 'auto'
+                  }}>
+                    {listenerTypeAnalysis.allArtists.slice(0, 10).map((artist, index) => (
+                      <div key={artist.id} style={{
+                        padding: '8px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <div>
+                            <p style={{
+                              color: '#fff',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              margin: '0 0 2px 0'
+                            }}>
+                              {artist.name}
+                            </p>
+                            <p style={{
+                              color: '#b3b3b3',
+                              fontSize: '0.8rem',
+                              margin: '0'
+                            }}>
+                              {artist.count} song{artist.count !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <span style={{
+                            background: index === 0 ? '#f59e0b' : '#3b82f6',
+                            color: '#fff',
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: '600'
+                          }}>
+                            #{index + 1}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Summary */}
+              <div style={{
+                padding: '16px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                marginTop: '8px'
+              }}>
+                <h5 style={{
+                  color: '#fff',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  margin: '0 0 8px 0'
+                }}>
+                  Listening Style Analysis
+                </h5>
+                <p style={{
+                  color: '#b3b3b3',
+                  fontSize: '0.9rem',
+                  margin: '0',
+                  lineHeight: '1.4'
+                }}>
+                  {(() => {
+                    const type = listenerTypeAnalysis.type;
+                    const diversity = Math.round(listenerTypeAnalysis.artistDiversity * 100);
+                    const uniqueArtists = listenerTypeAnalysis.allArtists.length;
+                    
+                    if (type === 'Superfan') {
+                      return `You're a dedicated superfan! You focus deeply on specific artists, with ${diversity}% artist diversity. You prefer to explore the full catalog of artists you love rather than constantly discovering new ones.`;
+                    } else if (type === 'Artist Explorer') {
+                      return `You're an artist explorer! You love discovering new voices, with ${diversity}% artist diversity and ${uniqueArtists} unique artists in your recent tracks. You're always on the hunt for fresh musical discoveries.`;
+                    } else {
+                      return `You're a balanced listener! You mix deep dives into favorite artists with discovering new voices. You have ${diversity}% artist diversity, showing a healthy mix of both approaches.`;
+                    }
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* CSS for spinner animation */}

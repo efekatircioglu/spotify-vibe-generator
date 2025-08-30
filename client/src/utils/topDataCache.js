@@ -48,8 +48,11 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
           album: track.album ? {
             id: track.album.id,
             name: track.album.name,
-            images: track.album.images || []
+            images: track.album.images || [],
+            release_date: track.album.release_date || null
           } : null,
+          release_date: track.release_date || null,
+          popularity: track.popularity || null,
           rankings: {
             '4_weeks': index + 1,
             '6_months': null,
@@ -68,6 +71,24 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
           // Update existing track with 6 months ranking
           const existing = unifiedTracks.get(track.id);
           existing.rankings['6_months'] = index + 1;
+          // Preserve release date information if it exists in the new track
+          if (track.release_date) {
+            existing.release_date = track.release_date;
+          }
+          if (track.album && track.album.release_date) {
+            if (!existing.album) {
+              existing.album = {
+                id: track.album.id,
+                name: track.album.name,
+                images: track.album.images || []
+              };
+            }
+            existing.album.release_date = track.album.release_date;
+          }
+          // Preserve popularity information if it exists in the new track
+          if (track.popularity !== null && track.popularity !== undefined) {
+            existing.popularity = track.popularity;
+          }
         } else {
           // Add new track
           unifiedTracks.set(track.id, {
@@ -80,8 +101,11 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
             album: track.album ? {
               id: track.album.id,
               name: track.album.name,
-              images: track.album.images || []
+              images: track.album.images || [],
+              release_date: track.album.release_date || null
             } : null,
+            release_date: track.release_date || null,
+            popularity: track.popularity || null,
             rankings: {
               '4_weeks': null,
               '6_months': index + 1,
@@ -101,6 +125,24 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
           // Update existing track with 12 months ranking
           const existing = unifiedTracks.get(track.id);
           existing.rankings['12_months'] = index + 1;
+          // Preserve release date information if it exists in the new track
+          if (track.release_date) {
+            existing.release_date = track.release_date;
+          }
+          if (track.album && track.album.release_date) {
+            if (!existing.album) {
+              existing.album = {
+                id: track.album.id,
+                name: track.album.name,
+                images: track.album.images || []
+              };
+            }
+            existing.album.release_date = track.album.release_date;
+          }
+          // Preserve popularity information if it exists in the new track
+          if (track.popularity !== null && track.popularity !== undefined) {
+            existing.popularity = track.popularity;
+          }
         } else {
           // Add new track
           unifiedTracks.set(track.id, {
@@ -113,8 +155,11 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
             album: track.album ? {
               id: track.album.id,
               name: track.album.name,
-              images: track.album.images || []
+              images: track.album.images || [],
+              release_date: track.album.release_date || null
             } : null,
+            release_date: track.release_date || null,
+            popularity: track.popularity || null,
             rankings: {
               '4_weeks': null,
               '6_months': null,
@@ -184,6 +229,11 @@ export const fetchAndCacheTopData = async () => {
     const tracks4Weeks = results.find(r => r.name === '4_weeks')?.tracks || [];
     const tracks6Months = results.find(r => r.name === '6_months')?.tracks || [];
     const tracks12Months = results.find(r => r.name === '12_months')?.tracks || [];
+    
+    // Debug: Check if tracks have release date information
+    console.log('Sample track from 4 weeks:', tracks4Weeks[0]);
+    console.log('Sample track from 6 months:', tracks6Months[0]);
+    console.log('Sample track from 12 months:', tracks12Months[0]);
     
     const unifiedTracks = buildUnifiedTracks(tracks4Weeks, tracks6Months, tracks12Months);
     

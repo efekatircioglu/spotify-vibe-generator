@@ -13,7 +13,6 @@ export const getCachedTopArtists = () => {
     const cachedData = localStorage.getItem(CACHE_KEY);
     
     if (!cachedData) {
-      console.log('[TopArtistsCache] No cached data found');
       return null;
     }
     
@@ -24,7 +23,6 @@ export const getCachedTopArtists = () => {
     // Just check if the data exists and is valid
     
     // Return cached artists
-    console.log(`[TopArtistsCache] Cache hit! Found ${cacheObject.artists.length} artists`);
     return cacheObject.artists;
     
   } catch (error) {
@@ -40,8 +38,6 @@ export const getCachedTopArtists = () => {
  * @returns {Array} Merged artists with rankings for all time periods
  */
 const mergeArtistsByTimePeriod = (artists) => {
-  console.log('[TopArtistsCache] Merging artists:', artists.length, 'entries');
-  
   const artistMap = new Map();
   
   artists.forEach(artist => {
@@ -57,8 +53,6 @@ const mergeArtistsByTimePeriod = (artists) => {
     } else if (artist.position !== null && artist.position !== undefined) {
       rank = artist.position;
     }
-    
-    console.log(`[TopArtistsCache] Processing artist: ${artist.name} (${artistId}) - ${timePeriod}: ${rank}`);
     
     if (!artistMap.has(artistId)) {
       // Initialize artist with all time periods set to null
@@ -90,7 +84,6 @@ const mergeArtistsByTimePeriod = (artists) => {
   });
   
   const mergedArtists = Array.from(artistMap.values());
-  console.log('[TopArtistsCache] Merged into', mergedArtists.length, 'unique artists');
   
   // Sort artists by priority: 12 months → 6 months → 4 weeks
   // Artists with higher rankings in longer time periods get priority
@@ -423,5 +416,82 @@ export const inspectTopArtistsCache = () => {
   } catch (error) {
     console.error('[TopArtistsCache] Error inspecting cache:', error);
     return { exists: false, error: error.message };
+  }
+};
+
+/**
+ * Calculate average popularity of top artists
+ * @returns {Object} Object containing average popularity and statistics
+ */
+export const calculateAveragePopularity = () => {
+  try {
+    const artists = getCachedTopArtists();
+    
+    if (!artists || artists.length === 0) {
+      return {
+        average: 0,
+        total: 0,
+        count: 0,
+        min: 0,
+        max: 0,
+        message: 'No artists found in cache'
+      };
+    }
+    
+    // Filter artists that have popularity data
+    const artistsWithPopularity = artists.filter(artist => 
+      artist.popularity !== null && 
+      artist.popularity !== undefined && 
+      !isNaN(artist.popularity)
+    );
+    
+    if (artistsWithPopularity.length === 0) {
+      return {
+        average: 0,
+        total: 0,
+        count: 0,
+        min: 0,
+        max: 0,
+        message: 'No artists with popularity data found'
+      };
+    }
+    
+    // Calculate statistics
+    const popularities = artistsWithPopularity.map(artist => artist.popularity);
+    const total = popularities.reduce((sum, pop) => sum + pop, 0);
+    const average = Math.round(total / popularities.length);
+    const min = Math.min(...popularities);
+    const max = Math.max(...popularities);
+    
+    // Get top 5 most popular artists
+    const topPopular = artistsWithPopularity
+      .sort((a, b) => b.popularity - a.popularity)
+      .slice(0, 5)
+      .map(artist => ({
+        name: artist.name,
+        popularity: artist.popularity,
+        genres: artist.genres || []
+      }));
+    
+    return {
+      average,
+      total,
+      count: popularities.length,
+      min,
+      max,
+      topPopular,
+      message: `Average popularity: ${average}/100 (${popularities.length} artists)`
+    };
+    
+  } catch (error) {
+    console.error('[TopArtistsCache] Error calculating average popularity:', error);
+    return {
+      average: 0,
+      total: 0,
+      count: 0,
+      min: 0,
+      max: 0,
+      message: 'Error calculating popularity'
+    };
   }
 };

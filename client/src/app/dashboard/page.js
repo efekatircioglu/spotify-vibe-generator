@@ -16,6 +16,8 @@ import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpoti
 import { getRecentSearches, saveRecentSearch } from '../../utils/recentSearchesCache';
 import '../../utils/storageMonitor'; // Import storage monitoring utilities
 import QuickStats from '../../components/QuickStats';
+import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
+import { initializeAllCaches } from '../../utils/cacheManager';
 
 
 
@@ -212,13 +214,8 @@ export default function Home() {
 
   const handleCreatePlaylistWrapped = async (playlist) => {
     try {
-      console.log('Creating wrapped for playlist:', playlist);
-      console.log('Playlist ID:', playlist.id);
-      
       // Fetch playlist tracks for wrapped analysis (same pattern as Genres feature)
       const res = await fetch(`http://127.0.0.1:8000/playlist-tracks-for-wrapped/${playlist.id}`);
-      console.log('Response status:', res.status);
-      console.log('Response ok:', res.ok);
       
       if (!res.ok) {
         const errorText = await res.text();
@@ -227,16 +224,12 @@ export default function Home() {
       }
       
       const data = await res.json();
-      console.log('Response data:', data);
       const tracks = data.tracks || [];
       
       if (tracks.length === 0) {
-        console.log('No tracks found in playlist');
         alert('No tracks found in this playlist.');
         return;
       }
-      
-      console.log(`Found ${tracks.length} tracks for wrapped analysis`);
       
       // Open the wrapped analysis modal with the playlist tracks
       setSelectedPlaylistForWrapped({
@@ -303,6 +296,8 @@ export default function Home() {
       .then((data) => {
         setUser(data);
         setLoading(false);
+        // Initialize caches when user is logged in
+        initializeAllCaches();
         // Auto-load last 50 songs when user is logged in (playlists will be loaded manually)
         handleGenerateFromRecents();
       })
@@ -699,7 +694,6 @@ export default function Home() {
         if (response.ok) {
           return await response.json();
         } else if (response.status === 500 && attempt < maxRetries) {
-          console.log(`Attempt ${attempt} failed with 500 error, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
           delay *= 2; // Exponential backoff
           continue;
@@ -710,7 +704,6 @@ export default function Home() {
         if (attempt === maxRetries) {
           throw error;
         }
-        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // Exponential backoff
       }
@@ -727,7 +720,6 @@ export default function Home() {
     // Check cache first
     const cachedId = getCachedArtistId(artist.name);
     if (cachedId) {
-      console.log(`Found cached Ticketmaster ID for "${artist.name}": ${cachedId}`);
       ticketmasterId = cachedId;
       // Get cached image if available
       const cachedImage = getCachedArtistImage(artist.name);
@@ -746,7 +738,6 @@ export default function Home() {
           // Cache the successful result with image and Spotify ID
           const imageUrl = exact.images?.[0]?.url || image;
           setArtistCache(artist.name, exact.id, imageUrl, spotifyId);
-          console.log(`Cached Ticketmaster ID for "${artist.name}": ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
         }
       } catch (err) {
         console.error('Error searching Ticketmaster:', err);
@@ -822,14 +813,13 @@ export default function Home() {
     }
   };
 
-  // Add time range navigation buttons
+    // Add time range navigation buttons
   const handleTimeRangeNav = (endpoint) => {
-    console.log('Navigating to:', endpoint);
     try {
       router.push(endpoint);
     } catch (error) {
-      console.error('Navigation error:', error);
-    }
+        console.error('Navigation error:', error);
+      }
   };
 
 
@@ -1053,6 +1043,7 @@ export default function Home() {
 
   return (
     <>
+      <TopDataCacheInitializer />
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
       <div className={`${styles.dashboardBackground} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.dashboardContainer}>
