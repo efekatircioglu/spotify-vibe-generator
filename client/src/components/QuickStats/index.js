@@ -161,7 +161,7 @@ export default function QuickStats({ isMobile }) {
       }, 'albumsDecades');
 
       if (!cachedAlbumsDecades) {
-        const albumsDecades = calculateAlbumsAndDecades(topTracks);
+        const albumsDecades = await calculateAlbumsAndDecades(topTracks);
         setData(prev => ({
           ...prev,
           topAlbums: albumsDecades.albums,
@@ -320,21 +320,26 @@ export default function QuickStats({ isMobile }) {
         </h2>
         
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '24px',
-          alignItems: 'start'
+          columns: isMobile ? 1 : 3,
+          columnGap: '24px',
+          maxWidth: '100%'
         }}>
           {/* Show basic cards that are ready */}
           {shouldShowCard('basicStats') && (
             <>
-              <TopArtistCard artist={data.topArtist} timeRange={data.topArtistTimeRange} />
-              <TopSongCard song={data.topSong} timeRange={data.topSongTimeRange} />
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopArtistCard artist={data.topArtist} timeRange={data.topArtistTimeRange} />
+              </div>
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopSongCard song={data.topSong} timeRange={data.topSongTimeRange} />
+              </div>
             </>
           )}
 
           {/* Loading message */}
           <div style={{
+            breakInside: 'avoid',
+            marginBottom: '24px',
             background: 'rgba(255, 255, 255, 0.05)',
             borderRadius: '20px',
             padding: '24px',
@@ -397,55 +402,171 @@ export default function QuickStats({ isMobile }) {
       </h2>
       
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '24px',
-        alignItems: 'start'
+        columns: isMobile ? 1 : 3,
+        columnGap: '24px',
+        maxWidth: '100%'
       }}>
         {/* Render individual components based on loading states */}
-        {shouldShowCard('basicStats') && (
+        {isMobile ? (
+          // Mobile Order
           <>
-            <TopArtistCard artist={data.topArtist} timeRange={data.topArtistTimeRange} />
-            <TopSongCard song={data.topSong} timeRange={data.topSongTimeRange} />
+            {/* 1. Top Artist */}
+            {shouldShowCard('basicStats') && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopArtistCard artist={data.topArtist} timeRange={data.topArtistTimeRange} />
+              </div>
+            )}
+
+            {/* 2. Top Song */}
+            {shouldShowCard('basicStats') && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopSongCard song={data.topSong} timeRange={data.topSongTimeRange} />
+              </div>
+            )}
+
+            {/* 3. Top Albums */}
+            {shouldShowCard('albumsDecades') && data.topAlbums && data.topAlbums.length > 0 && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopAlbumsCard albums={data.topAlbums} />
+              </div>
+            )}
+
+            {/* 4. Top Decades */}
+            {shouldShowCard('albumsDecades') && data.topDecades && data.topDecades.length > 0 && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopDecadesCard decades={data.topDecades} />
+              </div>
+            )}
+
+            {/* 5. Top Genres */}
+            {shouldShowCard('genres') && data.topGenres.length > 0 && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopGenresCard genres={data.topGenres} />
+              </div>
+            )}
+
+            {/* 6. Artist Popularity */}
+            {shouldShowCard('popularity') && data.averagePopularity && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <ArtistPopularityCard popularity={data.averagePopularity} />
+              </div>
+            )}
+
+            {/* 7. Track Popularity */}
+            {shouldShowCard('trackPopularity') && data.trackPopularityAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TrackPopularityCard popularity={data.trackPopularityAnalysis} />
+              </div>
+            )}
+
+            {/* 8. Music Timeline */}
+            {shouldShowCard('yearAnalysis') && data.yearAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <MusicTimelineCard yearAnalysis={data.yearAnalysis} />
+              </div>
+            )}
+
+            {/* 9. Listening Evolution */}
+            {shouldShowCard('listeningEvolution') && data.listeningEvolution && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <ListeningEvolutionCard evolution={data.listeningEvolution} />
+              </div>
+            )}
+
+            {/* 10. Listener Type Analysis */}
+            {shouldShowCard('listenerType') && data.listenerTypeAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <ListenerTypeCard listenerType={data.listenerTypeAnalysis} />
+              </div>
+            )}
+
+            {/* 11. Time of Day */}
+            {shouldShowCard('timeOfDay') && data.timeOfDayAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TimeOfDayCard timeAnalysis={data.timeOfDayAnalysis} />
+              </div>
+            )}
           </>
-        )}
+        ) : (
+          // Desktop Order (unchanged)
+          <>
+            {/* 1. Top Artist */}
+            {shouldShowCard('basicStats') && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopArtistCard artist={data.topArtist} timeRange={data.topArtistTimeRange} />
+              </div>
+            )}
 
-        {shouldShowCard('genres') && data.topGenres.length > 0 && (
-          <TopGenresCard genres={data.topGenres} />
-        )}
+            {/* 2. Top Albums */}
+            {shouldShowCard('albumsDecades') && data.topAlbums && data.topAlbums.length > 0 && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopAlbumsCard albums={data.topAlbums} />
+              </div>
+            )}
 
-        
+            {/* 3. Time of Day */}
+            {shouldShowCard('timeOfDay') && data.timeOfDayAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TimeOfDayCard timeAnalysis={data.timeOfDayAnalysis} />
+              </div>
+            )}
 
-        {shouldShowCard('albumsDecades') && data.topAlbums.length > 0 && (
-          <TopAlbumsCard albums={data.topAlbums} />
-        )}
+            {/* 4. Listener Type */}
+            {shouldShowCard('listenerType') && data.listenerTypeAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <ListenerTypeCard listenerType={data.listenerTypeAnalysis} />
+              </div>
+            )}
 
-        {shouldShowCard('albumsDecades') && data.topDecades.length > 0 && (
-          <TopDecadesCard decades={data.topDecades} />
-        )}
+            {/* 5. Top Song */}
+            {shouldShowCard('basicStats') && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopSongCard song={data.topSong} timeRange={data.topSongTimeRange} />
+              </div>
+            )}
 
-        {shouldShowCard('popularity') && data.averagePopularity && (
-          <ArtistPopularityCard popularity={data.averagePopularity} />
-        )}
+            {/* 6. Top Genres */}
+            {shouldShowCard('genres') && data.topGenres.length > 0 && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopGenresCard genres={data.topGenres} />
+              </div>
+            )}
 
-        {shouldShowCard('yearAnalysis') && data.yearAnalysis && (
-          <MusicTimelineCard yearAnalysis={data.yearAnalysis} />
-        )}
+            {/* 7. Track Popularity */}
+            {shouldShowCard('trackPopularity') && data.trackPopularityAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TrackPopularityCard popularity={data.trackPopularityAnalysis} />
+              </div>
+            )}
 
-        {shouldShowCard('trackPopularity') && data.trackPopularityAnalysis && (
-          <TrackPopularityCard popularity={data.trackPopularityAnalysis} />
-        )}
+            {/* 8. Music Timeline */}
+            {shouldShowCard('yearAnalysis') && data.yearAnalysis && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <MusicTimelineCard yearAnalysis={data.yearAnalysis} />
+              </div>
+            )}
 
-        {shouldShowCard('listeningEvolution') && data.listeningEvolution && (
-          <ListeningEvolutionCard evolution={data.listeningEvolution} />
-        )}
+            {/* 9. Artist Popularity */}
+            {shouldShowCard('popularity') && data.averagePopularity && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <ArtistPopularityCard popularity={data.averagePopularity} />
+              </div>
+            )}
 
-        {shouldShowCard('timeOfDay') && data.timeOfDayAnalysis && (
-          <TimeOfDayCard timeAnalysis={data.timeOfDayAnalysis} />
-        )}
+            {/* 10. Top Decades */}
+            {shouldShowCard('albumsDecades') && data.topDecades && data.topDecades.length > 0 && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopDecadesCard decades={data.topDecades} />
+              </div>
+            )}
 
-        {shouldShowCard('listenerType') && data.listenerTypeAnalysis && (
-          <ListenerTypeCard listenerType={data.listenerTypeAnalysis} />
+            {/* 11. Listening Evolution */}
+            {shouldShowCard('listeningEvolution') && data.listeningEvolution && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <ListeningEvolutionCard evolution={data.listeningEvolution} />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -536,7 +657,7 @@ const loadGenres = async (topArtists, hasLoadedDiscogs) => {
   return { genres };
 };
 
-const calculateAlbumsAndDecades = (topTracks) => {
+const calculateAlbumsAndDecades = async (topTracks) => {
   if (!topTracks || topTracks.length === 0) {
     return { albums: [], decades: [] };
   }
@@ -552,6 +673,7 @@ const calculateAlbumsAndDecades = (topTracks) => {
           name: track.album.name,
           artist: track.artists[0]?.name || 'Unknown',
           images: track.album.images,
+          artistImage: null, // Will be populated later
           count: 0
         };
       }
@@ -559,6 +681,7 @@ const calculateAlbumsAndDecades = (topTracks) => {
     }
   });
 
+  // Get albums sorted by count
   const albums = Object.values(albumCounts)
     .sort((a, b) => b.count - a.count)
     .slice(0, 3);

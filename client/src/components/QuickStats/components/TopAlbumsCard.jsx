@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getRecentSearches } from '../../../utils/recentSearchesCache';
 
 /**
  * TopAlbumsCard Component
@@ -13,7 +15,97 @@ import React from 'react';
  * ✅ Optimizable - can optimize its own rendering
  */
 export default function TopAlbumsCard({ albums }) {
-  if (!albums || albums.length === 0) {
+  const router = useRouter();
+  const [albumsWithArtistImages, setAlbumsWithArtistImages] = useState(albums);
+
+  // Shared utility function for navigating to artist page with server-side search
+  const navigateToArtistPage = async (artistName) => {
+    try {
+      console.log(`[TopAlbumsCard] Searching for artist: ${artistName}`);
+      
+      // Make server-side API call for enhanced artist search
+      const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log(`[TopAlbumsCard] Server search successful for: ${artistName}`, data);
+          
+          // Navigate using server-provided parameters
+          router.push(data.navigationUrl);
+          return;
+        } else {
+          console.log(`[TopAlbumsCard] Server search failed for: ${artistName}`, data.message);
+        }
+      } else {
+        console.log(`[TopAlbumsCard] Server search failed for: ${artistName}`, response.status);
+      }
+    } catch (error) {
+      console.error(`[TopAlbumsCard] Error during server search for: ${artistName}`, error);
+    }
+    
+    // Fallback to basic navigation if server search fails
+    console.log(`[TopAlbumsCard] Using fallback navigation for: ${artistName}`);
+    
+    const params = [`name=${encodeURIComponent(artistName)}`];
+    
+    // Check localStorage for ticketmasterId (now protected)
+    const recents = getRecentSearches();
+    const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+    if (cachedArtist?.ticketmasterId) {
+      params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+    }
+    
+    // Navigate to artist page
+    router.push(`/artist?${params.join('&')}`);
+  };
+
+  // Fetch artist images when component mounts
+  useEffect(() => {
+    const fetchArtistImages = async () => {
+      if (!albums || albums.length === 0) return;
+
+      try {
+        // Get unique artist names from albums
+        const artistNames = [...new Set(albums.map(album => album.artist).filter(Boolean))];
+        
+        // Search for each artist to get their image
+        const albumsWithImages = await Promise.all(
+          albums.map(async (album) => {
+            if (!album.artist || album.artist === 'Unknown') {
+              return { ...album, artistImage: null };
+            }
+
+            try {
+              const response = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(album.artist)}`);
+              if (response.ok) {
+                const data = await response.json();
+                const artist = data.artists?.find(a => a.name.toLowerCase() === album.artist.toLowerCase());
+                return {
+                  ...album,
+                  artistImage: artist?.image || null
+                };
+              }
+            } catch (error) {
+              console.error(`Error fetching image for ${album.artist}:`, error);
+            }
+            
+            return { ...album, artistImage: null };
+          })
+        );
+
+        setAlbumsWithArtistImages(albumsWithImages);
+      } catch (error) {
+        console.error('Error fetching artist images:', error);
+        setAlbumsWithArtistImages(albums);
+      }
+    };
+
+    fetchArtistImages();
+  }, [albums]);
+
+  if (!albumsWithArtistImages || albumsWithArtistImages.length === 0) {
     return (
       <div style={{
         color: '#b3b3b3',
@@ -91,13 +183,33 @@ export default function TopAlbumsCard({ albums }) {
         flexDirection: 'column',
         gap: '16px'
       }}>
-        {albums.map((album, index) => (
+        {albumsWithArtistImages.map((album, index) => (
           <div key={album.id} style={{
             padding: '12px',
-            background: 'rgba(255, 255, 255, 0.05)',
             borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
+            border: album.images && album.images[0] ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.05)'
           }}>
+            {/* Background album image layer */}
+            {album.images && album.images[0] && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundImage: `linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)), url(${album.images[0].url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                zIndex: 0
+              }} />
+            )}
+            
+            {/* Content layer */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -114,12 +226,6 @@ export default function TopAlbumsCard({ albums }) {
               }}>
                 #{index + 1}
               </span>
-              <span style={{
-                color: '#b3b3b3',
-                fontSize: '0.8rem'
-              }}>
-                {album.count} songs
-              </span>
             </div>
             
             <div style={{
@@ -127,31 +233,36 @@ export default function TopAlbumsCard({ albums }) {
               alignItems: 'center',
               gap: '12px'
             }}>
-              {album.images && album.images[0] ? (
+              {album.artistImage ? (
                 <img
-                  src={album.images[0].url}
-                  alt={album.name}
+                  src={album.artistImage}
+                  alt={album.artist}
                   style={{
                     width: '48px',
                     height: '48px',
                     borderRadius: '8px',
-                    objectFit: 'cover'
+                    objectFit: 'cover',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
                   }}
                 />
               ) : (
                 <div style={{
                   width: '48px',
                   height: '48px',
-                  background: 'linear-gradient(135deg, #10b981, #34d399)',
+                  background: 'rgba(255, 255, 255, 0.95)',
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#000',
                   fontWeight: '700',
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
                 }}>
-                  🎵
+                  {album.artist ? album.artist[0] : '🎵'}
                 </div>
               )}
               
@@ -160,20 +271,34 @@ export default function TopAlbumsCard({ albums }) {
                   color: '#fff',
                   fontSize: '1rem',
                   fontWeight: '600',
-                  margin: '0 0 4px 0'
+                  margin: '0 0 4px 0',
+                  textShadow: album.images && album.images[0] ? '0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.9)' : 'none'
                 }}>
                   {album.name}
                 </h4>
-                <p style={{
-                  color: '#b3b3b3',
-                  fontSize: '0.9rem',
-                  margin: '0'
-                }}>
+                <p 
+                  style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.9rem',
+                    margin: '0',
+                    textShadow: album.images && album.images[0] ? '0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9)' : 'none',
+                    cursor: 'pointer',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onClick={() => navigateToArtistPage(album.artist)}
+                  onMouseEnter={(e) => {
+                    e.target.style.color = '#22ca7b';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.color = '#b3b3b3';
+                  }}
+                >
                   {album.artist}
                 </p>
               </div>
             </div>
           </div>
+        </div>
         ))}
       </div>
     </div>

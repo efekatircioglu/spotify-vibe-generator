@@ -117,7 +117,7 @@ export default function TopDecadesCard({ decades }) {
             fontSize: '0.9rem',
             margin: '0'
           }}>
-
+            Your favorite music eras
           </p>
         </div>
       </div>
@@ -151,7 +151,7 @@ export default function TopDecadesCard({ decades }) {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  backgroundImage: `linear-gradient(135deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.2)), url(${currentImage.url})`,
+                  backgroundImage: `linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)), url(${currentImage.url})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
