@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-// import styles from '../page.module.css';
 import Sidebar from '../../components/Sidebar';
-// import NewTrackTable from '../../components/NewTrackTable';
 import ConcertsList from '../../components/ConcertsList';
 import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId, setFailedArtistCache } from '../../utils/artistCache';
 import { optimizedConcertApiCall, optimizedArtistSearch } from '../../utils/concertApiOptimizer';
@@ -896,13 +894,17 @@ export default function ConcertsPage() {
       <TopDataCacheInitializer />
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
       <div style={{ 
-        padding: 32, 
+        padding: isMobile ? '32px 0' : 32, 
         background: '#101114', 
         minHeight: '100vh',
         marginLeft: sidebarOpen ? '280px' : '0',
         transition: 'margin-left 0.3s ease'
       }}>
-        <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
+        <main style={{ 
+          padding: isMobile ? '32px 0' : 32, 
+          background: '#101114', 
+          minHeight: '100vh' 
+        }}>
 
       
       <h1 style={{ 
@@ -922,8 +924,8 @@ export default function ConcertsPage() {
         {/* Artist Selection */}
       <div style={{ 
         background: '#181818', 
-        padding: 24, 
-        borderRadius: 16, 
+        padding: isMobile ? '24px 16px' : 24, 
+        borderRadius: isMobile ? 0 : 16, 
         marginBottom: 32,
         boxShadow: '0 4px 16px #0003'
       }}>
@@ -1023,7 +1025,7 @@ export default function ConcertsPage() {
         </div>
         
         {/* Toggle Buttons for Artist List Type */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+        <div className="artist-list-toggle" style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
           <button
             onClick={() => setArtistListType('top')}
             style={{
@@ -1060,7 +1062,7 @@ export default function ConcertsPage() {
         
         {/* Unified Progress Bar */}
         {(isBatchSelecting || isProcessingResults) && (
-          <div style={{ 
+          <div className="batch-progress" style={{ 
             background: '#1db954', 
             color: '#000', 
             padding: '16px 24px', 
@@ -1069,19 +1071,19 @@ export default function ConcertsPage() {
             textAlign: 'center',
             fontWeight: 600
           }}>
-            <div style={{ marginBottom: 8 }}>
+            <div className="progress-text" style={{ marginBottom: 8 }}>
               {isProcessingResults 
                 ? '🟢 Processing Results & Adding Artists...'
                 : '🔍 Searching Artists...'
               }
             </div>
-            <div style={{ marginBottom: 12 }}>
+            <div className="progress-text" style={{ marginBottom: 12 }}>
               {isProcessingResults 
                 ? `Processing result ${processingProgress.current} of ${processingProgress.total}`
                 : `Processing artist ${batchProgress.current} of ${batchProgress.total}`
               }
             </div>
-            <div style={{ 
+            <div className="progress-bar" style={{ 
               width: '100%', 
               background: '#0003', 
               borderRadius: 8, 
@@ -1098,7 +1100,7 @@ export default function ConcertsPage() {
                 borderRadius: 8
               }} />
             </div>
-            <div style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8 }}>
+            <div className="progress-subtext" style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8 }}>
               {isProcessingResults 
                 ? 'Adding artists to selection...'
                 : 'Please wait...'
@@ -1144,79 +1146,79 @@ export default function ConcertsPage() {
         
         {/* Final Report */}
         {finalReport && finalReport.isVisible && (
-          <div style={{ 
+          <div className="final-report" style={{ 
             background: '#232323', 
             color: '#000', 
-            padding: isSmallMobile ? '16px 20px' : '20px 24px', 
+            padding: '20px 24px', 
             borderRadius: 12, 
             marginBottom: 24,
             textAlign: 'center',
             fontWeight: 600
           }}>
-            <div style={{ marginBottom: 16, color: '#fff' }}>
+            <div className="report-title" style={{ marginBottom: 16, color: '#fff' }}>
               Artist Search Complete!
             </div>
             
-            <div style={{ 
+            <div className="stats-grid" style={{ 
               display: 'grid', 
-              gridTemplateColumns: isSmallMobile ? 'repeat(3, 1fr)' : isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', 
-              gap: isSmallMobile ? '6px' : isMobile ? '8px' : '16px',
-              marginBottom: isSmallMobile ? '16px' : '20px'
+              gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', 
+              gap: isMobile ? '8px' : '16px',
+              marginBottom: '20px'
             }}>
-              <div style={{ 
+              <div className="stat-box" style={{ 
                 background: '#ffffff33', 
-                padding: isSmallMobile ? '6px' : isMobile ? '8px' : '12px', 
+                padding: isMobile ? '8px' : '12px', 
                 borderRadius: '8px'
               }}>
-                <div style={{ 
-                  fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.2rem', 
+                <div className="stat-number" style={{ 
+                  fontSize: isMobile ? '1rem' : '1.2rem', 
                   fontWeight: 'bold', 
                   color: '#fff' 
                 }}>
                   {finalReport.total}
                 </div>
-                <div style={{ 
-                  fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem', 
+                <div className="stat-label" style={{ 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
                   color: '#fff' 
                 }}>
                   Total Artists
                 </div>
               </div>
               
-              <div style={{ 
+              <div className="stat-box" style={{ 
                 background: '#ffffff33', 
-                padding: isSmallMobile ? '6px' : isMobile ? '8px' : '12px', 
+                padding: isMobile ? '8px' : '12px', 
                 borderRadius: '8px'
               }}>
-                <div style={{ 
-                  fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.2rem', 
+                <div className="stat-number" style={{ 
+                  fontSize: isMobile ? '1rem' : '1.2rem', 
                   fontWeight: 'bold', 
                   color: '#fff' 
                 }}>
                   {finalReport.successful}
                 </div>
-                <div style={{ 
-                  fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem', 
+                <div className="stat-label" style={{ 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
                   color: '#fff' 
                 }}>
                   Successful
                 </div>
               </div>
               
-              <div style={{ 
+              <div className="stat-box" style={{ 
                 background: '#ffffff33', 
-                padding: isSmallMobile ? '6px' : isMobile ? '8px' : '12px', 
+                padding: isMobile ? '8px' : '12px', 
                 borderRadius: '8px'
               }}>
-                <div style={{ 
-                  fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.2rem', 
+                <div className="stat-number" style={{ 
+                  fontSize: isMobile ? '1rem' : '1.2rem', 
                   fontWeight: 'bold', 
                   color: '#fff' 
                 }}>
                   {finalReport.failed}
                 </div>
-                <div style={{ 
-                  fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem', 
+                <div className="stat-label" style={{ 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
                   color: '#fff' 
                 }}>
                   Failed
@@ -1225,11 +1227,11 @@ export default function ConcertsPage() {
             </div>
             
             {finalReport.failed > 0 && (
-              <div style={{ 
+              <div className="failed-artists-section" style={{ 
                 marginBottom: '16px',
                 textAlign: 'left'
               }}>
-                <div style={{ 
+                <div className="section-title" style={{ 
                   fontWeight: 'bold', 
                   marginBottom: '12px',
                   color: '#fff',
@@ -1320,7 +1322,7 @@ export default function ConcertsPage() {
                   <div style={{ 
                     display: 'flex',
                     flexWrap: 'wrap',
-                    gap: isSmallMobile ? '6px' : '8px'
+                    gap: '8px'
                   }}>
                     {finalReport.failedArtists.map((artist, index) => (
                       <button
@@ -1329,9 +1331,9 @@ export default function ConcertsPage() {
                         style={{
                           background: '#8B0000',
                           color: '#fff',
-                          padding: isSmallMobile ? '4px 8px' : isMobile ? '5px 10px' : '6px 12px',
-                          borderRadius: isSmallMobile ? '16px' : '20px',
-                          fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.75rem' : '0.85rem',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontSize: '0.85rem',
                           fontWeight: '500',
                           border: '1px solid #a52a2a',
                           boxShadow: '0 2px 4px rgba(139, 0, 0, 0.3)',
@@ -1420,8 +1422,8 @@ export default function ConcertsPage() {
               className="followed-artists-grid"
               style={{ 
                 display: 'grid', 
-                gridTemplateColumns: isSmallMobile ? 'repeat(auto-fill, minmax(100px, 0.8fr))' : isMobile ? 'repeat(auto-fill, minmax(160px, 1fr))' : 'repeat(auto-fill, minmax(180px, 1fr))',
-                gap: isSmallMobile ? 4 : 12,
+                gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(140px, 1fr))' : 'repeat(auto-fill, minmax(160px, 1fr))',
+                gap: 12,
                 maxHeight: 290,
                 overflowY: 'auto'
               }}
@@ -1431,24 +1433,24 @@ export default function ConcertsPage() {
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: isSmallMobile ? '3px 4px' : isMobile ? '8px 12px' : '12px 16px',
+                    padding: isMobile ? '8px 12px' : '12px 16px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
-                    borderRadius: isSmallMobile ? 10 : 20,
+                    borderRadius: 20,
                     cursor: 'pointer',
-                    fontSize: isSmallMobile ? '0.2rem' : isMobile ? '0.8rem' : '0.9rem',
+                    fontSize: isMobile ? '0.8rem' : '0.9rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     textAlign: 'center',
-                    minWidth: isSmallMobile ? 100 : isMobile ? 160 : 180,
-                    height: isSmallMobile ? 'auto' : isMobile ? 'auto' : 'auto',
+                    minWidth: isMobile ? 120 : 140,
+                    height: isMobile ? 'auto' : 'auto',
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: isSmallMobile ? 3 : 8,
+                    gap: 8,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -1563,8 +1565,8 @@ export default function ConcertsPage() {
               className="top-artists-grid"
               style={{ 
                 display: 'grid', 
-                gridTemplateColumns: isSmallMobile ? 'repeat(auto-fill, minmax(120px, 1fr))' : isMobile ? 'repeat(auto-fill, minmax(160px, 1fr))' : 'repeat(auto-fill, minmax(180px, 1fr))',
-                gap: isSmallMobile ? 8 : 12,
+                gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(140px, 1fr))' : 'repeat(auto-fill, minmax(160px, 1fr))',
+                gap: 12,
                 maxHeight: 290,
                 overflowY: 'auto'
               }}
@@ -1574,24 +1576,24 @@ export default function ConcertsPage() {
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: isSmallMobile ? '6px 8px' : isMobile ? '8px 12px' : '12px 16px',
+                    padding: isMobile ? '8px 12px' : '12px 16px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
-                    borderRadius: isSmallMobile ? 16 : 20,
+                    borderRadius: 20,
                     cursor: 'pointer',
-                    fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem',
+                    fontSize: isMobile ? '0.8rem' : '0.9rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     textAlign: 'center',
-                    minWidth: isSmallMobile ? 120 : isMobile ? 160 : 180,
-                    height: isSmallMobile ? 'auto' : isMobile ? 'auto' : 'auto',
+                    minWidth: isMobile ? 120 : 140,
+                    height: isMobile ? 'auto' : 'auto',
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: isSmallMobile ? 6 : 8,
+                    gap: 8,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -1666,14 +1668,14 @@ export default function ConcertsPage() {
         
         {/* Selected Artists */}
         {selectedArtists.length > 0 && (
-          <div ref={selectedArtistsSectionRef} style={{ marginBottom: 24 }}>
+          <div ref={selectedArtistsSectionRef} className="selected-artists-section" style={{ marginBottom: 24 }}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center', 
               marginBottom: 12 
             }}>
-              <h3 style={{ color: '#1db954', fontSize: '1.1rem', margin: 0 }}>
+              <h3 className="section-title" style={{ color: '#1db954', fontSize: '1.1rem', margin: 0 }}>
                 Selected Artists ({selectedArtists.length})
               </h3>
               <button
@@ -1786,6 +1788,7 @@ export default function ConcertsPage() {
         
         {/* Search Concerts Button */}
         <button
+          className="search-concerts-button"
           onClick={searchConcerts}
           disabled={selectedArtists.length === 0 || loadingConcerts}
           style={{
@@ -1955,12 +1958,12 @@ export default function ConcertsPage() {
             }
           }
           
-          /* Responsive styling for very small screens */
-          @media (max-width: 415px) {
+          /* Responsive styling for very small screens (below 450px) */
+          @media (max-width: 450px) {
             .top-artists-grid,
             .followed-artists-grid {
-              grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
-              gap: 8px !important;
+              grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
+              gap: 6px !important;
             }
             
             .top-artists-grid button,
@@ -1968,8 +1971,8 @@ export default function ConcertsPage() {
               padding: 6px 8px !important;
               font-size: 0.7rem !important;
               border-radius: 16px !important;
-              min-width: 120px !important;
-              gap: 6px !important;
+              min-width: 100px !important;
+              gap: 4px !important;
             }
             
             .top-artists-grid button img,
@@ -1986,36 +1989,214 @@ export default function ConcertsPage() {
               height: 10px !important;
             }
             
-            /* Failed artists buttons */
-            .failed-artists-container {
-              padding: 16px 20px !important;
+            /* Toggle buttons for artist list type */
+            .artist-list-toggle {
+              gap: 8px !important;
+              margin-bottom: 16px !important;
             }
             
-            .failed-artists-container .stats-grid {
+            .artist-list-toggle button {
+              padding: 8px 16px !important;
+              font-size: 0.85rem !important;
+              border-radius: 10px !important;
+            }
+            
+            /* Progress bar for batch operations */
+            .batch-progress {
+              padding: 12px 16px !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .batch-progress .progress-text {
+              font-size: 0.8rem !important;
+              margin-bottom: 6px !important;
+            }
+            
+            .batch-progress .progress-bar {
+              height: 6px !important;
+            }
+            
+            .batch-progress .progress-subtext {
+              font-size: 0.75rem !important;
+              margin-top: 6px !important;
+            }
+            
+            /* Final report styling */
+            .final-report {
+              padding: 16px 20px !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .final-report .report-title {
+              font-size: 1rem !important;
+              margin-bottom: 12px !important;
+            }
+            
+            .final-report .stats-grid {
+              grid-template-columns: repeat(3, 1fr) !important;
               gap: 6px !important;
               margin-bottom: 16px !important;
             }
             
-            .failed-artists-container .stat-box {
+            .final-report .stat-box {
               padding: 6px !important;
             }
             
-            .failed-artists-container .stat-number {
+            .final-report .stat-number {
               font-size: 0.9rem !important;
             }
             
-            .failed-artists-container .stat-label {
+            .final-report .stat-label {
               font-size: 0.7rem !important;
             }
             
-            .failed-artists-container .failed-artist-button {
+            /* Failed artists section */
+            .failed-artists-section {
+              margin-bottom: 12px !important;
+            }
+            
+            .failed-artists-section .section-title {
+              font-size: 0.9rem !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .failed-artists-section .fail-reasons-toggle {
+              font-size: 0.65rem !important;
+              padding: 3px 6px !important;
+            }
+            
+            .failed-artists-section .fail-reasons-box {
+              font-size: 0.7rem !important;
+              padding: 6px 8px !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .failed-artists-section .fail-reasons-list {
+              font-size: 0.6rem !important;
+            }
+            
+            .failed-artists-section .failed-artists-container {
+              max-height: 200px !important;
+              padding: 8px !important;
+            }
+            
+            .failed-artists-section .failed-artists-grid {
+              gap: 4px !important;
+            }
+            
+            .failed-artists-section .failed-artist-button {
               padding: 4px 8px !important;
               font-size: 0.7rem !important;
               border-radius: 16px !important;
             }
             
-            .failed-artists-container .failed-artists-grid {
+            /* Selected artists section */
+            .selected-artists-section {
+              margin-bottom: 16px !important;
+            }
+            
+            .selected-artists-section .section-title {
+              font-size: 1rem !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .selected-artists-section .remove-all-button {
+              padding: 6px 12px !important;
+              font-size: 0.75rem !important;
+            }
+            
+            .selected-artists-section .selected-artists-grid {
+              max-height: 180px !important;
               gap: 6px !important;
+            }
+            
+            .selected-artist-chip {
+              padding: 6px 10px !important;
+              font-size: 0.7rem !important;
+              gap: 6px !important;
+            }
+            
+            .selected-artist-chip img {
+              width: 18px !important;
+              height: 18px !important;
+            }
+            
+            .selected-artist-chip button {
+              width: 16px !important;
+              height: 16px !important;
+              font-size: 0.9rem !important;
+            }
+            
+            /* Search concerts button */
+            .search-concerts-button {
+              padding: 10px 16px !important;
+              font-size: 0.9rem !important;
+            }
+            
+            /* Location filters */
+            .location-filter-input {
+              padding: 10px 12px !important;
+              font-size: 0.9rem !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .location-filters .filter-input {
+              padding: 10px 12px !important;
+              font-size: 0.9rem !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .location-filters .active-filters {
+              margin-bottom: 12px !important;
+            }
+            
+            .location-filters .filter-label {
+              font-size: 0.8rem !important;
+              margin-bottom: 6px !important;
+            }
+            
+            .location-filters .cities-section,
+            .location-filters .countries-section {
+              max-height: 180px !important;
+              gap: 6px !important;
+            }
+            
+            .location-filters .location-button {
+              padding: 4px 8px !important;
+              font-size: 0.7rem !important;
+              border-radius: 12px !important;
+              min-width: 60px !important;
+            }
+            
+            /* Concerts section */
+            .concerts-section {
+              padding: 16px !important;
+            }
+            
+            .concerts-section .section-title {
+              font-size: 1.2rem !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .concerts-section .pagination-info {
+              font-size: 1rem !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .concerts-section .pagination-controls {
+              gap: 8px !important;
+              margin-bottom: 16px !important;
+              padding: 12px 0 !important;
+            }
+            
+            .concerts-section .pagination-button {
+              padding: 6px 12px !important;
+              font-size: 0.75rem !important;
+            }
+            
+            .concerts-section .page-info {
+              font-size: 0.8rem !important;
+              min-width: 80px !important;
             }
           }
         `}</style>
@@ -2039,8 +2220,8 @@ export default function ConcertsPage() {
       {!loadingConcerts && !concertsError && concerts.length === 0 && selectedArtists.length > 0 && hasSearchedConcerts && (
         <div style={{ 
           background: '#181818', 
-          padding: 24, 
-          borderRadius: 16, 
+          padding: isMobile ? '24px 16px' : 24, 
+          borderRadius: isMobile ? 0 : 16, 
           marginBottom: 24,
           boxShadow: '0 4px 16px #0003',
           textAlign: 'center'
@@ -2065,10 +2246,11 @@ export default function ConcertsPage() {
       {concerts.length > 0 && (
         <div 
           ref={concertsSectionRef}
+          className="concerts-section"
           style={{ 
             background: '#181818', 
-            padding: 24, 
-            borderRadius: 16,
+            padding: isMobile ? '24px 16px' : 24, 
+            borderRadius: isMobile ? 0 : 16,
             boxShadow: '0 4px 16px #0003'
           }}
         >
@@ -2165,6 +2347,7 @@ export default function ConcertsPage() {
               onChange={(e) => setLocationInput(e.target.value)}
               onKeyPress={handleLocationInputKeyPress}
               placeholder="Type location or artist name and press Enter to add filter"
+              className="location-filter-input"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -2172,7 +2355,7 @@ export default function ConcertsPage() {
                 border: '2px solid #333',
                 background: '#232323',
                 color: '#fff',
-                fontSize: '1rem',
+                fontSize: isMobile ? '0.7rem' : '1.2rem',
                 outline: 'none',
                 marginBottom: 12,
               }}
@@ -2218,9 +2401,9 @@ export default function ConcertsPage() {
                             key={city}
                             onClick={() => toggleLocationFilter(city)}
                             style={{
-                              padding: isMobile ? '6px 10px' : '8px 16px',
-                             background: lowerCaseFilters.includes(city.toLowerCase()) ? '#1db954' : '#232323',
-color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
+                              padding: isMobile ? '8px 12px' : '10px 16px',
+                              background: lowerCaseFilters.includes(city.toLowerCase()) ? '#1db954' : '#232323',
+                              color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
                               border: '1px solid #333',
                               borderRadius: isMobile ? 16 : 20,
                               cursor: 'pointer',
@@ -2231,6 +2414,12 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
                               textOverflow: 'ellipsis',
                               textAlign: 'center',
                               minWidth: isMobile ? 80 : 120,
+                              height: isMobile ? '32px' : '36px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              lineHeight: 1,
+                              fontWeight: 500
                             }}
                             onMouseEnter={(e) => {
                               if (!locationFilters.includes(city)) {
@@ -2279,7 +2468,7 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
                             key={country}
                             onClick={() => toggleLocationFilter(country)}
                             style={{
-                              padding: isMobile ? '6px 10px' : '8px 16px',
+                              padding: isMobile ? '8px 12px' : '10px 16px',
                               background: locationFilters.includes(country) ? '#fbbf24' : '#232323',
                               color: locationFilters.includes(country) ? '#000' : '#fff',
                               border: '1px solid #333',
@@ -2292,6 +2481,12 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
                               textOverflow: 'ellipsis',
                               textAlign: 'center',
                               minWidth: isMobile ? 80 : 120,
+                              height: isMobile ? '32px' : '36px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              lineHeight: 1,
+                              fontWeight: 500
                             }}
                             onMouseEnter={(e) => {
                               if (!locationFilters.includes(country)) {
@@ -2332,66 +2527,85 @@ color: lowerCaseFilters.includes(city.toLowerCase()) ? '#000' : '#fff',
           
           {/* Pagination Controls Above Calendar */}
           {filteredConcerts.length > concertsPerPage && (
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              gap: 16, 
-              marginBottom: 24,
-              padding: '16px 0'
-            }}>
-              <button
-                onClick={() => {
-                  setCurrentPage(prev => Math.max(1, prev - 1));
-                  scrollToConcertsTop();
-                }}
-                disabled={currentPage === 1}
-                style={{
-                  padding: '8px 16px',
-                  background: currentPage === 1 ? '#333' : '#1db954',
-                  color: currentPage === 1 ? '#666' : '#000',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  transition: 'all 0.2s',
-                }}
-              >
-                ← Previous
-              </button>
+            <>
+                              {/* Page indicator - shown above buttons on mobile */}
+                {isMobile && (
+                  <div style={{ 
+                    color: '#fff', 
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    marginBottom: 8,
+                    padding: '8px 0'
+                  }}>
+                    Page {currentPage} of {Math.ceil(filteredConcerts.length / concertsPerPage)}
+                  </div>
+                )}
               
-              <div style={{ 
-                color: '#fff', 
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                minWidth: '100px',
-                textAlign: 'center'
+              <div className="pagination-controls" style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                gap: isMobile ? 8 : 16, 
+                marginBottom: 24,
+                padding: '16px 0'
               }}>
-                {currentPage} / {Math.ceil(filteredConcerts.length / concertsPerPage)}
+                <button
+                  onClick={() => {
+                    setCurrentPage(prev => Math.max(1, prev - 1));
+                    scrollToConcertsTop();
+                  }}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: isMobile ? '6px 12px' : '8px 16px',
+                    background: currentPage === 1 ? '#333' : '#1db954',
+                    color: currentPage === 1 ? '#666' : '#000',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    fontSize: isMobile ? '0.7rem' : '0.8rem',
+                    fontWeight: 600,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  ← Previous
+                </button>
+                
+                {/* Page indicator - shown between buttons on desktop */}
+                {!isMobile && (
+                  <div style={{ 
+                    color: '#fff', 
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    minWidth: '100px',
+                    textAlign: 'center'
+                  }}>
+                    Page {currentPage} of {Math.ceil(filteredConcerts.length / concertsPerPage)}
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => {
+                    setCurrentPage(prev => Math.min(Math.ceil(filteredConcerts.length / concertsPerPage), prev + 1));
+                    scrollToConcertsTop();
+                  }}
+                  disabled={currentPage === Math.ceil(filteredConcerts.length / concertsPerPage)}
+                  style={{
+                    padding: isMobile ? '6px 12px' : '8px 16px',
+                    background: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#333' : '#1db954',
+                    color: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#666' : '#000',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? 'not-allowed' : 'pointer',
+                    fontSize: isMobile ? '0.7rem' : '0.8rem',
+                    fontWeight: 600,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  Next →
+                </button>
               </div>
-              
-              <button
-                onClick={() => {
-                  setCurrentPage(prev => Math.min(Math.ceil(filteredConcerts.length / concertsPerPage), prev + 1));
-                  scrollToConcertsTop();
-                }}
-                disabled={currentPage === Math.ceil(filteredConcerts.length / concertsPerPage)}
-                style={{
-                  padding: '8px 16px',
-                  background: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#333' : '#1db954',
-                  color: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? '#666' : '#000',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: currentPage === Math.ceil(filteredConcerts.length / concertsPerPage) ? 'not-allowed' : 'pointer',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  transition: 'all 0.2s',
-                }}
-              >
-                Next →
-              </button>
-            </div>
+            </>
           )}
           
           {/* Paginated Concerts */}

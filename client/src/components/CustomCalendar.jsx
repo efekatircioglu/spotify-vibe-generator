@@ -51,14 +51,14 @@ export default function CustomCalendar({ eventDates = [], onEventDayClick }) {
   }
   // Days from next month to fill the grid
   const totalCells = Math.ceil((days.length) / 7) * 7;
-  for (let i = days.length + 1; i <= totalCells; i++) {
-    const day = i - days.length;
+  const remainingCells = totalCells - days.length;
+  for (let i = 1; i <= remainingCells; i++) {
     const nextMonth = month === 11 ? 0 : month + 1;
     const nextMonthYear = month === 11 ? year + 1 : year;
-    const date = new Date(nextMonthYear, nextMonth, day);
+    const date = new Date(nextMonthYear, nextMonth, i);
     days.push({
       date,
-      label: day,
+      label: i,
       otherMonth: true,
       iso: `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
     });
@@ -84,11 +84,21 @@ export default function CustomCalendar({ eventDates = [], onEventDayClick }) {
     <div className={styles['calendar-container']}>
       <div className={styles['calendar-header']}>
         <div className={styles['calendar-nav']}>
-          <button onClick={handlePrev} aria-label="Previous Month">&#60;</button>
+          <button onClick={handlePrev} aria-label="Previous Month">
+            {/* Left Arrow SVG */}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20V11Z"/>
+            </svg>
+          </button>
         </div>
         <h3>{monthName} {year}</h3>
         <div className={styles['calendar-nav']}>
-          <button onClick={handleNext} aria-label="Next Month">&#62;</button>
+          <button onClick={handleNext} aria-label="Next Month">
+            {/* Right Arrow SVG (180 degree rotation) */}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style={{ transform: 'rotate(180deg)' }}>
+              <path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20V11Z"/>
+            </svg>
+          </button>
         </div>
       </div>
       <div className={styles['calendar-grid']}>
