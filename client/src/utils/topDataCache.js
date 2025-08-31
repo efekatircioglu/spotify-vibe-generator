@@ -1,4 +1,4 @@
-// Cache keys for localStorage
+// Cache keys for sessionStorage
 const CACHE_KEYS = {
   UNIFIED_TOP_TRACKS: 'unified_top_tracks'
 };
@@ -6,7 +6,7 @@ const CACHE_KEYS = {
 // Check if cache exists and is valid
 export const isCacheValid = () => {
   try {
-    const data = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const data = sessionStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
     
     if (!data) return false;
     
@@ -22,7 +22,7 @@ export const isCacheValid = () => {
 // Check if cache has all required data
 export const hasCompleteCache = () => {
   try {
-    const data = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const data = sessionStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
     return data && JSON.parse(data)?.length > 0;
   } catch (error) {
     console.error('Error checking cache completeness:', error);
@@ -238,7 +238,7 @@ export const fetchAndCacheTopData = async () => {
     const unifiedTracks = buildUnifiedTracks(tracks4Weeks, tracks6Months, tracks12Months);
     
     // Cache the unified tracks
-    localStorage.setItem(CACHE_KEYS.UNIFIED_TOP_TRACKS, JSON.stringify(unifiedTracks));
+    sessionStorage.setItem(CACHE_KEYS.UNIFIED_TOP_TRACKS, JSON.stringify(unifiedTracks));
     
     const successCount = results.filter(r => r.success).length;
     console.log(`✅ Built unified cache with ${unifiedTracks.length} unique tracks from ${successCount}/3 time ranges`);
@@ -253,7 +253,7 @@ export const fetchAndCacheTopData = async () => {
 // Get cached unified top tracks
 export const getCachedTopTracks = () => {
   try {
-    const data = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const data = sessionStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error('Error getting cached unified top tracks:', error);
@@ -282,8 +282,8 @@ export const getCachedTopTracksByTimeRange = (timeRange) => {
 // Find artist's own ranking in top artists cache
 export const findArtistRankings = (artistId, artistName) => {
   try {
-    // Get the cached top artists data from localStorage
-    const topArtistsData = localStorage.getItem('spotify_top_artists');
+    // Get the cached top artists data from sessionStorage
+    const topArtistsData = sessionStorage.getItem('spotify_top_artists');
     if (!topArtistsData) return null;
     
     const topArtists = JSON.parse(topArtistsData);

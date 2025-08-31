@@ -1,55 +1,92 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getRecentSearches } from '../utils/recentSearchesCache';
+import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../utils/recentSearchesCache';
 
-// Shared utility function for navigating to artist page with server-side search
-const navigateToArtistPage = async (router, artistName, genreDetails) => {
+// Get cached top artists from sessionStorage
+const getCachedTopArtists = () => {
   try {
-    console.log(`[View Full Profile] Searching for artist: ${artistName}`);
+    const cached = sessionStorage.getItem('spotify_top_artists');
+    if (!cached) return null;
     
-    // Make server-side API call for enhanced artist search
-    const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
-    
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (data.success) {
-        console.log(`[View Full Profile] Server search successful for: ${artistName}`, data);
-        
-        // Navigate using server-provided parameters
-        router.push(data.navigationUrl);
-        return;
-      } else {
-        console.log(`[View Full Profile] Server search failed for: ${artistName}`, data.message);
-      }
-    } else {
-      console.log(`[View Full Profile] Server search failed for: ${artistName}`, response.status);
-    }
+    const data = JSON.parse(cached);
+    return data.artists || data; // Handle both formats
   } catch (error) {
-    console.error(`[View Full Profile] Error during server search for: ${artistName}`, error);
+    console.error('Error reading top artists cache:', error);
+    return null;
   }
-  
-  // Fallback to basic navigation if server search fails
-  console.log(`[View Full Profile] Using fallback navigation for: ${artistName}`);
-  
+};
+
+// Enhanced navigation function with Ticketmaster ID lookup
+const navigateToArtistPage = async (router, artistName, artistId) => {
+  // Build navigation parameters
   const params = [`name=${encodeURIComponent(artistName)}`];
   
-  // Try to get spotifyId from genreDetails if available
-  if (genreDetails && genreDetails[artistName]) {
-    const spotifyId = genreDetails[artistName].spotifyId;
-    if (spotifyId) {
-      params.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
+  // Add Spotify ID if available
+  if (artistId) {
+    params.push(`spotifyId=${encodeURIComponent(artistId)}`);
+  }
+  
+  // Check recent searches for ticketmasterId first (fastest)
+  let ticketmasterId = getTicketmasterIdFromRecentSearch(artistName);
+  if (ticketmasterId) {
+    params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
+  }
+  
+  // If we have both Spotify ID and Ticketmaster ID, navigate immediately
+  if (artistId && ticketmasterId) {
+    router.push(`/artist?${params.join('&')}`);
+    return;
+  }
+  
+  // If no artistId, check cached top artists
+  if (!artistId) {
+    const topArtists = getCachedTopArtists();
+    const cachedArtist = topArtists?.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+    
+    if (cachedArtist) {
+      params.push(`spotifyId=${encodeURIComponent(cachedArtist.id)}`);
+      
+      // Navigate if we have both IDs
+      if (ticketmasterId) {
+        router.push(`/artist?${params.join('&')}`);
+        return;
+      }
     }
   }
   
-  // Check localStorage for ticketmasterId (now protected)
-  const recents = getRecentSearches();
-  const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-  if (cachedArtist?.ticketmasterId) {
-    params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+  // If we still don't have Ticketmaster ID, try to fetch it
+  if (!ticketmasterId) {
+    try {
+      const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+      
+      if (ticketmasterResponse.ok) {
+        const ticketmasterData = await ticketmasterResponse.json();
+        
+        // Look for exact match
+        const exactMatch = ticketmasterData.allAttractions?.find(
+          attraction => attraction.name.toLowerCase() === artistName.toLowerCase()
+        );
+        
+        if (exactMatch) {
+          ticketmasterId = exactMatch.ticketmasterId || exactMatch.id;
+          
+          // Update cache with Ticketmaster ID
+          const artistObj = {
+            name: artistName,
+            spotifyId: artistId,
+            ticketmasterId: ticketmasterId
+          };
+          updateTicketmasterIdInRecentSearch(artistName, ticketmasterId, artistObj);
+          
+          params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
+        }
+      }
+    } catch (error) {
+      console.error(`[View Full Profile] Error fetching Ticketmaster ID for ${artistName}:`, error);
+    }
   }
   
-  // Navigate to artist page
+  // Navigate with whatever data we have
   router.push(`/artist?${params.join('&')}`);
 };
 
@@ -270,8 +307,8 @@ function ArtistSongsModal({ isOpen, onClose, artist, artistCount, songs, loading
           }}>
             <button
               onClick={async () => {
-                // Navigate to artist page using the shared function with server-side search
-                await navigateToArtistPage(router, artist, genreDetails);
+                // Navigate to artist page using the optimized function
+                await navigateToArtistPage(router, artist, null); // artistId will be found in cache
                 onClose(); // Close the modal after navigation
               }}
               style={{
@@ -475,89 +512,9 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                       e.currentTarget.style.boxShadow = 'none';
                     }}
                     onClick={async () => {
-                      // Make server-side API call for artist search (just like View Full Artist Profile)
-                      try {
-                        console.log(`[Genre Modal] Searching for artist: ${artistName}`);
-                        
-                        const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
-                        
-                        if (response.ok) {
-                          const data = await response.json();
-                          
-                          if (data.success) {
-                            console.log(`[Genre Modal] Server search successful for: ${artistName}`, data);
-                            
-                            // Navigate using server-provided parameters
-                            router.push(data.navigationUrl);
-                          } else {
-                            console.log(`[Genre Modal] Server search failed for: ${artistName}`, data.message);
-                            
-                            // Fallback to basic navigation
-                            const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
-                            
-                            // Try to get spotifyId from genreDetails if available
-                            if (genreDetails && genreDetails[artistName]) {
-                              const spotifyId = genreDetails[artistName].spotifyId;
-                              if (spotifyId) {
-                                fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
-                              }
-                            }
-                            
-                            // Check localStorage for ticketmasterId (now protected)
-                            const recents = getRecentSearches();
-                            const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-                            if (cachedArtist?.ticketmasterId) {
-                              fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
-                            }
-                            
-                            router.push(`/artist?${fallbackParams.join('&')}`);
-                          }
-                        } else {
-                          console.log(`[Genre Modal] Server search failed for: ${artistName}`, response.status);
-                          
-                          // Fallback to basic navigation
-                          const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
-                          
-                          // Try to get spotifyId from genreDetails if available
-                          if (genreDetails && genreDetails[artistName]) {
-                            const spotifyId = genreDetails[artistName].spotifyId;
-                            if (spotifyId) {
-                              fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
-                            }
-                          }
-                          
-                          // Check localStorage for ticketmasterId (now protected)
-                          const recents = getRecentSearches();
-                          const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-                          if (cachedArtist?.ticketmasterId) {
-                            fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
-                          }
-                          
-                          router.push(`/artist?${fallbackParams.join('&')}`);
-                        }
-                      } catch (error) {
-                        console.error(`[Genre Modal] Error during server search for: ${artistName}`, error);
-                        
-                        // Fallback to basic navigation
-                        const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
-                        
-                        // Try to get spotifyId from genreDetails if available
-                        if (genreDetails && genreDetails[artistName]) {
-                          const spotifyId = genreDetails[artistName].spotifyId;
-                          if (spotifyId) {
-                            fallbackParams.push(`spotifyId=${encodeURIComponent(spotifyId)}`);
-                          }
-                        }
-                        
-                        // Check localStorage for ticketmasterId (now protected)
-                        const recents = getRecentSearches();
-                        const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-                        if (cachedArtist?.ticketmasterId) {
-                          fallbackParams.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
-                        }
-                        
-                        router.push(`/artist?${fallbackParams.join('&')}`);
-                      }
+                      // Use the optimized navigation function with artist ID from genreDetails
+                      const artistId = artistObj?.spotifyId || artistObj?.id;
+                      await navigateToArtistPage(router, artistName, artistId);
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -782,22 +739,13 @@ export default function GenreLeaderboardChart({ genres, title, timeRange, genreD
     setShowGenreModal(true);
   };
 
-  // Handle artist click to show songs
+  // Handle artist click - navigate to artist page directly with Ticketmaster ID lookup
   const handleArtistClick = async (artistName, count) => {
-    setSelectedArtist({ name: artistName, count });
-    setLoadingSongs(true);
-    setShowSongsModal(true);
+    // Get artist ID from genreDetails if available
+    const artistId = genreDetails?.[artistName]?.spotifyId;
     
-    try {
-      // Fetch songs for the artist
-      const songs = await fetchArtistSongs(artistName);
-      setArtistSongs(songs);
-    } catch (error) {
-      console.error('Error fetching artist songs:', error);
-      setArtistSongs([]);
-    } finally {
-      setLoadingSongs(false);
-    }
+    // Navigate to artist page using enhanced function
+    await navigateToArtistPage(router, artistName, artistId);
   };
 
   // Helper function to format duration from milliseconds to MM:SS
@@ -901,8 +849,21 @@ return (
                   handleArtistClick(name, count);
                 }
               }}
+              title={isArtistData ? `Click to view ${name}'s profile` : `Click to view artists in ${name}`}
             >
-              <div className="row-name">{name}</div>
+              <div className="row-name">
+                {name}
+                {isArtistData && (
+                  <span style={{
+                    marginLeft: '8px',
+                    color: '#22ca7b',
+                    fontSize: '14px',
+                    opacity: 0.7
+                  }}>
+                    →
+                  </span>
+                )}
+              </div>
               <div className="row-count">{count}</div>
             </div>
           ))}
@@ -1038,7 +999,7 @@ return (
         padding: 12px 20px;
         border-bottom: 1px solid rgba(34, 202, 123, 0.1);
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
       }
       
       .table-row:last-child {
@@ -1047,6 +1008,8 @@ return (
 
       .table-row:hover {
         background-color: rgba(34, 202, 123, 0.1);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(34, 202, 123, 0.2);
       }
 
       .row-name {
@@ -1056,6 +1019,8 @@ return (
         font-weight: 600;
         text-transform: capitalize;
         text-align: left;
+        display: flex;
+        align-items: center;
       }
 
       .row-count {

@@ -15,10 +15,10 @@
  * Analyze listening evolution by comparing recent vs long-term listening patterns
  */
 export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists = []) => {
-  // Helper function to get artist data with images from localStorage
+  // Helper function to get artist data with images from sessionStorage
   const getArtistDataWithImages = (artistId, artistName) => {
     try {
-      const topArtistsData = localStorage.getItem('spotify_top_artists');
+      const topArtistsData = sessionStorage.getItem('spotify_top_artists');
       if (!topArtistsData) return null;
       
       const topArtistsCache = JSON.parse(topArtistsData);
@@ -199,10 +199,10 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
  * Analyze time of day patterns from recent tracks
  */
 export const analyzeTimeOfDay = async (recentTracks) => {
-  // Helper function to get artist data with images from localStorage
+  // Helper function to get artist data with images from sessionStorage
   const getArtistDataWithImages = (artistId, artistName) => {
     try {
-      const topArtistsData = localStorage.getItem('spotify_top_artists');
+      const topArtistsData = sessionStorage.getItem('spotify_top_artists');
       if (!topArtistsData) return null;
       
       const topArtistsCache = JSON.parse(topArtistsData);
@@ -338,8 +338,8 @@ export const analyzeListenerType = async (recentTracks) => {
   };
 
   try {
-    // Get spotify top artists data from localStorage
-    const topArtistsData = localStorage.getItem('spotify_top_artists');
+    // Get spotify top artists data from sessionStorage
+    const topArtistsData = sessionStorage.getItem('spotify_top_artists');
     if (!topArtistsData) {
       console.warn('No spotify top artists data available for listener type analysis');
       return analysis;
@@ -381,8 +381,8 @@ export const analyzeListenerType = async (recentTracks) => {
     const uniqueArtists = recentArtists.length;
     const totalSongs = recentTracks.length;
     
-    // Get unified top tracks data from localStorage for additional check
-    const unifiedTopTracksData = localStorage.getItem('unified_top_tracks');
+    // Get unified top tracks data from sessionStorage for additional check
+    const unifiedTopTracksData = sessionStorage.getItem('unified_top_tracks');
     const unifiedTopTracks = unifiedTopTracksData ? JSON.parse(unifiedTopTracksData) : [];
     
     // Create a map of artists from unified top tracks for easy lookup

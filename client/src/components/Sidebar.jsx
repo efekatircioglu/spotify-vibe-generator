@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import styles from './Sidebar.module.css';
-import { getRecentSearches, saveRecentSearch } from '../utils/recentSearchesCache';
+import { getRecentSearches, saveRecentSearch, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../utils/recentSearchesCache';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../utils/artistCache';
+import { getCachedTopArtists } from '../utils/topArtistsCache';
 
 export default function Sidebar({ onToggle }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,24 +55,28 @@ export default function Sidebar({ onToggle }) {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const token = localStorage.getItem('spotify_token');
-        if (token) {
-          const response = await fetch('https://api.spotify.com/v1/me', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+        // Use server-side authentication instead of localStorage tokens
+        const response = await fetch('http://127.0.0.1:8000/me', {
+          credentials: 'include' // Include session cookies
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
           
-          if (response.ok) {
-            const userData = await response.json();
-            
-            setUserProfile({
-              name: userData.display_name || 'Spotify User',
-              role: userData.email || 'No email available',
-              image: userData.images?.[0]?.url,
-              initials: (userData.display_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-            });
-          }
+          setUserProfile({
+            name: userData.display_name || 'Spotify User',
+            role: userData.email || 'No email available',
+            image: userData.images?.[0]?.url,
+            initials: (userData.display_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+          });
+        } else {
+          // Set default profile if fetch fails
+          setUserProfile({
+            name: 'Spotify User',
+            role: 'No email available',
+            image: null,
+            initials: 'U'
+          });
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -429,79 +434,57 @@ export default function Sidebar({ onToggle }) {
     router.push(`/artist?${urlParams}`);
   };
 
-  // Handle search submit
+  // Handle search submit with optimized caching
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     try {
-      // Search for the artist to get IDs before navigating
       let spotifyId = null;
       let ticketmasterId = null;
-      let image = null;
       
-      // Check cache first
-      const cachedId = getCachedArtistId(searchQuery.trim());
-      if (cachedId) {
-        console.log(`Found cached Ticketmaster ID for "${searchQuery.trim()}": ${cachedId}`);
-        ticketmasterId = cachedId;
-        // Get cached image if available
-        const cachedImage = getCachedArtistImage(searchQuery.trim());
-        if (cachedImage) {
-          image = cachedImage;
-        }
+      // Check spotify_top_artists cache first
+      const topArtists = getCachedTopArtists();
+      const cachedArtist = topArtists?.find(a => a.name.toLowerCase() === searchQuery.trim().toLowerCase());
+      if (cachedArtist) {
+        spotifyId = cachedArtist.id;
       }
       
-      // Search Spotify for the artist
-      try {
-        const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(searchQuery.trim())}`);
-        if (spRes.ok) {
-          const spData = await spRes.json();
-          const spotifyArtist = spData.artists?.[0];
-          if (spotifyArtist) {
-            spotifyId = spotifyArtist.id;
-            if (!image) {
-              image = spotifyArtist.image;
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error searching Spotify:', err);
-      }
+      // Check recent searches cache for Ticketmaster ID
+      ticketmasterId = getTicketmasterIdFromRecentSearch(searchQuery.trim());
       
-      // Search Ticketmaster if not cached
-      if (!ticketmasterId) {
+      // If we have Spotify ID but no Ticketmaster ID, try to fetch it
+      if (spotifyId && !ticketmasterId) {
         try {
-          const tmRes = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery.trim())}`);
-          if (tmRes.ok) {
-            const tmData = await tmRes.json();
-            
-            // Handle enhanced response format
-            if (tmData.mainArtist) {
-              ticketmasterId = tmData.mainArtist.ticketmasterId || tmData.mainArtist.id;
-              setArtistCache(searchQuery.trim(), ticketmasterId, image, spotifyId);
-            } else if (tmData.allAttractions && tmData.allAttractions.length > 0) {
-              // Fallback to first attraction if no main artist
-              const firstAttraction = tmData.allAttractions[0];
-              ticketmasterId = firstAttraction.ticketmasterId || firstAttraction.id;
-              setArtistCache(searchQuery.trim(), ticketmasterId, image, spotifyId);
-            } else if (tmData._embedded?.attractions) {
-              // Fallback to old format
-              const attractions = tmData._embedded?.attractions || [];
-              const exact = attractions.find(a => a.name.toLowerCase() === searchQuery.trim().toLowerCase());
-              if (exact && exact.id) {
-                ticketmasterId = exact.id;
-                setArtistCache(searchQuery.trim(), exact.id, image, spotifyId);
-              }
+          const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery.trim())}`);
+          if (ticketmasterResponse.ok) {
+            const ticketmasterData = await ticketmasterResponse.json();
+            const exactMatch = ticketmasterData.allAttractions?.find(
+              attraction => attraction.name.toLowerCase() === searchQuery.trim().toLowerCase()
+            );
+            if (exactMatch) {
+              ticketmasterId = exactMatch.ticketmasterId || exactMatch.id;
+              const artistObj = { 
+                name: searchQuery.trim(), 
+                spotifyId: spotifyId, 
+                ticketmasterId: ticketmasterId,
+                image: null
+              };
+              updateTicketmasterIdInRecentSearch(searchQuery.trim(), ticketmasterId, artistObj);
             }
           }
-        } catch (err) {
-          console.error('Error searching Ticketmaster:', err);
+        } catch (error) {
+          console.error(`[Sidebar] Error fetching Ticketmaster ID for ${searchQuery.trim()}:`, error);
         }
       }
       
-      // Save to recent searches
-      saveRecentSearch({ name: searchQuery.trim(), spotifyId, ticketmasterId, image });
+      // Save to recent searches without image
+      saveRecentSearch({ 
+        name: searchQuery.trim(), 
+        spotifyId, 
+        ticketmasterId, 
+        image: null
+      });
       setRecentSearches(getRecentSearches());
       
       // Construct URL with all available parameters

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getRecentSearches } from '../../../utils/recentSearchesCache';
+import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
 
 /**
  * TopAlbumsCard Component
@@ -18,82 +18,116 @@ export default function TopAlbumsCard({ albums }) {
   const router = useRouter();
   const [albumsWithArtistImages, setAlbumsWithArtistImages] = useState(albums);
 
-  // Shared utility function for navigating to artist page with server-side search
-  const navigateToArtistPage = async (artistName) => {
+  // Get cached top artists from sessionStorage
+  const getCachedTopArtists = () => {
     try {
-      // Make server-side API call for enhanced artist search
-      const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+      const cached = sessionStorage.getItem('spotify_top_artists');
+      if (!cached) return null;
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.success) {
-          // Navigate using server-provided parameters
-          router.push(data.navigationUrl);
-          return;
-        }
-      }
+      const data = JSON.parse(cached);
+      return data.artists || data; // Handle both formats
     } catch (error) {
-      console.error(`[TopAlbumsCard] Error during server search for: ${artistName}`, error);
+      console.error('Error reading top artists cache:', error);
+      return null;
     }
+  };
+
+  // Enhanced navigation function with Ticketmaster ID lookup
+  const navigateToArtistPage = async (artistName) => {
     
-    // Fallback to basic navigation if server search fails
-    
+    // Build navigation parameters
     const params = [`name=${encodeURIComponent(artistName)}`];
     
-    // Check localStorage for ticketmasterId (now protected)
-    const recents = getRecentSearches();
-    const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-    if (cachedArtist?.ticketmasterId) {
-      params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+    // Check recent searches for ticketmasterId first (fastest)
+    let ticketmasterId = getTicketmasterIdFromRecentSearch(artistName);
+    if (ticketmasterId) {
+      params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
     }
     
-    // Navigate to artist page
+    // Check cached top artists for Spotify ID
+    const topArtists = getCachedTopArtists();
+    const cachedArtist = topArtists?.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+    
+    if (cachedArtist) {
+      params.push(`spotifyId=${encodeURIComponent(cachedArtist.id)}`);
+      
+      // Navigate if we have both IDs
+      if (ticketmasterId) {
+        router.push(`/artist?${params.join('&')}`);
+        return;
+      }
+    }
+    
+    // If we still don't have Ticketmaster ID, try to fetch it
+    if (!ticketmasterId) {
+      try {
+        const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+        
+        if (ticketmasterResponse.ok) {
+          const ticketmasterData = await ticketmasterResponse.json();
+          
+          // Look for exact match
+          const exactMatch = ticketmasterData.allAttractions?.find(
+            attraction => attraction.name.toLowerCase() === artistName.toLowerCase()
+          );
+          
+          if (exactMatch) {
+            ticketmasterId = exactMatch.ticketmasterId || exactMatch.id;
+            
+            // Update cache with Ticketmaster ID
+            const artistObj = {
+              name: artistName,
+              spotifyId: cachedArtist?.id,
+              ticketmasterId: ticketmasterId
+            };
+            updateTicketmasterIdInRecentSearch(artistName, ticketmasterId, artistObj);
+            
+            params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
+          } else {
+          }
+        } else {
+        }
+      } catch (error) {
+        console.error(`[TopAlbumsCard] Error fetching Ticketmaster ID for ${artistName}:`, error);
+      }
+    }
+    
+    // Navigate with whatever data we have
     router.push(`/artist?${params.join('&')}`);
   };
 
-  // Fetch artist images when component mounts
+  // Get artist images from cached data when component mounts
   useEffect(() => {
-    const fetchArtistImages = async () => {
+    const getArtistImagesFromCache = () => {
       if (!albums || albums.length === 0) return;
 
       try {
-        // Get unique artist names from albums
-        const artistNames = [...new Set(albums.map(album => album.artist).filter(Boolean))];
+        // Get cached top artists
+        const topArtists = getCachedTopArtists();
         
-        // Search for each artist to get their image
-        const albumsWithImages = await Promise.all(
-          albums.map(async (album) => {
-            if (!album.artist || album.artist === 'Unknown') {
-              return { ...album, artistImage: null };
-            }
-
-            try {
-              const response = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(album.artist)}`);
-              if (response.ok) {
-                const data = await response.json();
-                const artist = data.artists?.find(a => a.name.toLowerCase() === album.artist.toLowerCase());
-                return {
-                  ...album,
-                  artistImage: artist?.image || null
-                };
-              }
-            } catch (error) {
-              console.error(`Error fetching image for ${album.artist}:`, error);
-            }
-            
+        // Map albums with artist images from cache
+        const albumsWithImages = albums.map(album => {
+          if (!album.artist || album.artist === 'Unknown') {
             return { ...album, artistImage: null };
-          })
-        );
+          }
+
+          // Find artist in cached data
+          const cachedArtist = topArtists?.find(a => a.name.toLowerCase() === album.artist.toLowerCase());
+          
+          return {
+            ...album,
+            artistImage: cachedArtist?.images?.[0]?.url || null
+          };
+        });
 
         setAlbumsWithArtistImages(albumsWithImages);
       } catch (error) {
-        console.error('Error fetching artist images:', error);
+        console.error('Error getting artist images from cache:', error);
         setAlbumsWithArtistImages(albums);
       }
     };
 
-    fetchArtistImages();
+    getArtistImagesFromCache();
   }, [albums]);
 
   if (!albumsWithArtistImages || albumsWithArtistImages.length === 0) {

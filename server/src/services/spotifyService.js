@@ -13,7 +13,7 @@ function setSpotifyApi(api) {
  * @returns {Promise<object[]>} - A promise that resolves to an array of audio feature objects.
  */
 async function _getAudioFeaturesForTracks(trackIds) {
-  console.log('Fetching audio features for tracks...');
+
   const { body } = await spotifyApi.getAudioFeaturesForTracks(trackIds);
   return body.audio_features;
 }
@@ -24,7 +24,6 @@ async function _getAudioFeaturesForTracks(trackIds) {
  * @returns {object} - An object containing the calculated average values.
  */
 function _calculateAverageVibe(audioFeatures) {
-  console.log('Calculating average vibe...');
   const average = {
     danceability: 0,
     energy: 0,
@@ -55,21 +54,14 @@ function _calculateAverageVibe(audioFeatures) {
  * @returns {Promise<object>} - A promise that resolves to the analysis result.
  */
 async function analyzeRecentTracks() {
-  console.log('Starting analysis of recent tracks...');
-  if (spotifyApi.getAccessToken) {
-    console.log('Current Access Token:', spotifyApi.getAccessToken());
-  }
-  if (spotifyApi.getCredentials && spotifyApi.getCredentials().scopes) {
-    console.log('Current Scopes:', spotifyApi.getCredentials().scopes);
-  }
   // Only fetch the last 5 tracks
   const { body } = await spotifyApi.getMyRecentlyPlayedTracks({ limit: 5 });
   const trackIds = body.items.map(item => item.track && item.track.id).filter(Boolean);
-  console.log('Fetched track IDs:', trackIds);
+  
 
   // Remove duplicates
   const uniqueTrackIds = [...new Set(trackIds)];
-  console.log('Unique track IDs:', uniqueTrackIds);
+  
 
   if (!uniqueTrackIds.length) {
     throw new Error('No recent tracks found for this user.');
@@ -82,16 +74,7 @@ async function analyzeRecentTracks() {
       const { body } = await spotifyApi.getAudioFeaturesForTrack(trackId);
       if (body) {
         audioFeatures.push(body);
-        console.log(`Track ID: ${trackId}`);
-        console.log(`  Danceability: ${body.danceability}`);
-        console.log(`  Energy: ${body.energy}`);
-        console.log(`  Valence: ${body.valence}`);
-        console.log(`  Acousticness: ${body.acousticness}`);
-        console.log(`  Instrumentalness: ${body.instrumentalness}`);
-        console.log(`  Speechiness: ${body.speechiness}`);
-      } else {
-        console.log(`No audio features found for track ID: ${trackId}`);
-      }
+      } 
     } catch (err) {
       console.error(`Error fetching audio features for track ID ${trackId}:`, err.body || err);
     }
@@ -111,7 +94,6 @@ async function analyzeRecentTracks() {
  * @returns {Promise<object>} - A promise that resolves to the analysis result.
  */
 async function analyzePlaylist(playlistId) {
-  console.log(`Starting analysis of playlist: ${playlistId}`);
   // 1. Get the track IDs from the API (the unique part)
   const { body } = await spotifyApi.getPlaylistTracks(playlistId);
   const trackIds = body.items.map(item => item.track.id);

@@ -1,4 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
+
+// Get cached top artists from sessionStorage
+const getCachedTopArtists = () => {
+  try {
+    const cached = sessionStorage.getItem('spotify_top_artists');
+    if (!cached) return null;
+    
+    const data = JSON.parse(cached);
+    return data.artists || data; // Handle both formats
+  } catch (error) {
+    console.error('Error reading top artists cache:', error);
+    return null;
+  }
+};
 
 // Popularity mapping function for tracks
 const getPopularityDescription = (score) => {
@@ -140,31 +155,79 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
     }
   };
 
-  // Navigate to artist page
-  const navigateToArtistPage = async (artistName) => {
+  // Enhanced navigation function with Ticketmaster ID lookup
+  const navigateToArtistPage = async (artistName, artistId = null) => {
     try {
-      const recentSearches = getRecentSearches();
-      const existingSearch = recentSearches.find(search => 
-        search.name.toLowerCase() === artistName.toLowerCase()
-      );
-
-      if (existingSearch) {
-        // Use existing data
-        const url = `/artist?spotifyId=${encodeURIComponent(existingSearch.spotifyId || '')}&ticketmasterId=${encodeURIComponent(existingSearch.ticketmasterId || '')}&name=${encodeURIComponent(artistName)}`;
+      // Build navigation parameters
+      const params = [`name=${encodeURIComponent(artistName)}`];
+      
+      // Add Spotify ID if provided
+      if (artistId) {
+        params.push(`spotifyId=${encodeURIComponent(artistId)}`);
+      }
+      
+      // Check recent searches for ticketmasterId first (fastest)
+      let ticketmasterId = getTicketmasterIdFromRecentSearch(artistName);
+      if (ticketmasterId) {
+        params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
+      }
+      
+      // If we have both IDs, navigate immediately
+      if (artistId && ticketmasterId) {
+        const url = `/artist?${params.join('&')}`;
         window.location.href = url;
-      } else {
-        // Search for artist
-        const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?query=${encodeURIComponent(artistName)}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.spotifyId || data.ticketmasterId) {
-            const url = `/artist?spotifyId=${encodeURIComponent(data.spotifyId || '')}&ticketmasterId=${encodeURIComponent(data.ticketmasterId || '')}&name=${encodeURIComponent(artistName)}`;
-            window.location.href = url;
-          }
+        return;
+      }
+      
+      // If no artistId provided, check cached top artists
+      if (!artistId) {
+        const topArtists = getCachedTopArtists();
+        const cachedArtist = topArtists?.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+        
+        if (cachedArtist) {
+          params.push(`spotifyId=${encodeURIComponent(cachedArtist.id)}`);
+          artistId = cachedArtist.id; // Update artistId for later use
         }
       }
+      
+      // If we have Spotify ID but no Ticketmaster ID, try to fetch it
+      if (artistId && !ticketmasterId) {
+        try {
+          const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+          
+          if (ticketmasterResponse.ok) {
+            const ticketmasterData = await ticketmasterResponse.json();
+            
+            // Look for exact match
+            const exactMatch = ticketmasterData.allAttractions?.find(
+              attraction => attraction.name.toLowerCase() === artistName.toLowerCase()
+            );
+            
+            if (exactMatch) {
+              ticketmasterId = exactMatch.ticketmasterId || exactMatch.id;
+              
+              // Update cache with Ticketmaster ID
+              const artistObj = {
+                name: artistName,
+                spotifyId: artistId,
+                ticketmasterId: ticketmasterId
+              };
+              updateTicketmasterIdInRecentSearch(artistName, ticketmasterId, artistObj);
+              
+              params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
+            }
+          }
+        } catch (error) {
+          console.error(`[TrackPopularityCard] Error fetching Ticketmaster ID for ${artistName}:`, error);
+        }
+      }
+      
+      // Navigate with whatever data we have (even if just name)
+      const url = `/artist?${params.join('&')}`;
+      window.location.href = url;
+      
     } catch (error) {
-      // Error handling for navigation
+      console.error(`[TrackPopularityCard] Error during navigation for ${artistName}:`, error);
     }
   };
 
@@ -185,10 +248,10 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
     }
   };
 
-  // Get cached top tracks
+  // Get cached top tracks from sessionStorage
   const getCachedTopTracks = () => {
     try {
-      const cached = localStorage.getItem('unified_top_tracks');
+      const cached = sessionStorage.getItem('unified_top_tracks');
       const tracks = cached ? JSON.parse(cached) : [];
       return tracks;
     } catch (error) {
@@ -317,21 +380,42 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
       
               // Handle other time periods (4 weeks, 6 months, 12 months)
         const topTracks = getCachedTopTracks();
-        const periodKey = selectedPeriod.replace(' ', '_');
         
-
+        // Map the selected period to the correct key format
+        let periodKey;
+        switch (selectedPeriod) {
+          case '4 weeks':
+            periodKey = '4_weeks';
+            break;
+          case '6 months':
+            periodKey = '6_months';
+            break;
+          case '12 months':
+            periodKey = '12_months';
+            break;
+          default:
+            periodKey = selectedPeriod.replace(' ', '_');
+        }
+        
+        
+        // Debug: Show sample track structure
+        if (topTracks.length > 0) {
+          const sampleTrack = topTracks[0];
+          
+        }
         
         // Filter tracks that are in the selected time period and popularity range
         const filtered = topTracks.filter(track => {
           // Check if track is in the selected time period
           const hasRanking = track.rankings && track.rankings[periodKey];
-          if (!hasRanking) return false;
+          if (!hasRanking) {
+            return false;
+          }
           
           // Check if track is in the popularity range
           const songPopularity = track.popularity || 0;
           const inRange = songPopularity >= popularityRange.min && songPopularity <= popularityRange.max;
           
-
           
           return inRange;
         }).sort((a, b) => {
@@ -341,7 +425,7 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
           return aRank - bRank;
         });
         
-        // If no tracks found in specific range, show all tracks from that period
+        // If no tracks found in specific range, show all tracks from that period with any popularity
         if (filtered.length === 0) {
           const allTracksInPeriod = topTracks.filter(track => {
             const hasRanking = track.rankings && track.rankings[periodKey];
@@ -357,7 +441,6 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
           return;
         }
         
-
         
         setFilteredSongs(filtered);
         setLoadingSongs(false);
@@ -446,8 +529,8 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
 
         {/* Overview of Unified Top Tracks Popularity */}
         {(() => {
-          // Get unified top tracks data from localStorage
-          const unifiedTopTracksData = localStorage.getItem('unified_top_tracks');
+          // Get unified top tracks data from sessionStorage
+          const unifiedTopTracksData = sessionStorage.getItem('unified_top_tracks');
           const unifiedTopTracks = unifiedTopTracksData ? JSON.parse(unifiedTopTracksData) : [];
           
           if (unifiedTopTracks.length === 0) return null;
@@ -860,7 +943,7 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis'
                                   }}
-                                  onClick={() => navigateToArtistPage(track.artists[0].name)}
+                                  onClick={() => navigateToArtistPage(track.artists[0].name, track.artists[0].id)}
                                   onMouseEnter={(e) => {
                                     e.target.style.color = '#22ca7b';
                                   }}
@@ -903,7 +986,7 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
                                       e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
                                       e.currentTarget.style.transform = 'scale(1)';
                                     }}
-                                    onClick={() => navigateToArtistPage(artist.name)}
+                                    onClick={() => navigateToArtistPage(artist.name, artist.id)}
                                   >
                                     <span style={{
                                       color: '#1db954',

@@ -17,7 +17,7 @@ import { getRecentSearches, saveRecentSearch } from '../../utils/recentSearchesC
 import '../../utils/storageMonitor'; // Import storage monitoring utilities
 import QuickStats from '../../components/QuickStats/index';
 import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
-import { initializeAllCaches } from '../../utils/cacheManager';
+import { initializeAllCaches, cleanupLocalStorageTokens } from '../../utils/cacheManager';
 
 
 
@@ -296,6 +296,8 @@ export default function Home() {
       .then((data) => {
         setUser(data);
         setLoading(false);
+        // Clean up localStorage tokens for security
+        cleanupLocalStorageTokens();
         // Initialize caches when user is logged in
         initializeAllCaches();
         // Auto-load last 50 songs when user is logged in (playlists will be loaded manually)
@@ -961,35 +963,6 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className={styles.dashboardBackground}>
-        <div className={styles.dashboardContainer}>
-      <main className={styles.main}>
-        <div className={styles.loginContainer}>
-          <h1>Can't wait for Spotify Wrapped?</h1>
-          <p>
-            Analyze your recent songs and your playlist and get your
-            <span className={styles.highlight + ' ' + styles.hoverUnderline}>custom wrapped for free!</span>
-          </p>
-          <a
-            href={LOGIN_URL}
-            className={styles.spotifyButton}
-          >
-            <img
-              src="/spotify-logo.svg"
-              alt="Spotify Logo"
-              className={styles.spotifyLogo}
-            />
-            Login with Spotify
-          </a>
-        </div>
-      </main>
-        </div>
-      </div>
-    );
-  }
-
   // --- LOGGED IN ---
   const handleLogout = async () => {
     await fetch('http://127.0.0.1:8000/logout');
@@ -1104,7 +1077,7 @@ export default function Home() {
                 src={user.images[0].url} 
                 alt={user.display_name || 'User'} 
                 style={{ 
-                  width: isDesktop ? '200px' : 'clamp(120px, 25vw, 180px)', 
+                  width: isDesktop ? '180px' : 'clamp(120px, 25vw, 180px)', 
                   aspectRatio: '1 / 1',
                   borderRadius: '50%', 
                   objectFit: 'cover', 

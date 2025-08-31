@@ -17,13 +17,15 @@ export const debugCacheStatus = () => {
   const exists = doCachesExist();
   console.log('✅ Caches exist:', exists);
   
-  // Check localStorage directly
-  const artistsCache = localStorage.getItem('spotify_top_artists');
-  const tracksCache = localStorage.getItem('unified_top_tracks');
+      // Check sessionStorage directly
+    const artistsCache = sessionStorage.getItem('spotify_top_artists');
+    const tracksCache = sessionStorage.getItem('unified_top_tracks');
+    const recentTracksCache = sessionStorage.getItem('spotify_recent_tracks');
   const timestamp = localStorage.getItem('cache_timestamp');
   
   console.log('🎵 Artists cache:', artistsCache ? 'EXISTS' : 'MISSING');
   console.log('🎧 Tracks cache:', tracksCache ? 'EXISTS' : 'MISSING');
+  console.log('🕐 Recent tracks cache:', recentTracksCache ? 'EXISTS' : 'MISSING');
   console.log('⏰ Cache timestamp:', timestamp ? 'EXISTS' : 'MISSING');
   
   if (artistsCache) {
@@ -52,14 +54,22 @@ export const debugCacheStatus = () => {
     }
   }
   
-  // Check token status
-  const token = localStorage.getItem('spotify_token');
-  const refreshToken = localStorage.getItem('spotify_refresh_token');
+  if (recentTracksCache) {
+    try {
+      const recentTracksData = JSON.parse(recentTracksCache);
+      console.log('🕐 Recent tracks data:', {
+        count: recentTracksData?.tracks?.length || 0,
+        hasTracks: !!recentTracksData?.tracks,
+        timestamp: new Date(recentTracksData?.timestamp).toLocaleString(),
+        structure: Object.keys(recentTracksData || {})
+      });
+    } catch (e) {
+      console.error('❌ Error parsing recent tracks cache:', e);
+    }
+  }
   
-  console.log('🔑 Spotify token:', token ? 'EXISTS' : 'MISSING');
-  console.log('🔄 Refresh token:', refreshToken ? 'EXISTS' : 'MISSING');
   
-  return { status, exists, artistsCache: !!artistsCache, tracksCache: !!tracksCache, hasToken: !!token };
+  return { status, exists, artistsCache: !!artistsCache, tracksCache: !!tracksCache, recentTracksCache: !!recentTracksCache };
 };
 
 /**
@@ -88,8 +98,9 @@ export const refreshCaches = async () => {
  */
 export const clearCaches = () => {
   console.log('🗑️ Clearing all caches...');
-  localStorage.removeItem('spotify_top_artists');
-  localStorage.removeItem('unified_top_tracks');
+      sessionStorage.removeItem('spotify_top_artists');
+    sessionStorage.removeItem('unified_top_tracks');
+    sessionStorage.removeItem('spotify_recent_tracks');
   localStorage.removeItem('cache_timestamp');
   console.log('✅ Caches cleared');
   

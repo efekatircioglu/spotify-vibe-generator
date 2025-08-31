@@ -1,13 +1,16 @@
 // Centralized Cache Manager
-// Manages both spotify_top_artists and unified_top_tracks caches
+// Manages spotify_top_artists, unified_top_tracks, and spotify_recent_tracks caches
 // Initializes caches when tokens are generated, clears them when tokens expire
 
 import { fetchAndCacheAllTimePeriods } from './topArtistsCache';
 import { fetchAndCacheTopData } from './topDataCache';
+import { clearResultsCache } from '../components/QuickStats/utils/quickStatsResultsCache';
+import { clearRecentTracksCache, fetchAndCacheRecentTracks } from './recentTracksCache';
 
 const CACHE_KEYS = {
   SPOTIFY_TOP_ARTISTS: 'spotify_top_artists',
-  UNIFIED_TOP_TRACKS: 'unified_top_tracks'
+  UNIFIED_TOP_TRACKS: 'unified_top_tracks',
+  SPOTIFY_RECENT_TRACKS: 'spotify_recent_tracks'
 };
 
 /**
@@ -24,11 +27,12 @@ export const initializeAllCaches = async () => {
     
     console.log('[CacheManager] Initializing all caches...');
     
-    console.log('[CacheManager] Starting artists cache initialization...');
-    // Initialize both caches in parallel
-    const [artistsResult, tracksResult] = await Promise.allSettled([
+    console.log('[CacheManager] Starting cache initialization...');
+    // Initialize all caches in parallel
+    const [artistsResult, tracksResult, recentTracksResult] = await Promise.allSettled([
       fetchAndCacheAllTimePeriods(),
-      fetchAndCacheTopData()
+      fetchAndCacheTopData(),
+      fetchAndCacheRecentTracks()
     ]);
     
     // Log results
@@ -42,6 +46,12 @@ export const initializeAllCaches = async () => {
       console.log('[CacheManager] Tracks cache initialized successfully');
     } else {
       console.error('[CacheManager] Failed to initialize tracks cache:', tracksResult.reason);
+    }
+    
+    if (recentTracksResult.status === 'fulfilled') {
+      console.log(`[CacheManager] Recent tracks cache initialized: ${recentTracksResult.value.trackCount} tracks`);
+    } else {
+      console.error('[CacheManager] Failed to initialize recent tracks cache:', recentTracksResult.reason);
     }
     
     // Verify caches were created
@@ -64,9 +74,10 @@ export const clearAllCaches = () => {
   try {
     console.log('[CacheManager] Clearing all caches...');
     
-    // Clear localStorage caches
-    localStorage.removeItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
-    localStorage.removeItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    // Clear sessionStorage caches
+    sessionStorage.removeItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
+    sessionStorage.removeItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    sessionStorage.removeItem(CACHE_KEYS.SPOTIFY_RECENT_TRACKS);
     
     // Clear QuickStats cache from sessionStorage
     if (typeof window !== 'undefined' && window.clearQuickStatsCache) {
@@ -79,6 +90,22 @@ export const clearAllCaches = () => {
       } catch (error) {
         console.warn('[CacheManager] Could not clear QuickStats cache:', error);
       }
+    }
+    
+    // Clear QuickStats results cache from sessionStorage
+    try {
+      clearResultsCache();
+      console.log('[CacheManager] QuickStats results cache cleared from sessionStorage');
+    } catch (error) {
+      console.warn('[CacheManager] Could not clear QuickStats results cache:', error);
+    }
+    
+    // Clear recent tracks cache
+    try {
+      clearRecentTracksCache();
+      console.log('[CacheManager] Recent tracks cache cleared from sessionStorage');
+    } catch (error) {
+      console.warn('[CacheManager] Could not clear recent tracks cache:', error);
     }
     
     console.log('[CacheManager] All caches cleared successfully');
@@ -107,20 +134,23 @@ export const areCachesValid = () => {
  */
 export const doCachesExist = () => {
   try {
-    const artistsCache = localStorage.getItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
-    const tracksCache = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const artistsCache = sessionStorage.getItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
+    const tracksCache = sessionStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const recentTracksCache = sessionStorage.getItem(CACHE_KEYS.SPOTIFY_RECENT_TRACKS);
     
-    if (!artistsCache || !tracksCache) return false;
+    if (!artistsCache || !tracksCache || !recentTracksCache) return false;
     
     // Parse and check if they have actual data
     const artistsData = JSON.parse(artistsCache);
     const tracksData = JSON.parse(tracksCache);
+    const recentTracksData = JSON.parse(recentTracksCache);
     
     // More lenient check - just ensure the data structures exist
     const hasArtists = artistsData && typeof artistsData === 'object' && artistsData.artists;
     const hasTracks = tracksData && Array.isArray(tracksData);
+    const hasRecentTracks = recentTracksData && typeof recentTracksData === 'object' && recentTracksData.tracks;
     
-    return hasArtists && hasTracks;
+    return hasArtists && hasTracks && hasRecentTracks;
     
   } catch (error) {
     console.error('[CacheManager] Error checking cache existence:', error);
@@ -157,14 +187,16 @@ export const forceRefreshAllCaches = async () => {
  */
 export const getCacheStatus = () => {
   try {
-    const artistsCache = localStorage.getItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
-    const tracksCache = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const artistsCache = sessionStorage.getItem(CACHE_KEYS.SPOTIFY_TOP_ARTISTS);
+    const tracksCache = sessionStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const recentTracksCache = sessionStorage.getItem(CACHE_KEYS.SPOTIFY_RECENT_TRACKS);
     
     return {
-      exists: !!(artistsCache && tracksCache),
+      exists: !!(artistsCache && tracksCache && recentTracksCache),
       valid: true, // Always valid since we don't use time-based expiration
       artistsCount: artistsCache ? JSON.parse(artistsCache)?.artists?.length || 0 : 0,
-      tracksCount: tracksCache ? JSON.parse(tracksCache)?.length || 0 : 0
+      tracksCount: tracksCache ? JSON.parse(tracksCache)?.length || 0 : 0,
+      recentTracksCount: recentTracksCache ? JSON.parse(recentTracksCache)?.tracks?.length || 0 : 0
     };
     
   } catch (error) {
@@ -187,6 +219,7 @@ export const setupCacheMonitoring = () => {
     console.log('[CacheManager] Setting up cache monitoring...');
     
     // Monitor for session changes instead of localStorage tokens
+    
     const handleSessionChange = () => {
       // Check if user is still authenticated
       checkAuthStatus().then(isAuthenticated => {
@@ -220,6 +253,15 @@ export const setupCacheMonitoring = () => {
   }
 };
 
+// Clean up any existing localStorage tokens (security fix)
+export const cleanupLocalStorageTokens = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('spotify_token');
+    localStorage.removeItem('spotify_refresh_token');
+    console.log('🔒 Cleaned up localStorage tokens for security');
+  }
+};
+
 // Export for use in other modules
 export default {
   initializeAllCaches,
@@ -228,5 +270,6 @@ export default {
   doCachesExist,
   forceRefreshAllCaches,
   getCacheStatus,
-  setupCacheMonitoring
+  setupCacheMonitoring,
+  cleanupLocalStorageTokens
 };

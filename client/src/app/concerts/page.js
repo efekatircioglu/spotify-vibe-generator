@@ -8,6 +8,7 @@ import ConcertsList from '../../components/ConcertsList';
 import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage, getCachedSpotifyId, setFailedArtistCache } from '../../utils/artistCache';
 import { optimizedConcertApiCall, optimizedArtistSearch } from '../../utils/concertApiOptimizer';
 import { getCachedTopArtists } from '../../utils/topArtistsCache';
+import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
 
 export default function ConcertsPage() {
   const router = useRouter();
@@ -116,21 +117,63 @@ export default function ConcertsPage() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
   
+  // Listen for cache updates
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'spotify_top_artists' && e.newValue) {
+        console.log('[Concerts] Top artists cache updated, refreshing...');
+        const updatedArtists = getCachedTopArtists();
+        if (updatedArtists && updatedArtists.length > 0) {
+          setTopArtists(updatedArtists);
+          setLoadingTop(false);
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+  
   // Fetch all artists from all time periods (deduplicated) with caching
   useEffect(() => {
     setLoadingTop(true);
     
     // Check cache first
     const cachedArtists = getCachedTopArtists();
-    if (cachedArtists) {
+    console.log('[Concerts] Initial cache check for top artists:', cachedArtists ? `${cachedArtists.length} artists found` : 'No cache found');
+    
+    if (cachedArtists && cachedArtists.length > 0) {
       setTopArtists(cachedArtists);
       setLoadingTop(false);
+      console.log('[Concerts] Top artists loaded from cache successfully');
       return;
     }
     
-    // If no cache, show empty state (caches are managed centrally)
-    setTopArtists([]);
-    setLoadingTop(false);
+    // If no cache, set up a retry mechanism to wait for cache initialization
+    console.log('[Concerts] Setting up retry mechanism for top artists cache...');
+    const retryInterval = setInterval(() => {
+      const retryCachedArtists = getCachedTopArtists();
+      if (retryCachedArtists && retryCachedArtists.length > 0) {
+        setTopArtists(retryCachedArtists);
+        setLoadingTop(false);
+        clearInterval(retryInterval);
+        console.log('[Concerts] Top artists loaded from cache after retry');
+      }
+    }, 500); // Check every 500ms
+    
+    // Clear interval after 10 seconds to prevent infinite retrying
+    setTimeout(() => {
+      clearInterval(retryInterval);
+      if (loadingTop) {
+        setLoadingTop(false);
+        console.log('[Concerts] Top artists retry timeout - cache not available after 10 seconds');
+      }
+    }, 10000);
+    
+    return () => {
+      clearInterval(retryInterval);
+    };
   }, []);
   
   // Retry function for API calls
@@ -284,11 +327,20 @@ export default function ConcertsPage() {
         // Get cached image and Spotify ID if available
         const cachedImage = getCachedArtistImage(artistName);
         const cachedSpotifyId = getCachedSpotifyId(artistName);
+        
+        // Prioritize Spotify image over Ticketmaster image if available
+        let finalImageUrl = null;
+        if (spotifyArtist?.images?.[0]?.url) {
+          finalImageUrl = spotifyArtist.images[0].url;
+        } else if (cachedImage) {
+          finalImageUrl = cachedImage;
+        }
+        
         // Create a mock artist object with the cached data
         const cachedArtist = {
           id: cachedId,
           name: artistName,
-          images: cachedImage ? [{ url: cachedImage }] : [],
+          images: finalImageUrl ? [{ url: finalImageUrl }] : [],
           spotifyId: cachedSpotifyId || spotifyArtist?.id,
           // Add minimal required fields
           classifications: [{ segment: { name: 'Music' } }]
@@ -321,7 +373,15 @@ export default function ConcertsPage() {
       if (musicArtists.length > 0) {
         // Cache the successful result with image, Spotify ID, and Ticketmaster name
         const firstArtist = musicArtists[0];
-        const imageUrl = firstArtist.images?.[0]?.url || null;
+        
+        // Prioritize Spotify image over Ticketmaster image
+        let finalImageUrl = null;
+        if (spotifyArtist?.images?.[0]?.url) {
+          finalImageUrl = spotifyArtist.images[0].url;
+        } else if (firstArtist.images?.[0]?.url) {
+          finalImageUrl = firstArtist.images[0].url;
+        }
+        
         const spotifyId = spotifyArtist?.id || null;
         const ticketmasterArtistName = firstArtist.name;
         
@@ -329,16 +389,17 @@ export default function ConcertsPage() {
         
         // Cache the artist with bidirectional mapping
         try {
-          setArtistCache(artistName, firstArtist.id, imageUrl, spotifyId, ticketmasterArtistName);
+          setArtistCache(artistName, firstArtist.id, finalImageUrl, spotifyId, ticketmasterArtistName);
           console.log(`[Concerts] Cached bidirectional mapping: "${artistName}" ↔ "${ticketmasterArtistName}" → ${firstArtist.id}`);
         } catch (cacheError) {
           console.error(`❌ Failed to cache artist "${artistName}":`, cacheError);
         }
         
-        // Add Spotify ID to the artist object
+        // Add Spotify ID and prioritized image to the artist object
         const artistWithSpotifyId = {
           ...firstArtist,
-          spotifyId: spotifyId
+          spotifyId: spotifyId,
+          images: finalImageUrl ? [{ url: finalImageUrl }] : firstArtist.images || []
         };
         
         // Auto-select the first match
@@ -464,15 +525,24 @@ export default function ConcertsPage() {
         
         if (result.success && result.data) {
           const originalArtist = artistsToAdd[i];
+          
+          // Prioritize Spotify image over Ticketmaster image
+          let finalImageUrl = null;
+          if (originalArtist.images?.[0]?.url) {
+            finalImageUrl = originalArtist.images[0].url;
+          } else if (result.data.images?.[0]?.url) {
+            finalImageUrl = result.data.images[0].url;
+          }
+          
           const artistWithSpotifyId = {
             ...result.data,
-            spotifyId: originalArtist.id
+            spotifyId: originalArtist.id,
+            images: finalImageUrl ? [{ url: finalImageUrl }] : result.data.images || []
           };
           
           // Cache the result if it wasn't already cached
           if (!result.cached) {
-            const imageUrl = result.data.images?.[0]?.url || null;
-            setArtistCache(result.data.name, result.data.id, imageUrl, originalArtist.id);
+            setArtistCache(result.data.name, result.data.id, finalImageUrl, originalArtist.id);
             console.log(`✅ Batch cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
           } else {
             console.log(`🟢 Using cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
@@ -580,15 +650,24 @@ export default function ConcertsPage() {
         
         if (result.success && result.data) {
           const originalArtist = artistsToAdd[i];
+          
+          // Prioritize Spotify image over Ticketmaster image
+          let finalImageUrl = null;
+          if (originalArtist.images?.[0]?.url) {
+            finalImageUrl = originalArtist.images[0].url;
+          } else if (result.data.images?.[0]?.url) {
+            finalImageUrl = result.data.images[0].url;
+          }
+          
           const artistWithSpotifyId = {
             ...result.data,
-            spotifyId: originalArtist.id
+            spotifyId: originalArtist.id,
+            images: finalImageUrl ? [{ url: finalImageUrl }] : result.data.images || []
           };
           
           // Cache the result if it wasn't already cached
           if (!result.cached) {
-            const imageUrl = result.data.images?.[0]?.url || null;
-            setArtistCache(result.data.name, result.data.id, imageUrl, originalArtist.id);
+            setArtistCache(result.data.name, result.data.id, finalImageUrl, originalArtist.id);
             console.log(`✅ Batch cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
           } else {
             console.log(`🟢 Using cached Ticketmaster ID for "${result.data.name}": ${result.data.id}`);
@@ -814,6 +893,7 @@ export default function ConcertsPage() {
   
   return (
     <>
+      <TopDataCacheInitializer />
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
       <div style={{ 
         padding: 32, 
@@ -1067,7 +1147,7 @@ export default function ConcertsPage() {
           <div style={{ 
             background: '#232323', 
             color: '#000', 
-            padding: '20px 24px', 
+            padding: isSmallMobile ? '16px 20px' : '20px 24px', 
             borderRadius: 12, 
             marginBottom: 24,
             textAlign: 'center',
@@ -1079,24 +1159,24 @@ export default function ConcertsPage() {
             
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', 
-              gap: isMobile ? '8px' : '16px',
-              marginBottom: '20px'
+              gridTemplateColumns: isSmallMobile ? 'repeat(3, 1fr)' : isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(150px, 1fr))', 
+              gap: isSmallMobile ? '6px' : isMobile ? '8px' : '16px',
+              marginBottom: isSmallMobile ? '16px' : '20px'
             }}>
               <div style={{ 
                 background: '#ffffff33', 
-                padding: isMobile ? '8px' : '12px', 
+                padding: isSmallMobile ? '6px' : isMobile ? '8px' : '12px', 
                 borderRadius: '8px'
               }}>
                 <div style={{ 
-                  fontSize: isMobile ? '1rem' : '1.2rem', 
+                  fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.2rem', 
                   fontWeight: 'bold', 
                   color: '#fff' 
                 }}>
                   {finalReport.total}
                 </div>
                 <div style={{ 
-                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem', 
                   color: '#fff' 
                 }}>
                   Total Artists
@@ -1105,18 +1185,18 @@ export default function ConcertsPage() {
               
               <div style={{ 
                 background: '#ffffff33', 
-                padding: isMobile ? '8px' : '12px', 
+                padding: isSmallMobile ? '6px' : isMobile ? '8px' : '12px', 
                 borderRadius: '8px'
               }}>
                 <div style={{ 
-                  fontSize: isMobile ? '1rem' : '1.2rem', 
+                  fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.2rem', 
                   fontWeight: 'bold', 
                   color: '#fff' 
                 }}>
                   {finalReport.successful}
                 </div>
                 <div style={{ 
-                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem', 
                   color: '#fff' 
                 }}>
                   Successful
@@ -1125,18 +1205,18 @@ export default function ConcertsPage() {
               
               <div style={{ 
                 background: '#ffffff33', 
-                padding: isMobile ? '8px' : '12px', 
+                padding: isSmallMobile ? '6px' : isMobile ? '8px' : '12px', 
                 borderRadius: '8px'
               }}>
                 <div style={{ 
-                  fontSize: isMobile ? '1rem' : '1.2rem', 
+                  fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.2rem', 
                   fontWeight: 'bold', 
                   color: '#fff' 
                 }}>
                   {finalReport.failed}
                 </div>
                 <div style={{ 
-                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem', 
                   color: '#fff' 
                 }}>
                   Failed
@@ -1240,7 +1320,7 @@ export default function ConcertsPage() {
                   <div style={{ 
                     display: 'flex',
                     flexWrap: 'wrap',
-                    gap: '8px'
+                    gap: isSmallMobile ? '6px' : '8px'
                   }}>
                     {finalReport.failedArtists.map((artist, index) => (
                       <button
@@ -1249,9 +1329,9 @@ export default function ConcertsPage() {
                         style={{
                           background: '#8B0000',
                           color: '#fff',
-                          padding: '6px 12px',
-                          borderRadius: '20px',
-                          fontSize: '0.85rem',
+                          padding: isSmallMobile ? '4px 8px' : isMobile ? '5px 10px' : '6px 12px',
+                          borderRadius: isSmallMobile ? '16px' : '20px',
+                          fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.75rem' : '0.85rem',
                           fontWeight: '500',
                           border: '1px solid #a52a2a',
                           boxShadow: '0 2px 4px rgba(139, 0, 0, 0.3)',
@@ -1340,8 +1420,8 @@ export default function ConcertsPage() {
               className="followed-artists-grid"
               style={{ 
                 display: 'grid', 
-                gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(120px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
-                gap: 12,
+                gridTemplateColumns: isSmallMobile ? 'repeat(auto-fill, minmax(100px, 0.8fr))' : isMobile ? 'repeat(auto-fill, minmax(160px, 1fr))' : 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: isSmallMobile ? 4 : 12,
                 maxHeight: 290,
                 overflowY: 'auto'
               }}
@@ -1351,21 +1431,24 @@ export default function ConcertsPage() {
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: isMobile ? '12px 16px' : '16px 24px',
+                    padding: isSmallMobile ? '3px 4px' : isMobile ? '8px 12px' : '12px 16px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
-                    borderRadius: 20,
+                    borderRadius: isSmallMobile ? 10 : 20,
                     cursor: 'pointer',
-                    fontSize: isMobile ? '0.9rem' : '0.9rem',
+                    fontSize: isSmallMobile ? '0.2rem' : isMobile ? '0.8rem' : '0.9rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     textAlign: 'center',
-                    minWidth: isMobile ? 120 : 100,
-                    height: isMobile ? '44px' : 'auto',
+                    minWidth: isSmallMobile ? 100 : isMobile ? 160 : 180,
+                    height: isSmallMobile ? 'auto' : isMobile ? 'auto' : 'auto',
                     position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isSmallMobile ? 3 : 8,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -1376,7 +1459,40 @@ export default function ConcertsPage() {
                     e.currentTarget.style.color = '#fff';
                   }}
                 >
-                  {artist.name}
+                  {/* Artist Image */}
+                  {artist.images?.[0]?.url ? (
+                    <img 
+                      src={artist.images[0].url} 
+                      alt={artist.name}
+                      style={{ 
+                        width: isMobile ? 24 : 28, 
+                        height: isMobile ? 24 : 28, 
+                        borderRadius: '50%', 
+                        objectFit: 'cover',
+                        border: '1px solid #444',
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: isMobile ? 24 : 28,
+                      height: isMobile ? 24 : 28,
+                      borderRadius: '50%',
+                      background: '#444',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      border: '1px solid #555',
+                    }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                      </svg>
+                    </div>
+                  )}
+                  <span style={{ flex: 1, textAlign: 'left' }}>{artist.name}</span>
+                  
                   {/* Green checkmark icon when Ticketmaster ID is found */}
                   {hasTicketmasterId(artist.name) && (
                     <div style={{
@@ -1447,8 +1563,8 @@ export default function ConcertsPage() {
               className="top-artists-grid"
               style={{ 
                 display: 'grid', 
-                gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(120px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
-                gap: 12,
+                gridTemplateColumns: isSmallMobile ? 'repeat(auto-fill, minmax(120px, 1fr))' : isMobile ? 'repeat(auto-fill, minmax(160px, 1fr))' : 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: isSmallMobile ? 8 : 12,
                 maxHeight: 290,
                 overflowY: 'auto'
               }}
@@ -1458,21 +1574,24 @@ export default function ConcertsPage() {
                   key={artist.id}
                   onClick={() => autoSearchAndAddArtist(artist.name, artist)}
                   style={{
-                    padding: isMobile ? '12px 16px' : '16px 24px',
+                    padding: isSmallMobile ? '6px 8px' : isMobile ? '8px 12px' : '12px 16px',
                     background: '#232323',
                     color: '#fff',
                     border: '1px solid #333',
-                    borderRadius: 20,
+                    borderRadius: isSmallMobile ? 16 : 20,
                     cursor: 'pointer',
-                    fontSize: isMobile ? '0.9rem' : '0.9rem',
+                    fontSize: isSmallMobile ? '0.7rem' : isMobile ? '0.8rem' : '0.9rem',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     textAlign: 'center',
-                    minWidth: isMobile ? 120 : 100,
-                    height: isMobile ? '44px' : 'auto',
+                    minWidth: isSmallMobile ? 120 : isMobile ? 160 : 180,
+                    height: isSmallMobile ? 'auto' : isMobile ? 'auto' : 'auto',
                     position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: isSmallMobile ? 6 : 8,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#1db954';
@@ -1483,7 +1602,40 @@ export default function ConcertsPage() {
                     e.currentTarget.style.color = '#fff';
                   }}
                 >
-                  {artist.name}
+                  {/* Artist Image */}
+                  {artist.images?.[0]?.url ? (
+                    <img 
+                      src={artist.images[0].url} 
+                      alt={artist.name}
+                      style={{ 
+                        width: isMobile ? 24 : 28, 
+                        height: isMobile ? 24 : 28, 
+                        borderRadius: '50%', 
+                        objectFit: 'cover',
+                        border: '1px solid #444',
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: isMobile ? 24 : 28,
+                      height: isMobile ? 24 : 28,
+                      borderRadius: '50%',
+                      background: '#444',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      border: '1px solid #555',
+                    }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                      </svg>
+                    </div>
+                  )}
+                  <span style={{ flex: 1, textAlign: 'left' }}>{artist.name}</span>
+                  
                   {/* Green checkmark icon when Ticketmaster ID is found */}
                   {hasTicketmasterId(artist.name) && (
                     <div style={{
@@ -1800,6 +1952,70 @@ export default function ConcertsPage() {
               width: 16px !important;
               height: 16px !important;
               font-size: 1rem !important;
+            }
+          }
+          
+          /* Responsive styling for very small screens */
+          @media (max-width: 415px) {
+            .top-artists-grid,
+            .followed-artists-grid {
+              grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+              gap: 8px !important;
+            }
+            
+            .top-artists-grid button,
+            .followed-artists-grid button {
+              padding: 6px 8px !important;
+              font-size: 0.7rem !important;
+              border-radius: 16px !important;
+              min-width: 120px !important;
+              gap: 6px !important;
+            }
+            
+            .top-artists-grid button img,
+            .followed-artists-grid button img,
+            .top-artists-grid button div,
+            .followed-artists-grid button div {
+              width: 20px !important;
+              height: 20px !important;
+            }
+            
+            .top-artists-grid button svg,
+            .followed-artists-grid button svg {
+              width: 10px !important;
+              height: 10px !important;
+            }
+            
+            /* Failed artists buttons */
+            .failed-artists-container {
+              padding: 16px 20px !important;
+            }
+            
+            .failed-artists-container .stats-grid {
+              gap: 6px !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .failed-artists-container .stat-box {
+              padding: 6px !important;
+            }
+            
+            .failed-artists-container .stat-number {
+              font-size: 0.9rem !important;
+            }
+            
+            .failed-artists-container .stat-label {
+              font-size: 0.7rem !important;
+            }
+            
+            .failed-artists-container .failed-artist-button {
+              padding: 4px 8px !important;
+              font-size: 0.7rem !important;
+              border-radius: 16px !important;
+            }
+            
+            .failed-artists-container .failed-artists-grid {
+              gap: 6px !important;
             }
           }
         `}</style>

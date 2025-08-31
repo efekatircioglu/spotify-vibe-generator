@@ -1,43 +1,92 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { getRecentSearches } from '../../../utils/recentSearchesCache';
+import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
 
-// Shared utility function for navigating to artist page with server-side search
-const navigateToArtistPage = async (router, artistName, artistId) => {
+// Get cached top artists from sessionStorage
+const getCachedTopArtists = () => {
   try {
-    // Make server-side API call for enhanced artist search
-    const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
+    const cached = sessionStorage.getItem('spotify_top_artists');
+    if (!cached) return null;
     
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (data.success) {
-        // Navigate using server-provided parameters
-        router.push(data.navigationUrl);
-        return;
-      }
-    }
+    const data = JSON.parse(cached);
+    return data.artists || data; // Handle both formats
   } catch (error) {
-    // Fallback to basic navigation if server search fails
+    console.error('Error reading top artists cache:', error);
+    return null;
   }
-  
-  // Fallback to basic navigation if server search fails
-  
+};
+
+// Enhanced navigation function with Ticketmaster ID lookup
+const navigateToArtistPage = async (router, artistName, artistId) => {
+  // Build navigation parameters
   const params = [`name=${encodeURIComponent(artistName)}`];
   
-  // Add spotifyId if available
+  // Add Spotify ID if available
   if (artistId) {
     params.push(`spotifyId=${encodeURIComponent(artistId)}`);
   }
   
-  // Check localStorage for ticketmasterId (now protected)
-  const recents = getRecentSearches();
-  const cachedArtist = recents.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-  if (cachedArtist?.ticketmasterId) {
-    params.push(`ticketmasterId=${encodeURIComponent(cachedArtist.ticketmasterId)}`);
+  // Check recent searches for ticketmasterId first (fastest)
+  let ticketmasterId = getTicketmasterIdFromRecentSearch(artistName);
+  if (ticketmasterId) {
+    params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
   }
   
-  // Navigate to artist page
+  // If we have both Spotify ID and Ticketmaster ID, navigate immediately
+  if (artistId && ticketmasterId) {
+    router.push(`/artist?${params.join('&')}`);
+    return;
+  }
+  
+  // If no artistId, check cached top artists
+  if (!artistId) {
+    const topArtists = getCachedTopArtists();
+    const cachedArtist = topArtists?.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+    
+    if (cachedArtist) {
+      params.push(`spotifyId=${encodeURIComponent(cachedArtist.id)}`);
+      
+      // Navigate if we have both IDs
+      if (ticketmasterId) {
+        router.push(`/artist?${params.join('&')}`);
+        return;
+      }
+    }
+  }
+  
+  // If we still don't have Ticketmaster ID, try to fetch it
+  if (!ticketmasterId) {
+    try {
+      const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+      
+      if (ticketmasterResponse.ok) {
+        const ticketmasterData = await ticketmasterResponse.json();
+        
+        // Look for exact match
+        const exactMatch = ticketmasterData.allAttractions?.find(
+          attraction => attraction.name.toLowerCase() === artistName.toLowerCase()
+        );
+        
+        if (exactMatch) {
+          ticketmasterId = exactMatch.ticketmasterId || exactMatch.id;
+          
+          // Update cache with Ticketmaster ID
+          const artistObj = {
+            name: artistName,
+            spotifyId: artistId,
+            ticketmasterId: ticketmasterId
+          };
+          updateTicketmasterIdInRecentSearch(artistName, ticketmasterId, artistObj);
+          
+          params.push(`ticketmasterId=${encodeURIComponent(ticketmasterId)}`);
+        }
+      }
+    } catch (error) {
+      console.error(`[TopSongCard] Error fetching Ticketmaster ID for ${artistName}:`, error);
+    }
+  }
+  
+  // Navigate with whatever data we have
   router.push(`/artist?${params.join('&')}`);
 };
 

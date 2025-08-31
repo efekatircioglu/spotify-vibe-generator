@@ -270,6 +270,7 @@ app.get('/me', async (req, res) => {
     // Get user's public profile to access follower count and following count
     let followerCount = null;
     let followingCount = null;
+    let product = null;
     try {
       const { body: profileBody } = await spotifyApi.getUser(body.id);
       followerCount = profileBody.followers?.total || null;
@@ -286,11 +287,15 @@ app.get('/me', async (req, res) => {
       // Continue without follower count if there's an error
     }
     
-    // Return user data with follower count and following count
+    // Get user's product (Premium/Free status) from the main user data
+    product = body.product || null;
+    
+    // Return user data with follower count, following count, and product
     res.json({
       ...body,
       followerCount,
       followingCount,
+      product,
       authenticated: true
     });
   } catch (err) {
@@ -1046,7 +1051,7 @@ async function getTopData(time_range) {
   const detailedTracks = detailedTracksRes.body.tracks;
   
   // Debug: Check if detailed tracks have release date information
-  console.log('Sample detailed track:', detailedTracks[0]);
+  
   
   // Increment counter for detailed tracks API call
   globalApiCallCounter.spotify += 1;
@@ -2595,7 +2600,7 @@ app.post('/mbid-lookup', async (req, res) => {
       return res.status(400).json({ error: 'Missing tracks array' });
     }
 
-    console.log(`[MBID Lookup] Starting MBID lookup for ${tracks.length} tracks`);
+
     
     // Helper function to add wait time between API calls
     const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -2605,11 +2610,11 @@ app.post('/mbid-lookup', async (req, res) => {
     // Process tracks sequentially with wait times between API calls
     for (let i = 0; i < tracks.length; i++) {
       const track = tracks[i];
-      console.log(`[MBID Lookup] Processing track ${i + 1}/${tracks.length}: ${track.name} by ${track.artist || 'Unknown Artist'}`);
+      
       
       // Check if we have Spotify ID for this track
       if (!track.id) {
-        console.log(`[MBID Lookup] Skipping track ${track.name} - no Spotify ID`);
+        
         results.push({
           track,
           mbid: null,
@@ -2625,14 +2630,13 @@ app.post('/mbid-lookup', async (req, res) => {
       try {
         // Step 1: Get ISRC from Spotify (if we don't have it)
         let isrc = null;
-        console.log(`[MBID Lookup] Fetching ISRC for track ${track.name}`);
+        
         
         try {
           const { body } = await spotifyApi.getTrack(track.id);
           isrc = body && body.external_ids && body.external_ids.isrc ? body.external_ids.isrc : null;
-          console.log(`[MBID Lookup] ISRC for ${track.name}: ${isrc}`);
+          
         } catch (spotifyError) {
-          console.log(`[MBID Lookup] Failed to get ISRC for ${track.name}:`, spotifyError.message);
         }
         
         // Wait 500ms after ISRC fetch
@@ -2652,7 +2656,7 @@ app.post('/mbid-lookup', async (req, res) => {
               mbid = mbidData.recordings && mbidData.recordings.length > 0 ? mbidData.recordings[0].id : null;
               
               if (mbid) {
-                console.log(`[MBID Lookup] Found MBID for ${track.name}: ${mbid}`);
+    
                 mbidWasCached = false;
               } else {
                 console.log(`[MBID Lookup] No MBID found for ISRC: ${isrc}`);
@@ -2662,7 +2666,7 @@ app.post('/mbid-lookup', async (req, res) => {
             console.log(`[MBID Lookup] MusicBrainz lookup failed for ${track.name}:`, mbidError.message);
           }
         } else {
-          console.log(`[MBID Lookup] No ISRC available for ${track.name}`);
+          
         }
         
         // Wait 500ms after MBID lookup
@@ -2697,12 +2701,11 @@ app.post('/mbid-lookup', async (req, res) => {
       // Wait between tracks (except for the last one)
       if (i < tracks.length - 1) {
         const trackWaitTime = 500; // 500ms between tracks
-        console.log(`[MBID Lookup] Waiting ${trackWaitTime}ms before next track`);
+
         await wait(trackWaitTime);
       }
     }
     
-    console.log(`[MBID Lookup] MBID lookup complete. Successfully found: ${results.filter(r => r.success).length}/${tracks.length}`);
     
     res.json({
       success: true,
@@ -2899,9 +2902,6 @@ app.post('/wrapped-analysis', async (req, res) => {
     
     // FINAL SUMMARY
     console.log(`[Wrapped Analysis] ===== ANALYSIS COMPLETE =====`);
-    console.log(`[Wrapped Analysis] Total tracks: ${tracks.length}`);
-    console.log(`[Wrapped Analysis] Successfully analyzed: ${successfulCount}/${tracks.length} (${((successfulCount/tracks.length)*100).toFixed(1)}%)`);
-    console.log(`[Wrapped Analysis] Failed analysis: ${failedCount}/${tracks.length} (${((failedCount/tracks.length)*100).toFixed(1)}%)`);
     console.log(`[Wrapped Analysis] API Calls Breakdown:`);
     console.log(`[Wrapped Analysis]   • Spotify API: ${spotifyApiCalls} (ISRC fetching)`);
     console.log(`[Wrapped Analysis]   • MusicBrainz API: ${musicbrainzApiCalls} (MBID lookup)`);

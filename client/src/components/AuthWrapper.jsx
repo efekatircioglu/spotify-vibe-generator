@@ -128,12 +128,6 @@ export default function AuthWrapper({ children }) {
     if (!isBrowser) return;
     
     const handleStorageChange = (e) => {
-      if (e.key === 'spotify_token' && e.newValue === null) {
-        // Token was removed, user is logging out
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-      }
     };
 
     const handleCustomLogout = () => {
@@ -153,22 +147,11 @@ export default function AuthWrapper({ children }) {
     window.addEventListener('userLogout', handleCustomLogout);
     window.addEventListener('tokenRefreshed', handleTokenRefreshed);
     
-    // Also check for direct localStorage changes
-    const checkTokenRemoval = () => {
-      if (isBrowser && localStorage.getItem('spotify_token') === null && isAuthenticated) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-      }
-    };
-
-    const interval = setInterval(checkTokenRemoval, 100);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('userLogout', handleCustomLogout);
       window.removeEventListener('tokenRefreshed', handleTokenRefreshed);
-      clearInterval(interval);
     };
   }, [isAuthenticated, isBrowser]);
 
@@ -179,9 +162,9 @@ export default function AuthWrapper({ children }) {
   
   // Only show auth overlay if:
   // 1. Session is expired, OR
-  // 2. We're definitely not authenticated AND have no token
-  // Don't show if we have a token but auth check is still pending (isAuthenticated === null)
-  if (isBrowser && (isSessionExpired || (isAuthenticated === false && !localStorage.getItem('spotify_token')))) {
+  // 2. We're definitely not authenticated
+  // Don't show if auth check is still pending (isAuthenticated === null)
+  if (isBrowser && (isSessionExpired || isAuthenticated === false)) {
     return (
       <>
         {/* Show the page content in background */}

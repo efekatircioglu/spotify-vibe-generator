@@ -2,6 +2,7 @@
 // Manages localStorage caching for user's top artists to avoid redundant API calls
 
 const CACHE_KEY = 'spotify_top_artists';
+const STORAGE_TYPE = 'sessionStorage'; // Changed from localStorage
 
 /**
  * Get cached top artists if they exist and are not expired
@@ -10,7 +11,7 @@ const CACHE_KEY = 'spotify_top_artists';
 export const getCachedTopArtists = () => {
   try {
     // Check if cache exists
-    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
     
     if (!cachedData) {
       return null;
@@ -260,7 +261,7 @@ export const setCachedTopArtists = (artists) => {
       artists: mergedArtists
     };
     
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObject));
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheObject));
     
     console.log(`[TopArtistsCache] Cached ${mergedArtists.length} merged artists`);
     
@@ -274,7 +275,7 @@ export const setCachedTopArtists = (artists) => {
  */
 export const clearTopArtistsCache = () => {
   try {
-    localStorage.removeItem(CACHE_KEY);
+    sessionStorage.removeItem(CACHE_KEY);
     console.log('[TopArtistsCache] Cache cleared');
   } catch (error) {
     console.error('[TopArtistsCache] Error clearing cache:', error);
@@ -326,7 +327,7 @@ export const forceRefreshArtistsCache = async () => {
  */
 export const isTopArtistsCacheValid = () => {
   try {
-    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
     
     if (!cachedData) {
       return false;
@@ -348,7 +349,7 @@ export const isTopArtistsCacheValid = () => {
  */
 export const getTopArtistsCacheInfo = () => {
   try {
-    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
     
     if (!cachedData) {
       return { exists: false, artistsCount: 0 };
@@ -372,7 +373,7 @@ export const getTopArtistsCacheInfo = () => {
  */
 export const inspectTopArtistsCache = () => {
   try {
-    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedData = sessionStorage.getItem(CACHE_KEY);
     
     if (!cachedData) {
       return { exists: false, message: 'No cache found' };

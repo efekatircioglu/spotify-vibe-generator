@@ -8,6 +8,8 @@ import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
 import GeniusSongModal from './GeniusSongModal';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpotifyId } from '../utils/artistCache';
+import { getCachedTopArtists } from '../utils/topArtistsCache';
+import { getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch, saveRecentSearch } from '../utils/recentSearchesCache';
 import { useRouter } from 'next/navigation';
 
 function useIsMobile(breakpoint = 820) {
@@ -397,7 +399,7 @@ const NoContributorData = () => {
 
 
 
-  // Retry function for API calls (same as other pages)
+  // Retry function for API calls (kept for other functions that might need it)
   const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -405,7 +407,6 @@ const NoContributorData = () => {
         if (response.ok) {
           return await response.json();
         } else if (response.status === 500 && attempt < maxRetries) {
-          console.log(`Attempt ${attempt} failed with 500 error, retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
           delay *= 2; // Exponential backoff
           continue;
@@ -416,133 +417,81 @@ const NoContributorData = () => {
         if (attempt === maxRetries) {
           throw error;
         }
-        console.log(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // Exponential backoff
       }
     }
   };
 
-  // Handle artist click with caching
+  // Handle artist click with optimized caching
   const handleArtistClick = async (artistName, trackIndex) => {
     if (clickingArtist) return; // Prevent multiple simultaneous clicks
-    
-    console.log('=== handleArtistClick called ===');
-    console.log('Artist name:', artistName);
-    console.log('Track index:', trackIndex);
     
     setClickingArtist(artistName);
     
     try {
       let spotifyId = null;
       let ticketmasterId = null;
-      let imageUrl = null;
       
-      // Get Spotify ID and image from track data or search Spotify API
+      // Get Spotify ID from track data first
       const track = tracks[trackIndex];
-      console.log('Track data:', track ? 'exists' : 'null');
-      
-      // Try to get from track.artists array first (if it exists)
       if (track && track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
-        // Find the specific artist in the track.artists array
         const matchingArtist = track.artists.find(a => a.name && a.name.toLowerCase() === artistName.toLowerCase());
         if (matchingArtist && matchingArtist.id) {
           spotifyId = matchingArtist.id;
-          imageUrl = matchingArtist.images?.[0]?.url || null;
-          console.log(`Found Spotify ID from track.artists for "${artistName}": ${spotifyId}`);
-          console.log(`Found image URL from track.artists: ${imageUrl}`);
         }
       }
       
-      // If we don't have Spotify ID, search Spotify API
+      // If no Spotify ID from track, check spotify_top_artists cache
       if (!spotifyId) {
-        try {
-          console.log(`Searching Spotify API for "${artistName}"...`);
-          const spData = await fetchWithRetry(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
-          const spotifyArtists = spData.artists || [];
-          console.log('Spotify search results:', spotifyArtists);
-          
-          // Find exact match
-          const exactSpotify = spotifyArtists.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-          if (exactSpotify && exactSpotify.id) {
-            spotifyId = exactSpotify.id;
-            imageUrl = exactSpotify.image || exactSpotify.images?.[0]?.url || imageUrl;
-            console.log(`Found Spotify ID from API: ${spotifyId}`);
-            console.log(`Found Spotify image from API: ${imageUrl}`);
-          }
-        } catch (err) {
-          console.error('Error searching Spotify API:', err);
+        const topArtists = getCachedTopArtists();
+        const cachedArtist = topArtists?.find(a => a.name.toLowerCase() === artistName.toLowerCase());
+        if (cachedArtist) {
+          spotifyId = cachedArtist.id;
         }
       }
       
-      // Check cache first
-      const cachedId = getCachedArtistId(artistName);
-      if (cachedId) {
-        console.log(`Found cached Ticketmaster ID for "${artistName}": ${cachedId}`);
-        ticketmasterId = cachedId;
-        // Get cached image if available (only if we don't have it from track data)
-        if (!imageUrl) {
-          const cachedImage = getCachedArtistImage(artistName);
-          if (cachedImage) {
-            imageUrl = cachedImage;
-          }
-        }
-        // Get cached Spotify ID if available (only if we don't have it from track data)
-        if (!spotifyId) {
-          const cachedSpotifyId = getCachedSpotifyId(artistName);
-          if (cachedSpotifyId) {
-            spotifyId = cachedSpotifyId;
-          }
-        }
-      } else {
-        // Search Spotify for the artist if we don't have Spotify ID
-        if (!spotifyId) {
-          try {
-            console.log(`Searching Spotify for "${artistName}"...`);
-            const spData = await fetchWithRetry(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
-            const spotifyArtists = spData.artists || [];
-            // Find an exact name match (case-insensitive)
-            const exactSpotify = spotifyArtists.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-            if (exactSpotify && exactSpotify.id) {
-              spotifyId = exactSpotify.id;
-              imageUrl = exactSpotify.image || exactSpotify.images?.[0]?.url || imageUrl;
-              console.log(`Found Spotify ID for "${artistName}": ${spotifyId}`);
-              console.log(`Found Spotify image: ${imageUrl}`);
-            }
-          } catch (err) {
-            console.error('Error searching Spotify:', err);
-          }
-        }
-        
-        // Search Ticketmaster for the artist
+      // Check recent searches cache for Ticketmaster ID
+      ticketmasterId = getTicketmasterIdFromRecentSearch(artistName);
+      
+      // If we have Spotify ID but no Ticketmaster ID, try to fetch it
+      if (spotifyId && !ticketmasterId) {
         try {
-          const tmData = await fetchWithRetry(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(artistName)}`);
-          const attractions = tmData._embedded?.attractions || [];
-          // Find an exact name match (case-insensitive)
-          const exact = attractions.find(a => a.name.toLowerCase() === artistName.toLowerCase());
-          if (exact && exact.id) {
-            ticketmasterId = exact.id;
-            // Use Ticketmaster image if we don't have one from Spotify
-            if (!imageUrl) {
-              imageUrl = exact.images?.[0]?.url || null;
+          const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+          if (ticketmasterResponse.ok) {
+            const ticketmasterData = await ticketmasterResponse.json();
+            const exactMatch = ticketmasterData.allAttractions?.find(
+              attraction => attraction.name.toLowerCase() === artistName.toLowerCase()
+            );
+            if (exactMatch) {
+              ticketmasterId = exactMatch.ticketmasterId || exactMatch.id;
+              const artistObj = { 
+                name: artistName, 
+                spotifyId: spotifyId, 
+                ticketmasterId: ticketmasterId,
+                image: null
+              };
+              updateTicketmasterIdInRecentSearch(artistName, ticketmasterId, artistObj);
             }
-            // Cache the successful result with bidirectional mapping
-            setArtistCache(artistName, exact.id, imageUrl, spotifyId, exact.name);
-            console.log(`[TrackTable] Cached bidirectional mapping: "${artistName}" ↔ "${exact.name}" → ${exact.id}${imageUrl ? ' with image' : ''}${spotifyId ? ' with Spotify ID' : ''}`);
           }
-        } catch (err) {
-          console.error('Error searching Ticketmaster:', err);
+        } catch (error) {
+          console.error(`[TrackTable] Error fetching Ticketmaster ID for ${artistName}:`, error);
         }
       }
+      
+      // Save to recent searches without image
+      saveRecentSearch({ 
+        name: artistName, 
+        spotifyId, 
+        ticketmasterId, 
+        image: null
+      });
       
       // Build URL parameters
       const urlParamsArr = [`name=${encodeURIComponent(artistName)}`];
       if (spotifyId) urlParamsArr.push(`spotifyId=${spotifyId}`);
       if (ticketmasterId) urlParamsArr.push(`ticketmasterId=${ticketmasterId}`);
       const urlParams = urlParamsArr.join('&');
-      
-      console.log('Final URL params:', urlParams);
-      console.log('Navigating to artist page...');
       
       // Navigate to artist page
       router.push(`/artist?${urlParams}`);

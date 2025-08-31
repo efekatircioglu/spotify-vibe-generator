@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../../utils/topDataCache';
 import { getCachedTopArtists, calculateAveragePopularity } from '../../utils/topArtistsCache';
 
@@ -15,11 +15,13 @@ import TrackPopularityCard from './components/TrackPopularityCard';
 import ListeningEvolutionCard from './components/ListeningEvolutionCard';
 import TimeOfDayCard from './components/TimeOfDayCard';
 import ListenerTypeCard from './components/ListenerTypeCard';
+import LoadingPhase from './components/LoadingPhase';
 
 // Import utilities
-import { useQuickStatsCache } from './hooks/useQuickStatsCache';
+import { useQuickStatsResultsCache } from './hooks/useQuickStatsResultsCache';
 import { useProgressiveLoading } from './hooks/useProgressiveLoading';
 import { analyzeListeningEvolution, analyzeTimeOfDay, analyzeListenerType } from './utils/analysisUtils';
+import { getCachedRecentTracks, setCachedRecentTracks } from '../../utils/recentTracksCache';
 
 /**
  * QuickStats Component - Modular Architecture
@@ -62,181 +64,210 @@ export default function QuickStats({ isMobile }) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [hasLoadedDiscogs, setHasLoadedDiscogs] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const retryIntervalRef = useRef(null);
 
   // Custom hooks
   const { loadingStates, setLoadingState, shouldShowCard } = useProgressiveLoading();
-  const { 
-    getCachedSection, 
-    setCachedSection, 
-    clearCache 
-  } = useQuickStatsCache();
+  const {
+    getCachedResults,
+    setCachedResults,
+    updateCachedSection: updateResultsSection,
+    hasValidCache: hasValidResultsCache,
+    clearCache: clearResultsCache,
+    cleanupExpired
+  } = useQuickStatsResultsCache();
 
   // Load data function
   const loadQuickStats = useCallback(async () => {
-    if (!isCacheValid() || !hasCompleteCache()) {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    // Add a flag to prevent multiple executions
+    if (loadQuickStats.isRunning) {
+      console.log('🔄 QuickStats: Already running, skipping...');
+      return;
+    }
+    
+    loadQuickStats.isRunning = true;
+
+    // Check if we have the required data to start calculations
+    const topArtists = getCachedTopArtists();
+    const topTracks = getCachedTopTracks();
+    
+    if (!topArtists || !topTracks) {
+      console.log('⏳ QuickStats: Waiting for top artists and tracks data...');
+      loadQuickStats.isRunning = false;
       return;
     }
 
     try {
-      const topArtists = getCachedTopArtists();
-      const topTracks = getCachedTopTracks();
-      
-      if (!topArtists || !topTracks) {
+
+      // Check if we have cached results first
+      const cachedResults = getCachedResults(topArtists, topTracks);
+      if (cachedResults && cachedResults.basicStats?.bestArtist && cachedResults.basicStats?.bestTrack) {
+        console.log('✅ QuickStats: Loading from results cache', {
+          sections: Object.keys(cachedResults).filter(key => key !== 'timestamp'),
+          timestamp: new Date(cachedResults.timestamp).toLocaleString(),
+          basicStats: cachedResults.basicStats,
+          hasTopArtist: !!cachedResults.basicStats?.bestArtist,
+          hasTopSong: !!cachedResults.basicStats?.bestTrack
+        });
+        
+        // Load all data from cache
+        const newData = {
+          ...data,
+          topArtist: cachedResults.basicStats?.bestArtist || null,
+          topArtistTimeRange: cachedResults.basicStats?.bestTimeRange || null,
+          topSong: cachedResults.basicStats?.bestTrack || null,
+          topSongTimeRange: cachedResults.basicStats?.bestTrackTimeRange || null,
+          topGenres: cachedResults.genres?.genres || [],
+          genreDetails: cachedResults.genres?.genreDetails || {},
+          topAlbums: cachedResults.albumsDecades?.albums || [],
+          topDecades: cachedResults.albumsDecades?.decades || [],
+          averagePopularity: cachedResults.popularity || null,
+          yearAnalysis: cachedResults.yearAnalysis || null,
+          trackPopularityAnalysis: cachedResults.trackPopularity || null,
+          listeningEvolution: cachedResults.listeningEvolution || null,
+          timeOfDayAnalysis: cachedResults.timeOfDayAnalysis || null,
+          listenerTypeAnalysis: cachedResults.listenerTypeAnalysis || null,
+          recentTracks: cachedResults.recentTracks || getCachedRecentTracks() || []
+        };
+        
+        console.log('📊 QuickStats: Setting data from cache', {
+          hasTopArtist: !!newData.topArtist,
+          hasTopSong: !!newData.topSong,
+          topArtistName: newData.topArtist?.name,
+          topSongName: newData.topSong?.name
+        });
+        
+        setData(newData);
+
+        // Set all loading states to true since data is ready
+        setLoadingState('basicStats', true);
+        setLoadingState('genres', true);
+        setLoadingState('albumsDecades', true);
+        setLoadingState('popularity', true);
+        setLoadingState('yearAnalysis', true);
+        setLoadingState('trackPopularity', true);
+        setLoadingState('listeningEvolution', true);
+        setLoadingState('timeOfDay', true);
+        setLoadingState('listenerType', true);
+        
+        console.log('✅ QuickStats: Cache data loaded, setting loading to false');
+        setLoading(false);
+        setDataLoaded(true);
         return;
+      } else if (cachedResults) {
+        console.log('⚠️ QuickStats: Cached results found but incomplete, recalculating...', {
+          hasBasicStats: !!cachedResults.basicStats,
+          hasBestArtist: !!cachedResults.basicStats?.bestArtist,
+          hasBestTrack: !!cachedResults.basicStats?.bestTrack
+        });
       }
 
-      // Helper function for cache checking
-      const checkAndSetCachedSection = (sectionName, setter, loadingStateKey) => {
-        try {
-          const cached = getCachedSection(sectionName, topArtists, topTracks);
-          if (cached) {
-            setter(cached);
-            setLoadingState(loadingStateKey, true);
-            return true;
-          }
-          return false;
-        } catch (error) {
-          console.error(`Error checking cache for ${sectionName}:`, error);
-          return false; // Cache miss on error
-        }
-      };
+      console.log('🔄 QuickStats: No cached results found, calculating...', {
+        artistsCount: topArtists.length,
+        tracksCount: topTracks.length
+      });
 
-      // Load basic stats (top artist/song)
-      const cachedBasicStats = checkAndSetCachedSection('basicStats', (data) => {
-        if (data && data.bestArtist) {
-          setData(prev => ({
-            ...prev,
-            topArtist: data.bestArtist,
-            topArtistTimeRange: data.bestTimeRange,
-            topSong: data.bestTrack,
-            topSongTimeRange: data.bestTrackTimeRange
-          }));
-        }
-      }, 'basicStats');
-
-      if (!cachedBasicStats) {
-        // Calculate basic stats
-        const basicStats = calculateBasicStats(topArtists, topTracks);
-        if (basicStats) {
-          setData(prev => ({
-            ...prev,
-            topArtist: basicStats.bestArtist,
-            topArtistTimeRange: basicStats.bestTimeRange,
-            topSong: basicStats.bestTrack,
-            topSongTimeRange: basicStats.bestTrackTimeRange
-          }));
-          setLoadingState('basicStats', true);
-          setCachedSection('basicStats', basicStats, topArtists, topTracks);
-        }
+      // On cache miss, we need to calculate everything
+      console.log('🔄 QuickStats: Starting calculations...');
+      
+      // Start with basic stats
+      const basicStats = calculateBasicStats(topArtists, topTracks);
+      if (basicStats) {
+        console.log('✅ QuickStats: Basic stats calculated', basicStats);
+        setData(prev => ({
+          ...prev,
+          topArtist: basicStats.bestArtist,
+          topArtistTimeRange: basicStats.bestTimeRange,
+          topSong: basicStats.bestTrack,
+          topSongTimeRange: basicStats.bestTrackTimeRange
+        }));
+        setLoadingState('basicStats', true);
+        // Store in results cache
+        updateResultsSection(topArtists, topTracks, 'basicStats', basicStats);
       }
+
+
 
       // Load genres
-      const cachedGenres = checkAndSetCachedSection('genres', (data) => {
-                setData(prev => ({
-          ...prev,
-          topGenres: data.genres,
-          genreDetails: data.genreDetails
-        }));
-              }, 'genres');
-
-      if (!cachedGenres) {
-        const genresData = await loadGenres(topArtists, hasLoadedDiscogs);
-        setData(prev => ({
-          ...prev,
-                      topGenres: genresData.genres
-
-        }));
-                  setLoadingState('genres', true);
-                  setCachedSection('genres', genresData, topArtists, topTracks);
-        setHasLoadedDiscogs(true);
-      }
+      console.log('🔄 QuickStats: Loading genres...');
+      const genresData = await loadGenres(topArtists);
+      console.log('✅ QuickStats: Genres loaded', { count: genresData.genres.length });
+      setData(prev => ({
+        ...prev,
+        topGenres: genresData.genres,
+        genreDetails: genresData.genreDetails
+      }));
+              setLoadingState('genres', true);
+        // Store in results cache
+        updateResultsSection(topArtists, topTracks, 'genres', genresData);
 
       // Load albums and decades
-      const cachedAlbumsDecades = checkAndSetCachedSection('albumsDecades', (data) => {
-        setData(prev => ({
-          ...prev,
-          topAlbums: data.albums,
-          topDecades: data.decades
-        }));
-      }, 'albumsDecades');
-
-      if (!cachedAlbumsDecades) {
-        const albumsDecades = await calculateAlbumsAndDecades(topTracks);
-        setData(prev => ({
-          ...prev,
-          topAlbums: albumsDecades.albums,
-          topDecades: albumsDecades.decades
-        }));
-        setLoadingState('albumsDecades', true);
-        setCachedSection('albumsDecades', albumsDecades, topArtists, topTracks);
-      }
+      const albumsDecades = await calculateAlbumsAndDecades(topTracks);
+      setData(prev => ({
+        ...prev,
+        topAlbums: albumsDecades.albums,
+        topDecades: albumsDecades.decades
+      }));
+      setLoadingState('albumsDecades', true);
+      // Store in results cache
+      updateResultsSection(topArtists, topTracks, 'albumsDecades', albumsDecades);
 
       // Load popularity analysis
-      const cachedPopularity = checkAndSetCachedSection('popularity', (data) => {
-        setData(prev => ({
-          ...prev,
-          averagePopularity: data
-        }));
-      }, 'popularity');
-
-      if (!cachedPopularity) {
-        const popularityStats = calculateAveragePopularity();
-        setData(prev => ({
-          ...prev,
-          averagePopularity: popularityStats
-        }));
-        setLoadingState('popularity', true);
-        setCachedSection('popularity', popularityStats, topArtists, topTracks);
-      }
+      const popularityStats = calculateAveragePopularity();
+      setData(prev => ({
+        ...prev,
+        averagePopularity: popularityStats
+      }));
+      setLoadingState('popularity', true);
+      // Store in results cache
+      updateResultsSection(topArtists, topTracks, 'popularity', popularityStats);
 
       // Load year analysis
-      const cachedYearAnalysis = checkAndSetCachedSection('yearAnalysis', (data) => {
-        setData(prev => ({
-          ...prev,
-          yearAnalysis: data
-        }));
-      }, 'yearAnalysis');
-
-      if (!cachedYearAnalysis) {
-        const yearAnalysis = calculateYearAnalysis(topTracks);
-        setData(prev => ({
-          ...prev,
-          yearAnalysis
-        }));
-        setLoadingState('yearAnalysis', true);
-        setCachedSection('yearAnalysis', yearAnalysis, topArtists, topTracks);
-      }
+      const yearAnalysis = calculateYearAnalysis(topTracks);
+      setData(prev => ({
+        ...prev,
+        yearAnalysis
+      }));
+      setLoadingState('yearAnalysis', true);
+      // Store in results cache
+      updateResultsSection(topArtists, topTracks, 'yearAnalysis', yearAnalysis);
 
       // Load track popularity
-      const cachedTrackPopularity = checkAndSetCachedSection('trackPopularity', (data) => {
-        setData(prev => ({
-          ...prev,
-          trackPopularityAnalysis: data
-        }));
-      }, 'trackPopularity');
+      const trackPopularity = calculateTrackPopularity(topTracks);
+      setData(prev => ({
+        ...prev,
+        trackPopularityAnalysis: trackPopularity
+      }));
+      setLoadingState('trackPopularity', true);
+      // Store in results cache
+      updateResultsSection(topArtists, topTracks, 'trackPopularity', trackPopularity);
 
-      if (!cachedTrackPopularity) {
-        const trackPopularity = calculateTrackPopularity(topTracks);
-        setData(prev => ({
-          ...prev,
-          trackPopularityAnalysis: trackPopularity
-        }));
-        setLoadingState('trackPopularity', true);
-        setCachedSection('trackPopularity', trackPopularity, topArtists, topTracks);
-      }
-
-      // Load external data and analyses
-      const [recentTracksResponse] = await Promise.all([
-        fetch('http://127.0.0.1:8000/recent-tracks')
-      ]);
-
-      let recentTracks = [];
-      if (recentTracksResponse.ok) {
-        const recentData = await recentTracksResponse.json();
-        recentTracks = recentData.tracks || [];
+      // Load recent tracks from cache or API
+      console.log('🔄 QuickStats: Loading recent tracks...');
+      let recentTracks = getCachedRecentTracks();
+      
+      if (!recentTracks) {
+        console.log('🔄 QuickStats: Recent tracks not in cache, fetching from API...');
+        const recentTracksResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
+        
+        if (recentTracksResponse.ok) {
+          const recentData = await recentTracksResponse.json();
+          recentTracks = recentData.tracks || [];
+          // Cache the recent tracks for future use
+          setCachedRecentTracks(recentTracks);
+          console.log('✅ QuickStats: Recent tracks fetched and cached', { count: recentTracks.length });
+        } else {
+          console.log('⚠️ QuickStats - Failed to fetch recent tracks:', recentTracksResponse.status);
+          recentTracks = [];
+        }
       } else {
-        console.log('⚠️ QuickStats - Failed to fetch recent tracks:', recentTracksResponse.status);
+        console.log('✅ QuickStats: Recent tracks loaded from cache', { count: recentTracks.length });
       }
 
       // Run external analyses in parallel
@@ -262,6 +293,12 @@ export default function QuickStats({ isMobile }) {
       setLoadingState('timeOfDay', true);
       setLoadingState('listenerType', true);
 
+      // Store external analyses in results cache
+      updateResultsSection(topArtists, topTracks, 'listeningEvolution', listeningEvolutionResult);
+      updateResultsSection(topArtists, topTracks, 'timeOfDayAnalysis', timeOfDayResult);
+      updateResultsSection(topArtists, topTracks, 'listenerTypeAnalysis', listenerTypeResult);
+      updateResultsSection(topArtists, topTracks, 'recentTracks', recentTracks);
+
       // Update year analysis with recent tracks - always include recent_50 data
       setData(prev => {
         let updatedYearAnalysis;
@@ -275,7 +312,8 @@ export default function QuickStats({ isMobile }) {
           }
         }
         
-       
+        // Update the results cache with the final year analysis
+        updateResultsSection(topArtists, topTracks, 'yearAnalysis', updatedYearAnalysis);
         
         return {
           ...prev,
@@ -284,91 +322,105 @@ export default function QuickStats({ isMobile }) {
       });
 
       setLoading(false);
+      setDataLoaded(true);
     } catch (err) {
       console.error('Error loading quick stats:', err);
       setError(err.message);
       setLoading(false);
+    } finally {
+      // Reset the running flag
+      loadQuickStats.isRunning = false;
     }
-  }, [hasLoadedDiscogs, getCachedSection, setCachedSection, setLoadingState]);
+  }, [updateResultsSection, setLoadingState, getCachedResults]);
 
-  // Effect for initial load and polling
+  // Effect for initial load - start calculations immediately when component mounts
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    console.log('🚀 QuickStats: Component mounted, starting calculations...');
+
     const loadData = async () => {
       await loadQuickStats();
     };
 
+    // Clean up expired cache entries on mount
+    try {
+      cleanupExpired();
+    } catch (error) {
+      console.warn('Could not cleanup expired cache:', error);
+    }
+    
+    // Start calculations immediately
     loadData();
-
-    const cacheCheckInterval = setInterval(() => {
-      if (isCacheValid() && hasCompleteCache() && (!data.topArtist || !data.topSong)) {
+    
+    // Set up a retry mechanism in case data isn't ready yet
+    retryIntervalRef.current = setInterval(() => {
+      const topArtists = getCachedTopArtists();
+      const topTracks = getCachedTopTracks();
+      
+      if (topArtists && topTracks && loading) {
+        console.log('🔄 QuickStats: Data now available, retrying calculations...');
+        if (retryIntervalRef.current) {
+          clearInterval(retryIntervalRef.current);
+          retryIntervalRef.current = null;
+        }
         loadData();
       }
-    }, 5000);
-
+    }, 1000); // Check every second
+    
+    // Clean up interval after 30 seconds to prevent infinite checking
+    setTimeout(() => {
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current);
+        retryIntervalRef.current = null;
+      }
+    }, 30000);
+    
+    // Clean up interval when component unmounts
     return () => {
-      clearInterval(cacheCheckInterval);
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current);
+        retryIntervalRef.current = null;
+      }
     };
-  }, [loadQuickStats]);
+  }, []); // Empty dependency array - only run once on mount
 
-  // Don't render if no data
-  if (loading || !data.topArtist || !data.topSong) {
+  // Effect to clean up retry interval when loading is complete
+  useEffect(() => {
+    if (!loading && retryIntervalRef.current) {
+      console.log('✅ QuickStats: Loading complete, cleaning up retry interval');
+      clearInterval(retryIntervalRef.current);
+      retryIntervalRef.current = null;
+    }
+  }, [loading]);
+
+
+
+  // Don't render if no data or on server side
+  if (typeof window === 'undefined') {
+    console.log('❌ QuickStats: Server side rendering, not showing');
     return null;
   }
-
-      // Show loading state for genres
-      if (data.topGenres.length === 0) {
-    return (
-      <div style={{
-        padding: '32px 16px',
-        margin: '32px auto',
-        maxWidth: '1200px',
-        width: '95%'
-      }}>
-        <h2 style={{
-          color: '#fff',
-          fontSize: isMobile ? '1.5rem' : '2rem',
-          fontWeight: '700',
-          textAlign: 'center',
-          marginBottom: '16px',
-          letterSpacing: '0.5px'
-        }}>
-          Your Music Highlights
-        </h2>
-        
-        <div style={{
-          columns: isMobile ? 1 : 3,
-          columnGap: '24px',
-          maxWidth: '100%'
-        }}>
-          {/* Show basic cards that are ready */}
-          {shouldShowCard('basicStats') && (
-            <>
-              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <TopArtistCard artist={data.topArtist} timeRange={data.topArtistTimeRange} />
-              </div>
-              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <TopSongCard song={data.topSong} timeRange={data.topSongTimeRange} />
-              </div>
-            </>
-          )}
-
-          {/* Loading message */}
-          <div style={{
-            breakInside: 'avoid',
-            marginBottom: '24px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            borderRadius: '20px',
-            padding: '24px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            textAlign: 'center',
-            color: '#b3b3b3',
-            fontStyle: 'italic'
-          }}>
-            Loading detailed music analysis...
-          </div>
-        </div>
-      </div>
-    );
+  
+  // Only show loading phase when we're actually loading and don't have enough data
+  if (loading && (!data.topArtist || !data.topSong || data.topGenres.length === 0)) {
+    console.log('⏳ QuickStats: Loading phase active...', { loading, dataLoaded, hasTopArtist: !!data.topArtist, hasTopSong: !!data.topSong, genresCount: data.topGenres.length });
+    return <LoadingPhase isMobile={isMobile} />;
+  }
+  
+  if (!data.topArtist || !data.topSong) {
+    console.log('❌ QuickStats: Missing required data', {
+      hasTopArtist: !!data.topArtist,
+      hasTopSong: !!data.topSong,
+      topArtist: data.topArtist,
+      topSong: data.topSong,
+      loading,
+      dataLoaded
+    });
+    return null;
   }
 
   // Error state
@@ -652,7 +704,7 @@ const calculateBasicStats = (topArtists, topTracks) => {
   };
 };
 
-const loadGenres = async (topArtists, hasLoadedDiscogs) => {
+const loadGenres = async (topArtists) => {
   if (!topArtists || topArtists.length === 0) {
     return { genres: [], genreDetails: {} };
   }
