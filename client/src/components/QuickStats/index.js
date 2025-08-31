@@ -235,6 +235,8 @@ export default function QuickStats({ isMobile }) {
       if (recentTracksResponse.ok) {
         const recentData = await recentTracksResponse.json();
         recentTracks = recentData.tracks || [];
+      } else {
+        console.log('⚠️ QuickStats - Failed to fetch recent tracks:', recentTracksResponse.status);
       }
 
       // Run external analyses in parallel
@@ -250,6 +252,7 @@ export default function QuickStats({ isMobile }) {
 
       setData(prev => ({
         ...prev,
+        recentTracks: recentTracks,
         listeningEvolution: listeningEvolutionResult,
         timeOfDayAnalysis: timeOfDayResult,
         listenerTypeAnalysis: listenerTypeResult
@@ -259,14 +262,26 @@ export default function QuickStats({ isMobile }) {
       setLoadingState('timeOfDay', true);
       setLoadingState('listenerType', true);
 
-      // Update year analysis with recent tracks
-      if (recentTracks.length > 0 && data.yearAnalysis) {
-        const updatedYearAnalysis = updateYearAnalysisWithRecent(data.yearAnalysis, recentTracks);
-        setData(prev => ({
+      // Update year analysis with recent tracks - always include recent_50 data
+      setData(prev => {
+        let updatedYearAnalysis;
+        if (recentTracks.length > 0) {
+          updatedYearAnalysis = updateYearAnalysisWithRecent(prev.yearAnalysis, recentTracks);
+        } else {
+          // If no recent tracks, ensure we have a basic yearAnalysis structure
+          updatedYearAnalysis = prev.yearAnalysis || {};
+          if (!updatedYearAnalysis.recent_50) {
+            updatedYearAnalysis.recent_50 = { average: new Date().getFullYear(), count: 0 };
+          }
+        }
+        
+       
+        
+        return {
           ...prev,
           yearAnalysis: updatedYearAnalysis
-        }));
-      }
+        };
+      });
 
       setLoading(false);
     } catch (err) {
@@ -456,7 +471,8 @@ export default function QuickStats({ isMobile }) {
             {/* 7. Track Popularity */}
             {shouldShowCard('trackPopularity') && data.trackPopularityAnalysis && (
               <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <TrackPopularityCard popularity={data.trackPopularityAnalysis} />
+                
+                <TrackPopularityCard popularity={data.trackPopularityAnalysis} recentTracks={data.recentTracks} />
               </div>
             )}
 
@@ -536,7 +552,8 @@ export default function QuickStats({ isMobile }) {
             {/* 7. Track Popularity */}
             {shouldShowCard('trackPopularity') && data.trackPopularityAnalysis && (
               <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <TrackPopularityCard popularity={data.trackPopularityAnalysis} />
+                
+                <TrackPopularityCard popularity={data.trackPopularityAnalysis} recentTracks={data.recentTracks} />
               </div>
             )}
 

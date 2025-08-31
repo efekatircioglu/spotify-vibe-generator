@@ -185,24 +185,6 @@ export default function TopDecadesCard({ decades }) {
               alignItems: 'center',
               gap: '12px'
             }}>
-                                            <div style={{
-                width: '48px',
-                height: '48px',
-                background: currentImage?.url 
-                  ? 'rgba(255, 255, 255, 0.95)'
-                  : 'linear-gradient(135deg, #10b981, #34d399)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#000',
-                fontWeight: '700',
-                fontSize: '1rem',
-                backdropFilter: currentImage?.url ? 'blur(10px)' : 'none',
-                boxShadow: currentImage?.url ? '0 2px 8px rgba(0, 0, 0, 0.3)' : 'none'
-              }}>
-                {decade.decade}
-              </div>
               
               <div style={{ flex: 1 }}>
                 <h4 style={{

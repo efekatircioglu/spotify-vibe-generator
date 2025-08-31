@@ -5,8 +5,6 @@ import { getRecentSearches } from '../../../utils/recentSearchesCache';
 // Shared utility function for navigating to artist page with server-side search
 const navigateToArtistPage = async (router, artistName, artistId) => {
   try {
-    console.log(`[TopArtistCard] Searching for artist: ${artistName}`);
-    
     // Make server-side API call for enhanced artist search
     const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
     
@@ -14,23 +12,16 @@ const navigateToArtistPage = async (router, artistName, artistId) => {
       const data = await response.json();
       
       if (data.success) {
-        console.log(`[TopArtistCard] Server search successful for: ${artistName}`, data);
-        
         // Navigate using server-provided parameters
         router.push(data.navigationUrl);
         return;
-      } else {
-        console.log(`[TopArtistCard] Server search failed for: ${artistName}`, data.message);
       }
-    } else {
-      console.log(`[TopArtistCard] Server search failed for: ${artistName}`, response.status);
     }
   } catch (error) {
     console.error(`[TopArtistCard] Error during server search for: ${artistName}`, error);
   }
   
   // Fallback to basic navigation if server search fails
-  console.log(`[TopArtistCard] Using fallback navigation for: ${artistName}`);
   
   const params = [`name=${encodeURIComponent(artistName)}`];
   

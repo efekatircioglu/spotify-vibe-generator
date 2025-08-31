@@ -5,8 +5,6 @@ import { getRecentSearches } from '../../../utils/recentSearchesCache';
 // Shared utility function for navigating to artist page with server-side search
 const navigateToArtistPage = async (router, artistName, artistId) => {
   try {
-    console.log(`[ListeningEvolutionCard] Searching for artist: ${artistName}`);
-    
     // Make server-side API call for enhanced artist search
     const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
     
@@ -14,23 +12,16 @@ const navigateToArtistPage = async (router, artistName, artistId) => {
       const data = await response.json();
       
       if (data.success) {
-        console.log(`[ListeningEvolutionCard] Server search successful for: ${artistName}`, data);
-        
         // Navigate using server-provided parameters
         router.push(data.navigationUrl);
         return;
-      } else {
-        console.log(`[ListeningEvolutionCard] Server search failed for: ${artistName}`, data.message);
       }
-    } else {
-      console.log(`[ListeningEvolutionCard] Server search failed for: ${artistName}`, response.status);
     }
   } catch (error) {
-    console.error(`[ListeningEvolutionCard] Error during server search for: ${artistName}`, error);
+    // Fallback to basic navigation if server search fails
   }
   
   // Fallback to basic navigation if server search fails
-  console.log(`[ListeningEvolutionCard] Using fallback navigation for: ${artistName}`);
   
   const params = [`name=${encodeURIComponent(artistName)}`];
   
@@ -713,8 +704,8 @@ export default function ListeningEvolutionCard({ evolution }) {
                 return "You're discovering new songs while maintaining some of your favorite artists. A balanced approach to music exploration.";
               } else if (newArtistsCount > breakArtistsCount) {
                 return "You're exploring new artists but sticking to familiar songs. You like to discover new voices through trusted tracks.";
-              } else if (breakSongsCount > 0 || breakArtistsCount > 0) {
-                return "You're taking breaks from some of your previous favorites, possibly making room for new discoveries or returning to classics.";
+                } else if (breakSongsCount > newSongsCount || breakArtistsCount > newArtistsCount) {
+    return "You're taking breaks from some of your previous favorites, possibly making room for new discoveries or returning to classics.";
               } else {
                 return "Your listening patterns are stable, with consistent favorites across different time periods.";
               }

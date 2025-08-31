@@ -121,8 +121,7 @@ const getPopularityDescription = (score) => {
  * ✅ Testable - easy to test in isolation
  * ✅ Optimizable - can optimize its own rendering
  */
-export default function TrackPopularityCard({ popularity }) {
-  console.log('🎵 TrackPopularityCard received popularity data:', popularity);
+export default function TrackPopularityCard({ popularity, recentTracks }) {
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [selectedPopularity, setSelectedPopularity] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -165,7 +164,7 @@ export default function TrackPopularityCard({ popularity }) {
         }
       }
     } catch (error) {
-      console.error('Error navigating to artist page:', error);
+      // Error handling for navigation
     }
   };
 
@@ -191,18 +190,54 @@ export default function TrackPopularityCard({ popularity }) {
     try {
       const cached = localStorage.getItem('unified_top_tracks');
       const tracks = cached ? JSON.parse(cached) : [];
-      console.log('📊 Retrieved tracks from cache:', {
-        count: tracks.length,
-        sample: tracks[0],
-        hasRankings: tracks[0]?.rankings,
-        hasPopularity: tracks[0]?.popularity
-      });
       return tracks;
     } catch (error) {
       console.error('Error reading top tracks cache:', error);
       return [];
     }
   };
+
+  // Calculate recent tracks popularity from prop data
+  const calculateRecentTracksPopularity = () => {
+    if (!recentTracks || recentTracks.length === 0) {
+      return null;
+    }
+    
+    // Recent tracks now come with popularity data directly from the API
+    // Remove duplicates based on track ID to get accurate statistics
+    const uniqueTracks = recentTracks.reduce((acc, track) => {
+      if (!acc.find(t => t.id === track.id)) {
+        acc.push(track);
+      }
+      return acc;
+    }, []);
+    
+
+    
+    const popularities = uniqueTracks
+      .map(track => track.popularity)
+      .filter(pop => pop !== null && pop !== undefined);
+    
+    if (popularities.length === 0) {
+      return null;
+    }
+
+    const average = Math.round(popularities.reduce((sum, pop) => sum + pop, 0) / popularities.length);
+    const min = Math.min(...popularities);
+    const max = Math.max(...popularities);
+    
+    const recentPopularity = {
+      average,
+      count: popularities.length,
+      min,
+      max
+    };
+    
+    return recentPopularity;
+  };
+
+  // Calculate recent tracks popularity when prop changes
+  const recentTracksPopularity = calculateRecentTracksPopularity();
 
   // Modal visibility effect
   useEffect(() => {
@@ -233,78 +268,103 @@ export default function TrackPopularityCard({ popularity }) {
 
   // Filter songs when modal opens
   useEffect(() => {
-    if (showModal && selectedPeriod && selectedPopularity) {
-      setLoadingSongs(true);
-      
-      const topTracks = getCachedTopTracks();
-      const periodKey = selectedPeriod.replace(' ', '_');
-      const popularityRange = getPopularityRange(selectedPopularity);
-      
-      console.log('🔍 Filtering tracks:', {
-        selectedPeriod,
-        selectedPopularity,
-        periodKey,
-        popularityRange,
-        totalTracks: topTracks.length
-      });
-      
-      // Filter tracks that are in the selected time period and popularity range
-      const filtered = topTracks.filter(track => {
-        // Check if track is in the selected time period
-        const hasRanking = track.rankings && track.rankings[periodKey];
-        if (!hasRanking) return false;
+    const filterSongs = async () => {
+      if (showModal && selectedPeriod && selectedPopularity) {
+        setLoadingSongs(true);
         
-        // Check if track is in the popularity range
-        const songPopularity = track.popularity || 0;
-        const inRange = songPopularity >= popularityRange.min && songPopularity <= popularityRange.max;
+        const popularityRange = getPopularityRange(selectedPopularity);
         
-        if (inRange) {
-          console.log('✅ Found matching track:', {
-            name: track.name,
-            artists: track.artists?.map(a => a.name).join(', '),
-            popularity: songPopularity,
-            ranking: track.rankings[periodKey]
+
+        
+        // Handle "Last 50 Songs" period
+        if (selectedPeriod === 'Last 50 Songs') {
+          if (!recentTracks || recentTracks.length === 0) {
+            setFilteredSongs([]);
+            setLoadingSongs(false);
+            return;
+          }
+          
+          // Recent tracks now come with popularity data directly from the API
+          // Remove duplicates based on track ID for modal display
+          const uniqueTracks = recentTracks.reduce((acc, track) => {
+            if (!acc.find(t => t.id === track.id)) {
+              acc.push(track);
+            }
+            return acc;
+          }, []);
+          
+
+          
+          const filtered = uniqueTracks.filter(track => {
+            const songPopularity = track.popularity || 0;
+            const inRange = songPopularity >= popularityRange.min && songPopularity <= popularityRange.max;
+            
+
+            
+            return inRange;
           });
+          
+          // If no tracks found in specific range, show all unique recent tracks
+          if (filtered.length === 0) {
+            setFilteredSongs(uniqueTracks);
+          } else {
+            setFilteredSongs(filtered);
+          }
+          
+          setLoadingSongs(false);
+          return;
         }
-        
-        return inRange;
-      }).sort((a, b) => {
-        // Sort by ranking (lower number = higher rank)
-        const aRank = a.rankings?.[periodKey] || Infinity;
-        const bRank = b.rankings?.[periodKey] || Infinity;
-        return aRank - bRank;
-      });
       
-      // If no tracks found in specific range, show all tracks from that period
-      if (filtered.length === 0) {
-        console.log('⚠️ No tracks found in specific popularity range, showing all tracks from period');
-        const allTracksInPeriod = topTracks.filter(track => {
+              // Handle other time periods (4 weeks, 6 months, 12 months)
+        const topTracks = getCachedTopTracks();
+        const periodKey = selectedPeriod.replace(' ', '_');
+        
+
+        
+        // Filter tracks that are in the selected time period and popularity range
+        const filtered = topTracks.filter(track => {
+          // Check if track is in the selected time period
           const hasRanking = track.rankings && track.rankings[periodKey];
-          return hasRanking;
+          if (!hasRanking) return false;
+          
+          // Check if track is in the popularity range
+          const songPopularity = track.popularity || 0;
+          const inRange = songPopularity >= popularityRange.min && songPopularity <= popularityRange.max;
+          
+
+          
+          return inRange;
         }).sort((a, b) => {
+          // Sort by ranking (lower number = higher rank)
           const aRank = a.rankings?.[periodKey] || Infinity;
           const bRank = b.rankings?.[periodKey] || Infinity;
           return aRank - bRank;
         });
         
-        console.log('📋 All tracks in period:', {
-          count: allTracksInPeriod.length,
-          sample: allTracksInPeriod[0]
-        });
+        // If no tracks found in specific range, show all tracks from that period
+        if (filtered.length === 0) {
+          const allTracksInPeriod = topTracks.filter(track => {
+            const hasRanking = track.rankings && track.rankings[periodKey];
+            return hasRanking;
+          }).sort((a, b) => {
+            const aRank = a.rankings?.[periodKey] || Infinity;
+            const bRank = b.rankings?.[periodKey] || Infinity;
+            return aRank - bRank;
+          });
+          
+          setFilteredSongs(allTracksInPeriod);
+          setLoadingSongs(false);
+          return;
+        }
         
-        setFilteredSongs(allTracksInPeriod);
+
+        
+        setFilteredSongs(filtered);
         setLoadingSongs(false);
-        return;
       }
-      
-      console.log('📋 Filtered results:', {
-        filteredCount: filtered.length,
-        sample: filtered[0]
-      });
-      
-      setFilteredSongs(filtered);
-      setLoadingSongs(false);
-    }
+    };
+    
+    filterSongs();
   }, [showModal, selectedPeriod, selectedPopularity]);
   if (!popularity) {
     return (
@@ -321,22 +381,22 @@ export default function TrackPopularityCard({ popularity }) {
 
   return (
     <>
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: '20px',
-        padding: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-4px)';
-        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
-      }}>
+    <div style={{
+      background: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: '20px',
+      padding: '24px',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = 'translateY(-4px)';
+      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+    }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -383,9 +443,183 @@ export default function TrackPopularityCard({ popularity }) {
         flexDirection: 'column',
         gap: '16px'
       }}>
+
+        {/* Overview of Unified Top Tracks Popularity */}
+        {(() => {
+          // Get unified top tracks data from localStorage
+          const unifiedTopTracksData = localStorage.getItem('unified_top_tracks');
+          const unifiedTopTracks = unifiedTopTracksData ? JSON.parse(unifiedTopTracksData) : [];
+          
+          if (unifiedTopTracks.length === 0) return null;
+          
+          // Calculate overall popularity metrics
+          const popularities = unifiedTopTracks
+            .map(track => track.popularity)
+            .filter(pop => pop !== null && pop !== undefined);
+          
+          if (popularities.length === 0) return null;
+          
+          const averagePopularity = Math.round(popularities.reduce((sum, pop) => sum + pop, 0) / popularities.length);
+          const minPopularity = Math.min(...popularities);
+          const maxPopularity = Math.max(...popularities);
+          const popularityRange = maxPopularity - minPopularity;
+          
+          // Get popularity distribution
+          const popularityRanges = {
+            'Global Hit (90-100)': popularities.filter(p => p >= 90).length,
+            'International Hit (80-89)': popularities.filter(p => p >= 80 && p < 90).length,
+            'Mainstream Hit (70-79)': popularities.filter(p => p >= 70 && p < 80).length,
+            'Rising Hit (60-69)': popularities.filter(p => p >= 60 && p < 70).length,
+            'Growing Song (50-59)': popularities.filter(p => p >= 50 && p < 60).length,
+            'Emerging Song (40-49)': popularities.filter(p => p >= 40 && p < 50).length,
+            'Underground Track (30-39)': popularities.filter(p => p >= 30 && p < 40).length,
+            'Indie Track (20-29)': popularities.filter(p => p >= 20 && p < 30).length,
+            'Hidden Gem (10-19)': popularities.filter(p => p >= 10 && p < 20).length,
+            'Undiscovered Track (0-9)': popularities.filter(p => p < 10).length
+          };
+          
+          const mostCommonRange = Object.entries(popularityRanges)
+            .sort(([,a], [,b]) => b - a)[0];
+          
+          const averagePopularityInfo = getPopularityDescription(averagePopularity);
+          
+          return (
+            <div style={{
+              padding: '16px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              marginBottom: '8px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '8px'
+              }}>
+                <h5 style={{
+                  color: '#fff',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  margin: '0'
+                }}>
+                  Overall Track Popularity Analysis
+                </h5>
+                <span style={{
+                  background: averagePopularityInfo.color,
+                  color: '#fff',
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                  </svg>
+                  {averagePopularityInfo.label}
+                </span>
+              </div>
+              <p style={{
+                color: '#b3b3b3',
+                fontSize: '0.9rem',
+                margin: '0',
+                lineHeight: '1.4'
+              }}>
+                {(() => {
+                  const totalTracks = unifiedTopTracks.length;
+                  const tracksWithPopularity = popularities.length;
+                  
+                  const minPopularityInfo = getPopularityDescription(minPopularity);
+                  const maxPopularityInfo = getPopularityDescription(maxPopularity);
+                  
+                  if (averagePopularity >= 80) {
+                    return `Your music collection features highly popular tracks with an average popularity of ${averagePopularityInfo.label.toLowerCase()}. You prefer ${averagePopularityInfo.label.toLowerCase()} music, showing a taste for mainstream and internationally recognized artists. Your collection spans from ${minPopularityInfo.label.toLowerCase()} to ${maxPopularityInfo.label.toLowerCase()}, indicating a ${popularityRange <= 30 ? 'focused' : popularityRange <= 60 ? 'diverse' : 'eclectic'} range of track popularity.`;
+                  } else if (averagePopularity >= 60) {
+                    return `Your music collection has a solid mainstream presence with an average popularity of ${averagePopularityInfo.label.toLowerCase()}. You enjoy ${averagePopularityInfo.label.toLowerCase()} music, balancing popular hits with emerging artists. Your collection ranges from ${minPopularityInfo.label.toLowerCase()} to ${maxPopularityInfo.label.toLowerCase()}, showing a ${popularityRange <= 30 ? 'consistent' : popularityRange <= 60 ? 'varied' : 'wide'} mix of track popularity levels.`;
+                  } else if (averagePopularity >= 40) {
+                    return `Your music collection leans toward emerging and growing artists with an average popularity of ${averagePopularityInfo.label.toLowerCase()}. You appreciate ${averagePopularityInfo.label.toLowerCase()} music, often discovering artists before they become mainstream. Your collection spans from ${minPopularityInfo.label.toLowerCase()} to ${maxPopularityInfo.label.toLowerCase()}, reflecting a ${popularityRange <= 30 ? 'focused' : popularityRange <= 60 ? 'diverse' : 'eclectic'} approach to music discovery.`;
+                  } else {
+                    return `Your music collection features underground and indie artists with an average popularity of ${averagePopularityInfo.label.toLowerCase()}. You're drawn to ${averagePopularityInfo.label.toLowerCase()} music, showing a preference for undiscovered talent and niche artists. Your collection ranges from ${minPopularityInfo.label.toLowerCase()} to ${maxPopularityInfo.label.toLowerCase()}, indicating a ${popularityRange <= 30 ? 'specialized' : popularityRange <= 60 ? 'diverse' : 'eclectic'} taste in less mainstream music.`;
+                  }
+                })()}
+              </p>
+            </div>
+          );
+        })()}
+
+        {/* Recent Tracks (Last 50 Songs) */}
+        {recentTracksPopularity && (
+          <div style={{
+            padding: '16px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+          onClick={() => {
+            setSelectedPeriod('Last 50 Songs');
+            setSelectedPopularity(getPopularityDescription(recentTracksPopularity.average).label);
+            setShowModal(true);
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '12px'
+            }}>
+              <div>
+                <h4 style={{
+                  color: '#fff',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  margin: '0',
+                  textTransform: 'capitalize'
+                }}>
+                  Last 50 Songs
+                </h4>
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{ color: getPopularityDescription(recentTracksPopularity.average).color }}>
+                  {getPopularityDescription(recentTracksPopularity.average).icon}
+                </div>
+                <h5 style={{
+                  color: getPopularityDescription(recentTracksPopularity.average).color,
+                  fontSize: '1.3rem',
+                  fontWeight: '700',
+                  margin: '0'
+                }}>
+                  {getPopularityDescription(recentTracksPopularity.average).label}
+                </h5>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Time Period Comparisons */}
         {Object.entries(popularity).map(([period, data]) => {
-          console.log(`📊 Period ${period}:`, data);
           if (data.count === 0 || period === 'all_tracks') return null;
           
           const averageDescription = getPopularityDescription(data.average);
@@ -410,11 +644,6 @@ export default function TrackPopularityCard({ popularity }) {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
             onClick={() => {
-              console.log('🖱️ Card clicked:', {
-                period: period.replace('_', ' '),
-                popularityLabel: averageDescription.label,
-                periodData: data
-              });
               setSelectedPeriod(period.replace('_', ' '));
               setSelectedPopularity(averageDescription.label);
               setShowModal(true);
@@ -531,7 +760,7 @@ export default function TrackPopularityCard({ popularity }) {
                     No songs found for this popularity range.
                   </div>
                 ) : (
-                  <div style={{
+          <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
                     gap: '16px'
@@ -544,7 +773,7 @@ export default function TrackPopularityCard({ popularity }) {
                           key={track.id || index}
                           style={{
                             padding: '12px',
-                            borderRadius: '12px',
+            borderRadius: '12px',
                             border: track.album && track.album.images && track.album.images[0] ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)',
                             position: 'relative',
                             overflow: 'hidden',
@@ -590,9 +819,9 @@ export default function TrackPopularityCard({ popularity }) {
                             
                             <div style={{ flex: 1 }}>
                               <h4 style={{
-                                color: '#fff',
-                                fontSize: '1rem',
-                                fontWeight: '600',
+              color: '#fff',
+              fontSize: '1rem',
+              fontWeight: '600',
                                 margin: '0 0 4px 0',
                                 textShadow: track.album && track.album.images && track.album.images[0] ? '0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.9)' : 'none',
                                 whiteSpace: 'nowrap',
@@ -602,10 +831,10 @@ export default function TrackPopularityCard({ popularity }) {
                                 {track.name}
                               </h4>
                               {track.album?.name && (
-                                <p style={{
-                                  color: '#b3b3b3',
-                                  fontSize: '0.9rem',
-                                  margin: '0',
+            <p style={{
+              color: '#b3b3b3',
+              fontSize: '0.9rem',
+              margin: '0',
                                   textShadow: track.album && track.album.images && track.album.images[0] ? '0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9)' : 'none',
                                   whiteSpace: 'nowrap',
                                   overflow: 'hidden',
@@ -640,9 +869,9 @@ export default function TrackPopularityCard({ popularity }) {
                                   }}
                                 >
                                   {track.artists.map(artist => artist.name).join(', ')}
-                                </p>
-                              </div>
-                            )}
+            </p>
+          </div>
+        )}
                           </div>
                           
 
@@ -699,8 +928,8 @@ export default function TrackPopularityCard({ popularity }) {
                 )}
               </div>
             </div>
-          </div>
-        </div>
+      </div>
+    </div>
 
         {/* Modal Styles */}
         <style jsx global>{`

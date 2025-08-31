@@ -20,8 +20,6 @@ export default function TimeOfDayCard({ timeAnalysis }) {
   // Navigation utility function
   const navigateToArtistPage = async (artistName, artistId) => {
     try {
-      console.log(`[TimeOfDayCard] Searching for artist: ${artistName}`);
-      
       // Make server-side API call for enhanced artist search
       const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
       
@@ -29,23 +27,16 @@ export default function TimeOfDayCard({ timeAnalysis }) {
         const data = await response.json();
         
         if (data.success) {
-          console.log(`[TimeOfDayCard] Server search successful for: ${artistName}`, data);
-          
           // Navigate using server-provided parameters
           router.push(data.navigationUrl);
           return;
-        } else {
-          console.log(`[TimeOfDayCard] Server search failed for: ${artistName}`, data.message);
         }
-      } else {
-        console.log(`[TimeOfDayCard] Server search failed for: ${artistName}`, response.status);
       }
     } catch (error) {
       console.error(`[TimeOfDayCard] Error during server search for: ${artistName}`, error);
     }
     
     // Fallback to basic navigation if server search fails
-    console.log(`[TimeOfDayCard] Using fallback navigation for: ${artistName}`);
     
     const params = [`name=${encodeURIComponent(artistName)}`];
     
@@ -194,8 +185,6 @@ export default function TimeOfDayCard({ timeAnalysis }) {
           gap: '12px'
         }}>
           {Object.entries(timeAnalysis.timeSlots).map(([slotName, slot]) => {
-            if (slot.count === 0) return null;
-            
             const isMostActive = slotName === timeAnalysis.mostActiveSlot;
             const percentage = Math.round((slot.count / timeAnalysis.analyzedSongs) * 100);
             

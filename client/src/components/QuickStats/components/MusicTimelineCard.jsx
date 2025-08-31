@@ -13,6 +13,7 @@ import React from 'react';
  * ✅ Optimizable - can optimize its own rendering
  */
 export default function MusicTimelineCard({ yearAnalysis }) {
+  
   if (!yearAnalysis) {
     return (
       <div style={{
@@ -92,9 +93,148 @@ export default function MusicTimelineCard({ yearAnalysis }) {
         flexDirection: 'column',
         gap: '16px'
       }}>
+
+        {/* Overview of Unified Top Tracks */}
+        {(() => {
+          // Get unified top tracks data from localStorage
+          const unifiedTopTracksData = localStorage.getItem('unified_top_tracks');
+          const unifiedTopTracks = unifiedTopTracksData ? JSON.parse(unifiedTopTracksData) : [];
+          
+          if (unifiedTopTracks.length === 0) return null;
+          
+          // Calculate overview metrics
+          const currentYear = new Date().getFullYear();
+          const years = unifiedTopTracks
+            .map(track => {
+              const releaseDate = track.release_date || track.album?.release_date;
+              return releaseDate ? new Date(releaseDate).getFullYear() : null;
+            })
+            .filter(year => year !== null);
+          
+          if (years.length === 0) return null;
+          
+          const averageYear = Math.round(years.reduce((sum, year) => sum + year, 0) / years.length);
+          const yearsDiff = currentYear - averageYear;
+          const oldestYear = Math.min(...years);
+          const newestYear = Math.max(...years);
+          const yearSpan = newestYear - oldestYear;
+          
+          // Get decade distribution
+          const decadeCounts = {};
+          years.forEach(year => {
+            const decade = Math.floor(year / 10) * 10;
+            decadeCounts[decade] = (decadeCounts[decade] || 0) + 1;
+          });
+          
+          const mostCommonDecade = Object.entries(decadeCounts)
+            .sort(([,a], [,b]) => b - a)[0];
+          
+          // Get decade label for average year
+          const getDecadeLabel = (year) => {
+            if (year >= 2020) return { label: 'New Releases', color: '#3b82f6' };
+            if (year >= 2010) return { label: 'Digital Age', color: '#8b5cf6' };
+            if (year >= 2000) return { label: '2000s Nostalgia', color: '#f59e0b' };
+            if (year >= 1990) return { label: '90s Golden Age', color: '#fbbf24' };
+            if (year >= 1980) return { label: '80s Pop', color: '#ef4444' };
+            if (year >= 1970) return { label: '70s Rock', color: '#dc2626' };
+            if (year >= 1960) return { label: '60s Revolution', color: '#7c3aed' };
+            if (year >= 1950) return { label: '50s Classics', color: '#059669' };
+            return { label: 'Vintage', color: '#6b7280' };
+          };
+          
+          const averageDecadeInfo = getDecadeLabel(averageYear);
+          
+          return (
+            <div style={{
+              padding: '16px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              marginBottom: '8px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '8px'
+              }}>
+                <h5 style={{
+                  color: '#fff',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  margin: '0'
+                }}>
+                  Overall Music Timeline Analysis
+                </h5>
+                <span style={{
+                  background: averageDecadeInfo.color,
+                  color: '#fff',
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  {averageDecadeInfo.label}
+                </span>
+              </div>
+              <p style={{
+                color: '#b3b3b3',
+                fontSize: '0.9rem',
+                margin: '0',
+                lineHeight: '1.4'
+              }}>
+                {(() => {
+                  const totalTracks = unifiedTopTracks.length;
+                  const tracksWithYears = years.length;
+                  
+                  if (yearSpan <= 5) {
+                    return `Your music collection spans a focused ${yearSpan}-year period (${oldestYear}-${newestYear}), with an average release year of ${averageYear} (${yearsDiff} years ago). You prefer ${averageDecadeInfo.label.toLowerCase()} music, showing a consistent taste for ${averageDecadeInfo.label.toLowerCase()} era.`;
+                  } else if (yearSpan <= 15) {
+                    return `Your music collection covers a moderate ${yearSpan}-year range (${oldestYear}-${newestYear}), averaging ${averageYear} (${yearsDiff} years ago). You enjoy ${averageDecadeInfo.label.toLowerCase()} music while exploring a good variety of eras.`;
+                  } else if (yearSpan <= 30) {
+                    return `Your music collection spans a wide ${yearSpan}-year range (${oldestYear}-${newestYear}), with an average of ${averageYear} (${yearsDiff} years ago). You're a musical explorer who appreciates ${averageDecadeInfo.label.toLowerCase()} music alongside diverse historical periods.`;
+                  } else {
+                    return `Your music collection covers an extensive ${yearSpan}-year range (${oldestYear}-${newestYear}), averaging ${averageYear} (${yearsDiff} years ago). You're a true music historian who embraces ${averageDecadeInfo.label.toLowerCase()} music and spans multiple musical eras.`;
+                  }
+                })()}
+              </p>
+            </div>
+          );
+        })()}
+        
         {/* Time Period Comparisons */}
-        {Object.entries(yearAnalysis).map(([period, data]) => {
-          if (data.count === 0) return null;
+        {(() => {
+          // Sort periods: recent_50 first, then 4_weeks, 6_months, 12_months
+          const sortedEntries = Object.entries(yearAnalysis).sort(([a], [b]) => {
+            const order = ['recent_50', '4_weeks', '6_months', '12_months'];
+            const aIndex = order.indexOf(a);
+            const bIndex = order.indexOf(b);
+            
+            // If both are in the order array, sort by their position
+            if (aIndex !== -1 && bIndex !== -1) {
+              return aIndex - bIndex;
+            }
+            
+            // If only one is in the order array, prioritize it
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            
+            // If neither is in the order array, sort alphabetically
+            return a.localeCompare(b);
+          });
+          
+          return sortedEntries.map(([period, data]) => {
+            // Always show recent_50 data, even if count is 0
+            if (data.count === 0 && period !== 'recent_50') return null;
           
           const currentYear = new Date().getFullYear();
           const yearsDiff = currentYear - data.average;
@@ -289,7 +429,8 @@ export default function MusicTimelineCard({ yearAnalysis }) {
               </div>
             </div>
           );
-        })}
+        });
+        })()}
         
 
       </div>

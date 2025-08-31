@@ -493,7 +493,9 @@ app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
         played_at: item.played_at,
         // Add detailed track information
         artists: detailedTrack?.artists || item.track.artists,
-        album: detailedTrack?.album || item.track.album
+        album: detailedTrack?.album || item.track.album,
+        // Add popularity from detailed track information
+        popularity: detailedTrack?.popularity || null
       };
     });
     

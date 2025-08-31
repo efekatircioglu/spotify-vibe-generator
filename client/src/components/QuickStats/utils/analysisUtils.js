@@ -381,6 +381,34 @@ export const analyzeListenerType = async (recentTracks) => {
     const uniqueArtists = recentArtists.length;
     const totalSongs = recentTracks.length;
     
+    // Get unified top tracks data from localStorage for additional check
+    const unifiedTopTracksData = localStorage.getItem('unified_top_tracks');
+    const unifiedTopTracks = unifiedTopTracksData ? JSON.parse(unifiedTopTracksData) : [];
+    
+    // Create a map of artists from unified top tracks for easy lookup
+    const unifiedTracksArtistsMap = new Map();
+    unifiedTopTracks.forEach(track => {
+      if (track.artists && track.artists.length > 0) {
+        track.artists.forEach(artist => {
+          if (!unifiedTracksArtistsMap.has(artist.id)) {
+            unifiedTracksArtistsMap.set(artist.id, {
+              id: artist.id,
+              name: artist.name,
+              has6Months: track.rankings && track.rankings['6_months'] !== null && track.rankings['6_months'] !== undefined,
+              has12Months: track.rankings && track.rankings['12_months'] !== null && track.rankings['12_months'] !== undefined
+            });
+          } else {
+            // Update existing entry if this track has rankings
+            const existing = unifiedTracksArtistsMap.get(artist.id);
+            if (track.rankings) {
+              existing.has6Months = existing.has6Months || (track.rankings['6_months'] !== null && track.rankings['6_months'] !== undefined);
+              existing.has12Months = existing.has12Months || (track.rankings['12_months'] !== null && track.rankings['12_months'] !== undefined);
+            }
+          }
+        });
+      }
+    });
+    
     // Check each unique main artist from recent 50 songs
     let knownArtistCount = 0;
     let newArtistCount = 0;
@@ -389,33 +417,42 @@ export const analyzeListenerType = async (recentTracks) => {
     
     recentArtists.forEach(artist => {
       const topArtistEntry = allTopArtistsMap.get(artist.id);
+      const unifiedTrackEntry = unifiedTracksArtistsMap.get(artist.id);
+      
+      // Check if this artist appears in 6-12 months rankings (either in top artists OR unified tracks)
+      let has6Months = false;
+      let has12Months = false;
+      let ranking6Months = null;
+      let ranking12Months = null;
       
       if (topArtistEntry && topArtistEntry.rankings) {
-        // Check if this artist appears in 6-12 months rankings
-        const has6Months = topArtistEntry.rankings['6_months'] !== null && topArtistEntry.rankings['6_months'] !== undefined;
-        const has12Months = topArtistEntry.rankings['12_months'] !== null && topArtistEntry.rankings['12_months'] !== undefined;
-        
-        if (has6Months || has12Months) {
-          // This is a known artist (appears in 6-12 months)
-          knownArtistCount++;
-          knownArtists.push({
-            id: artist.id,
-            name: artist.name,
-            has6Months,
-            has12Months,
-            ranking6Months: topArtistEntry.rankings['6_months'],
-            ranking12Months: topArtistEntry.rankings['12_months']
-          });
-        } else {
-          // This is a new artist (not in 6-12 months)
-          newArtistCount++;
-          newArtists.push({
-            id: artist.id,
-            name: artist.name
-          });
-        }
+        has6Months = topArtistEntry.rankings['6_months'] !== null && topArtistEntry.rankings['6_months'] !== undefined;
+        has12Months = topArtistEntry.rankings['12_months'] !== null && topArtistEntry.rankings['12_months'] !== undefined;
+        ranking6Months = topArtistEntry.rankings['6_months'];
+        ranking12Months = topArtistEntry.rankings['12_months'];
+      }
+      
+      // Also check unified tracks data
+      if (unifiedTrackEntry) {
+        has6Months = has6Months || unifiedTrackEntry.has6Months;
+        has12Months = has12Months || unifiedTrackEntry.has12Months;
+      }
+      
+      if (has6Months || has12Months) {
+        // This is a known artist (appears in 6-12 months in either top artists OR unified tracks)
+        knownArtistCount++;
+        knownArtists.push({
+          id: artist.id,
+          name: artist.name,
+          has6Months,
+          has12Months,
+          ranking6Months,
+          ranking12Months,
+          foundInTopArtists: !!topArtistEntry,
+          foundInUnifiedTracks: !!unifiedTrackEntry
+        });
       } else {
-        // Artist not found in top artists data, consider as new
+        // This is a new artist (not in 6-12 months in either dataset)
         newArtistCount++;
         newArtists.push({
           id: artist.id,
@@ -427,13 +464,7 @@ export const analyzeListenerType = async (recentTracks) => {
     // Calculate artist diversity as percentage of new vs known artists
     const artistDiversity = (newArtistCount / uniqueArtists) * 100; // Percentage of new artists
     
-    // Debug logging
-    console.log('🔍 Listener Type Analysis Debug:');
-    console.log('Total unique main artists in last 50 songs:', uniqueArtists);
-    console.log('Known artists (in 6-12 months):', knownArtistCount);
-    console.log('New artists (not in 6-12 months):', newArtistCount);
-    console.log('Known artists list:', knownArtists.map(a => a.name));
-    console.log('New artists list:', newArtists.map(a => a.name));
+  
 
     // Find top artist in recent tracks
     const sortedArtists = Object.values(artistCounts).sort((a, b) => b.count - a.count);

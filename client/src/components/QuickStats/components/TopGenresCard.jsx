@@ -5,8 +5,6 @@ import { getRecentSearches } from '../../../utils/recentSearchesCache';
 // Shared utility function for navigating to artist page with server-side search
 const navigateToArtistPage = async (router, artistName, genreDetails) => {
   try {
-    console.log(`[View Full Profile] Searching for artist: ${artistName}`);
-    
     // Make server-side API call for enhanced artist search
     const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
     
@@ -14,23 +12,16 @@ const navigateToArtistPage = async (router, artistName, genreDetails) => {
       const data = await response.json();
       
       if (data.success) {
-        console.log(`[View Full Profile] Server search successful for: ${artistName}`, data);
-        
         // Navigate using server-provided parameters
         router.push(data.navigationUrl);
         return;
-      } else {
-        console.log(`[View Full Profile] Server search failed for: ${artistName}`, data.message);
       }
-    } else {
-      console.log(`[View Full Profile] Server search failed for: ${artistName}`, response.status);
     }
   } catch (error) {
-    console.error(`[View Full Profile] Error during server search for: ${artistName}`, error);
+    // Fallback to basic navigation if server search fails
   }
   
   // Fallback to basic navigation if server search fails
-  console.log(`[View Full Profile] Using fallback navigation for: ${artistName}`);
   
   const params = [`name=${encodeURIComponent(artistName)}`];
   
@@ -220,21 +211,15 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                     onClick={async () => {
                       // Make server-side API call for artist search (just like View Full Artist Profile)
                       try {
-                        console.log(`[Genre Modal] Searching for artist: ${artistName}`);
-                        
                         const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
                         
                         if (response.ok) {
                           const data = await response.json();
                           
                           if (data.success) {
-                            console.log(`[Genre Modal] Server search successful for: ${artistName}`, data);
-                            
                             // Navigate using server-provided parameters
                             router.push(data.navigationUrl);
                           } else {
-                            console.log(`[Genre Modal] Server search failed for: ${artistName}`, data.message);
-                            
                             // Fallback to basic navigation
                             const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
                             
@@ -256,8 +241,6 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
                             router.push(`/artist?${fallbackParams.join('&')}`);
                           }
                         } else {
-                          console.log(`[Genre Modal] Server search failed for: ${artistName}`, response.status);
-                          
                           // Fallback to basic navigation
                           const fallbackParams = [`name=${encodeURIComponent(artistName)}`];
                           
@@ -370,23 +353,7 @@ function GenreArtistsModal({ isOpen, onClose, genre, artistCount, artists, genre
           justifyContent: 'flex-end',
           gap: '12px'
         }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '8px',
-              color: '#e5e5e5',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
-          >
-            Close
-          </button>
+          
         </div>
       </div>
     </div>
@@ -489,7 +456,7 @@ export default function TopGenresCard({ genres, genreDetails }) {
             fontSize: '0.9rem',
             margin: '0'
           }}>
-            From your top artists
+            Most listened genres
           </p>
         </div>
       </div>
@@ -550,14 +517,16 @@ export default function TopGenresCard({ genres, genreDetails }) {
               }}>
                 {index + 1}
               </span>
-              <span style={{
+              <h4 style={{
                 color: '#fff',
                 fontSize: '1rem',
-                fontWeight: '500',
-                textTransform: 'capitalize'
+                fontWeight: '600',
+                margin: '0',
+                textTransform: 'capitalize',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
               }}>
                 {genre.name}
-              </span>
+              </h4>
             </div>
             
               <div style={{

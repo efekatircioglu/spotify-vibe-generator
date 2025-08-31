@@ -21,8 +21,6 @@ export default function TopAlbumsCard({ albums }) {
   // Shared utility function for navigating to artist page with server-side search
   const navigateToArtistPage = async (artistName) => {
     try {
-      console.log(`[TopAlbumsCard] Searching for artist: ${artistName}`);
-      
       // Make server-side API call for enhanced artist search
       const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?artistName=${encodeURIComponent(artistName)}`);
       
@@ -30,23 +28,16 @@ export default function TopAlbumsCard({ albums }) {
         const data = await response.json();
         
         if (data.success) {
-          console.log(`[TopAlbumsCard] Server search successful for: ${artistName}`, data);
-          
           // Navigate using server-provided parameters
           router.push(data.navigationUrl);
           return;
-        } else {
-          console.log(`[TopAlbumsCard] Server search failed for: ${artistName}`, data.message);
         }
-      } else {
-        console.log(`[TopAlbumsCard] Server search failed for: ${artistName}`, response.status);
       }
     } catch (error) {
       console.error(`[TopAlbumsCard] Error during server search for: ${artistName}`, error);
     }
     
     // Fallback to basic navigation if server search fails
-    console.log(`[TopAlbumsCard] Using fallback navigation for: ${artistName}`);
     
     const params = [`name=${encodeURIComponent(artistName)}`];
     
