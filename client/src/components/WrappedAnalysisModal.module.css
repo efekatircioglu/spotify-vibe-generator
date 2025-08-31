@@ -143,7 +143,7 @@
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 1rem;
-    background: linear-gradient(to right, #38bdf8, #818cf8);
+    background: linear-gradient(to right, #1cb955, #16a34a);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -156,7 +156,7 @@
 }
 
 .progressBar {
-    background: linear-gradient(to right, #38bdf8, #818cf8);
+    background: linear-gradient(to right, #1cb955, #16a34a);
     height: 100%;
     border-radius: 9999px;
     transition: width 0.5s ease-in-out;

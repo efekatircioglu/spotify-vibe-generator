@@ -211,8 +211,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         try {
           // Send ALL uncached track IDs in a single request (backend will handle batching)
           const mbidRes = await fetch('http://127.0.0.1:8000/batch-isrc-mbid', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ trackIds: uncachedTrackIds }),
             signal: signal
           });
@@ -249,7 +249,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
             console.error(`[Wrapped Analysis] MBID lookup failed:`, mbidRes.status);
           }
           
-        } catch (error) {
+    } catch (error) {
           if (error.name === 'AbortError') {
             console.log('MBID lookup request was aborted');
             return;
@@ -306,8 +306,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         try {
           // Send ALL tracks needing analysis in a single request
           const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tracks: tracksNeedingAnalysis.map(t => t.track) }),
             signal: signal
           });
@@ -386,7 +386,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
               setProgress({ done, total });
             }
           }
-        } catch (error) {
+    } catch (error) {
           // Check if this is an abort error
           if (error.name === 'AbortError') {
             console.log('Analysis request was aborted');
@@ -427,8 +427,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         try {
           // Send ALL failed tracks in a single batch retry request
           const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tracks: failedTracks.map(f => f.track) }),
             signal: signal
           });
@@ -497,7 +497,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
               }
             }
           }
-        } catch (error) {
+    } catch (error) {
           // Check if this is an abort error
           if (error.name === 'AbortError') {
             console.log('Retry analysis request was aborted');
@@ -658,95 +658,103 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
   return (
     <div className={styles.modalOverlay} onClick={handleClose}>
       <div onClick={e => e.stopPropagation()} className={styles.modalContent} style={{
-        width: isMobile ? '95vw' : 'auto',
-        maxWidth: isMobile ? '95vw' : 'none',
-        minWidth: isMobile ? 'auto' : 'auto',
+        width: isMobile ? '95vw' : '75vw',
+        maxWidth: isMobile ? '95vw' : '75vw',
+        minWidth: isMobile ? 'auto' : '75vw',
+        height: isMobile ? 'auto' : 'auto',
+        maxHeight: isMobile ? '95vh' : '95vh',
+        margin: isMobile ? '20px auto' : '20px auto',
+        borderRadius: isMobile ? '12px' : '0',
       }}>
-        <div className={styles.modalHeader}>
+        <div className={styles.modalHeader} style={{ backgroundColor: '#1a1b1e' }}>
           <h2 className={styles.modalTitle}>Your Songs Wrapped</h2>
           <button onClick={handleClose} className={styles.closeButton}>&times;</button>
         </div>
 
         <div className={styles.modalBody} style={{ 
           overflowY: 'auto',
-          maxHeight: isMobile ? '70vh' : 'none',
+          maxHeight: isMobile ? '70vh' : 'calc(100vh - 80px)',
+          height: isMobile ? '70vh' : 'calc(100vh - 80px)',
           padding: isMobile ? '20px' : '32px',
           paddingBottom: isMobile ? '20px' : '48px',
-          height: isMobile ? '70vh' : 'auto',
           boxSizing: 'border-box',
+          backgroundColor: '#1a1b1e',
         }}>
           {!showResults && (
             <>
               {/* Current Step Display */}
               {loading && (
-                <div style={{ 
-                  background: 'rgba(56, 189, 248, 0.1)', 
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderRadius: 8,
-                  padding: 16,
-                  marginBottom: 20,
-                  textAlign: 'center'
-                }}>
-                  <div style={{ 
-                    fontWeight: 700, 
-                    color: '#38bdf8', 
-                    fontSize: isMobile ? 16 : 18,
-                    marginBottom: 8
-                  }}>
-                    {currentStep}
-                  </div>
-                  <div style={{ 
-                    color: '#94a3b8', 
-                    fontSize: isMobile ? 14 : 16,
-                    lineHeight: 1.4
-                  }}>
-                    {stepDetails}
-                  </div>
-                </div>
-              )}
+  <div style={{ 
+                  background: 'rgba(28, 185, 85, 0.1)', 
+                  border: '1px solid rgba(28, 185, 85, 0.3)',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    textAlign: 'center'
+  }}>
+    <div style={{ 
+      fontWeight: 700, 
+                    color: '#1cb955', 
+      fontSize: isMobile ? 16 : 18,
+      marginBottom: 8
+    }}>
+      {currentStep}
+    </div>
+    <div style={{ 
+                    color: '#16a34a', 
+      fontSize: isMobile ? 14 : 16,
+      lineHeight: 1.4
+    }}>
+      {stepDetails}
+    </div>
+      </div>
+    )}
 
               {!loading && numDone > 0 && (
-                <button
-                  style={{ 
-                    marginBottom: 24, 
-                    background: '#38bdf8', 
-                    color: '#fff', 
-                    fontWeight: 700, 
-                    fontSize: isMobile ? 16 : 18, 
-                    border: 'none', 
-                    borderRadius: 8, 
-                    padding: isMobile ? '10px 24px' : '12px 32px', 
-                    cursor: 'pointer', 
-                    boxShadow: '0 4px 24px #000a', 
-                    transition: 'background 0.18s',
-                    width: isMobile ? '100%' : 'auto'
-                  }}
-                  onClick={() => setShowResults(true)}
-                >
-                  View Wrapped Results
-                </button>
+  <button
+    style={{ 
+      marginBottom: 24, 
+                      background: '#1cb955', 
+      color: '#fff', 
+      fontWeight: 700, 
+      fontSize: isMobile ? 16 : 18, 
+      border: 'none', 
+      borderRadius: 8, 
+      padding: isMobile ? '10px 24px' : '12px 32px', 
+      cursor: 'pointer', 
+      boxShadow: '0 4px 24px #000a', 
+      transition: 'background 0.18s',
+      width: isMobile ? '100%' : 'auto'
+    }}
+                    onClick={() => setShowResults(true)}
+  >
+    View Wrapped Results
+  </button>
               )}
               
               {/* No separate close button needed - the main button handles all cases */}
               
               {loading ? (
-                <div className={styles.progressText} style={{ fontSize: isMobile ? 14 : 16 }}>
+                <div className={styles.progressText} style={{ fontSize: isMobile ? 14 : 16, color: '#1cb955' }}>
                   Processing tracks... {progress.done} / {progress.total}
                 </div>
               ) : (
-                <div className={styles.progressText} style={{ fontSize: isMobile ? 14 : 16 }}>
+                <div className={styles.progressText} style={{ fontSize: isMobile ? 14 : 16, color: '#1cb955' }}>
                   {numDone === 0 ? 'No songs analyzed successfully.' : `${numDone} songs have been analyzed successfully`}
                 </div>
               )}
-              <div className={styles.progressBarContainer}>
-                <div className={styles.progressBar} style={{ width: loading ? `${progress.total ? (progress.done / progress.total) * 100 : 0}%` : '100%' }} />
-              </div>
+                              <div className={styles.progressBarContainer}>
+                  <div className={styles.progressBar} style={{ 
+                    width: loading ? `${progress.total ? (progress.done / progress.total) * 100 : 0}%` : '100%',
+                    background: 'linear-gradient(90deg, #1cb955 0%, #16a34a 100%)'
+                  }} />
+                </div>
               
               {/* Status display - mobile vs desktop layout */}
               {isMobile ? (
                 // Mobile layout - card-based design similar to NewTrackTable
                 <div style={{ marginTop: 24 }}>
-                  <div style={{ 
+    <div style={{
                     fontWeight: 900, 
                     color: '#fff', 
                     marginBottom: 16, 
@@ -833,6 +841,213 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                       return (
                         <div key={i} style={{
                           background: i % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
+      borderRadius: 14,
+      padding: 14,
+      display: 'grid',
+      gridTemplateColumns: 'auto 1fr auto',
+      alignItems: 'center',
+      gap: 12,
+      boxShadow: '0 2px 8px #0002',
+      position: 'relative',
+    }}>
+                          {/* 1st Column: Cover Art */}
+      <div>
+        {img ? (
+                              <img src={img} alt={album} style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', background: '#232323' }} />
+        ) : (
+          <div style={{
+                                width: 48, height: 48, borderRadius: '50%', 
+                                background: ['#e57373','#64b5f6','#81c784','#ffd54f','#ba68c8','#4db6ac','#ffb74d','#a1887f'][i % 8],
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                fontWeight: 900, fontSize: 22, color: '#fff', textTransform: 'uppercase', 
+            boxShadow: '0 2px 8px #0004',
+                              }}>{s.name ? s.name[0] : '?'}</div>
+        )}
+      </div>
+      
+                          {/* 2nd Column: Song Info */}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ 
+                              fontWeight: 700, color: '#fff', fontSize: 14, 
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
+                            }}>
+                              {s.name}
+        </div>
+        <div style={{ 
+                              color: '#d1d5db', fontSize: 13, 
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
+                            }}>
+                              {s.artist}
+        </div>
+        <div style={{
+          color: '#b3b3b3',
+          fontSize: 12,
+          maxWidth: 120,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {album}
+        </div>
+        <div style={{ color: '#b3b3b3', fontSize: 11 }}>
+          {year} • {duration}
+        </div>
+      </div>
+      
+                          {/* 3rd Column: Status and Track Number */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 4
+      }}>
+        <div 
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 700,
+            textAlign: 'center',
+            minWidth: 70,
+            ...statusStyle
+          }}
+                              onClick={isClickable ? () => toggleStatusExpansion(i) : undefined}
+        >
+          {statusText}
+        </div>
+        <div style={{
+          fontSize: 10,
+          color: '#b3b3b3',
+          fontWeight: 600
+        }}>
+                              #{i + 1}
+        </div>
+        
+                            {/* Expanded details when status is clicked */}
+                            {isClickable && expandedStatuses.has(i) && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            background: 'rgba(0, 0, 0, 0.95)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: 8,
+            padding: 12,
+            marginTop: 8,
+            minWidth: 200,
+            zIndex: 10,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.8)'
+          }}>
+            <div style={{
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 600,
+              marginBottom: 8
+            }}>
+                                  {s.status}
+            </div>
+            <div style={{
+              color: '#9ca3af',
+              fontSize: 11,
+              lineHeight: 1.4
+            }}>
+                                  {s.details}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                // Desktop layout - card-based design (same as mobile)
+                <div style={{ marginTop: 24 }}>
+                  <div style={{ 
+                    fontWeight: 900, 
+                    color: '#fff', 
+                    marginBottom: 16, 
+                    fontSize: '1.1rem', 
+                    letterSpacing: 0.5,
+                    textAlign: 'center'
+                  }}>
+                    Analysis Status ({statuses.length} unique tracks)
+                    {tracks.length > statuses.length && (
+                      <div style={{ fontSize: '0.8em', color: '#9ca3af', marginTop: 4, fontWeight: 400 }}>
+                        {tracks.length - statuses.length} duplicates skipped
+                      </div>
+                    )}
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                    maxHeight: '60vh',
+                    overflowY: 'auto',
+                    padding: '0 4px',
+                    WebkitOverflowScrolling: 'touch'
+                  }}>
+        {statuses.map((s, i) => {
+                      // Try to find the original track object for extra info
+          const track = tracks[i] || {};
+                      // Album name
+                      let album = track.album?.name || track.album || '--';
+                      // Year
+                      let year = track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '');
+                      if (!year) year = '--';
+                      // Duration (ms to mm:ss)
+                      let duration = track.duration_ms || track.duration || null;
+                      if (duration) {
+                        const mins = Math.floor(duration / 60000);
+                        const secs = Math.floor((duration % 60000) / 1000).toString().padStart(2, '0');
+                        duration = `${mins}:${secs}`;
+          } else {
+                        duration = '--';
+                      }
+                      // Image
+                      let img = track.album_image || track.album?.images?.[0]?.url || track.images?.[0]?.url || track.cover || null;
+                      
+                      // Status styling and text formatting
+                      let statusStyle = {};
+                      let statusText = s.status;
+                      let isClickable = false;
+                      
+                      if (s.status.includes('Skipped')) {
+                        statusStyle = {
+      background: 'rgba(239, 68, 68, 0.2)',
+      color: '#f87171',
+      border: '1px solid rgba(239, 68, 68, 0.4)',
+      cursor: 'pointer'
+    };
+                        statusText = 'Failed';
+                        isClickable = true;
+                      } else if (s.status.includes('Done')) {
+                        statusStyle = {
+      background: 'rgba(34, 197, 94, 0.2)',
+      color: '#22c55e',
+      border: '1px solid rgba(34, 197, 94, 0.4)',
+      cursor: 'pointer'
+    };
+                        statusText = 'Done';
+                        isClickable = true;
+                      } else if (s.status.includes('Fetching') || s.status.includes('Checking') || s.status.includes('Retrying')) {
+                        statusStyle = {
+      background: 'rgba(56, 189, 248, 0.2)',
+      color: '#38bdf8',
+      border: '1px solid rgba(56, 189, 248, 0.4)'
+    };
+  } else {
+                        statusStyle = {
+      background: 'rgba(245, 158, 11, 0.2)',
+      color: '#f59e0b',
+      border: '1px solid rgba(245, 158, 11, 0.4)'
+    };
+  }
+                      
+                      return (
+                        <div key={i} style={{
+                          background: i % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
                           borderRadius: 14,
                           padding: 14,
                           display: 'grid',
@@ -874,7 +1089,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                             <div style={{
                               color: '#b3b3b3',
                               fontSize: 12,
-                              maxWidth: 120,
+                              maxWidth: 200,
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
@@ -894,7 +1109,7 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                             gap: 4
                           }}>
                             <div 
-                              style={{
+        style={{
                                 padding: '6px 12px',
                                 borderRadius: 8,
                                 fontSize: 11,
@@ -913,8 +1128,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                               fontWeight: 600
                             }}>
                               #{i + 1}
-                            </div>
-                            
+        </div>
+
                             {/* Expanded details when status is clicked */}
                             {isClickable && expandedStatuses.has(i) && (
                               <div style={{
@@ -952,102 +1167,6 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                       );
                     })}
                   </div>
-                </div>
-              ) : (
-                // Desktop layout - original table design
-                <div className={styles.tableContainer} style={{ 
-                  marginTop: 32,
-                  marginBottom: 48,
-                  width: '85%',
-                  maxWidth: '85%',
-                  marginLeft: 'auto',
-                  marginRight: 'auto',
-                  boxSizing: 'border-box'
-                }}>
-                  <table className={styles.statusTable} style={{ margin: '0 auto' }}>
-                    <thead>
-                      <tr>
-                        <th className={styles.tableHeader}>#</th>
-                        <th className={styles.tableHeader}>Cover</th>
-                        <th className={styles.tableHeader}>Song</th>
-                        <th className={styles.tableHeader}>Artist</th>
-                        <th className={styles.tableHeader}>Album</th>
-                        <th className={styles.tableHeader}>Year</th>
-                        <th className={styles.tableHeader}>Duration</th>
-                        <th className={`${styles.tableHeader} ${styles.statusCell}`}>Status</th>
-                        <th className={styles.tableHeader}>Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {statuses.map((s, i) => {
-                        // Try to find the original track object for extra info
-                        const track = tracks[i] || {};
-                        // Album name
-                        let album = track.album?.name || track.album || '--';
-                        // Year
-                        let year = track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '');
-                        if (!year) year = '--';
-                        // Duration (ms to mm:ss)
-                        let duration = track.duration_ms || track.duration || null;
-                        if (duration) {
-                          const mins = Math.floor(duration / 60000);
-                          const secs = Math.floor((duration % 60000) / 1000).toString().padStart(2, '0');
-                          duration = `${mins}:${secs}`;
-                        } else {
-                          duration = '--';
-                        }
-                        // Image
-                        let img = track.album_image || track.album?.images?.[0]?.url || track.images?.[0]?.url || track.cover || null;
-                        let statusCell;
-                        if (s.status.includes('Skipped')) {
-                          // On desktop, show "Failed" - explanation is in Details column
-                          statusCell = (
-                            <span className={styles.statusError}>
-                              Failed
-                            </span>
-                          );
-                        } else if (s.status.includes('Done')) {
-                          // On desktop, show "Done" - explanation is in Details column
-                          statusCell = (
-                            <span className={styles.statusDone}>
-                              Done
-                            </span>
-                          );
-                        } else {
-                          statusCell = <span className={getStatusClass(s.status)}>{s.status}</span>;
-                        }
-                        return (
-                          <tr key={i} className={i === statuses.length - 1 ? '' : styles.tableRow}>
-                            <td className={styles.tableCell}>{i + 1}</td>
-                            <td className={styles.tableCell}>
-                              {img ? <img src={img} alt="cover" style={{ 
-                                width: isMobile ? 36 : 48, 
-                                height: isMobile ? 36 : 48, 
-                                borderRadius: 6, 
-                                objectFit: 'cover', 
-                                boxShadow: '0 2px 8px #0004' 
-                              }} /> : '--'}
-                            </td>
-                            <td className={styles.tableCell}>{s.name}</td>
-                            <td className={`${styles.tableCell} ${styles.artistCell}`}>{s.artist}</td>
-                            <td className={styles.tableCell}>{album}</td>
-                            <td className={styles.tableCell}>{year}</td>
-                            <td className={styles.tableCell}>{duration}</td>
-                            <td className={`${styles.tableCell} ${styles.statusCell}`}>{statusCell}</td>
-                            <td className={styles.tableCell} style={{ 
-                              fontSize: 12, 
-                              color: '#9ca3af', 
-                              fontStyle: 'italic',
-                              maxWidth: 200,
-                              wordWrap: 'break-word'
-                            }}>
-                              {s.details}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
                 </div>
               )}
             </>
