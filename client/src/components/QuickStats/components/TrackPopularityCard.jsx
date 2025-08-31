@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Popularity mapping function for tracks
 const getPopularityDescription = (score) => {
@@ -122,9 +122,52 @@ const getPopularityDescription = (score) => {
  * ✅ Optimizable - can optimize its own rendering
  */
 export default function TrackPopularityCard({ popularity }) {
+  console.log('🎵 TrackPopularityCard received popularity data:', popularity);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [selectedPopularity, setSelectedPopularity] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [filteredSongs, setFilteredSongs] = useState([]);
+  const [loadingSongs, setLoadingSongs] = useState(false);
+
+  // Get recent searches from cache
+  const getRecentSearches = () => {
+    try {
+      const cached = localStorage.getItem('recentSearchesCache');
+      return cached ? JSON.parse(cached) : [];
+    } catch (error) {
+      console.error('Error reading recent searches cache:', error);
+      return [];
+    }
+  };
+
+  // Navigate to artist page
+  const navigateToArtistPage = async (artistName) => {
+    try {
+      const recentSearches = getRecentSearches();
+      const existingSearch = recentSearches.find(search => 
+        search.name.toLowerCase() === artistName.toLowerCase()
+      );
+
+      if (existingSearch) {
+        // Use existing data
+        const url = `/artist?spotifyId=${encodeURIComponent(existingSearch.spotifyId || '')}&ticketmasterId=${encodeURIComponent(existingSearch.ticketmasterId || '')}&name=${encodeURIComponent(artistName)}`;
+        window.location.href = url;
+      } else {
+        // Search for artist
+        const response = await fetch(`http://127.0.0.1:8000/api/artist-search-navigate?query=${encodeURIComponent(artistName)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.spotifyId || data.ticketmasterId) {
+            const url = `/artist?spotifyId=${encodeURIComponent(data.spotifyId || '')}&ticketmasterId=${encodeURIComponent(data.ticketmasterId || '')}&name=${encodeURIComponent(artistName)}`;
+            window.location.href = url;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error navigating to artist page:', error);
+    }
+  };
 
   // Helper function to get popularity range for a label
   const getPopularityRange = (label) => {
@@ -143,198 +186,126 @@ export default function TrackPopularityCard({ popularity }) {
     }
   };
 
-  // Songs Modal Component
-  const SongsModal = ({ isOpen, onClose, period, popularityLevel, songs }) => {
-    if (!isOpen) return null;
-
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}>
-        <div style={{
-          background: '#1e1e1e',
-          borderRadius: '18px',
-          padding: '32px',
-          maxWidth: '800px',
-          width: '100%',
-          maxHeight: '80vh',
-          overflow: 'hidden',
-          position: 'relative',
-          border: '1px solid rgba(34, 202, 123, 0.3)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
-        }}>
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              background: 'transparent',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: '24px',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '50%',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'transparent';
-            }}
-          >
-            ✕
-          </button>
-
-          {/* Title */}
-          <div style={{
-            fontSize: '2rem',
-            fontWeight: '700',
-            color: '#ffffff',
-            marginBottom: '8px',
-            textAlign: 'center'
-          }}>
-            {period} - {popularityLevel}
-          </div>
-
-          {/* Subtitle */}
-          <div style={{
-            fontSize: '1rem',
-            color: '#a0a0a0',
-            marginBottom: '24px',
-            textAlign: 'center'
-          }}>
-            {songs.length} tracks found
-          </div>
-
-          {/* Songs Table */}
-          <div style={{
-            maxHeight: '400px',
-            overflowY: 'auto',
-            border: '1px solid rgba(34, 202, 123, 0.2)',
-            borderRadius: '12px',
-            background: '#2a2a2a'
-          }}>
-            {songs.length > 0 ? (
-              <>
-                {/* Table Header */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '3fr 2fr 1fr',
-                  gap: '16px',
-                  padding: '16px 20px',
-                  background: 'rgba(34, 202, 123, 0.15)',
-                  borderBottom: '1px solid rgba(34, 202, 123, 0.3)',
-                  fontWeight: '600',
-                  color: '#ffffff',
-                  fontSize: '0.9rem'
-                }}>
-                  <div>Song Name</div>
-                  <div>Artist</div>
-                  <div>Popularity</div>
-                </div>
-
-                {/* Table Body */}
-                <div style={{
-                  maxHeight: '300px',
-                  overflowY: 'auto'
-                }}>
-                  {songs.map((song, index) => {
-                    const songPopularity = getPopularityDescription(song.popularity);
-                    return (
-                      <div
-                        key={index}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '3fr 2fr 1fr',
-                          gap: '16px',
-                          padding: '16px 20px',
-                          borderBottom: index < songs.length - 1 ? '1px solid rgba(34, 202, 123, 0.1)' : 'none',
-                          transition: 'all 0.2s ease',
-                          cursor: 'pointer'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(34, 202, 123, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                        }}
-                      >
-                        <div style={{
-                          color: '#ffffff',
-                          fontWeight: '500',
-                          fontSize: '0.95rem'
-                        }}>
-                          {song.name}
-                        </div>
-                        <div style={{
-                          color: '#a0a0a0',
-                          fontSize: '0.9rem'
-                        }}>
-                          {song.artists?.map(artist => artist.name).join(', ') || 'Unknown Artist'}
-                        </div>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          color: songPopularity.color,
-                          fontSize: '0.8rem',
-                          fontWeight: '600'
-                        }}>
-                          {songPopularity.icon}
-                          <span>{songPopularity.label}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              <div style={{
-                padding: '40px',
-                textAlign: 'center',
-                color: '#a0a0a0'
-              }}>
-                No songs found for this criteria.
-              </div>
-            )}
-          </div>
-
-          {/* Summary and Actions */}
-          <div style={{
-            marginTop: '20px',
-            padding: '16px 20px',
-            background: 'rgba(34, 202, 123, 0.1)',
-            borderRadius: '12px',
-            border: '1px solid rgba(34, 202, 123, 0.2)',
-            textAlign: 'center'
-          }}>
-            <div style={{ color: '#a0a0a0', fontSize: '0.9rem', marginBottom: '16px' }}>
-              <strong style={{ color: '#ffffff' }}>Total Songs:</strong> {songs.length}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  // Get cached top tracks
+  const getCachedTopTracks = () => {
+    try {
+      const cached = localStorage.getItem('unified_top_tracks');
+      const tracks = cached ? JSON.parse(cached) : [];
+      console.log('📊 Retrieved tracks from cache:', {
+        count: tracks.length,
+        sample: tracks[0],
+        hasRankings: tracks[0]?.rankings,
+        hasPopularity: tracks[0]?.popularity
+      });
+      return tracks;
+    } catch (error) {
+      console.error('Error reading top tracks cache:', error);
+      return [];
+    }
   };
+
+  // Modal visibility effect
+  useEffect(() => {
+    if (showModal) {
+      setIsVisible(true);
+    } else {
+      const timer = setTimeout(() => setIsVisible(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [showModal]);
+
+  // Prevent body scrolling when modal is open
+  useEffect(() => {
+    if (showModal) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showModal]);
+
+  // Filter songs when modal opens
+  useEffect(() => {
+    if (showModal && selectedPeriod && selectedPopularity) {
+      setLoadingSongs(true);
+      
+      const topTracks = getCachedTopTracks();
+      const periodKey = selectedPeriod.replace(' ', '_');
+      const popularityRange = getPopularityRange(selectedPopularity);
+      
+      console.log('🔍 Filtering tracks:', {
+        selectedPeriod,
+        selectedPopularity,
+        periodKey,
+        popularityRange,
+        totalTracks: topTracks.length
+      });
+      
+      // Filter tracks that are in the selected time period and popularity range
+      const filtered = topTracks.filter(track => {
+        // Check if track is in the selected time period
+        const hasRanking = track.rankings && track.rankings[periodKey];
+        if (!hasRanking) return false;
+        
+        // Check if track is in the popularity range
+        const songPopularity = track.popularity || 0;
+        const inRange = songPopularity >= popularityRange.min && songPopularity <= popularityRange.max;
+        
+        if (inRange) {
+          console.log('✅ Found matching track:', {
+            name: track.name,
+            artists: track.artists?.map(a => a.name).join(', '),
+            popularity: songPopularity,
+            ranking: track.rankings[periodKey]
+          });
+        }
+        
+        return inRange;
+      }).sort((a, b) => {
+        // Sort by ranking (lower number = higher rank)
+        const aRank = a.rankings?.[periodKey] || Infinity;
+        const bRank = b.rankings?.[periodKey] || Infinity;
+        return aRank - bRank;
+      });
+      
+      // If no tracks found in specific range, show all tracks from that period
+      if (filtered.length === 0) {
+        console.log('⚠️ No tracks found in specific popularity range, showing all tracks from period');
+        const allTracksInPeriod = topTracks.filter(track => {
+          const hasRanking = track.rankings && track.rankings[periodKey];
+          return hasRanking;
+        }).sort((a, b) => {
+          const aRank = a.rankings?.[periodKey] || Infinity;
+          const bRank = b.rankings?.[periodKey] || Infinity;
+          return aRank - bRank;
+        });
+        
+        console.log('📋 All tracks in period:', {
+          count: allTracksInPeriod.length,
+          sample: allTracksInPeriod[0]
+        });
+        
+        setFilteredSongs(allTracksInPeriod);
+        setLoadingSongs(false);
+        return;
+      }
+      
+      console.log('📋 Filtered results:', {
+        filteredCount: filtered.length,
+        sample: filtered[0]
+      });
+      
+      setFilteredSongs(filtered);
+      setLoadingSongs(false);
+    }
+  }, [showModal, selectedPeriod, selectedPopularity]);
   if (!popularity) {
     return (
       <div style={{
@@ -349,22 +320,23 @@ export default function TrackPopularityCard({ popularity }) {
   }
 
   return (
-    <div style={{
-      background: 'rgba(255, 255, 255, 0.1)',
-      borderRadius: '20px',
-      padding: '24px',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
-      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-4px)';
-      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
-    }}>
+    <>
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '20px',
+        padding: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-4px)';
+        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+      }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -413,6 +385,7 @@ export default function TrackPopularityCard({ popularity }) {
       }}>
         {/* Time Period Comparisons */}
         {Object.entries(popularity).map(([period, data]) => {
+          console.log(`📊 Period ${period}:`, data);
           if (data.count === 0 || period === 'all_tracks') return null;
           
           const averageDescription = getPopularityDescription(data.average);
@@ -437,6 +410,11 @@ export default function TrackPopularityCard({ popularity }) {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
             onClick={() => {
+              console.log('🖱️ Card clicked:', {
+                period: period.replace('_', ' '),
+                popularityLabel: averageDescription.label,
+                periodData: data
+              });
               setSelectedPeriod(period.replace('_', ' '));
               setSelectedPopularity(averageDescription.label);
               setShowModal(true);
@@ -489,80 +467,337 @@ export default function TrackPopularityCard({ popularity }) {
         })}
         
         {/* Summary */}
-        {popularity['12_months'] && (
-          <div style={{
-            padding: '16px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
-            marginTop: '8px'
-          }}>
-            <h5 style={{
-              color: '#fff',
-              fontSize: '1rem',
-              fontWeight: '600',
-              margin: '0 0 8px 0'
-            }}>
-              Popularity Pattern Analysis
-            </h5>
-            <p style={{
-              color: '#b3b3b3',
-              fontSize: '0.9rem',
-              margin: '0',
-              lineHeight: '1.4'
-            }}>
-              {(() => {
-                const longTermAvg = popularity['12_months'].average;
-                const longTermDescription = getPopularityDescription(longTermAvg);
-                
-                if (longTermAvg >= 80) {
-                  return `You love ${longTermDescription.label.toLowerCase()} music! Your music taste leans heavily toward popular, chart-topping tracks.`;
-                } else if (longTermAvg >= 60) {
-                  return `You enjoy ${longTermDescription.label.toLowerCase()} music! You're into popular songs but also discover some hidden gems.`;
-                } else if (longTermAvg >= 40) {
-                  return `You have a balanced taste! You mix ${longTermDescription.label.toLowerCase()} hits with more alternative and niche tracks.`;
-                } else if (longTermAvg >= 20) {
-                  return `You're an alternative music lover! You prefer ${longTermDescription.label.toLowerCase()} tracks that are less mainstream.`;
-                } else {
-                  return `You're a true music explorer! You discover ${longTermDescription.label.toLowerCase()} tracks that most people haven't heard.`;
-                }
-              })()}
-            </p>
-          </div>
-        )}
-      </div>
 
-      {/* Songs Modal */}
-      <SongsModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        period={selectedPeriod}
-        popularityLevel={selectedPopularity}
-        songs={(() => {
-          if (!selectedPeriod || !selectedPopularity) return [];
-          
-          // Find the period data
-          const periodKey = selectedPeriod.replace(' ', '_');
-          const periodData = popularity[periodKey];
-          if (!periodData) return [];
-          
-          // If songs array doesn't exist, try to get from cache
-          if (!periodData.songs) {
-            console.log('No songs data available for period:', periodKey);
-            return [];
-          }
-          
-          // Filter songs by popularity level
-          const popularityRange = getPopularityRange(selectedPopularity);
-          const filteredSongs = periodData.songs.filter(song => {
-            const songPopularity = song.popularity || 0;
-            return songPopularity >= popularityRange.min && songPopularity <= popularityRange.max;
-          });
-          
-          console.log(`Found ${filteredSongs.length} songs for ${selectedPeriod} - ${selectedPopularity} (range: ${popularityRange.min}-${popularityRange.max})`);
-          return filteredSongs;
-        })()}
-      />
+      </div>
     </div>
+
+    {/* Songs Modal */}
+    {showModal && (
+      <>
+        <div 
+          className={`genius-modal-overlay ${isVisible ? 'visible' : ''}`}
+          onClick={() => setShowModal(false)}
+        />
+        
+        <div className={`genius-modal-container ${isVisible ? 'visible' : ''}`}>
+          <div className="genius-modal-content">
+            <div className="genius-modal-header">
+              <h2 className="genius-modal-title">
+                {selectedPeriod} - {selectedPopularity}
+              </h2>
+              <button className="genius-close-button" onClick={() => setShowModal(false)}>
+                ×
+              </button>
+            </div>
+
+            <div className="genius-section">
+              <div style={{
+                fontSize: '1rem',
+                color: '#a0a0a0',
+                marginBottom: '24px',
+                textAlign: 'center'
+              }}>
+                {loadingSongs ? 'Loading songs...' : `${filteredSongs.length} tracks found`}
+              </div>
+
+              <div style={{
+                maxHeight: '600px',
+                overflowY: 'auto',
+                padding: '16px'
+              }}>
+                {loadingSongs ? (
+                  <div style={{
+                    padding: '40px',
+                    textAlign: 'center',
+                    color: '#a0a0a0'
+                  }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      border: '3px solid #22ca7b',
+                      borderTop: '3px solid transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      margin: '0 auto 16px'
+                    }} />
+                    Loading songs...
+                  </div>
+                ) : filteredSongs.length === 0 ? (
+                  <div style={{
+                    padding: '40px',
+                    textAlign: 'center',
+                    color: '#a0a0a0'
+                  }}>
+                    No songs found for this popularity range.
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                    gap: '16px'
+                  }}>
+                    {filteredSongs.map((track, index) => {
+                      const songPopularityDescription = getPopularityDescription(track.popularity || 0);
+                      
+                      return (
+                        <div
+                          key={track.id || index}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '12px',
+                            border: track.album && track.album.images && track.album.images[0] ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            transition: 'all 0.3s ease',
+                            cursor: 'pointer',
+                            height: '120px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-4px)';
+                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          {/* Background album image layer */}
+                          {track.album && track.album.images && track.album.images[0] && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundImage: `linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)), url(${track.album.images[0].url})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat',
+                              zIndex: 0
+                            }} />
+                          )}
+                          {/* Song Info Overlay */}
+                          <div style={{
+                            position: 'relative',
+                            zIndex: 2,
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center'
+                          }}>
+
+                            
+                            <div style={{ flex: 1 }}>
+                              <h4 style={{
+                                color: '#fff',
+                                fontSize: '1rem',
+                                fontWeight: '600',
+                                margin: '0 0 4px 0',
+                                textShadow: track.album && track.album.images && track.album.images[0] ? '0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.9)' : 'none',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {track.name}
+                              </h4>
+                              {track.album?.name && (
+                                <p style={{
+                                  color: '#b3b3b3',
+                                  fontSize: '0.9rem',
+                                  margin: '0',
+                                  textShadow: track.album && track.album.images && track.album.images[0] ? '0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9)' : 'none',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
+                                  {track.album.name}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Artists Section */}
+                            {track.artists && track.artists.length > 0 && (
+                              <div style={{ marginTop: '4px' }}>
+                                <p 
+                                  style={{
+                                    color: '#b3b3b3',
+                                    fontSize: '0.8rem',
+                                    margin: '0',
+                                    textShadow: track.album && track.album.images && track.album.images[0] ? '0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9)' : 'none',
+                                    cursor: 'pointer',
+                                    transition: 'color 0.2s ease',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}
+                                  onClick={() => navigateToArtistPage(track.artists[0].name)}
+                                  onMouseEnter={(e) => {
+                                    e.target.style.color = '#22ca7b';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.target.style.color = '#b3b3b3';
+                                  }}
+                                >
+                                  {track.artists.map(artist => artist.name).join(', ')}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          
+
+                          
+                          {/* Artists Section */}
+                          {track.artists && track.artists.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                {track.artists.map((artist, artistIndex) => (
+                                  <div
+                                    key={artist.id || artistIndex}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      padding: '6px 10px',
+                                      borderRadius: '20px',
+                                      background: 'rgba(29, 185, 84, 0.1)',
+                                      border: '1px solid rgba(29, 185, 84, 0.3)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(29, 185, 84, 0.2)';
+                                      e.currentTarget.style.transform = 'scale(1.05)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                    }}
+                                    onClick={() => navigateToArtistPage(artist.name)}
+                                  >
+                                    <span style={{
+                                      color: '#1db954',
+                                      fontSize: '0.8rem',
+                                      fontWeight: '500'
+                                    }}>
+                                      {artist.name}
+                                    </span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#1db954' }}>
+                                      <path d="M5 12h14"></path>
+                                      <path d="m12 5 7 7-7 7"></path>
+                                    </svg>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Styles */}
+        <style jsx global>{`
+          .genius-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            opacity: 0;
+            transition: opacity 200ms ease-out;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+          }
+          .genius-modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+          }
+          .genius-modal-container {
+            position: fixed;
+            z-index: 50;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+          }
+          .genius-modal-container.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+          }
+          .genius-modal-content {
+            background-color: #181818;
+            border: 1px solid #3f3f46;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: none;
+            padding: 1.5rem;
+            max-height: 85vh;
+            overflow-y: auto;
+          }
+          .genius-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            position: relative;
+          }
+          .genius-modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f4f4f5;
+            margin: 0;
+            flex: 1;
+            padding-right: 3rem;
+          }
+          .genius-close-button {
+            background: rgba(24, 24, 24, 0.9);
+            border: 1px solid #3f3f46;
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            min-width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 100;
+          }
+          .genius-close-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            transform: scale(1.1);
+          }
+          .genius-section {
+            margin-bottom: 1.5rem;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </>
+    )}
+  </>
   );
 }

@@ -773,7 +773,7 @@ export default function ArtistConcertsPage() {
     setConcerts([]);
     setTicketmasterIdNotFound(false);
     
-    const fetchConcerts = async () => {
+    const fetchConcerts = async (retryCount = 0) => {
       try {
         // Making batch request...
         
@@ -804,10 +804,24 @@ export default function ArtistConcertsPage() {
         
         setConcerts(sortedConcerts);
       } catch (err) {
-        setError(err.message || 'Concert search failed');
         console.error('Error fetching concerts:', err);
+        
+        // Auto-refresh logic for HTTP 500 errors
+        if (err.message.includes('HTTP error! status: 500') && retryCount < 3) {
+          const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+          console.log(`🔄 Auto-refreshing in ${retryDelay}ms (attempt ${retryCount + 1}/3)...`);
+          
+          setTimeout(() => {
+            fetchConcerts(retryCount + 1);
+          }, retryDelay);
+          return; // Don't set error or loading state yet
+        }
+        
+        setError(err.message || 'Concert search failed');
       } finally {
-        setLoading(false);
+        if (retryCount === 0) {
+          setLoading(false);
+        }
       }
     };
     

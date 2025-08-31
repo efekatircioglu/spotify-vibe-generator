@@ -63,8 +63,27 @@ export default function ListenerTypeCard({ listenerType }) {
           fontWeight: '700',
           fontSize: '1.2rem'
         }}>
-          {listenerType.type === 'Superfan' ? '🎵' :
-           listenerType.type === 'Artist Explorer' ? '🔍' : '⚖️'}
+          {listenerType.type === 'Superfan' ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+          ) : listenerType.type === 'Artist Explorer' ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          )}
         </div>
         <div>
           <h3 style={{
@@ -107,19 +126,44 @@ export default function ListenerTypeCard({ listenerType }) {
                    listenerType.type === 'Artist Explorer' ? '#10b981' : '#8b5cf6',
             fontSize: '1.3rem',
             fontWeight: '700',
-            margin: '0 0 8px 0'
+            margin: '0 0 8px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
           }}>
-            {listenerType.type === 'Superfan' ? '🎵 Superfan' :
-             listenerType.type === 'Artist Explorer' ? '🔍 Artist Explorer' : '⚖️ Balanced Listener'}
+            {listenerType.type === 'Superfan' ? (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                Superfan
+              </>
+            ) : listenerType.type === 'Artist Explorer' ? (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Artist Explorer
+              </>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                Balanced Listener
+              </>
+            )}
           </h4>
-          <p style={{
-            color: '#fff',
-            fontSize: '1.1rem',
-            fontWeight: '600',
-            margin: '0 0 4px 0'
-          }}>
-            {listenerType.confidence}% Confidence
-          </p>
+
           <p style={{
             color: '#b3b3b3',
             fontSize: '0.9rem',
@@ -142,140 +186,76 @@ export default function ListenerTypeCard({ listenerType }) {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             textAlign: 'center'
           }}>
-            <h5 style={{
-              color: '#fff',
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              margin: '0 0 4px 0'
-            }}>
-              {Math.round(listenerType.artistDiversity * 100)}%
-            </h5>
-            <p style={{
-              color: '#b3b3b3',
-              fontSize: '0.8rem',
-              margin: '0'
-            }}>
-              Artist Diversity
-            </p>
-          </div>
-
-          <div style={{
-            padding: '16px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            textAlign: 'center'
-          }}>
-            <h5 style={{
-              color: '#fff',
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              margin: '0 0 4px 0'
-            }}>
-              {listenerType.allArtists.length}
-            </h5>
-            <p style={{
-              color: '#b3b3b3',
-              fontSize: '0.8rem',
-              margin: '0'
-            }}>
-              Unique Artists
-            </p>
-          </div>
-
-          <div style={{
-            padding: '16px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            textAlign: 'center'
-          }}>
-            <h5 style={{
-              color: '#fff',
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              margin: '0 0 4px 0'
-            }}>
-              {listenerType.topArtist ? Math.round((listenerType.topArtist.count / (listenerType.superfanMetrics?.totalSongs || listenerType.explorerMetrics?.totalSongs || 1)) * 100) : 0}%
-            </h5>
-            <p style={{
-              color: '#b3b3b3',
-              fontSize: '0.8rem',
-              margin: '0'
-            }}>
-              Top Artist %
-            </p>
-          </div>
-        </div>
-
-        {/* Top Artists List */}
-        {listenerType.allArtists.length > 0 && (
-          <div style={{
-            padding: '16px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.05)'
-          }}>
-            <h5 style={{
-              color: '#fff',
-              fontSize: '1rem',
-              fontWeight: '600',
-              margin: '0 0 12px 0'
-            }}>
-              Recent Artist Activity
-            </h5>
             <div style={{
               display: 'flex',
-              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               gap: '8px',
-              maxHeight: '200px',
-              overflowY: 'auto'
+              marginBottom: '4px'
             }}>
-              {listenerType.allArtists.slice(0, 10).map((artist, index) => (
-                <div key={artist.id} style={{
-                  padding: '8px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div>
-                      <p style={{
-                        color: '#fff',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        margin: '0 0 2px 0'
-                      }}>
-                        {artist.name}
-                      </p>
-                      <p style={{
-                        color: '#b3b3b3',
-                        fontSize: '0.8rem',
-                        margin: '0'
-                      }}>
-                        {artist.count} song{artist.count !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                    <span style={{
-                      background: index === 0 ? '#f59e0b' : '#3b82f6',
-                      color: '#fff',
-                      padding: '2px 6px',
-                      borderRadius: '6px',
-                      fontSize: '0.7rem',
-                      fontWeight: '600'
-                    }}>
-                      #{index + 1}
-                    </span>
-                  </div>
-                </div>
-              ))}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <h5 style={{
+                color: '#fff',
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                margin: '0'
+              }}>
+                {listenerType.newArtistCount || 0}
+              </h5>
             </div>
+            <p style={{
+              color: '#b3b3b3',
+              fontSize: '0.8rem',
+              margin: '0'
+            }}>
+              New Artists
+            </p>
           </div>
-        )}
+
+          <div style={{
+            padding: '16px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginBottom: '4px'
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+              </svg>
+              <h5 style={{
+                color: '#fff',
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                margin: '0'
+              }}>
+                {listenerType.knownArtistCount || 0}
+              </h5>
+            </div>
+            <p style={{
+              color: '#b3b3b3',
+              fontSize: '0.8rem',
+              margin: '0'
+            }}>
+              Known Artists
+            </p>
+          </div>
+
+
+        </div>
+
+
 
         {/* Summary */}
         <div style={{
@@ -301,15 +281,16 @@ export default function ListenerTypeCard({ listenerType }) {
           }}>
             {(() => {
               const type = listenerType.type;
-              const diversity = Math.round(listenerType.artistDiversity * 100);
-              const uniqueArtists = listenerType.allArtists.length;
+              const newArtists = listenerType.newArtistCount || 0;
+              const knownArtists = listenerType.knownArtistCount || 0;
+              const totalArtists = listenerType.totalArtists || 0;
               
               if (type === 'Superfan') {
-                return `You're a dedicated superfan! You focus deeply on specific artists, with ${diversity}% artist diversity. You prefer to explore the full catalog of artists you love rather than constantly discovering new ones.`;
+                return `You're a dedicated superfan! You're mostly re-listening to artists you already know and love. Out of ${totalArtists} artists in your recent tracks, only ${newArtists} are new discoveries. You prefer to explore the full catalog of artists you love rather than constantly discovering new ones.`;
               } else if (type === 'Artist Explorer') {
-                return `You're an artist explorer! You love discovering new voices, with ${diversity}% artist diversity and ${uniqueArtists} unique artists in your recent tracks. You're always on the hunt for fresh musical discoveries.`;
+                return `You're an artist explorer! You love discovering new voices and constantly finding fresh artists. Out of ${totalArtists} artists in your recent tracks, ${newArtists} are new discoveries! You're always on the hunt for fresh musical discoveries.`;
               } else {
-                return `You're a balanced listener! You mix deep dives into favorite artists with discovering new voices. You have ${diversity}% artist diversity, showing a healthy mix of both approaches.`;
+                return `You're a balanced listener! You mix re-listening to favorite artists with discovering new voices. Out of ${totalArtists} artists in your recent tracks, ${newArtists} are new discoveries, showing a healthy mix of both approaches.`;
               }
             })()}
           </p>

@@ -489,7 +489,7 @@ export default function QuickStats({ isMobile }) {
             )}
           </>
         ) : (
-          // Desktop Order (unchanged)
+          // Desktop Order (updated)
           <>
             {/* 1. Top Artist */}
             {shouldShowCard('basicStats') && (
@@ -505,17 +505,17 @@ export default function QuickStats({ isMobile }) {
               </div>
             )}
 
-            {/* 3. Time of Day */}
-            {shouldShowCard('timeOfDay') && data.timeOfDayAnalysis && (
+            {/* 3. Music Timeline */}
+            {shouldShowCard('yearAnalysis') && data.yearAnalysis && (
               <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <TimeOfDayCard timeAnalysis={data.timeOfDayAnalysis} />
+                <MusicTimelineCard yearAnalysis={data.yearAnalysis} />
               </div>
             )}
 
-            {/* 4. Listener Type */}
-            {shouldShowCard('listenerType') && data.listenerTypeAnalysis && (
+            {/* 4. Time of Day */}
+            {shouldShowCard('timeOfDay') && data.timeOfDayAnalysis && (
               <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <ListenerTypeCard listenerType={data.listenerTypeAnalysis} />
+                <TimeOfDayCard timeAnalysis={data.timeOfDayAnalysis} />
               </div>
             )}
 
@@ -526,12 +526,12 @@ export default function QuickStats({ isMobile }) {
               </div>
             )}
 
-                    {/* 6. Top Genres */}
-        {shouldShowCard('genres') && data.topGenres.length > 0 && (
-          <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-            <TopGenresCard genres={data.topGenres} genreDetails={data.genreDetails} />
-          </div>
-        )}
+            {/* 6. Top Genres */}
+            {shouldShowCard('genres') && data.topGenres.length > 0 && (
+              <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
+                <TopGenresCard genres={data.topGenres} genreDetails={data.genreDetails} />
+              </div>
+            )}
 
             {/* 7. Track Popularity */}
             {shouldShowCard('trackPopularity') && data.trackPopularityAnalysis && (
@@ -540,10 +540,10 @@ export default function QuickStats({ isMobile }) {
               </div>
             )}
 
-            {/* 8. Music Timeline */}
-            {shouldShowCard('yearAnalysis') && data.yearAnalysis && (
+            {/* 8. Listener Type */}
+            {shouldShowCard('listenerType') && data.listenerTypeAnalysis && (
               <div style={{ breakInside: 'avoid', marginBottom: '24px' }}>
-                <MusicTimelineCard yearAnalysis={data.yearAnalysis} />
+                <ListenerTypeCard listenerType={data.listenerTypeAnalysis} />
               </div>
             )}
 

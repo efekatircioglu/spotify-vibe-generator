@@ -323,6 +323,9 @@ export const analyzeTimeOfDay = async (recentTracks) => {
 
 /**
  * Analyze listener type (Superfan vs Artist Explorer)
+ * NEW LOGIC: Compare last 50 songs with 6-12 month data
+ * If artists in last 50 are also in 6-12 months = Superfan (re-listening known artists)
+ * If artists in last 50 are NOT in 6-12 months = Artist Explorer (discovering new artists)
  */
 export const analyzeListenerType = async (recentTracks) => {
   const analysis = {
@@ -335,90 +338,161 @@ export const analyzeListenerType = async (recentTracks) => {
   };
 
   try {
-    // Count unique artists in recent tracks
+    // Get spotify top artists data from localStorage
+    const topArtistsData = localStorage.getItem('spotify_top_artists');
+    if (!topArtistsData) {
+      console.warn('No spotify top artists data available for listener type analysis');
+      return analysis;
+    }
+
+    const topArtists = JSON.parse(topArtistsData);
+    
+    // Create a map of all artists from spotify_top_artists for easy lookup
+    const allTopArtistsMap = new Map();
+    if (topArtists.artists && Array.isArray(topArtists.artists)) {
+      topArtists.artists.forEach(artist => {
+        allTopArtistsMap.set(artist.id, artist);
+      });
+    }
+
+    // Count unique main artists in recent tracks (last 50 songs)
     const artistCounts = {};
+    const recentArtists = [];
     recentTracks.forEach(track => {
       if (track.artists && track.artists.length > 0) {
-        track.artists.forEach(artist => {
-          artistCounts[artist.id] = {
-            id: artist.id,
-            name: artist.name,
-            count: (artistCounts[artist.id]?.count || 0) + 1
-          };
-        });
+        // Only look at the main artist (first artist) of each song
+        const mainArtist = track.artists[0];
+        
+        // Count occurrences
+        artistCounts[mainArtist.id] = {
+          id: mainArtist.id,
+          name: mainArtist.name,
+          count: (artistCounts[mainArtist.id]?.count || 0) + 1
+        };
+        
+        // Add to recent artists list if not already added
+        if (!recentArtists.find(a => a.id === mainArtist.id)) {
+          recentArtists.push(mainArtist);
+        }
       }
     });
 
-    // Calculate diversity metrics
-    const uniqueArtists = Object.keys(artistCounts).length;
+    // Calculate metrics based on main artists only
+    const uniqueArtists = recentArtists.length;
     const totalSongs = recentTracks.length;
-    const artistDiversity = uniqueArtists / totalSongs; // Higher = more diverse
+    
+    // Check each unique main artist from recent 50 songs
+    let knownArtistCount = 0;
+    let newArtistCount = 0;
+    const knownArtists = [];
+    const newArtists = [];
+    
+    recentArtists.forEach(artist => {
+      const topArtistEntry = allTopArtistsMap.get(artist.id);
+      
+      if (topArtistEntry && topArtistEntry.rankings) {
+        // Check if this artist appears in 6-12 months rankings
+        const has6Months = topArtistEntry.rankings['6_months'] !== null && topArtistEntry.rankings['6_months'] !== undefined;
+        const has12Months = topArtistEntry.rankings['12_months'] !== null && topArtistEntry.rankings['12_months'] !== undefined;
+        
+        if (has6Months || has12Months) {
+          // This is a known artist (appears in 6-12 months)
+          knownArtistCount++;
+          knownArtists.push({
+            id: artist.id,
+            name: artist.name,
+            has6Months,
+            has12Months,
+            ranking6Months: topArtistEntry.rankings['6_months'],
+            ranking12Months: topArtistEntry.rankings['12_months']
+          });
+        } else {
+          // This is a new artist (not in 6-12 months)
+          newArtistCount++;
+          newArtists.push({
+            id: artist.id,
+            name: artist.name
+          });
+        }
+      } else {
+        // Artist not found in top artists data, consider as new
+        newArtistCount++;
+        newArtists.push({
+          id: artist.id,
+          name: artist.name
+        });
+      }
+    });
+    
+    // Calculate artist diversity as percentage of new vs known artists
+    const artistDiversity = (newArtistCount / uniqueArtists) * 100; // Percentage of new artists
+    
+    // Debug logging
+    console.log('🔍 Listener Type Analysis Debug:');
+    console.log('Total unique main artists in last 50 songs:', uniqueArtists);
+    console.log('Known artists (in 6-12 months):', knownArtistCount);
+    console.log('New artists (not in 6-12 months):', newArtistCount);
+    console.log('Known artists list:', knownArtists.map(a => a.name));
+    console.log('New artists list:', newArtists.map(a => a.name));
 
     // Find top artist in recent tracks
     const sortedArtists = Object.values(artistCounts).sort((a, b) => b.count - a.count);
     const topRecentArtist = sortedArtists[0];
     const topArtistPercentage = (topRecentArtist.count / totalSongs) * 100;
 
-    // Superfan indicators
-    const superfanIndicators = {
-      highTopArtistPercentage: topArtistPercentage > 30, // More than 30% from one artist
-      lowDiversity: artistDiversity < 0.3, // Less than 30% unique artists
-      artistConcentration: topArtistPercentage
-    };
+    // CLASSIFICATION LOGIC
+    // Compare main artists from last 50 songs with 6-12 months top artists
+    // If less than 10 new main artists = Superfan (mostly re-listening known artists)
+    // If 10 or more new main artists = Artist Explorer (discovering new artists)
+    const isSuperfan = newArtistCount < 10;
+    const isArtistExplorer = newArtistCount >= 10;
 
-    // Explorer indicators
-    const explorerIndicators = {
-      lowTopArtistPercentage: topArtistPercentage < 15, // Less than 15% from one artist
-      highDiversity: artistDiversity > 0.6, // More than 60% unique artists
-      manyUniqueArtists: uniqueArtists > 20, // More than 20 unique artists
-      artistDiversity: artistDiversity
-    };
-
-    // Calculate superfan score
-    let superfanScore = 0;
-    if (superfanIndicators.highTopArtistPercentage) superfanScore += 30;
-    if (superfanIndicators.lowDiversity) superfanScore += 25;
-    superfanScore += Math.min(superfanIndicators.artistConcentration / 2, 20);
-
-    // Calculate explorer score
-    let explorerScore = 0;
-    if (explorerIndicators.lowTopArtistPercentage) explorerScore += 30;
-    if (explorerIndicators.highDiversity) explorerScore += 25;
-    if (explorerIndicators.manyUniqueArtists) explorerScore += 25;
-    explorerScore += Math.min(explorerIndicators.artistDiversity * 50, 20);
-
-    // Determine listener type
-    if (superfanScore > explorerScore && superfanScore > 50) {
+    // Calculate confidence based on how clear the pattern is
+    let confidence = 0;
+    if (isSuperfan) {
+      // Higher confidence if very few new artists
+      confidence = Math.max(50, 100 - (newArtistCount * 10));
       analysis.type = 'Superfan';
-      analysis.confidence = Math.min(superfanScore, 100);
-      analysis.topArtist = topRecentArtist;
-      analysis.artistDiversity = artistDiversity;
+      analysis.confidence = Math.min(confidence, 100);
       analysis.superfanMetrics = {
-        topArtistPercentage: topArtistPercentage,
-        uniqueArtists: uniqueArtists,
-        totalSongs: totalSongs,
-        score: superfanScore
+        newArtistCount,
+        knownArtistCount,
+        totalArtists: uniqueArtists,
+        totalSongs,
+        topArtistPercentage,
+        reListeningRate: (knownArtistCount / uniqueArtists) * 100
       };
-    } else if (explorerScore > superfanScore && explorerScore > 50) {
+    } else if (isArtistExplorer) {
+      // Higher confidence if many new artists
+      confidence = Math.max(50, (newArtistCount / uniqueArtists) * 100);
       analysis.type = 'Artist Explorer';
-      analysis.confidence = Math.min(explorerScore, 100);
-      analysis.topArtist = topRecentArtist;
-      analysis.artistDiversity = artistDiversity;
+      analysis.confidence = Math.min(confidence, 100);
       analysis.explorerMetrics = {
-        topArtistPercentage: topArtistPercentage,
-        uniqueArtists: uniqueArtists,
-        totalSongs: totalSongs,
-        score: explorerScore
+        newArtistCount,
+        knownArtistCount,
+        totalArtists: uniqueArtists,
+        totalSongs,
+        topArtistPercentage,
+        discoveryRate: (newArtistCount / uniqueArtists) * 100
       };
     } else {
+      // Balanced case (edge case)
       analysis.type = 'Balanced Listener';
-      analysis.confidence = Math.max(superfanScore, explorerScore);
-      analysis.topArtist = topRecentArtist;
-      analysis.artistDiversity = artistDiversity;
+      analysis.confidence = 50;
     }
 
-    // Add all artists for display
+    // Set common metrics
+    analysis.topArtist = topRecentArtist;
+    analysis.artistDiversity = artistDiversity / 100; // Convert back to decimal for display
     analysis.allArtists = sortedArtists;
+    
+    // Add additional context for display
+    analysis.newArtistCount = newArtistCount;
+    analysis.knownArtistCount = knownArtistCount;
+    analysis.totalArtists = uniqueArtists;
+    analysis.knownArtists = knownArtists;
+    analysis.newArtists = newArtists;
+
   } catch (error) {
     console.error('Error analyzing listener type:', error);
   }

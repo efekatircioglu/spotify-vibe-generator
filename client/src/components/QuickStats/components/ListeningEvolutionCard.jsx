@@ -161,7 +161,11 @@ export default function ListeningEvolutionCard({ evolution }) {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>🆕</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                <path d="M12 2v20"></path>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
               Newly Discovered Songs ({evolution.newSongs.length})
             </h4>
             <div style={{
@@ -289,7 +293,12 @@ export default function ListeningEvolutionCard({ evolution }) {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>🎤</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4"></path>
+                <path d="M15 11h4a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-4"></path>
+                <path d="M9 11v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-6"></path>
+                <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+              </svg>
               Newly Discovered Artists ({evolution.newArtists.length})
             </h4>
             <div style={{
@@ -420,7 +429,10 @@ export default function ListeningEvolutionCard({ evolution }) {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>⏸️</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
               Songs Taking a Break ({evolution.breakSongs.length})
             </h4>
             <div style={{
@@ -548,7 +560,12 @@ export default function ListeningEvolutionCard({ evolution }) {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>🎭</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
               Artists Taking a Break ({evolution.breakArtists.length})
             </h4>
             <div style={{

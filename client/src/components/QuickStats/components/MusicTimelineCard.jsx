@@ -98,43 +98,186 @@ export default function MusicTimelineCard({ yearAnalysis }) {
           
           const currentYear = new Date().getFullYear();
           const yearsDiff = currentYear - data.average;
-          const isNostalgic = yearsDiff > 5;
-          const isNew = yearsDiff <= 2;
           
-          let trendLabel = 'Balanced';
-          let trendColor = '#10b981';
+          // Get decade label based on average year
+          const getDecadeLabel = (year) => {
+            if (year >= 2020) return { 
+              label: 'New Releases', 
+              color: '#3b82f6', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              )
+            };
+            if (year >= 2010) return { 
+              label: 'Digital Age', 
+              color: '#8b5cf6', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="2" y1="21" x2="22" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+              )
+            };
+            if (year >= 2000) return { 
+              label: '2000s Nostalgia', 
+              color: '#f59e0b', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                  <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                </svg>
+              )
+            };
+            if (year >= 1990) return { 
+              label: '90s Golden Age', 
+              color: '#fbbf24', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+              )
+            };
+            if (year >= 1980) return { 
+              label: '80s Pop', 
+              color: '#ef4444', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+              )
+            };
+            if (year >= 1970) return { 
+              label: '70s Rock', 
+              color: '#dc2626', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m14.5 3.5-3 3L6 12v6h6l5.5-5.5-3-3z"></path><path d="m18 2-6 6"></path><path d="m2 22 6-6"></path>
+                </svg>
+              )
+            };
+            if (year >= 1960) return { 
+              label: '60s Revolution', 
+              color: '#7c3aed', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              )
+            };
+            if (year >= 1950) return { 
+              label: '50s Classics', 
+              color: '#059669', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22V10M12 10C12 5.58172 8.41828 2 4 2C-0.418278 2 3.44211e-05 10 3.44211e-05 10M12 10C12 5.58172 15.5817 2 20 2C24.4183 2 24 10 24 10"></path>
+                  <path d="M4 16H0"></path><path d="M24 16H20"></path><path d="M8 22H5"></path>
+                </svg>
+              )
+            };
+            return { 
+              label: 'Vintage', 
+              color: '#6b7280', 
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 11h18"></path>
+                </svg>
+              )
+            };
+          };
           
-          if (isNostalgic) {
-            trendLabel = 'Nostalgic';
-            trendColor = '#f59e0b';
-          } else if (isNew) {
-            trendLabel = 'Fresh';
-            trendColor = '#3b82f6';
-          }
+          const decadeInfo = getDecadeLabel(data.average);
           
           return (
-            <div key={period} style={{
-              padding: '16px',
+                        <div key={period} style={{
+              padding: '20px',
               background: 'rgba(255, 255, 255, 0.05)',
               borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
             }}>
+              {/* Header Row */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '12px'
+                justifyContent: 'space-between'
               }}>
-                <div>
-                  <h4 style={{
+                <h4 style={{
+                  color: '#fff',
+                  fontSize: '1.2rem',
+                  fontWeight: '600',
+                  margin: '0',
+                  textTransform: 'capitalize'
+                }}>
+                  {period.replace('_', ' ')}
+                </h4>
+                <span style={{
+                  background: decadeInfo.color,
+                  color: '#fff',
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  {decadeInfo.icon}
+                  {decadeInfo.label}
+                </span>
+              </div>
+              
+              {/* Main Content Row */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <h5 style={{
                     color: '#fff',
-                    fontSize: '1.1rem',
-                    fontWeight: '600',
-                    margin: '0 0 4px 0',
-                    textTransform: 'capitalize'
+                    fontSize: '2rem',
+                    fontWeight: '700',
+                    margin: '0'
                   }}>
-                    {period.replace('_', ' ')}
-                  </h4>
+                    {data.average}
+                  </h5>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.9rem',
+                    margin: '0'
+                  }}>
+                    Average Year
+                  </p>
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: '4px'
+                }}>
+                  <p style={{
+                    color: '#b3b3b3',
+                    fontSize: '0.9rem',
+                    margin: '0',
+                    fontWeight: '500'
+                  }}>
+                    {yearsDiff > 0 ? `${yearsDiff} years ago` : `${Math.abs(yearsDiff)} years ahead`}
+                  </p>
                   <p style={{
                     color: '#b3b3b3',
                     fontSize: '0.8rem',
@@ -143,103 +286,12 @@ export default function MusicTimelineCard({ yearAnalysis }) {
                     {data.count} songs analyzed
                   </p>
                 </div>
-                <span style={{
-                  background: trendColor,
-                  color: '#000',
-                  padding: '4px 8px',
-                  borderRadius: '8px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600'
-                }}>
-                  {trendLabel}
-                </span>
-              </div>
-              
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div>
-                  <h5 style={{
-                    color: '#fff',
-                    fontSize: '1.5rem',
-                    fontWeight: '700',
-                    margin: '0 0 4px 0'
-                  }}>
-                    {data.average}
-                  </h5>
-                  <p style={{
-                    color: '#b3b3b3',
-                    fontSize: '0.8rem',
-                    margin: '0'
-                  }}>
-                    Average Year
-                  </p>
-                </div>
-                <div style={{
-                  textAlign: 'right'
-                }}>
-                  <p style={{
-                    color: '#b3b3b3',
-                    fontSize: '0.8rem',
-                    margin: '0 0 4px 0'
-                  }}>
-                    {yearsDiff > 0 ? `${yearsDiff} years ago` : `${Math.abs(yearsDiff)} years ahead`}
-                  </p>
-                  <p style={{
-                    color: '#fff',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    margin: '0'
-                  }}>
-                    {isNostalgic ? '🎵 Classic Vibes' : isNew ? '🚀 Fresh Finds' : '⚖️ Balanced Mix'}
-                  </p>
-                </div>
               </div>
             </div>
           );
         })}
         
-        {/* Summary */}
-        {yearAnalysis.recent_50 && yearAnalysis['12_months'] && (
-          <div style={{
-            padding: '16px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
-            marginTop: '8px'
-          }}>
-            <h5 style={{
-              color: '#fff',
-              fontSize: '1rem',
-              fontWeight: '600',
-              margin: '0 0 8px 0'
-            }}>
-              Listening Pattern Analysis
-            </h5>
-            <p style={{
-              color: '#b3b3b3',
-              fontSize: '0.9rem',
-              margin: '0',
-              lineHeight: '1.4'
-            }}>
-              {(() => {
-                const recentAvg = yearAnalysis.recent_50.average;
-                const longTermAvg = yearAnalysis['12_months'].average;
-                const diff = recentAvg - longTermAvg;
-                
-                if (diff > 2) {
-                  return "You're exploring newer music lately! Your recent listens are fresher than your long-term favorites.";
-                } else if (diff < -2) {
-                  return "You're diving into classics! Your recent listens are more nostalgic than your usual taste.";
-                } else {
-                  return "Your recent listening pattern matches your long-term music taste - consistent vibes!";
-                }
-              })()}
-            </p>
-          </div>
-        )}
+
       </div>
     </div>
   );
