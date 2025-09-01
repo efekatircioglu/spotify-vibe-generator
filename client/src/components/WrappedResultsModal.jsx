@@ -7,16 +7,16 @@ const getResponsiveStyles = (isMobile) => {
     return {
       // Modal container
       modalContainer: {
-        background: '#181c24',
+        background: '#212121',
         borderRadius: 16,
-        padding: '60px 24px 24px 24px',
+        // padding: '60px 24px 24px 24px',
         minWidth: 'auto',
         minHeight: 'auto',
         boxShadow: '0 12px 64px #000b',
         color: '#fff',
         position: 'relative',
-        maxWidth: '95vw',
-        width: '95vw',
+        maxWidth: '100vw',
+        width: '100vw',
         maxHeight: '90vh',
         overflowY: 'auto',
         boxSizing: 'border-box'
@@ -29,7 +29,7 @@ const getResponsiveStyles = (isMobile) => {
         background: 'rgba(24, 28, 36, 0.9)',
         border: '1px solid rgba(255, 255, 255, 0.2)',
         borderRadius: '50%',
-        color: 'rgb(255, 255, 255)',
+        color: '#fff',
         fontSize: 20,
         cursor: 'pointer',
         zIndex: 10000,
@@ -38,9 +38,9 @@ const getResponsiveStyles = (isMobile) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backdropFilter: 'blur(10px)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-        transition: 'all 0.2s ease'
+        flexShrink: 0,
+        padding: 0,
+        transition: 'background-color 0.2s'
       },
       // Main title
       mainTitle: {
@@ -139,14 +139,20 @@ const getResponsiveStyles = (isMobile) => {
       // Navigation buttons
       navButton: {
         background: 'none',
-        border: '1.5px solid #38bdf8',
-        color: '#38bdf8',
-        borderRadius: 6,
-        padding: '8px 20px',
-        fontWeight: 700,
-        fontSize: 14,
+        border: '1px solid #444',
+        color: '#fff',
         cursor: 'pointer',
-        transition: 'background 0.18s'
+        borderRadius: '50%',
+        fontSize: 'clamp(1.2rem, 2.5vw, 2rem)',
+        transition: 'background-color 0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        padding: 0
+      },
+      navButtonHover: {
+        backgroundColor: '#2a2a2a'
       },
       navButtonPrimary: {
         background: '#38bdf8',
@@ -326,38 +332,37 @@ const getResponsiveStyles = (isMobile) => {
     // Desktop styles (original)
     return {
       modalContainer: {
-        background: '#181c24',
+        background: '#212121',
         borderRadius: 24,
-        padding: '80px 72px 72px 72px',
+        // padding: '80px 72px 72px 72px',
         minWidth: 800,
         minHeight: 700,
         boxShadow: '0 12px 64px #000b',
         color: '#fff',
         position: 'relative',
-        maxWidth: '95vw',
-        width: '95vw',
-        maxHeight: '90vh',
-        overflowY: 'auto'
+        // maxWidth: '95vw',
+        // width: '95vw',
+        // maxHeight: '90vh',
+        // overflowY: 'auto'
       },
       closeButton: {
         position: 'fixed',
         top: '20px',
         right: '20px',
-        background: 'rgba(24, 28, 36, 0.9)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
+        background: 'none',
+        border: '1px solid #444',
         borderRadius: '50%',
-        color: 'rgb(255, 255, 255)',
-        fontSize: 24,
+        color: '#fff',
         cursor: 'pointer',
         zIndex: 10000,
-        width: '40px',
-        height: '40px',
+        width: 'clamp(36px, 6vw, 48px)',
+        height: 'clamp(36px, 6vw, 48px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backdropFilter: 'blur(10px)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-        transition: 'all 0.2s ease'
+        flexShrink: 0,
+        padding: 0,
+        transition: 'background-color 0.2s'
       },
       mainTitle: {
         fontSize: '2.8rem',
@@ -437,23 +442,29 @@ const getResponsiveStyles = (isMobile) => {
       },
       navButton: {
         background: 'none',
-        border: '1.5px solid #38bdf8',
-        color: '#38bdf8',
-        borderRadius: 8,
-        padding: '10px 28px',
-        fontWeight: 700,
-        fontSize: 18,
+        border: '1px solid #444',
+        color: '#fff',
         cursor: 'pointer',
-        transition: 'background 0.18s'
+        borderRadius: '50%',
+        fontSize: 'clamp(1.2rem, 2.5vw, 2rem)',
+        transition: 'background-color 0.2s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        padding: 0
+      },
+      navButtonHover: {
+        backgroundColor: '#2a2a2a'
       },
       navButtonPrimary: {
         background: '#38bdf8',
         color: '#fff',
         border: 'none',
-        borderRadius: 8,
-        padding: '10px 28px',
+        borderRadius: 6,
+        padding: '8px 20px',
         fontWeight: 700,
-        fontSize: 18,
+        fontSize: 14,
         cursor: 'pointer',
         boxShadow: '0 4px 24px #000a',
         transition: 'background 0.18s'
@@ -690,11 +701,13 @@ if (typeof window !== 'undefined') {
 export default function WrappedResultsModal({ open, onClose, results, tracks }) {
   const [page, setPage] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [prevButtonHover, setPrevButtonHover] = useState(false);
+  const [nextButtonHover, setNextButtonHover] = useState(false);
   const { width } = useWindowSize();
   
   // Update mobile state when width changes
   useEffect(() => {
-    setIsMobile(width < 600);
+    setIsMobile(width < 1000);
   }, [width]);
 
   // Prevent body scrolling when modal is open
@@ -751,7 +764,7 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
   if (!open) return null;
 
   // Navigation
-  const totalPages = 6;
+  const totalPages = 2; // Only 2 pages now: Page 0 (songs list) and Page 1 (comprehensive dashboard)
   const goNext = () => setPage(p => Math.min(p + 1, totalPages - 1));
   const goPrev = () => setPage(p => Math.max(p - 1, 0));
 
@@ -814,11 +827,16 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
       display: 'flex', 
       alignItems: 'flex-start', 
       justifyContent: 'center',
-      padding: 'max(20px, 5vh) max(20px, 3vw)',
-      overflow: 'auto'
+      padding: isMobile ? (width < 420 ? '8px' : '12px') : 'max(20px, 5vh) max(20px, 3vw)',
+      overflow: 'auto',
+      boxSizing: 'border-box'
     }}>
       <div style={styles.modalContainer} ref={modalContainerRef} className="wrapped-modal-container">
-        <button onClick={onClose} style={styles.closeButton} className="wrapped-close-button">&times;</button>
+        <button onClick={onClose} style={styles.closeButton} className="wrapped-close-button">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+          </svg>
+        </button>
         <style jsx>{`
           @media (min-width: 1200px) {
             .wrapped-modal-container {
@@ -836,6 +854,29 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
             .wrapped-modal-container {
               max-width: 95vw !important;
               width: 95vw !important;
+            }
+          }
+          @media (max-width: 799px) {
+            .wrapped-modal-container {
+              max-width: calc(100vw - 32px) !important;
+              width: calc(100vw - 32px) !important;
+              margin: 0 auto !important;
+            }
+          }
+          @media (max-width: 420px) {
+            .wrapped-modal-container {
+              max-width: calc(100vw - 24px) !important;
+              width: calc(100vw - 24px) !important;
+              margin: 0 auto !important;
+            }
+            .wrapped-modal-container * {
+              font-size: 0.9em !important;
+            }
+            .wrapped-modal-container .binary-feature-label {
+              font-size: 0.8em !important;
+              white-space: nowrap !important;
+              overflow: hidden !important;
+              text-overflow: ellipsis !important;
             }
           }
           .wrapped-modal-container .songs-list-item {
@@ -1036,7 +1077,26 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
               }}>
               <div style={styles.songsListTitle}>Included Songs:</div>
               <ul style={{ padding: 0, margin: 0, listStyle: 'none', width: '100%' }}>
-                {analyzedTracks.map((r, i) => (
+                {analyzedTracks.map((r, i) => {
+                  // Extract main genre from metadata.tags.genre
+                  const firstKey = Object.keys(r.highLevel || {})[0];
+                  const mainGenre = r.highLevel?.[firstKey]?.metadata?.tags?.genre || 'Unknown';
+                  
+                  // Extract genre rosamerica and map to readable names
+                  const genreRosamericaRaw = r.highLevel?.[firstKey]?.highlevel?.genre_rosamerica?.value || 'Unknown';
+                  const rosamericaMap = {
+                    'cla': 'Classical',
+                    'dan': 'Dance',
+                    'hip': 'Hip-Hop',
+                    'jaz': 'Jazz',
+                    'pop': 'Pop',
+                    'rhy': 'Rhythm & Blues',
+                    'roc': 'Rock',
+                    'spe': 'Speech'
+                  };
+                  const genreRosamerica = rosamericaMap[genreRosamericaRaw] || genreRosamericaRaw;
+                  
+                  return (
                   <li key={r.track?.id || i} className="songs-list-item" style={{
                     ...styles.songListItem,
                     width: '100%',
@@ -1045,8 +1105,39 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
                     overflowWrap: 'break-word'
                   }}>
                     <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
+                      <div style={{ 
+                        marginTop: 4, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        flexWrap: 'wrap'
+                      }}>
+                        <span style={{ 
+                          background: 'rgba(28, 185, 85, 0.2)', 
+                          color: '#1cb955', 
+                          fontSize: isMobile ? '0.7rem' : '0.8rem',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: 12,
+                          border: '1px solid rgba(28, 185, 85, 0.4)'
+                        }}>
+                          Main: {mainGenre}
+                        </span>
+                        <span style={{ 
+                          background: 'rgba(56, 189, 248, 0.2)', 
+                          color: '#38bdf8', 
+                          fontSize: isMobile ? '0.7rem' : '0.8rem',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: 12,
+                          border: '1px solid rgba(56, 189, 248, 0.4)'
+                        }}>
+                          Rosamerica: {genreRosamerica}
+                        </span>
+                      </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
             
@@ -1056,98 +1147,59 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
           </div>
         )}
         {page === 1 && (
-          <div style={isMobile ? { padding: '0 16px' } : {}}>
-            <AnimatedBeatsPage totalBeats={totalBeats} avgBeats={avgBeats} styles={styles} />
-          </div>
-        )}
-        {page === 2 && (
-          <div style={styles.pageContainer}>
-            <h2 style={styles.pageTitle}>The Average Audio Profile</h2>
-            {isMobile ? (
-              // Mobile layout for metric charts
-              <div style={{ padding: '0 8px' }}>
-                <MetricBarCharts analyzedTracks={analyzedTracks} styles={styles} />
-              </div>
-            ) : (
-              <MetricBarCharts analyzedTracks={analyzedTracks} styles={styles} />
-            )}
-          </div>
-        )}
-        {page === 3 && (
-          <div style={styles.pageContainer}>
-            <h2 style={styles.pageTitle}>Binary Audio Features</h2>
-            {isMobile ? (
-              // Mobile layout for binary charts
-              <div style={{ padding: '0 8px' }}>
-                <BinaryBarCharts analyzedTracks={analyzedTracks} styles={styles} />
-              </div>
-            ) : (
-              <BinaryBarCharts analyzedTracks={analyzedTracks} styles={styles} />
-            )}
-          </div>
-        )}
-        {page === 4 && (
-          <div style={styles.pageContainer}>
-            <h2 style={styles.pageTitle}>Genre & Rhythm Leaderboards</h2>
-            {isMobile ? (
-              // Mobile layout for genre leaderboards
-              <div style={{ padding: '0 8px' }}>
-                <GenreLeaderboards analyzedTracks={analyzedTracks} styles={styles} isMobile={isMobile} />
-              </div>
-            ) : (
-              <GenreLeaderboards analyzedTracks={analyzedTracks} styles={styles} isMobile={isMobile} />
-            )}
-          </div>
-        )}
-        {page === 5 && (
-          <div style={styles.pageContainer}>
-            <h2 style={styles.pageTitle}>Chords Histogram</h2>
-            <div style={{ color: '#b0b6be', fontSize: isMobile ? 13 : 15, textAlign: 'center', marginBottom: 24 }}>
-              Average percentage of major and minor chords heard in the track.
-            </div>
-            {isMobile ? (
-              // Mobile layout for chords histogram
-              <div style={{ padding: '0 8px' }}>
-                <ChordsHistogram analyzedTracks={analyzedTracks} styles={styles} />
-              </div>
-            ) : (
-              <ChordsHistogram analyzedTracks={analyzedTracks} styles={styles} />
-            )}
-            <div style={{ color: '#b0b6be', fontSize: isMobile ? 12 : 14, textAlign: 'center', marginTop: 24 }}>
-              For each chord, this value shows the average proportion of time (per song) that the chord is present, based on all analyzed tracks.
-            </div>
-          </div>
+          <ComprehensiveDashboard 
+            analyzedTracks={analyzedTracks} 
+            totalBeats={totalBeats} 
+            avgBeats={avgBeats} 
+            isMobile={isMobile} 
+          />
         )}
         <div style={{ 
           display: 'flex', 
-          justifyContent: 'space-between', 
+          justifyContent: 'center', 
+          alignItems: 'center',
           marginTop: 36,
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? 12 : 0
+          marginBottom: isMobile ? 16 : 24,
+          gap: isMobile ? 24 : 32
         }}>
           <button onClick={goPrev} disabled={page === 0} style={{ 
             opacity: page === 0 ? 0.4 : 1, 
             ...styles.navButton,
+            ...(prevButtonHover && !page === 0 ? styles.navButtonHover : {}),
             cursor: page === 0 ? 'default' : 'pointer',
-            width: isMobile ? '100%' : 'auto'
-          }}>
-            Prev
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            minWidth: isMobile ? '48px' : '56px'
+          }} onMouseEnter={() => setPrevButtonHover(true)} onMouseLeave={() => setPrevButtonHover(false)}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"}>
+              <path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20V11Z"/>
+            </svg>
           </button>
           {page === totalPages - 1 ? (
             <button onClick={onClose} style={{
-              ...styles.navButtonPrimary,
-              width: isMobile ? '100%' : 'auto'
+              ...styles.navButton,
+              width: isMobile ? '48px' : '56px',
+              height: isMobile ? '48px' : '56px',
+              minWidth: isMobile ? '48px' : '56px',
+              minHeight: isMobile ? '48px' : '56px'
             }}>
-              Close
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"}>
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
             </button>
           ) : (
             <button onClick={goNext} disabled={page === totalPages - 1} style={{ 
               opacity: page === totalPages - 1 ? 0.4 : 1, 
-              ...styles.navButtonPrimary,
+              ...styles.navButton,
+              ...(nextButtonHover && !page === totalPages - 1 ? styles.navButtonHover : {}),
               cursor: page === totalPages - 1 ? 'default' : 'pointer',
-              width: isMobile ? '100%' : 'auto'
-            }}>
-              Next
+              width: isMobile ? '48px' : '56px',
+              height: isMobile ? '48px' : '56px',
+              minWidth: isMobile ? '48px' : '56px'
+            }} onMouseEnter={() => setNextButtonHover(true)} onMouseLeave={() => setNextButtonHover(false)}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"} style={{ transform: 'rotate(180deg)' }}>
+                <path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20V11Z"/>
+              </svg>
             </button>
           )}
         </div>
@@ -1507,6 +1559,153 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }
+  
+  // Helper to get leaderboard for mood classification with proper mapping
+  function getMoodLeaderboard() {
+    const counts = {};
+    analyzedTracks.forEach(r => {
+      // The data is nested under the first key (usually "0")
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const val = r.highLevel?.[firstKey]?.highlevel?.moods_mirex?.value;
+      if (val) counts[val] = (counts[val] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }
+  
+  // Helper to get leaderboard for metadata.tags.genre with smart cleaning
+  function getMetadataGenreLeaderboard() {
+    const rawCounts = {};
+    analyzedTracks.forEach(r => {
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const genre = r.highLevel?.[firstKey]?.metadata?.tags?.genre;
+      if (genre) rawCounts[genre] = (rawCounts[genre] || 0) + 1;
+    });
+    
+    // Clean and normalize genres
+    const cleanedCounts = {};
+    Object.entries(rawCounts).forEach(([rawGenre, count]) => {
+      // Skip extremely long tags (likely data dumps)
+      if (rawGenre.length > 50) return;
+      
+      // Skip useless generic tags
+      if (['genre', 'other', 'misc', 'various', 'unknown'].includes(rawGenre.toLowerCase())) return;
+      
+      // Normalize the genre
+      const normalized = normalizeGenre(rawGenre);
+      if (normalized) {
+        cleanedCounts[normalized] = (cleanedCounts[normalized] || 0) + count;
+      }
+    });
+    
+    return Object.entries(cleanedCounts).sort((a, b) => b[1] - a[1]);
+  }
+  
+  // Smart genre normalization function
+  function normalizeGenre(rawGenre) {
+    if (!rawGenre) return null;
+    
+    const genre = rawGenre.toLowerCase().trim();
+    
+    // Skip if too long or generic
+    if (genre.length > 50) return null;
+    
+    // Hip Hop variations
+    if (genre.includes('hip hop') || genre.includes('hip-hop') || genre.includes('hiphop') || 
+        genre.includes('rap') || genre.includes('trap')) {
+      return 'Hip Hop & Rap';
+    }
+    
+    // Electronic variations
+    if (genre.includes('electronic') || genre.includes('edm') || genre.includes('dance') ||
+        genre.includes('techno') || genre.includes('house') || genre.includes('trance') ||
+        genre.includes('dubstep') || genre.includes('drum & bass') || genre.includes('dnb') ||
+        genre.includes('ambient') || genre.includes('synthwave') || genre.includes('electro')) {
+      return 'Electronic & Dance';
+    }
+    
+    // Rock variations
+    if (genre.includes('rock') || genre.includes('metal') || genre.includes('punk') ||
+        genre.includes('grunge') || genre.includes('indie rock') || genre.includes('alternative rock') ||
+        genre.includes('hard rock') || genre.includes('progressive rock') || genre.includes('classic rock')) {
+      return 'Rock & Metal';
+    }
+    
+    // Pop variations
+    if (genre.includes('pop') || genre.includes('indie pop') || genre.includes('synth pop') ||
+        genre.includes('dream pop') || genre.includes('electropop') || genre.includes('art pop')) {
+      return 'Pop';
+    }
+    
+    // R&B and Soul variations
+    if (genre.includes('r&b') || genre.includes('rnb') || genre.includes('rhythm and blues') || genre.includes('soul') ||
+        genre.includes('neo soul') || genre.includes('alternative r&b') || genre.includes('contemporary r&b') ||
+        genre.includes('rhythm & blues')) {
+      return 'R&B & Soul';
+    }
+    
+    // Jazz variations
+    if (genre.includes('jazz') || genre.includes('smooth jazz') || genre.includes('acid jazz') ||
+        genre.includes('jazz fusion') || genre.includes('bebop') || genre.includes('cool jazz')) {
+      return 'Jazz';
+    }
+    
+    // Folk variations
+    if (genre.includes('folk') || genre.includes('indie folk') || genre.includes('folk rock') ||
+        genre.includes('traditional folk') || genre.includes('contemporary folk')) {
+      return 'Folk';
+    }
+    
+    // Country variations
+    if (genre.includes('country') || genre.includes('country rock') || genre.includes('alt country') ||
+        genre.includes('outlaw country') || genre.includes('bluegrass')) {
+      return 'Country';
+    }
+    
+    // Classical variations
+    if (genre.includes('classical') || genre.includes('orchestral') || genre.includes('chamber music') ||
+        genre.includes('symphony') || genre.includes('opera')) {
+      return 'Classical';
+    }
+    
+    // Reggae variations
+    if (genre.includes('reggae') || genre.includes('dub') || genre.includes('ska') ||
+        genre.includes('dancehall')) {
+      return 'Reggae';
+    }
+    
+    // Latin variations
+    if (genre.includes('latin') || genre.includes('salsa') || genre.includes('merengue') ||
+        genre.includes('bossa nova') || genre.includes('flamenco') || genre.includes('tango')) {
+      return 'Latin';
+    }
+    
+    // World variations
+    if (genre.includes('world') || genre.includes('african') || genre.includes('middle eastern') ||
+        genre.includes('indian') || genre.includes('celtic') || genre.includes('gospel')) {
+      return 'World & Traditional';
+    }
+    
+    // Blues variations
+    if (genre.includes('blues') || genre.includes('delta blues') || genre.includes('electric blues') ||
+        genre.includes('chicago blues')) {
+      return 'Blues';
+    }
+    
+    // Funk variations
+    if (genre.includes('funk') || genre.includes('disco') || genre.includes('motown')) {
+      return 'Funk & Disco';
+    }
+    
+    // If no major category matches, try to extract the most meaningful part
+    const words = genre.split(/[\s&\/,]+/).filter(word => word.length > 2);
+    if (words.length > 0) {
+      // Capitalize first letter and return the first meaningful word
+      return words[0].charAt(0).toUpperCase() + words[0].slice(1);
+    }
+    
+    return null;
+  }
+  
   // Human-friendly mappings for genre codes
   const rosamericaMap = {
     pop: 'Pop', rhy: 'Rhythm & Blues', hip: 'Hip-Hop', roc: 'Rock', dan: 'Dance', spe: 'Speech', ele: 'Electronic', jaz: 'Jazz', ins: 'Instrumental', fol: 'Folk', bla: 'Blues', cou: 'Country', reg: 'Reggae', sou: 'Soul', fun: 'Funk', lat: 'Latin', met: 'Metal', pun: 'Punk', cla: 'Classical', exp: 'Experimental', amb: 'Ambient', wor: 'World', blu: 'Blues', rap: 'Rap', '': ''
@@ -1518,20 +1717,26 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
     ChaChaCha: 'Cha-Cha-Cha', Jive: 'Jive', Quickstep: 'Quickstep', RumbaAmerican: 'Rumba (American)', RumbaInternational: 'Rumba (International)', Rumba: 'Rumba', Samba: 'Samba', Tango: 'Tango', VienneseWaltz: 'Viennese Waltz', Waltz: 'Waltz', '': ''
   };
   const mirexMap = {
-    cluster1: 'Cluster 1', cluster2: 'Cluster 2', cluster3: 'Cluster 3', cluster4: 'Cluster 4', cluster5: 'Cluster 5', '': ''
+    cluster1: 'Quiet Moments', cluster2: 'Dance & Social Vibe', cluster3: 'Calm & Focused', cluster4: 'Power Up', cluster5: 'Beat-Driven & Lyrical',
+    Cluster1: 'Quiet Moments', Cluster2: 'Dance & Social Vibe', Cluster3: 'Calm & Focused', Cluster4: 'Power Up', Cluster5: 'Beat-Driven & Lyrical',
+    '': ''
   };
   const metrics = [
-    { label: 'Genre Dortmund', key: 'genre_dortmund' },
-    { label: 'Genre Electronic', key: 'genre_electronic' },
+    { label: 'Main Genre Tags', key: 'metadata_genre', isMetadata: true },
     { label: 'Genre Rosamerica', key: 'genre_rosamerica', map: rosamericaMap },
-    { label: 'Genre Tzanetakis', key: 'genre_tzanetakis', map: tzanetakisMap },
-    { label: 'Rhythm (ISMIR04)', key: 'ismir04_rhythm', map: ismirMap },
-    { label: 'Mood (MIREX)', key: 'moods_mirex', map: mirexMap },
+    { label: 'Mood Classification', key: 'moods_mirex', isMood: true, map: mirexMap },
   ];
   return (
     <div style={styles.genreLeaderboard}>
       {metrics.map((m, metricIdx) => {
-        const leaderboard = getLeaderboard(m.key);
+        let leaderboard;
+        if (m.isMetadata) {
+          leaderboard = getMetadataGenreLeaderboard();
+        } else if (m.isMood) {
+          leaderboard = getMoodLeaderboard();
+        } else {
+          leaderboard = getLeaderboard(m.key);
+        }
         const revealed = useStaggeredReveal(leaderboard.length, animKey + '-' + m.key);
         return (
           <div key={m.key} style={styles.genreSection}>
@@ -1589,26 +1794,10 @@ function useStaggeredRevealChord(count, trigger) {
 function ChordsHistogram({ analyzedTracks, styles }) {
   const [animKey, setAnimKey] = useStateReact(0);
   useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
-  // Helper to find the most dominant chord in a song
-  function getDominantChords(hist) {
-    if (!Array.isArray(hist) || hist.length !== 24) return { major: null, minor: null };
-    let maxMaj = 0, maxMajIdx = 0, maxMin = 0, maxMinIdx = 0;
-    for (let i = 0; i < 12; i++) {
-      if (hist[i] > maxMaj) { maxMaj = hist[i]; maxMajIdx = i; }
-      if (hist[i + 12] > maxMin) { maxMin = hist[i + 12]; maxMinIdx = i; }
-    }
-    return {
-      major: maxMaj > 0 ? maxMajIdx : null,
-      minor: maxMin > 0 ? maxMinIdx : null
-    };
-  }
   // Aggregate major and minor chords
   const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   let majorCounts = Array(12).fill(0);
   let minorCounts = Array(12).fill(0);
-  // For summary: count how many songs have each chord as the most dominant
-  let majorMostCounts = Array(12).fill(0);
-  let minorMostCounts = Array(12).fill(0);
   analyzedTracks.forEach(r => {
       // The data is nested under the first key (usually "0")
       const firstKey = Object.keys(r.lowLevel || {})[0];
@@ -1618,18 +1807,12 @@ function ChordsHistogram({ analyzedTracks, styles }) {
         majorCounts[i] += hist[i];
         minorCounts[i] += hist[i + 12];
       }
-      const dom = getDominantChords(hist);
-      if (dom.major !== null) majorMostCounts[dom.major]++;
-      if (dom.minor !== null) minorMostCounts[dom.minor]++;
     }
   });
   // Convert to leaderboard
   const numTracks = analyzedTracks.length || 1;
   const majorLeaderboard = chordNames.map((name, i) => [name, majorCounts[i] / numTracks]).sort((a, b) => b[1] - a[1]);
   const minorLeaderboard = chordNames.map((name, i) => [name + 'm', minorCounts[i] / numTracks]).sort((a, b) => b[1] - a[1]);
-  // Most dominant summary
-  const majorMostSummary = chordNames.map((name, i) => [name, majorMostCounts[i]]).sort((a, b) => b[1] - a[1]).filter(([, count]) => count > 0).slice(0, 3);
-  const minorMostSummary = chordNames.map((name, i) => [name + 'm', minorMostCounts[i]]).sort((a, b) => b[1] - a[1]).filter(([, count]) => count > 0).slice(0, 3);
   const majorRevealed = useStaggeredRevealChord(majorLeaderboard.length, animKey + '-maj');
   const minorRevealed = useStaggeredRevealChord(minorLeaderboard.length, animKey + '-min');
   return (
@@ -1648,17 +1831,6 @@ function ChordsHistogram({ analyzedTracks, styles }) {
             <span>{count.toFixed(1)}%</span>
           </div>
         ))}
-        <div style={styles.chordSummary}>
-          <div style={styles.chordSummaryTitle}>Most Dominant Major Chords</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {majorMostSummary.map(([chord, count]) => (
-              <div key={chord} style={styles.chordSummaryItem}>
-                <span style={{ color: '#38bdf8', fontWeight: 700 }}>{chord}</span>
-                <span style={{ color: '#b0b6be', fontWeight: 600 }}>{count} song{count > 1 ? 's' : ''}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
       <div style={styles.chordSection}>
         <div style={styles.chordSectionTitle}>Minor Chords</div>
@@ -1675,15 +1847,541 @@ function ChordsHistogram({ analyzedTracks, styles }) {
             <span>{count.toFixed(1)}%</span>
           </div>
         ))}
-        <div style={styles.chordSummary}>
-          <div style={styles.chordSummaryTitle}>Most Dominant Minor Chords</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {minorMostSummary.map(([chord, count]) => (
-              <div key={chord} style={styles.chordSummaryItem}>
-                <span style={{ color: '#f87171', fontWeight: 700 }}>{chord}</span>
-                <span style={{ color: '#b0b6be', fontWeight: 600 }}>{count} song{count > 1 ? 's' : ''}</span>
+      </div>
+    </div>
+  );
+}
+
+// --- ComprehensiveDashboard component ---
+function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile }) {
+  const [animKey, setAnimKey] = useStateReact(0);
+  useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
+
+  // Chart.js charts effect
+  useEffectReact(() => {
+    // Check if Chart.js is available
+    if (typeof window !== 'undefined' && window.Chart) {
+      createChordsCharts();
+    } else {
+      // Load Chart.js dynamically if not available
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+      script.onload = createChordsCharts;
+      document.head.appendChild(script);
+    }
+  }, [analyzedTracks]);
+
+  function createChordsCharts() {
+    // Wait for Chart.js to be available
+    if (typeof window === 'undefined' || !window.Chart) {
+      setTimeout(createChordsCharts, 100);
+      return;
+    }
+
+    const Chart = window.Chart;
+    
+    // Chart options
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 25,
+          ticks: {
+            color: '#b3b3b3',
+            callback: function(value) {
+              return value + '%';
+            },
+            font: {
+              size: isMobile ? 8 : 12
+            },
+            maxTicksLimit: isMobile ? 4 : 6
+          },
+          grid: {
+            color: '#535353'
+          }
+        },
+        x: {
+          ticks: {
+            color: '#b3b3b3',
+            font: {
+              size: isMobile ? 8 : 12
+            },
+            maxRotation: isMobile ? 45 : 0,
+            minRotation: isMobile ? 45 : 0
+          },
+          grid: {
+            display: false
+          }
+        }
+      }
+    };
+
+    // Prepare chord data
+    const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    let majorCounts = Array(12).fill(0);
+    let minorCounts = Array(12).fill(0);
+    
+    analyzedTracks.forEach(r => {
+      const firstKey = Object.keys(r.lowLevel || {})[0];
+      const hist = r.analysisData?.tonal?.chords_histogram || r.lowLevel?.[firstKey]?.tonal?.chords_histogram || r.highLevel?.[firstKey]?.tonal?.chords_histogram;
+      if (Array.isArray(hist) && hist.length === 24) {
+        for (let i = 0; i < 12; i++) {
+          majorCounts[i] += hist[i];
+          minorCounts[i] += hist[i + 12];
+        }
+      }
+    });
+
+    const numTracks = analyzedTracks.length || 1;
+    const majorData = chordNames.map((name, i) => majorCounts[i] / numTracks);
+    const minorData = chordNames.map((name, i) => minorCounts[i] / numTracks);
+
+    // Create Major Chords Chart
+    const majorCtx = document.getElementById('majorChordsChart');
+    if (majorCtx) {
+      // Destroy existing chart if it exists
+      if (majorCtx.chart) {
+        majorCtx.chart.destroy();
+      }
+      
+      majorCtx.chart = new Chart(majorCtx, {
+        type: 'bar',
+        data: {
+          labels: chordNames,
+          datasets: [{
+            label: 'Major Chord Duration',
+            data: majorData,
+            backgroundColor: 'rgba(29, 185, 84, 0.5)',
+            borderColor: 'rgba(29, 185, 84, 1)',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: { 
+          ...chartOptions, 
+          plugins: { 
+            ...chartOptions.plugins, 
+            title: { 
+              display: true, 
+              text: 'Major Chords', 
+              color: '#FFF', 
+              font: { size: isMobile ? 14 : 16 } 
+            } 
+          } 
+        }
+      });
+    }
+
+    // Create Minor Chords Chart
+    const minorCtx = document.getElementById('minorChordsChart');
+    if (minorCtx) {
+      // Destroy existing chart if it exists
+      if (minorCtx.chart) {
+        minorCtx.chart.destroy();
+      }
+      
+      minorCtx.chart = new Chart(minorCtx, {
+        type: 'bar',
+        data: {
+          labels: chordNames.map(name => name + 'm'),
+          datasets: [{
+            label: 'Minor Chord Duration',
+            data: minorData,
+            backgroundColor: 'rgba(29, 185, 84, 0.5)',
+            borderColor: 'rgba(29, 185, 84, 1)',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: { 
+          ...chartOptions, 
+          plugins: { 
+            ...chartOptions.plugins, 
+            title: { 
+              display: true, 
+              text: 'Minor Chords', 
+              color: '#FFF', 
+              font: { size: isMobile ? 14 : 16 } 
+            } 
+          } 
+        }
+      });
+    }
+  }
+
+  // Helper functions for data extraction
+  function getAvgHighlevel(key) {
+    let sum = 0, count = 0;
+    analyzedTracks.forEach(r => {
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const val = r.highLevel?.[firstKey]?.highlevel?.[key]?.probability;
+      if (typeof val === 'number') { sum += val; count++; }
+    });
+    return count ? sum / count : 0;
+  }
+
+  function getAvgBinary(key, positiveValue) {
+    let sum = 0, count = 0;
+    analyzedTracks.forEach(r => {
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const all = r.highLevel?.[firstKey]?.highlevel?.[key]?.all;
+      if (all && typeof all[positiveValue] === 'number') { sum += all[positiveValue]; count++; }
+    });
+    return count ? sum / count : 0;
+  }
+
+  function getAvgBinaryPair(key, left, right) {
+    let leftSum = 0, rightSum = 0, count = 0;
+    analyzedTracks.forEach(r => {
+      const firstKey = Object.keys(r.highLevel || {})[0];
+      const all = r.highLevel?.[firstKey]?.highlevel?.[key]?.all;
+      if (all && typeof all[left] === 'number' && typeof all[right] === 'number') {
+        leftSum += all[left];
+        rightSum += all[right];
+        count++;
+      }
+    });
+    return count ? { left: leftSum / count, right: rightSum / count } : { left: 0, right: 0 };
+  }
+
+  // Audio profile data
+  const audioProfiles = [
+    { name: 'Danceability', value: getAvgHighlevel('danceability') },
+    { name: 'Acousticness', value: getAvgBinary('mood_acoustic', 'acoustic') },
+    { name: 'Aggressiveness', value: getAvgBinary('mood_aggressive', 'aggressive') },
+    { name: 'Electronicness', value: getAvgBinary('mood_electronic', 'electronic') },
+    { name: 'Happiness', value: getAvgBinary('mood_happy', 'happy') },
+    { name: 'Partiness', value: getAvgBinary('mood_party', 'party') },
+    { name: 'Relaxedness', value: getAvgBinary('mood_relaxed', 'relaxed') },
+    { name: 'Melancholicness', value: getAvgBinary('mood_sad', 'sad') },
+  ];
+
+  // Binary features data
+  const binaryFeatures = [
+    {
+      label: 'Gender',
+      left: 'Male',
+      right: 'Female',
+      avg: getAvgBinaryPair('gender', 'male', 'female')
+    },
+    {
+      label: 'Timbre',
+      left: 'Dark',
+      right: 'Bright',
+      avg: getAvgBinaryPair('timbre', 'dark', 'bright')
+    },
+    {
+      label: 'Tonality',
+      left: 'Atonal',
+      right: 'Tonal',
+      avg: getAvgBinaryPair('tonal_atonal', 'atonal', 'tonal')
+    },
+    {
+      label: 'Voice',
+      left: 'Vocal',
+      right: 'Instrumental',
+      avg: getAvgBinaryPair('voice_instrumental', 'voice', 'instrumental')
+    },
+  ];
+
+
+
+  return (
+    <div style={{
+      background: '#212121',
+      borderRadius: 0,
+      padding: isMobile ? 16 : 40,
+      border: '1px solid #535353',
+      boxShadow: '0 25px 50px -12px rgba(29, 185, 84, 0.1)',
+      maxWidth: '100%',
+      margin: '0 auto',
+      overflow: 'hidden',
+      position: 'relative'
+    }}>
+      {/* Background Pattern */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: 'radial-gradient(circle at 1px 1px, #2a2a2a 1px, transparent 0)',
+        backgroundSize: '20px 20px',
+        opacity: 0.3,
+        pointerEvents: 'none',
+        zIndex: 0
+      }} />
+      
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Header */}
+        <header style={{ textAlign: 'center', marginBottom: isMobile ? 24 : 40 }}>
+          <h1 style={{
+            fontSize: isMobile ? '2rem' : '3.5rem',
+            fontWeight: 900,
+            color: '#fff',
+            letterSpacing: '-0.025em',
+            marginBottom: isMobile ? 6 : 8
+          }}>
+            Your Music DNA
+          </h1>
+          <p style={{
+            fontSize: isMobile ? '0.9rem' : '1.125rem',
+            color: '#b3b3b3'
+          }}>
+            A complete breakdown of your listening profile.
+          </p>
+        </header>
+
+        {/* Grid Layout */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+          gap: isMobile ? 16 : 32
+        }}>
+
+          {/* Genre & Rhythm Leaderboards - Full Width */}
+          <div style={{
+            gridColumn: isMobile ? '1' : '1 / -1',
+            background: 'rgba(33, 33, 33, 0.5)',
+            padding: isMobile ? 16 : 24,
+            borderRadius: isMobile ? 12 : 16,
+            border: '1px solid #535353'
+          }}>
+            <h2 style={{
+              fontSize: isMobile ? '1.1rem' : '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
+              marginBottom: isMobile ? 12 : 16
+            }}>
+              Genre & Rhythm Leaderboards
+            </h2>
+            <GenreLeaderboards analyzedTracks={analyzedTracks} isMobile={isMobile} styles={{
+            genreLeaderboard: {
+              display: 'flex',
+              flexDirection: 'column',
+              gap: isMobile ? 16 : 20
+            },
+            genreSection: {
+              marginBottom: isMobile ? 12 : 16
+            },
+            genreSectionTitle: {
+              color: '#b3b3b3',
+              fontWeight: 600,
+              fontSize: isMobile ? '0.875rem' : '1rem',
+              marginBottom: 4
+            },
+            genreTags: {
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8
+            },
+            genreTag: {
+              background: 'rgba(29, 185, 84, 0.2)',
+              color: '#1db954',
+              fontWeight: 600,
+              fontSize: isMobile ? '0.75rem' : '0.875rem',
+              borderRadius: 9999,
+              padding: '2px 8px'
+            }
+          }} />
+          </div>
+
+          {/* Total Beat Count */}
+          <div style={{
+            background: 'rgba(33, 33, 33, 0.5)',
+            padding: isMobile ? 16 : 24,
+            borderRadius: isMobile ? 12 : 16,
+            border: '1px solid #535353',
+            textAlign: 'center'
+          }}>
+            <h2 style={{
+              fontSize: isMobile ? '1rem' : '1.125rem',
+              fontWeight: 600,
+              color: '#b3b3b3',
+              marginBottom: isMobile ? 12 : 16
+            }}>
+              Total Beat Count
+            </h2>
+            <p style={{
+              fontSize: isMobile ? '2.5rem' : '4rem',
+              fontWeight: 900,
+              color: '#1db954',
+              margin: isMobile ? '6px 0' : '8px 0'
+            }}>
+              {totalBeats.toLocaleString()}
+            </p>
+            <p style={{
+              fontSize: isMobile ? '0.8rem' : '0.875rem',
+              color: '#b3b3b3'
+            }}>
+              That's <span style={{ fontWeight: 700, color: '#fff' }}>{avgBeats}</span> beats per song on average.
+            </p>
+          </div>
+
+          {/* Binary Audio Features */}
+          <div style={{
+            background: 'rgba(33, 33, 33, 0.5)',
+            padding: isMobile ? 16 : 24,
+            borderRadius: isMobile ? 12 : 16,
+            border: '1px solid #535353'
+          }}>
+            <h2 style={{
+              fontSize: isMobile ? '1.1rem' : '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
+              marginBottom: isMobile ? 16 : 24
+            }}>
+              Binary Audio Features
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
+              {binaryFeatures.map((feature, i) => {
+                const leftPct = Math.round(feature.avg.left * 100);
+                const rightPct = Math.round(feature.avg.right * 100);
+                return (
+                  <div key={feature.label}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      marginBottom: 6,
+                      color: '#b3b3b3'
+                    }}>
+                      <span className="binary-feature-label">{feature.left} ({leftPct}%)</span>
+                      <span className="binary-feature-label">{feature.right} ({rightPct}%)</span>
+                    </div>
+                    <div style={{
+                      width: '100%',
+                      background: '#535353',
+                      borderRadius: 9999,
+                      height: 12
+                    }}>
+                      <div style={{
+                        background: '#1db954',
+                        height: 12,
+                        borderRadius: 9999,
+                        width: `${leftPct}%`
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Average Audio Profile */}
+          <div style={{
+            background: 'rgba(33, 33, 33, 0.5)',
+            padding: isMobile ? 16 : 24,
+            borderRadius: isMobile ? 12 : 16,
+            border: '1px solid #535353'
+          }}>
+            <h2 style={{
+              fontSize: isMobile ? '1.1rem' : '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
+              marginBottom: isMobile ? 12 : 16
+            }}>
+              Average Audio Profile
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 16 }}>
+              {audioProfiles.map((profile, i) => (
+                <div key={profile.name}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 4,
+                    fontSize: '0.875rem',
+                    fontWeight: 500
+                  }}>
+                    <span style={{ color: '#b3b3b3' }}>{profile.name}</span>
+                    <span style={{ color: '#1db954', fontWeight: 700 }}>
+                      {Math.round(profile.value * 100)}%
+                    </span>
+                  </div>
+                  <div style={{
+                    width: '100%',
+                    background: '#535353',
+                    borderRadius: 9999,
+                    height: 10
+                  }}>
+                    <div style={{
+                      background: '#1db954',
+                      height: 10,
+                      borderRadius: 9999,
+                      width: `${Math.round(profile.value * 100)}%`
+                    }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+                  {/* Chords Histogram - Full Width */}
+          <div style={{
+            gridColumn: isMobile ? '1' : '1 / -1',
+            background: 'rgba(33, 33, 33, 0.5)',
+            padding: isMobile ? 16 : 24,
+            borderRadius: isMobile ? 12 : 16,
+            border: '1px solid #535353'
+          }}>
+            <h2 style={{
+              fontSize: isMobile ? '1.1rem' : '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
+              marginBottom: isMobile ? 6 : 8
+            }}>
+              Chords Histogram
+            </h2>
+            <p style={{
+              textAlign: 'center',
+              color: '#b3b3b3',
+              marginBottom: isMobile ? 16 : 24,
+              fontSize: isMobile ? '0.9rem' : '1rem'
+            }}>
+              The average duration of each major and minor chord.
+            </p>
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: isMobile ? 16 : 32
+            }}>
+              <div style={{ 
+                position: 'relative', 
+                height: isMobile ? 200 : 400, 
+                width: isMobile ? '100%' : '50%'
+              }}>
+                <canvas id="majorChordsChart"></canvas>
               </div>
-            ))}
+              <div style={{ 
+                position: 'relative', 
+                height: isMobile ? 200 : 400, 
+                width: isMobile ? '100%' : '50%'
+              }}>
+                <canvas id="minorChordsChart"></canvas>
+              </div>
+            </div>
           </div>
         </div>
       </div>

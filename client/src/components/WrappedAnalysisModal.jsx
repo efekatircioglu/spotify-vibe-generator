@@ -271,11 +271,13 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
       const total = tracksWithMbidsFinal.length;
       setProgress({ done, total });
       
+      // Create final statuses array that matches the filtered tracks exactly
       let finalStatuses = tracksWithMbidsFinal.map(track => ({
         name: track.name,
         artist: track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : ''),
         status: 'Queued for Analysis...',
-        details: 'Waiting for analysis...'
+        details: 'Waiting for analysis...',
+        trackId: track.id // Add track ID for reference
       }));
       setStatuses(finalStatuses);
 
@@ -781,8 +783,8 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                     minHeight: isMobile ? '200px' : 'auto'
                   }}>
                     {statuses.map((s, i) => {
-                      // Try to find the original track object for extra info
-                      const track = tracks[i] || {};
+                      // Find the correct track object using trackId or fallback to index
+                      const track = s.trackId ? tracks.find(t => t.id === s.trackId) : tracks[i] || {};
                       // Album name
                       let album = track.album?.name || track.album || '--';
                       // Year
@@ -989,24 +991,24 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
                     WebkitOverflowScrolling: 'touch'
                   }}>
         {statuses.map((s, i) => {
-                      // Try to find the original track object for extra info
-          const track = tracks[i] || {};
-                      // Album name
-                      let album = track.album?.name || track.album || '--';
-                      // Year
-                      let year = track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '');
-                      if (!year) year = '--';
-                      // Duration (ms to mm:ss)
-                      let duration = track.duration_ms || track.duration || null;
-                      if (duration) {
-                        const mins = Math.floor(duration / 60000);
-                        const secs = Math.floor((duration % 60000) / 1000).toString().padStart(2, '0');
-                        duration = `${mins}:${secs}`;
+          // Find the correct track object using trackId or fallback to index
+          const track = s.trackId ? tracks.find(t => t.id === s.trackId) : tracks[i] || {};
+          // Album name
+          let album = track.album?.name || track.album || '--';
+          // Year
+          let year = track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '');
+          if (!year) year = '--';
+          // Duration (ms to mm:ss)
+          let duration = track.duration_ms || track.duration || null;
+          if (duration) {
+            const mins = Math.floor(duration / 60000);
+            const secs = Math.floor((duration % 60000) / 1000).toString().padStart(2, '0');
+            duration = `${mins}:${secs}`;
           } else {
-                        duration = '--';
-                      }
-                      // Image
-                      let img = track.album_image || track.album?.images?.[0]?.url || track.images?.[0]?.url || track.cover || null;
+            duration = '--';
+          }
+          // Image
+          let img = track.album_image || track.album?.images?.[0]?.url || track.images?.[0]?.url || track.cover || null;
                       
                       // Status styling and text formatting
                       let statusStyle = {};
