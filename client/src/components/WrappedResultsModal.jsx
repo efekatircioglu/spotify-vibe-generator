@@ -703,6 +703,7 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
   const [isMobile, setIsMobile] = useState(false);
   const [prevButtonHover, setPrevButtonHover] = useState(false);
   const [nextButtonHover, setNextButtonHover] = useState(false);
+  const [showArtistTracksModal, setShowArtistTracksModal] = useState(false);
   const { width } = useWindowSize();
   
   // Update mobile state when width changes
@@ -846,7 +847,9 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
         cursor: 'pointer',
         fontSize: isMobile ? '20px' : '24px',
         transition: 'all 0.2s ease',
-        zIndex: 10
+        zIndex: 10,
+        opacity: showArtistTracksModal ? 0 : 1,
+        pointerEvents: showArtistTracksModal ? 'none' : 'auto'
       }}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"}>
           <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
@@ -911,6 +914,9 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
         avgBeats={avgBeats} 
         isMobile={isMobile}
         onClose={onClose}
+        tracks={tracks}
+        showArtistTracksModal={showArtistTracksModal}
+        setShowArtistTracksModal={setShowArtistTracksModal}
       />
     </div>
   );
@@ -1250,9 +1256,238 @@ function ChordsHistogram({ analyzedTracks, styles }) {
   );
 }
 
+// --- ArtistTracksModal component ---
+function ArtistTracksModal({ open, onClose, artistName, tracks, isMobile }) {
+  if (!open) return null;
+
+  // Prevent body scrolling when modal is open
+  useEffectReact(() => {
+    if (open) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [open]);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: '0px',
+      background: 'rgba(0, 0, 0, 0.8)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10000,
+      padding: isMobile ? '16px' : '40px',
+      backdropFilter: 'blur(8px)',
+      WebkitBackdropFilter: 'blur(8px)'
+    }}>
+      {/* Close button */}
+      <button onClick={onClose} style={{
+        position: 'absolute',
+        top: isMobile ? 16 : 24,
+        right: isMobile ? 16 : 24,
+        width: isMobile ? '48px' : '56px',
+        height: isMobile ? '48px' : '56px',
+        minWidth: isMobile ? '48px' : '56px',
+        minHeight: isMobile ? '48px' : '56px',
+        border: '1px solid #444',
+        borderRadius: '50%',
+        background: 'rgba(24, 28, 36, 0.9)',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        fontSize: isMobile ? '20px' : '24px',
+        transition: 'all 0.2s ease',
+        zIndex: 10
+      }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"}>
+          <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+        </svg>
+      </button>
+
+      {/* Modal Content */}
+      <div style={{
+        background: '#212121',
+        borderRadius: isMobile ? 16 : 24,
+        padding: isMobile ? 16 : 40,
+        maxWidth: isMobile ? '100vw' : '600px',
+        width: isMobile ? '100vw' : '600px',
+        maxHeight: isMobile ? '90vh' : '85vh',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        border: '1px solid #535353'
+      }}>
+        {/* Header */}
+        <div style={{
+          textAlign: 'center',
+          marginBottom: isMobile ? 20 : 32,
+          paddingBottom: isMobile ? 16 : 24,
+          borderBottom: '1px solid #535353'
+        }}>
+          <h2 style={{
+            fontSize: isMobile ? '1.5rem' : '2rem',
+            fontWeight: 900,
+            color: '#fff',
+            marginBottom: isMobile ? 8 : 12,
+            letterSpacing: 1
+          }}>
+            {artistName}
+          </h2>
+          <p style={{
+            fontSize: isMobile ? '0.9rem' : '1.1rem',
+            color: '#b3b3b3',
+            margin: 0
+          }}>
+            {tracks.length} track{tracks.length !== 1 ? 's' : ''} found
+          </p>
+        </div>
+
+        {/* Tracks List - Mobile Style */}
+        <div style={{
+          maxHeight: isMobile ? 'calc(90vh - 180px)' : 'calc(85vh - 200px)',
+          overflowY: 'auto',
+          paddingRight: isMobile ? 0 : 8
+        }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16
+          }}>
+                         {tracks.map((track, idx) => (
+               <div key={track.id ? `${track.id}-${idx}` : idx} style={{
+                 background: idx % 2 === 0 ? 'rgba(32,32,32,0.92)' : 'rgba(24,24,24,0.92)',
+                 borderRadius: 14,
+                 padding: 14,
+                 display: 'flex',
+                 alignItems: 'center',
+                 gap: 12,
+                 boxShadow: '0 2px 8px #0002',
+                 position: 'relative',
+                 overflow: 'hidden',
+                 border: track.album_image || track.album?.images?.[0]?.url ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)'
+               }}>
+                 {/* Background album image layer */}
+                 {track.album_image || track.album?.images?.[0]?.url ? (
+                   <div style={{
+                     position: 'absolute',
+                     top: 0,
+                     left: 0,
+                     right: 0,
+                     bottom: 0,
+                     backgroundImage: `linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)), url(${track.album_image || track.album?.images?.[0]?.url})`,
+                     backgroundSize: 'cover',
+                     backgroundPosition: 'center',
+                     backgroundRepeat: 'no-repeat',
+                     filter: 'blur(3px)',
+                     zIndex: 0
+                   }} />
+                 ) : null}
+                 
+                 {/* Content layer */}
+                 <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+                   {/* Index Number */}
+                   <div style={{
+                     fontSize: '0.75rem',
+                     fontWeight: 700,
+                     color: '#ffffff',
+                     background: '#1db954',
+                     borderRadius: '50%',
+                     width: 20,
+                     height: 20,
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     boxShadow: '0 1px 4px #0002',
+                     flexShrink: 0
+                   }}>
+                     {idx + 1}
+                   </div>
+                   
+                   {/* Track Info */}
+                   <div style={{ minWidth: 0, flex: 1 }}>
+                     <div style={{ 
+                       fontWeight: 600, 
+                       color: '#fff', 
+                       fontSize: 16, 
+                       overflow: 'hidden', 
+                       textOverflow: 'ellipsis', 
+                       whiteSpace: 'nowrap',
+                       margin: '0 0 4px 0',
+                       textShadow: track.album_image || track.album?.images?.[0]?.url ? '0 1px 3px rgba(0, 0, 0, 0.7), 0 1px 2px rgba(0, 0, 0, 0.8)' : '0 1px 2px rgba(0, 0, 0, 0.6)'
+                     }}>
+                       {track.name}
+                     </div>
+                     <div style={{ 
+                       color: '#e5e7eb', 
+                       fontSize: 14, 
+                       fontWeight: 500,
+                       overflow: 'hidden', 
+                       textOverflow: 'ellipsis', 
+                       whiteSpace: 'nowrap',
+                       margin: '0 0 4px 0',
+                       textShadow: track.album_image || track.album?.images?.[0]?.url ? '0 1px 2px rgba(0, 0, 0, 0.7), 0 1px 1px rgba(0, 0, 0, 0.8)' : '0 1px 2px rgba(0, 0, 0, 0.5)'
+                     }}>
+                       {track.album?.name || track.album}
+                     </div>
+                     <div style={{ 
+                       color: '#d1d5db', 
+                       fontSize: 12,
+                       fontWeight: 400,
+                       textShadow: track.album_image || track.album?.images?.[0]?.url ? '0 1px 2px rgba(0, 0, 0, 0.6), 0 1px 1px rgba(0, 0, 0, 0.7)' : '0 1px 1px rgba(0, 0, 0, 0.4)'
+                     }}>
+                       {track.release_year || (track.album?.release_date ? track.album.release_date.split('-')[0] : '')} • {track.duration_ms ? `${Math.floor(track.duration_ms / 60000)}:${String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}` : ''}
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             ))}
+          </div>
+        </div>
+
+        {/* Custom scrollbar styling */}
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            width: 6px;
+          }
+          div::-webkit-scrollbar-track {
+            background: #232323;
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb {
+            background: #1db954;
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background: #16a34a;
+          }
+        `}</style>
+      </div>
+    </div>
+  );
+}
+
 // --- ComprehensiveDashboard component ---
-function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile }) {
+function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile, tracks, onClose, showArtistTracksModal, setShowArtistTracksModal }) {
   const [animKey, setAnimKey] = useStateReact(0);
+  const [selectedArtistTracks, setSelectedArtistTracks] = useStateReact([]);
+  const [selectedArtistName, setSelectedArtistName] = useStateReact('');
+  
   useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
 
   // Chart.js charts effect
@@ -1266,6 +1501,59 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
       document.head.appendChild(script);
     }
   }, [analyzedTracks]);
+
+  // Handle artist click to show tracks
+  const handleArtistClick = (artistName) => {
+    // Filter tracks for this artist
+    const artistTracks = tracks.filter(track => {
+      const trackArtists = track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : '');
+      return trackArtists.toLowerCase().includes(artistName.toLowerCase());
+    });
+    
+    // Sort tracks by release date (oldest first)
+    const sortedTracks = artistTracks.sort((a, b) => {
+      const dateA = a.album?.release_date || a.release_year || '9999';
+      const dateB = b.album?.release_date || b.release_year || '9999';
+      
+      // Convert to comparable format
+      const yearA = typeof dateA === 'string' ? parseInt(dateA.split('-')[0]) : parseInt(dateA);
+      const yearB = typeof dateB === 'string' ? parseInt(dateB.split('-')[0]) : parseInt(dateB);
+      
+      return yearA - yearB; // Oldest first
+    });
+    
+    setSelectedArtistTracks(sortedTracks);
+    setSelectedArtistName(artistName);
+    setShowArtistTracksModal(true);
+  };
+
+  // Handle album click to show tracks
+  const handleAlbumClick = (albumName) => {
+    // Filter tracks for this album
+    const albumTracks = tracks.filter(track => {
+      const trackAlbum = track.album?.name || track.album || 'Unknown Album';
+      return trackAlbum.toLowerCase() === albumName.toLowerCase();
+    });
+    
+    // Sort tracks by release date (oldest first)
+    const sortedTracks = albumTracks.sort((a, b) => {
+      const dateA = a.album?.release_date || a.release_year || '9999';
+      const dateB = b.album?.release_date || b.release_year || '9999';
+      
+      // Convert to comparable format
+      const yearA = typeof dateA === 'string' ? parseInt(dateA.split('-')[0]) : parseInt(dateA);
+      const yearB = typeof dateB === 'string' ? parseInt(dateB.split('-')[0]) : parseInt(dateB);
+      
+      return yearA - yearB; // Oldest first
+    });
+    
+    // Get the artist name from the first track
+    const artistName = albumTracks[0]?.artist || (albumTracks[0]?.artists ? (Array.isArray(albumTracks[0]?.artists) ? albumTracks[0]?.artists.map(a => a.name).join(", ") : albumTracks[0]?.artists) : 'Unknown Artist');
+    
+    setSelectedArtistTracks(sortedTracks);
+    setSelectedArtistName(`${albumName} - ${artistName}`);
+    setShowArtistTracksModal(true);
+  };
 
   function createChordsCharts() {
     if (typeof window === 'undefined' || !window.Chart) {
@@ -1538,14 +1826,308 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
 
         {/* Grid Layout */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-          gap: isMobile ? 16 : 32
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 32
         }}>
-
-          {/* Genre & Rhythm Leaderboards - Full Width */}
+          {/* Top sections - 50/50 split */}
           <div style={{
-            gridColumn: isMobile ? '1' : '1 / -1',
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+            gap: 32
+          }}>
+
+          {/* Top Artists - Full Width */}
+          <div style={{
+            gridColumn: isMobile ? '1 / -1' : '1',
+            background: 'rgba(33, 33, 33, 0.5)',
+            padding: isMobile ? 16 : 24,
+            borderRadius: isMobile ? 12 : 16,
+            border: '1px solid #535353',
+            marginBottom: isMobile ? 24 : 0
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
+              marginBottom: 16
+            }}>
+              Top Artists
+            </h2>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              maxHeight: '280px',
+              overflowY: 'auto',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#1db954 #1e1e1e'
+            }}>
+              {(() => {
+                // Get unique artists and their counts from original tracks data
+                const artistCounts = {};
+                tracks.forEach(track => {
+                  const artistName = track.artist || (track.artists ? (Array.isArray(track.artists) ? track.artists.map(a => a.name).join(", ") : track.artists) : 'Unknown Artist');
+                  artistCounts[artistName] = (artistCounts[artistName] || 0) + 1;
+                });
+                
+                // Sort by count and get all artists
+                const topArtists = Object.entries(artistCounts)
+                  .sort(([,a], [,b]) => b - a);
+                
+                                                 return topArtists.map(([artistName, count], index) => (
+                  <div
+                    key={artistName}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      background: 'rgba(29, 185, 84, 0.1)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(29, 185, 84, 0.2)',
+                      height: 48,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => handleArtistClick(artistName)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(29, 185, 84, 0.2)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12
+                    }}>
+                      <span style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: '#1db954',
+                        minWidth: '24px'
+                      }}>
+                        #{index + 1}
+                      </span>
+                      <span style={{
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: '#fff'
+                      }}>
+                        {artistName}
+                      </span>
+                    </div>
+                     <div style={{
+                       display: 'flex',
+                       alignItems: 'center',
+                       gap: 8
+                     }}>
+                       <span style={{
+                         fontSize: '0.875rem',
+                         color: '#b3b3b3'
+                       }}>
+                         {count} track{count !== 1 ? 's' : ''}
+                       </span>
+                     </div>
+                   </div>
+                 ));
+              })()}
+            </div>
+            
+            {/* Custom scrollbar styling */}
+            <style jsx>{`
+              div::-webkit-scrollbar {
+                width: 6px;
+              }
+              div::-webkit-scrollbar-track {
+                background: #1e1e1e;
+                border-radius: 3px;
+              }
+              div::-webkit-scrollbar-thumb {
+                background: #1db954;
+                border-radius: 3px;
+              }
+              div::-webkit-scrollbar-thumb:hover {
+                background: #16a34a;
+              }
+            `}</style>
+          </div>
+
+          {/* Top Albums - Full Width */}
+          <div style={{
+            gridColumn: isMobile ? '1' : '2',
+            background: 'rgba(33, 33, 33, 0.5)',
+            padding: isMobile ? 16 : 24,
+            borderRadius: isMobile ? 12 : 16,
+            border: '1px solid #535353',
+            marginBottom: isMobile ? 16 : 0
+          }}>
+            <h2 style={{
+              fontSize: isMobile ? '1.1rem' : '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
+              marginBottom: isMobile ? 12 : 16
+            }}>
+              Top Albums
+            </h2>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              maxHeight: '280px',
+              overflowY: 'auto',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#1db954 #1e1e1e'
+            }}>
+              {(() => {
+                // Get unique albums and their counts from original tracks data
+                const albumCounts = {};
+                const albumImages = {};
+                tracks.forEach(track => {
+                  const albumName = track.album?.name || track.album || 'Unknown Album';
+                  albumCounts[albumName] = (albumCounts[albumName] || 0) + 1;
+                  
+                  // Store album image if available
+                  if (!albumImages[albumName]) {
+                    const albumImage = track.album_image || track.album?.images?.[0]?.url || track.images?.[0]?.url || track.cover;
+                    if (albumImage) {
+                      albumImages[albumName] = albumImage;
+                    }
+                  }
+                });
+                
+                // Sort by count and get all albums
+                const topAlbums = Object.entries(albumCounts)
+                  .sort(([,a], [,b]) => b - a);
+                
+                                return topAlbums.map(([albumName, count], index) => (
+                  <div
+                    key={albumName}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      background: 'rgba(29, 185, 84, 0.1)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(29, 185, 84, 0.2)',
+                      height: 48,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onClick={() => handleAlbumClick(albumName)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(29, 185, 84, 0.2)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(29, 185, 84, 0.1)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12
+                    }}>
+                      <span style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: '#1db954',
+                        minWidth: '24px'
+                      }}>
+                        #{index + 1}
+                      </span>
+                      
+                      {/* Album Image */}
+                      {albumImages[albumName] ? (
+                        <img 
+                          src={albumImages[albumName]} 
+                          alt={albumName}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 6,
+                            objectFit: 'cover',
+                            background: '#232323'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 6,
+                          background: 'rgba(29, 185, 84, 0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#1db954',
+                          fontSize: 14,
+                          fontWeight: 'bold'
+                        }}>
+                          {albumName[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                      
+                      <span style={{
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        color: '#fff'
+                      }}>
+                        {albumName}
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8
+                    }}>
+                      <span style={{
+                        fontSize: isMobile ? '0.75rem' : '0.875rem',
+                        color: '#b3b3b3'
+                      }}>
+                        {count} track{count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+            
+            {/* Custom scrollbar styling */}
+            <style jsx>{`
+              div::-webkit-scrollbar {
+                width: 6px;
+              }
+              div::-webkit-scrollbar-track {
+                background: #1e1e1e;
+                border-radius: 3px;
+              }
+              div::-webkit-scrollbar-thumb {
+                background: #1db954;
+                border-radius: 3px;
+              }
+              div::-webkit-scrollbar-thumb:hover {
+                background: #16a34a;
+              }
+            `}</style>
+          </div>
+          </div>
+
+          {/* Bottom sections - 3-column layout */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+            gap: 32
+          }}>
+          <div style={{
+            gridColumn: isMobile ? '1 / -1' : '1 / -1',
             background: 'rgba(33, 33, 33, 0.5)',
             padding: isMobile ? 16 : 24,
             borderRadius: isMobile ? 12 : 16,
@@ -1593,6 +2175,7 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
 
           {/* Total Beat Count */}
           <div style={{
+            gridColumn: isMobile ? '1' : '1',
             background: 'rgba(33, 33, 33, 0.5)',
             padding: isMobile ? 16 : 24,
             borderRadius: isMobile ? 12 : 16,
@@ -1729,15 +2312,27 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
                       }}>
                         {formattedTime}
                       </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+                            </div>
+      </div>
+      
+      {/* Artist Tracks Modal */}
+      {showArtistTracksModal && (
+        <ArtistTracksModal
+          open={showArtistTracksModal}
+          onClose={() => setShowArtistTracksModal(false)}
+          artistName={selectedArtistName}
+          tracks={selectedArtistTracks}
+          isMobile={isMobile}
+        />
+      )}
+    </div>
+  );
+})()}
           </div>
 
           {/* Binary Audio Features */}
           <div style={{
+            gridColumn: isMobile ? '1' : '2',
             background: 'rgba(33, 33, 33, 0.5)',
             padding: isMobile ? 16 : 24,
             borderRadius: isMobile ? 12 : 16,
@@ -1767,7 +2362,7 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
                       marginBottom: 6,
                       color: '#b3b3b3'
                     }}>
-                      <span className="binary-feature-label">{feature.left} ({leftPct}%)</span>
+                      <span className="binary-feature-label" style={{ color: '#1db954' }}>{feature.left} ({leftPct}%)</span>
                       <span className="binary-feature-label">{feature.right} ({rightPct}%)</span>
                     </div>
                     <div style={{
@@ -1791,6 +2386,7 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
 
           {/* Average Audio Profile */}
           <div style={{
+            gridColumn: isMobile ? '1' : '3',
             background: 'rgba(33, 33, 33, 0.5)',
             padding: isMobile ? 16 : 24,
             borderRadius: isMobile ? 12 : 16,
@@ -1838,6 +2434,7 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
               ))}
             </div>
           </div>
+        </div>
         </div>
 
         {/* Chords Histogram - Full Width */}
