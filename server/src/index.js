@@ -64,9 +64,9 @@ const scopes = [
 
 // Create a new instance of the SpotifyWebApi client
 const spotifyApi = new SpotifyWebApi({
-  clientId: process.env.SPOTIFY_CLIENT_ID ,
+  clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: process.env.REDIRECT_URI,
+  redirectUri: 'http://46.101.78.90:8000/callback', // Use HTTP since server doesn't have SSL
 });
 
 // Token refresh function
@@ -3668,7 +3668,7 @@ app.post('/batch-isrc-mbid', async (req, res) => {
 // Start the server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`Server is also accessible on http://192.168.1.4:${PORT}`);
+  console.log(`Server is accessible from internet at http://46.101.78.90:${PORT}`);
 });
 
 module.exports = pool;
