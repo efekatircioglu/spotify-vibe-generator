@@ -826,7 +826,7 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
       // zIndex: 1000,
       // padding: isMobile ? '60px 16px 24px' : '80px 72px 72px',
       // boxSizing: 'border-box',
-      overflowY: 'auto'
+      overflow: 'hidden'
     }} ref={modalContainerRef}>
       {/* Close button */}
       <button onClick={onClose} style={{
@@ -1787,7 +1787,9 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
       maxWidth: '100%',
       margin: '0 auto',
       overflow: 'hidden',
-      position: 'relative'
+      position: 'relative',
+      height: '100vh',
+      overflowY: 'auto'
     }}>
       {/* Background Pattern */}
       <div style={{

@@ -968,13 +968,13 @@ if (isMobile) {
               position: 'relative',
             }}>
               {/* 1st Column: Cover Art with Index */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginTop: -10 }}>
                 {/* Index Number */}
                 <div style={{
                   fontSize: '0.75rem',
                   fontWeight: 700,
                   color: '#ffffff',
-                  background: '#1db954',
+                  background: '#404040',
                   borderRadius: '50%',
                   width: 20,
                   height: 20,
