@@ -1105,7 +1105,7 @@ export default function Home() {
                   fontWeight: 900, 
                   color: '#fff', 
                   letterSpacing: 1,
-                  fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
+                  fontFamily: 'inherit'
                 }}>
                   {user?.display_name || 'Spotify User'}
                 </span>

@@ -11,7 +11,14 @@ const ScrollingText = ({ texts, className = "" }) => {
             <span 
               key={index} 
               className="px-16 text-4xl md:text-6xl font-bold gradient-text whitespace-nowrap"
-              style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}
+              style={{ 
+          fontFamily: 'inherit',
+          background: 'linear-gradient(135deg, hsl(141 73% 42%), hsl(280 100% 70%))',
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          filter: 'drop-shadow(0 0 20px hsl(141 73% 42% / 0.5))'
+        }}
             >
               {text}
             </span>

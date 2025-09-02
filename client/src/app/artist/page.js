@@ -163,14 +163,7 @@ export default function ArtistConcertsPage() {
   
   // Load handwriting fonts
   useEffect(() => {
-    const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&family=Patrick+Hand&family=Indie+Flower&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-    
-    return () => {
-      document.head.removeChild(link);
-    };
+    // Font loading removed - using system fonts instead
   }, []);
 
   const searchParams = useSearchParams();
@@ -1049,7 +1042,7 @@ export default function ArtistConcertsPage() {
   fontWeight: 900, 
   color: '#fff', 
   letterSpacing: 1,
-  fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
+  fontFamily: 'inherit'
 }}>{selectedArtist.name}</span>
               </div>
               {artistFollowers !== null && (
@@ -1125,22 +1118,13 @@ export default function ArtistConcertsPage() {
                         fontSize: 'clamp(1.2rem, 2.5vw, 1.8rem)',
                         fontWeight: 500,
                         fontStyle: 'italic',
-                        fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive',
+                        fontFamily: 'inherit',
                         letterSpacing: '0.5px',
                         display: 'inline-block'
                       }}>
                         {discogsRealName.split(' ').map((word, index) => (
                           <span key={index} style={{ display: 'inline-block', marginRight: '4px' }}>
-                            <span style={{
-                              fontSize: 'clamp(1.3rem, 2.6vw, 2rem)',
-                              fontWeight: 700,
-                              // color: '#60a5fa'
-                            }}>
-                              {word.charAt(0)}
-                            </span>
-                            <span style={{ fontSize: 'inherit' }}>
-                              {word.slice(1)}
-                            </span>
+                            {word}
                           </span>
                         ))}
                       </div>

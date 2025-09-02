@@ -45,7 +45,14 @@ const Index = () => {
       <main>
         <header className="relative min-h-screen flex flex-col justify-center items-center px-4 z-10">
           <div className="text-center mb-16 animate-scale-in" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 gradient-text relative z-20 mt-24 md:mt-0" style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}>
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 gradient-text relative z-20 mt-24 md:mt-0" style={{ 
+              fontFamily: 'inherit',
+              background: 'linear-gradient(135deg, hsl(141 73% 42%), hsl(280 100% 70%))',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 0 20px hsl(141 73% 42% / 0.5))'
+            }}>
               Vibe Generator
             </h1>
             <div className="mb-8">
@@ -173,7 +180,14 @@ const Index = () => {
         <section className="py-20 px-4 relative z-10" aria-labelledby="features-heading">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16 animate-fade-in-up">
-              <h2 id="features-heading" className="text-4xl md:text-5xl font-bold mb-6 gradient-text" style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}>
+              <h2 id="features-heading" className="text-4xl md:text-5xl font-bold mb-6 gradient-text" style={{ 
+                fontFamily: 'inherit',
+                background: 'linear-gradient(135deg, hsl(141 73% 42%), hsl(280 100% 70%))',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 20px hsl(141 73% 42% / 0.5))'
+              }}>
                 Choose Your Journey
               </h2>
               <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
@@ -225,7 +239,14 @@ const Index = () => {
         {/* Final CTA Section */}
         <section className="py-20 px-4 text-center relative z-10" aria-labelledby="cta-heading">
           <div className="max-w-4xl mx-auto animate-fade-in-up">
-            <h3 id="cta-heading" className="text-3xl md:text-4xl font-bold mb-6 gradient-text" style={{ fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive' }}>
+            <h3 id="cta-heading" className="text-3xl md:text-4xl font-bold mb-6 gradient-text" style={{ 
+              fontFamily: 'inherit',
+              background: 'linear-gradient(135deg, hsl(141 73% 42%), hsl(280 100% 70%))',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 0 20px hsl(141 73% 42% / 0.5))'
+            }}>
               Ready to Enhance Your Spotify Experience?
             </h3>
             <p className="text-xl text-muted-foreground mb-8">

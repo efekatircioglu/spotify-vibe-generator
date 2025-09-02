@@ -775,7 +775,7 @@ if (isMobile) {
             whiteSpace: window.innerWidth <= 600 ? 'normal' : 'nowrap',
             lineHeight: 1.2,
             wordBreak: window.innerWidth <= 600 ? 'break-word' : 'keep-all',
-            fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive',
+            fontFamily: 'inherit',
           }} title={title || 'Your Last 50 Songs'}>{title || 'Your Last 50 Songs'}</div>
           <div style={{ 
             display: 'flex', 
@@ -1280,7 +1280,7 @@ if (isMobile) {
             textAlign: 'center',
             width: '100%',
             wordBreak: window.innerWidth <= 600 ? 'break-word' : 'keep-all',
-            fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive',
+            fontFamily: 'inherit',
           }} title={title || 'Your Last 50 Songs'}>{title || 'Your Last 50 Songs'}</span>
           <div style={{ 
             display: 'flex', 

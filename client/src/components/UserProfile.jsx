@@ -61,7 +61,7 @@ export default function UserProfile({ user, onLogout, children }) {
               fontWeight: 700, 
               fontSize: '1.1rem', 
               color: '#fff',
-              fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
+              fontFamily: 'inherit'
             }}>{user.display_name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -141,7 +141,7 @@ export default function UserProfile({ user, onLogout, children }) {
               fontWeight: 700, 
               fontSize: '1.35rem', 
               color: '#fff',
-              fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
+              fontFamily: 'inherit'
             }}>{user.display_name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

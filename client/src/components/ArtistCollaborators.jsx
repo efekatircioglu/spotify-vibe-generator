@@ -326,7 +326,7 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            fontFamily: 'var(--font-kalam), "Caveat", "Patrick Hand", "Indie Flower", cursive'
+            fontFamily: 'inherit'
           }}>
             <span>Frequent Collaborators {artistName && `for ${artistName}`}</span>
             
