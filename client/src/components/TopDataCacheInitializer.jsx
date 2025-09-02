@@ -9,14 +9,6 @@ export default function TopDataCacheInitializer() {
       // Check cache status using centralized manager
       const status = getCacheStatus();
       setCacheStatus(status);
-      
-      if (status.exists && status.valid) {
-        console.log('✅ Caches exist and are valid:', status);
-      } else if (status.exists && !status.valid) {
-        console.log('⚠️ Caches exist but are expired');
-      } else {
-        console.log('❌ No caches found - will be initialized when token is available');
-      }
     };
 
     // Check cache status immediately

@@ -100,7 +100,7 @@ export const getCachedResults = (topArtists, topTracks) => {
     return null;
   }
   
-  console.log('✅ QuickStats: Found valid cached data for key:', cacheKey);
+  // console.log('✅ QuickStats: Found valid cached data for key:', cacheKey);
   return cachedData;
 };
 
@@ -122,9 +122,9 @@ export const setCachedResults = (topArtists, topTracks, results) => {
   };
   
   setResultsCache(cache);
-  console.log('✅ QuickStats: Cached results for key:', cacheKey, {
-    sections: Object.keys(results)
-  });
+  // console.log('✅ QuickStats: Cached results for key:', cacheKey, {
+  //   sections: Object.keys(results)
+  // });
 };
 
 /**
@@ -141,12 +141,12 @@ export const updateCachedSection = (topArtists, topTracks, sectionName, sectionD
   
   if (!cache[cacheKey]) {
     cache[cacheKey] = { timestamp: Date.now() };
-    console.log('🆕 QuickStats: Created new cache entry for key:', cacheKey);
+    // console.log('🆕 QuickStats: Created new cache entry for key:', cacheKey);
   }
   
   cache[cacheKey][sectionName] = sectionData;
   setResultsCache(cache);
-  console.log('✅ QuickStats: Updated section in cache:', sectionName, 'for key:', cacheKey);
+  // console.log('✅ QuickStats: Updated section in cache:', sectionName, 'for key:', cacheKey);
 };
 
 /**

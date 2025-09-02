@@ -42,7 +42,7 @@ const CircularText = ({
       scale: 1,
       transition: getTransition(spinDuration, currentRotation),
     });
-  }, [spinDuration, controls, text]);
+  }, [spinDuration, controls, text, currentRotation]);
 
   const handleHoverStart = () => {
     if (!onHover) return;

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Suspense } from 'react';
 import styles from '../page.module.css';
 import Sidebar from '../../components/Sidebar';
 import AlbumSelector from '../../components/AlbumSelector';
@@ -157,7 +158,7 @@ function findDiscogsGenreStyle(albumName, genreStyleMap) {
   return null;
 }
 
-export default function ArtistConcertsPage() {
+function ArtistConcertsPageContent() {
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
@@ -954,8 +955,6 @@ export default function ArtistConcertsPage() {
               marginTop: 16,
               textAlign: 'center'
             }}>
-              <p>💡 <strong>Tip:</strong> Try different variations of artist names.</p>
-              <p>For example: "Kanye West" might return "Ye" on Ticketmaster.</p>
             </div>
           </div>
         </div>
@@ -1802,5 +1801,13 @@ export default function ArtistConcertsPage() {
         </main>
       </div>
     </>
+  );
+}
+
+export default function ArtistConcertsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ArtistConcertsPageContent />
+    </Suspense>
   );
 }

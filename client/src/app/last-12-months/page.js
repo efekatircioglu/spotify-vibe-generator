@@ -100,7 +100,7 @@ export default function Last12MonthsPage() {
               margin: 0,
               lineHeight: 1.2
             }}>
-              Your Last 12 Months' Report
+              Your Last 12 Months&apos; Report
             </h1>
           </div>
 

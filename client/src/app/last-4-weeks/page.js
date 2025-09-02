@@ -112,7 +112,7 @@ export default function Last4WeeksPage() {
               margin: 0,
               lineHeight: 1.2
             }}>
-              Your Last 4 Weeks' Report
+              Your Last 4 Weeks&apos; Report
             </h1>
           </div>
 

@@ -98,7 +98,6 @@ export default function QuickStats({ isMobile }) {
     const topTracks = getCachedTopTracks();
     
     if (!topArtists || !topTracks) {
-      console.log('⏳ QuickStats: Waiting for top artists and tracks data...');
       loadQuickStats.isRunning = false;
       return;
     }
@@ -108,14 +107,6 @@ export default function QuickStats({ isMobile }) {
       // Check if we have cached results first
       const cachedResults = getCachedResults(topArtists, topTracks);
       if (cachedResults && cachedResults.basicStats?.bestArtist && cachedResults.basicStats?.bestTrack) {
-        console.log('✅ QuickStats: Loading from results cache', {
-          sections: Object.keys(cachedResults).filter(key => key !== 'timestamp'),
-          timestamp: new Date(cachedResults.timestamp).toLocaleString(),
-          basicStats: cachedResults.basicStats,
-          hasTopArtist: !!cachedResults.basicStats?.bestArtist,
-          hasTopSong: !!cachedResults.basicStats?.bestTrack
-        });
-        
         // Load all data from cache
         const newData = {
           ...data,
@@ -136,12 +127,6 @@ export default function QuickStats({ isMobile }) {
           recentTracks: cachedResults.recentTracks || getCachedRecentTracks() || []
         };
         
-        console.log('📊 QuickStats: Setting data from cache', {
-          hasTopArtist: !!newData.topArtist,
-          hasTopSong: !!newData.topSong,
-          topArtistName: newData.topArtist?.name,
-          topSongName: newData.topSong?.name
-        });
         
         setData(newData);
 
@@ -156,37 +141,13 @@ export default function QuickStats({ isMobile }) {
         setLoadingState('timeOfDay', true);
         setLoadingState('listenerType', true);
         
-        console.log('✅ QuickStats: Cache data loaded, setting loading to false');
         setLoading(false);
         setDataLoaded(true);
         return;
-      } else if (cachedResults) {
-        console.log('⚠️ QuickStats: Cached results found but incomplete, recalculating...', {
-          hasBasicStats: !!cachedResults.basicStats,
-          hasBestArtist: !!cachedResults.basicStats?.bestArtist,
-          hasBestTrack: !!cachedResults.basicStats?.bestTrack
-        });
-      }
-
-      console.log('🔄 QuickStats: No cached results found, calculating...', {
-        artistsCount: topArtists.length,
-        tracksCount: topTracks.length
-      });
-
-      // On cache miss, we need to calculate everything
-      console.log('🔄 QuickStats: Starting calculations...');
-      
+      } 
       // Start with basic stats
       const basicStats = calculateBasicStats(topArtists, topTracks);
       if (basicStats) {
-        console.log('✅ QuickStats: Basic stats calculated', basicStats);
-        setData(prev => ({
-          ...prev,
-          topArtist: basicStats.bestArtist,
-          topArtistTimeRange: basicStats.bestTimeRange,
-          topSong: basicStats.bestTrack,
-          topSongTimeRange: basicStats.bestTrackTimeRange
-        }));
         setLoadingState('basicStats', true);
         // Store in results cache
         updateResultsSection(topArtists, topTracks, 'basicStats', basicStats);
@@ -195,9 +156,7 @@ export default function QuickStats({ isMobile }) {
 
 
       // Load genres
-      console.log('🔄 QuickStats: Loading genres...');
       const genresData = await loadGenres(topArtists);
-      console.log('✅ QuickStats: Genres loaded', { count: genresData.genres.length });
       setData(prev => ({
         ...prev,
         topGenres: genresData.genres,
@@ -249,11 +208,9 @@ export default function QuickStats({ isMobile }) {
       updateResultsSection(topArtists, topTracks, 'trackPopularity', trackPopularity);
 
       // Load recent tracks from cache or API
-      console.log('🔄 QuickStats: Loading recent tracks...');
       let recentTracks = getCachedRecentTracks();
       
       if (!recentTracks) {
-        console.log('🔄 QuickStats: Recent tracks not in cache, fetching from API...');
         const recentTracksResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
         
         if (recentTracksResponse.ok) {
@@ -261,13 +218,10 @@ export default function QuickStats({ isMobile }) {
           recentTracks = recentData.tracks || [];
           // Cache the recent tracks for future use
           setCachedRecentTracks(recentTracks);
-          console.log('✅ QuickStats: Recent tracks fetched and cached', { count: recentTracks.length });
         } else {
-          console.log('⚠️ QuickStats - Failed to fetch recent tracks:', recentTracksResponse.status);
           recentTracks = [];
         }
       } else {
-        console.log('✅ QuickStats: Recent tracks loaded from cache', { count: recentTracks.length });
       }
 
       // Run external analyses in parallel
@@ -340,7 +294,6 @@ export default function QuickStats({ isMobile }) {
       return;
     }
 
-    console.log('🚀 QuickStats: Component mounted, starting calculations...');
 
     const loadData = async () => {
       await loadQuickStats();
@@ -362,7 +315,6 @@ export default function QuickStats({ isMobile }) {
       const topTracks = getCachedTopTracks();
       
       if (topArtists && topTracks && loading) {
-        console.log('🔄 QuickStats: Data now available, retrying calculations...');
         if (retryIntervalRef.current) {
           clearInterval(retryIntervalRef.current);
           retryIntervalRef.current = null;
@@ -391,7 +343,6 @@ export default function QuickStats({ isMobile }) {
   // Effect to clean up retry interval when loading is complete
   useEffect(() => {
     if (!loading && retryIntervalRef.current) {
-      console.log('✅ QuickStats: Loading complete, cleaning up retry interval');
       clearInterval(retryIntervalRef.current);
       retryIntervalRef.current = null;
     }
@@ -401,25 +352,15 @@ export default function QuickStats({ isMobile }) {
 
   // Don't render if no data or on server side
   if (typeof window === 'undefined') {
-    console.log('❌ QuickStats: Server side rendering, not showing');
     return null;
   }
   
   // Only show loading phase when we're actually loading and don't have enough data
   if (loading && (!data.topArtist || !data.topSong || data.topGenres.length === 0)) {
-    console.log('⏳ QuickStats: Loading phase active...', { loading, dataLoaded, hasTopArtist: !!data.topArtist, hasTopSong: !!data.topSong, genresCount: data.topGenres.length });
     return <LoadingPhase isMobile={isMobile} />;
   }
   
   if (!data.topArtist || !data.topSong) {
-    console.log('❌ QuickStats: Missing required data', {
-      hasTopArtist: !!data.topArtist,
-      hasTopSong: !!data.topSong,
-      topArtist: data.topArtist,
-      topSong: data.topSong,
-      loading,
-      dataLoaded
-    });
     return null;
   }
 

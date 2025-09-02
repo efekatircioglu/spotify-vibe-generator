@@ -172,7 +172,7 @@ export default function ConcertsPage() {
     return () => {
       clearInterval(retryInterval);
     };
-  }, []);
+  }, [loadingTop]);
   
   // Retry function for API calls
   const fetchWithRetry = async (url, maxRetries = 3, delay = 1000) => {
@@ -1305,7 +1305,7 @@ export default function ConcertsPage() {
                     }}>
                       <li>International artists not in Ticketmaster database</li>
                       <li>Very new or emerging artists</li>
-                      <li>Artists who don't perform live concerts</li>
+                      <li>Artists who do not perform live concerts</li>
                       <li>Spelling differences between Spotify and Ticketmaster</li>
                     </ul>
                   </div>

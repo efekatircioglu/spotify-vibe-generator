@@ -98,7 +98,7 @@ export default function Last6MonthsPage() {
               margin: 0,
               lineHeight: 1.2
             }}>
-              Your Last 6 Months' Report
+              Your Last 6 Months&apos; Report
             </h1>
           </div>
 

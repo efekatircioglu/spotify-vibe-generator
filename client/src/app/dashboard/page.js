@@ -1,6 +1,6 @@
 'use client'; // This is a client component, so we can use hooks
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from '../page.module.css';
 import React from 'react';
 import { useRouter } from 'next/navigation';
@@ -286,6 +286,32 @@ export default function Home() {
   // Always use 127.0.0.1 for login to avoid Spotify's HTTPS requirement
   const LOGIN_URL = 'http://127.0.0.1:8000/login';
 
+  const handleGenerateFromRecents = useCallback(async () => {
+    setIsAnalyzingRecents(true);
+    setAnalysis(null);
+    setShowSongsTable(true);
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/recent-tracks`);
+      if (!res.ok) throw new Error('Failed to fetch recent tracks');
+      const data = await res.json();
+      
+      // Filter out consecutive duplicates
+      const tracks = data.tracks || [];
+      const filteredTracks = tracks.filter((track, index) => {
+        // Keep the first track
+        if (index === 0) return true;
+        // Remove if this track has the same ID as the previous track
+        return track.id !== tracks[index - 1].id;
+      });
+      
+      setSongs(filteredTracks);
+    } catch (error) {
+      alert('Could not fetch recent tracks. Please try again.');
+    } finally {
+      setIsAnalyzingRecents(false);
+    }
+  }, []);
+
   // This function runs when the page loads
   useEffect(() => {
     fetch(`${getApiBaseUrl()}/me`)
@@ -313,39 +339,13 @@ export default function Home() {
     if (savedPlaylistUrl) {
       setCreatedPlaylistUrl(savedPlaylistUrl);
     }
-  }, []);
+  }, [handleGenerateFromRecents]);
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
   }, []);
 
 
-
-  const handleGenerateFromRecents = async () => {
-    setIsAnalyzingRecents(true);
-    setAnalysis(null);
-    setShowSongsTable(true);
-    try {
-      const res = await fetch(`${getApiBaseUrl()}/recent-tracks`);
-      if (!res.ok) throw new Error('Failed to fetch recent tracks');
-      const data = await res.json();
-      
-      // Filter out consecutive duplicates
-      const tracks = data.tracks || [];
-      const filteredTracks = tracks.filter((track, index) => {
-        // Keep the first track
-        if (index === 0) return true;
-        // Remove if this track has the same ID as the previous track
-        return track.id !== tracks[index - 1].id;
-      });
-      
-      setSongs(filteredTracks);
-    } catch (error) {
-      alert('Could not fetch recent tracks. Please try again.');
-    } finally {
-      setIsAnalyzingRecents(false);
-    }
-  };
 
   const handleGenerateFromPlaylist = async () => {
     setIsAnalyzingPlaylists(true);

@@ -263,7 +263,7 @@ export const cleanupLocalStorageTokens = () => {
 };
 
 // Export for use in other modules
-export default {
+const CacheManager = {
   initializeAllCaches,
   clearAllCaches,
   areCachesValid,
@@ -273,3 +273,5 @@ export default {
   setupCacheMonitoring,
   cleanupLocalStorageTokens
 };
+
+export default CacheManager;
