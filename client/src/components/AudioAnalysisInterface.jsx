@@ -202,6 +202,118 @@ const rosamericaMap = {
 const tzanetakisMap = {
   blu: 'Blues', cla: 'Classical', cou: 'Country', dis: 'Disco', hip: 'Hip-Hop', jaz: 'Jazz', met: 'Metal', pop: 'Pop', reg: 'Reggae', roc: 'Rock', '': ''
 };
+const mirexMap = {
+  cluster1: 'Quiet Moments', cluster2: 'Dance & Social Vibe', cluster3: 'Calm & Focused', cluster4: 'Power Up', cluster5: 'Beat-Driven & Lyrical',
+  Cluster1: 'Quiet Moments', Cluster2: 'Dance & Social Vibe', Cluster3: 'Calm & Focused', Cluster4: 'Power Up', Cluster5: 'Beat-Driven & Lyrical',
+  '': ''
+};
+
+// Smart genre normalization function (from WrappedResultsModal.jsx)
+function normalizeGenre(rawGenre) {
+  if (!rawGenre) return null;
+  
+  // Handle array case (common in metadata.tags.genre)
+  const genreString = Array.isArray(rawGenre) ? rawGenre[0] : String(rawGenre);
+  if (!genreString) return null;
+  
+  const genre = genreString.toLowerCase().trim();
+  if (genre.length > 50) return null;
+  
+  // Hip Hop variations
+  if (genre.includes('hip hop') || genre.includes('hip-hop') || genre.includes('hiphop') || 
+      genre.includes('rap') || genre.includes('trap')) {
+    return 'Hip Hop & Rap';
+  }
+  
+  // Electronic variations
+  if (genre.includes('electronic') || genre.includes('edm') || genre.includes('dance') ||
+      genre.includes('techno') || genre.includes('house') || genre.includes('trance') ||
+      genre.includes('dubstep') || genre.includes('drum & bass') || genre.includes('dnb') ||
+      genre.includes('ambient') || genre.includes('synthwave') || genre.includes('electro')) {
+    return 'Electronic & Dance';
+  }
+  
+  // Rock variations
+  if (genre.includes('rock') || genre.includes('metal') || genre.includes('punk') ||
+      genre.includes('grunge') || genre.includes('indie rock') || genre.includes('alternative rock') ||
+      genre.includes('hard rock') || genre.includes('progressive rock') || genre.includes('classic rock')) {
+    return 'Rock & Metal';
+  }
+  
+  // Pop variations
+  if (genre.includes('pop') || genre.includes('indie pop') || genre.includes('synth pop') ||
+      genre.includes('dream pop') || genre.includes('electropop') || genre.includes('art pop')) {
+    return 'Pop';
+  }
+  
+  // R&B and Soul variations
+  if (genre.includes('r&b') || genre.includes('rnb') || genre.includes('rhythm and blues') || genre.includes('soul') ||
+      genre.includes('neo soul') || genre.includes('alternative r&b') || genre.includes('contemporary r&b') ||
+      genre.includes('rhythm & blues')) {
+    return 'R&B & Soul';
+  }
+  
+  // Jazz variations
+  if (genre.includes('jazz') || genre.includes('smooth jazz') || genre.includes('acid jazz') ||
+      genre.includes('jazz fusion') || genre.includes('bebop') || genre.includes('cool jazz')) {
+    return 'Jazz';
+  }
+  
+  // Folk variations
+  if (genre.includes('folk') || genre.includes('indie folk') || genre.includes('folk rock') ||
+      genre.includes('traditional folk') || genre.includes('contemporary folk')) {
+    return 'Folk';
+  }
+  
+  // Country variations
+  if (genre.includes('country') || genre.includes('country rock') || genre.includes('alt country') ||
+      genre.includes('outlaw country') || genre.includes('bluegrass')) {
+    return 'Country';
+  }
+  
+  // Classical variations
+  if (genre.includes('classical') || genre.includes('orchestral') || genre.includes('chamber music') ||
+      genre.includes('symphony') || genre.includes('opera')) {
+    return 'Classical';
+  }
+  
+  // Reggae variations
+  if (genre.includes('reggae') || genre.includes('dub') || genre.includes('ska') ||
+      genre.includes('dancehall')) {
+    return 'Reggae';
+  }
+  
+  // Latin variations
+  if (genre.includes('latin') || genre.includes('salsa') || genre.includes('merengue') ||
+      genre.includes('bossa nova') || genre.includes('flamenco') || genre.includes('tango')) {
+    return 'Latin';
+  }
+  
+  // World variations
+  if (genre.includes('world') || genre.includes('african') || genre.includes('middle eastern') ||
+      genre.includes('indian') || genre.includes('celtic') || genre.includes('gospel')) {
+    return 'World & Traditional';
+  }
+  
+  // Blues variations
+  if (genre.includes('blues') || genre.includes('delta blues') || genre.includes('electric blues') ||
+      genre.includes('chicago blues')) {
+    return 'Blues';
+  }
+  
+  // Funk variations
+  if (genre.includes('funk') || genre.includes('disco') || genre.includes('motown')) {
+    return 'Funk & Disco';
+  }
+  
+  // If no major category matches, try to extract the most meaningful part
+  const words = genre.split(/[\s&\/,]+/).filter(word => word.length > 2);
+  if (words.length > 0) {
+    return words[0].charAt(0).toUpperCase() + words[0].slice(1);
+  }
+  
+  return null;
+}
 
 const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
     const [analysisData, setAnalysisData] = useState(null);
@@ -628,6 +740,8 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
                             {/* Track Info */}
                             {meta && (() => {
   const albumName = Array.isArray(meta.album) ? meta.album[0] : meta.album;
+  const rawGenre = meta.genre;
+  const normalizedGenre = rawGenre ? normalizeGenre(rawGenre) : null;
   return (
     <div className="track-info-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#232b39', marginBottom: 24 }}>
       <div
@@ -645,6 +759,21 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
       <div style={{ color: '#d1d5db', fontSize: 16, fontWeight: 400, textAlign: 'center' }}>
         {meta.artist?.[0]}{albumName ? ` — ${albumName}` : ''}
       </div>
+      {normalizedGenre && (
+        <div style={{ 
+          color: '#38bdf8', 
+          fontSize: 14, 
+          fontWeight: 600, 
+          textAlign: 'center',
+          marginTop: 8,
+          padding: '4px 12px',
+          background: 'rgba(56, 189, 248, 0.1)',
+          borderRadius: 12,
+          border: '1px solid rgba(56, 189, 248, 0.3)'
+        }}>
+          {normalizedGenre}
+        </div>
+      )}
     </div>
   );
 })()}
@@ -653,6 +782,15 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
                             <div className="high-level-grid section-container">
                                 {high && Object.entries(high)
                                     .filter(([key]) => key !== 'gender') // Filter out gender classifier
+                                    .filter(([key]) => !['genre_dortmund', 'genre_electronic', 'genre_tzanetakis', 'ismir04_rhythm'].includes(key)) // Filter out specific genre classifiers
+                                    .sort(([keyA], [keyB]) => {
+                                        // Custom sorting: genre_rosamerica first, moods_mirex second, then alphabetical
+                                        if (keyA === 'genre_rosamerica') return -1;
+                                        if (keyB === 'genre_rosamerica') return 1;
+                                        if (keyA === 'moods_mirex') return -1;
+                                        if (keyB === 'moods_mirex') return 1;
+                                        return keyA.localeCompare(keyB);
+                                    })
                                     .map(([key, feature]) => (
                                         <HighLevelCard
                                             key={key}
@@ -1006,7 +1144,7 @@ const HighLevelCard = ({ featureKey, feature, onCardClick, onMouseMove, onMouseL
             const valueName = feature.value.replace(/_/g, ' ');
 
             // Map for bar chart labels if Rosamerica or Tzanetakis
-            const labelMap = featureKey === 'genre_rosamerica' ? rosamericaMap : featureKey === 'genre_tzanetakis' ? tzanetakisMap : null;
+            const labelMap = featureKey === 'genre_rosamerica' ? rosamericaMap : featureKey === 'genre_tzanetakis' ? tzanetakisMap : featureKey === 'moods_mirex' ? mirexMap : null;
 
             if (Object.keys(feature.all).length === 2) {
                 chartInstance.current = new Chart(ctx, { type: 'doughnut', data: { labels: [valueName, 'Other'], datasets: [{ data: [feature.probability, 1 - feature.probability], backgroundColor: ['#22d3ee', '#374151'], borderColor: '#1f2937', borderWidth: 4, cutout: '70%' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } } });
@@ -1037,9 +1175,17 @@ const HighLevelCard = ({ featureKey, feature, onCardClick, onMouseMove, onMouseL
     }, [feature, featureKey]);
 
     const featureName = featureKey.replace(/_/g, ' ');
+    // Special case for moods_mirex to display as "Mood Classifications"
+    const displayFeatureName = featureKey === 'moods_mirex' ? 'Mood Classifications' : featureName;
     const valueName = feature.value.replace(/_/g, ' ');
     const probabilityPercent = (feature.probability * 100).toFixed(1);
     const interpretationText = (interpretations[featureKey] && interpretations[featureKey][feature.value]) || interpretations.default;
+
+    // Apply mapping for specific classifiers
+    const displayValueName = featureKey === 'genre_rosamerica' ? (rosamericaMap[feature.value] || valueName) :
+                             featureKey === 'genre_tzanetakis' ? (tzanetakisMap[feature.value] || valueName) :
+                             featureKey === 'moods_mirex' ? (mirexMap[feature.value] || valueName) :
+                             valueName;
 
     return (
         <div
@@ -1049,9 +1195,9 @@ const HighLevelCard = ({ featureKey, feature, onCardClick, onMouseMove, onMouseL
             onMouseLeave={onMouseLeave}
             style={{ cursor: 'pointer' }}
         >
-            <div className="card-title" style={{ textAlign: 'left' }}>{featureName}</div>
+            <div className="card-title" style={{ textAlign: 'left' }}>{displayFeatureName}</div>
             <div className="card-main-value-container">
-                <div className="card-main-value gradient-text">{valueName}</div>
+                <div className="card-main-value gradient-text">{displayValueName}</div>
                 <div className="card-confidence">Confidence: {probabilityPercent}%</div>
                 <div className="chart-container">
                     <canvas ref={canvasRef}></canvas>
@@ -1314,9 +1460,17 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
     const chartInstance = useRef(null);
     const feature = analysisData.highlevel[featureKey];
     const featureName = featureKey.replace(/_/g, ' ');
+    // Special case for moods_mirex to display as "Mood Classifications"
+    const displayFeatureName = featureKey === 'moods_mirex' ? 'Mood Classifications' : featureName;
     const valueName = feature.value.replace(/_/g, ' ');
     const interpretationText = (interpretations[featureKey] && interpretations[featureKey][feature.value]) || interpretations.default;
     const sortedData = Object.entries(feature.all).sort(([, a], [, b]) => b - a);
+    
+    // Apply mapping for specific classifiers
+    const displayValueName = featureKey === 'genre_rosamerica' ? (rosamericaMap[feature.value] || valueName) :
+                             featureKey === 'genre_tzanetakis' ? (tzanetakisMap[feature.value] || valueName) :
+                             featureKey === 'moods_mirex' ? (mirexMap[feature.value] || valueName) :
+                             valueName;
     useEffect(() => {
         if (canvasRef.current) {
             if (chartInstance.current) chartInstance.current.destroy();
@@ -1324,7 +1478,13 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
             chartInstance.current = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: sortedData.map(item => item[0]),
+                    labels: sortedData.map(item => {
+                        // Apply mapping for specific classifiers
+                        if (featureKey === 'genre_rosamerica') return rosamericaMap[item[0]] || item[0];
+                        if (featureKey === 'genre_tzanetakis') return tzanetakisMap[item[0]] || item[0];
+                        if (featureKey === 'moods_mirex') return mirexMap[item[0]] || item[0];
+                        return item[0];
+                    }),
                     datasets: [{
                         label: 'Probability',
                         data: sortedData.map(item => item[1]),
@@ -1350,8 +1510,8 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
     <div className="focus-classifier-view">
         {/* Title Section */}
         <div style={{ marginBottom: '1rem', flexShrink: 0 }}>
-            <h3 className="gradient-text" style={{ fontSize: '1.5rem', fontWeight: '700', textTransform: 'capitalize' }}>{featureName}</h3>
-            <p style={{ fontSize: '1.125rem', color: '#d1d5db' }}>Dominant: <span style={{ fontWeight: '600', color: 'white' }}>{valueName}</span></p>
+            <h3 className="gradient-text" style={{ fontSize: '1.5rem', fontWeight: '700', textTransform: 'capitalize' }}>{displayFeatureName}</h3>
+            <p style={{ fontSize: '1.125rem', color: '#d1d5db' }}>Dominant: <span style={{ fontWeight: '600', color: 'white' }}>{displayValueName}</span></p>
         </div>
 
         {/* Two-Column Container */}
@@ -1366,12 +1526,20 @@ const FocusClassifierView = ({ featureKey, analysisData, tooltips, interpretatio
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginBottom: '0.5rem', flexShrink: 0 }}>Detailed Breakdown</h4>
                 <ul className="scrollable-chart" style={{ listStyle: 'none', padding: 0, margin: 0, overflowY: 'auto', flex: 1, paddingRight: '0.5rem', minHeight: '4rem' }}>
-                    {sortedData.map(([label, prob]) => (
-                        <li key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '0.35rem 0.75rem', marginBottom: '0.35rem' }}>
-                            <span style={{ color: '#fff', fontWeight: 600, marginRight: 8 }}>{label.charAt(0).toUpperCase() + label.slice(1)}</span>
-                            <span style={{ fontFamily: 'monospace', color: '#d1d5db', fontWeight: 400 }}>{(prob * 100).toFixed(2)}%</span>
-                        </li>
-                    ))}
+                    {sortedData.map(([label, prob]) => {
+                        // Apply mapping for specific classifiers
+                        const displayLabel = featureKey === 'genre_rosamerica' ? (rosamericaMap[label] || label) :
+                                           featureKey === 'genre_tzanetakis' ? (tzanetakisMap[label] || label) :
+                                           featureKey === 'moods_mirex' ? (mirexMap[label] || label) :
+                                           label;
+                        
+                        return (
+                            <li key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '0.35rem 0.75rem', marginBottom: '0.35rem' }}>
+                                <span style={{ color: '#fff', fontWeight: 600, marginRight: 8 }}>{displayLabel.charAt(0).toUpperCase() + displayLabel.slice(1)}</span>
+                                <span style={{ fontFamily: 'monospace', color: '#d1d5db', fontWeight: 400 }}>{(prob * 100).toFixed(2)}%</span>
+                            </li>
+                        );
+                    })}
                 </ul>
                 <div style={{ marginTop: '1rem', flexShrink: 0 }}>
                     <h4 style={{ fontWeight: '600', color: '#e5e7eb', marginBottom: '0.5rem' }}>Definition</h4>
