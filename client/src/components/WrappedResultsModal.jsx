@@ -699,7 +699,7 @@ if (typeof window !== 'undefined') {
 }
 
 export default function WrappedResultsModal({ open, onClose, results, tracks }) {
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1); // Start directly on page 1 (Comprehensive Dashboard)
   const [isMobile, setIsMobile] = useState(false);
   const [prevButtonHover, setPrevButtonHover] = useState(false);
   const [nextButtonHover, setNextButtonHover] = useState(false);
@@ -763,8 +763,8 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
 
   if (!open) return null;
 
-  // Navigation
-  const totalPages = 2; // Only 2 pages now: Page 0 (songs list) and Page 1 (comprehensive dashboard)
+  // Navigation - only 1 page now
+  const totalPages = 1; // Only 1 page: Comprehensive Dashboard
   const goNext = () => setPage(p => Math.min(p + 1, totalPages - 1));
   const goPrev = () => setPage(p => Math.max(p - 1, 0));
 
@@ -816,715 +816,107 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
   }, [analyzedTracks, page]);
 
   return (
-    <div style={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width: '100vw', 
-      height: '100vh', 
-      background: 'rgba(0,0,0,0.85)', 
-      zIndex: 9999, 
-      display: 'flex', 
-      alignItems: 'flex-start', 
-      justifyContent: 'center',
-      padding: isMobile ? (width < 420 ? '8px' : '12px') : 'max(20px, 5vh) max(20px, 3vw)',
-      overflow: 'auto',
-      boxSizing: 'border-box'
-    }}>
-      <div style={styles.modalContainer} ref={modalContainerRef} className="wrapped-modal-container">
-        <button onClick={onClose} style={styles.closeButton} className="wrapped-close-button">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
-          </svg>
-        </button>
-        <style jsx>{`
-          @media (min-width: 1200px) {
-            .wrapped-modal-container {
-              max-width: 1200px !important;
-              width: 90vw !important;
-            }
-          }
-          @media (min-width: 1600px) {
-            .wrapped-modal-container {
-              max-width: 1400px !important;
-              width: 85vw !important;
-            }
-          }
-          @media (max-width: 1199px) and (min-width: 800px) {
-            .wrapped-modal-container {
-              max-width: 95vw !important;
-              width: 95vw !important;
-            }
-          }
-          @media (max-width: 799px) {
-            .wrapped-modal-container {
-              max-width: calc(100vw - 32px) !important;
-              width: calc(100vw - 32px) !important;
-              margin: 0 auto !important;
-            }
-          }
-          @media (max-width: 420px) {
-            .wrapped-modal-container {
-              max-width: calc(100vw - 24px) !important;
-              width: calc(100vw - 24px) !important;
-              margin: 0 auto !important;
-            }
-            .wrapped-modal-container * {
-              font-size: 0.9em !important;
-            }
-            .wrapped-modal-container .binary-feature-label {
-              font-size: 0.8em !important;
-              white-space: nowrap !important;
-              overflow: hidden !important;
-              text-overflow: ellipsis !important;
-            }
-          }
-          .wrapped-modal-container .songs-list-item {
-            word-wrap: break-word !important;
-            overflow-wrap: break-word !important;
-            max-width: 100% !important;
-          }
-          .wrapped-modal-container {
-            overflow-x: hidden !important;
-            position: relative !important;
-          }
-          .wrapped-modal-container * {
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-          }
-          
-          /* Ensure modal content doesn't overlap with close button */
-          .wrapped-modal-container > *:first-child {
-            margin-top: 0 !important;
-            padding-top: 0 !important;
-          }
-          
-          /* Close button hover effects */
-          .wrapped-close-button:hover {
-            background: rgba(255, 255, 255, 0.1) !important;
-            transform: scale(1.1) !important;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
-          }
-          
-          /* Ensure close button is always visible */
-          .wrapped-close-button {
-            position: fixed !important;
-            z-index: 10000 !important;
-            top: 20px !important;
-            right: 20px !important;
-          }
-          
-          /* Mobile adjustments for close button */
-          @media (max-width: 768px) {
-            .wrapped-close-button {
-              top: 15px !important;
-              right: 15px !important;
-              width: 32px !important;
-              height: 32px !important;
-              font-size: 18px !important;
-            }
-          }
-          
-          /* Ensure close button is always on top and visible */
-          .wrapped-close-button {
-            position: fixed !important;
-            z-index: 10000 !important;
-            top: 20px !important;
-            right: 20px !important;
-            background: rgba(24, 28, 36, 0.95) !important;
-            border: 1px solid rgba(255, 255, 255, 0.3) !important;
-            backdrop-filter: blur(15px) !important;
-            -webkit-backdrop-filter: blur(15px) !important;
-          }
-          
-          /* Add a subtle glow effect to make it more visible */
-          .wrapped-close-button::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(45deg, rgba(56, 189, 248, 0.3), rgba(255, 255, 255, 0.1));
-            border-radius: 50%;
-            z-index: -1;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-          }
-          
-          .wrapped-close-button:hover::before {
-            opacity: 1;
-          }
-        `}</style>
-        {page === 0 && (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: isMobile ? '0 24px' : '0 32px',
-            width: '100%',
-            boxSizing: 'border-box'
-          }}>
-            <h2 style={styles.mainTitle}>Your Songs Wrapped</h2>
-            {/* Calculate earliest/latest and total duration */}
-            {(() => {
-              if (analyzedTracks.length === 0) return null;
-              // Find earliest and latest
-              let earliest = analyzedTracks[0], latest = analyzedTracks[0];
-              let minYear = null, maxYear = null;
-              let totalDurationMs = 0;
-              analyzedTracks.forEach(r => {
-                const year = r.track?.release_year || (r.track?.album?.release_date ? parseInt(r.track.album.release_date.split('-')[0]) : null);
-                if (year) {
-                  if (minYear === null || year < minYear) {
-                    minYear = year;
-                    earliest = r;
-                  }
-                  if (maxYear === null || year > maxYear) {
-                    maxYear = year;
-                    latest = r;
-                  }
-                }
-                totalDurationMs += r.track?.duration_ms || r.track?.duration || 0;
-              });
-              // Format duration as hh:mm:ss
-              const totalHours = Math.floor(totalDurationMs / 3600000);
-              const totalMins = Math.floor((totalDurationMs % 3600000) / 60000);
-              const totalSecs = Math.floor((totalDurationMs % 60000) / 1000).toString().padStart(2, '0');
-              const formattedTime = `${totalHours}:${totalMins.toString().padStart(2, '0')}:${totalSecs}`;
-              
-              if (isMobile) {
-                // Mobile layout - display stats in a more compact, mobile-friendly way
-                return (
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ 
-                      background: 'rgba(56, 189, 248, 0.1)', 
-                      borderRadius: 12, 
-                      padding: 16, 
-                      marginBottom: 12,
-                      border: '1px solid rgba(56, 189, 248, 0.3)'
-                    }}>
-                      <div style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 700, marginBottom: 6 }}>
-                        First published
-                      </div>
-                      <div style={{ fontSize: '1rem', color: '#fff', fontWeight: 700, marginBottom: 4 }}>
-                        {earliest.track?.name}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#d1d5db', fontWeight: 500 }}>
-                        {minYear || 'N/A'}
-                      </div>
-                    </div>
-                    
-                    <div style={{ 
-                      background: 'rgba(56, 189, 248, 0.1)', 
-                      borderRadius: 12, 
-                      padding: 16, 
-                      marginBottom: 12,
-                      border: '1px solid rgba(56, 189, 248, 0.3)'
-                    }}>
-                      <div style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 700, marginBottom: 6 }}>
-                        Most recent
-                      </div>
-                      <div style={{ fontSize: '1rem', color: '#fff', fontWeight: 700, marginBottom: 4 }}>
-                        {latest.track?.name}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#d1d5db', fontWeight: 500 }}>
-                        {maxYear || 'N/A'}
-                      </div>
-                    </div>
-                    
-                    <div style={{ 
-                      background: 'rgba(56, 189, 248, 0.1)', 
-                      borderRadius: 12, 
-                      padding: 16, 
-                      marginBottom: 12,
-                      border: '1px solid rgba(56, 189, 248, 0.3)'
-                    }}>
-                      <div style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 700, marginBottom: 6 }}>
-                        Total listening time
-                      </div>
-                      <div style={{ fontSize: '1.2rem', color: '#fff', fontWeight: 700 }}>
-                        {formattedTime}
-                      </div>
-                    </div>
-                  </div>
-                );
-              } else {
-                // Desktop layout - original design
-                return (
-                  <div style={{ marginBottom: 32 }}>
-                    <div style={styles.statsText}>
-                      First published: <span style={styles.statsValue}>{earliest.track?.name}</span> <span style={styles.statsYear}>({minYear || 'N/A'})</span>
-                    </div>
-                    <div style={styles.statsText}>
-                      Most recent: <span style={styles.statsValue}>{latest.track?.name}</span> <span style={styles.statsYear}>({maxYear || 'N/A'})</span>
-                    </div>
-                    <div style={styles.statsText}>
-                      Total listening time: <span style={styles.statsValue}>{formattedTime}</span>
-                    </div>
-                  </div>
-                );
-              }
-            })()}
-            
-            {/* Songs list - unified responsive design */}
-            <div
-              ref={songsListRef}
-              style={{
-                ...styles.songsListContainer,
-                padding: isMobile ? '20px 0 20px 20px' : styles.songsListContainer.padding,
-                maxHeight: isMobile ? 300 : styles.songsListContainer.maxHeight,
-                width: '100%',
-                boxSizing: 'border-box'
-              }}>
-              <div style={styles.songsListTitle}>Included Songs:</div>
-              <ul style={{ padding: 0, margin: 0, listStyle: 'none', width: '100%' }}>
-                {analyzedTracks.map((r, i) => {
-                  // Extract main genre from metadata.tags.genre
-                  const firstKey = Object.keys(r.highLevel || {})[0];
-                  const mainGenre = r.highLevel?.[firstKey]?.metadata?.tags?.genre || 'Unknown';
-                  
-                  // Extract genre rosamerica and map to readable names
-                  const genreRosamericaRaw = r.highLevel?.[firstKey]?.highlevel?.genre_rosamerica?.value || 'Unknown';
-                  const rosamericaMap = {
-                    'cla': 'Classical',
-                    'dan': 'Dance',
-                    'hip': 'Hip-Hop',
-                    'jaz': 'Jazz',
-                    'pop': 'Pop',
-                    'rhy': 'Rhythm & Blues',
-                    'roc': 'Rock',
-                    'spe': 'Speech'
-                  };
-                  const genreRosamerica = rosamericaMap[genreRosamericaRaw] || genreRosamericaRaw;
-                  
-                  return (
-                  <li key={r.track?.id || i} className="songs-list-item" style={{
-                    ...styles.songListItem,
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }}>
-                    <span style={{ color: '#d1d5db' }}>{i + 1}.</span> <span style={{ color: '#fff' }}>{r.track?.name}</span> <span style={{ color: '#38bdf8', fontWeight: 600 }}>by {r.track?.artist || (r.track?.artists ? r.track.artists.map(a => a.name).join(', ') : '')}</span>
-                      <div style={{ 
-                        marginTop: 4, 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 8,
-                        flexWrap: 'wrap'
-                      }}>
-                        <span style={{ 
-                          background: 'rgba(28, 185, 85, 0.2)', 
-                          color: '#1cb955', 
-                          fontSize: isMobile ? '0.7rem' : '0.8rem',
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: 12,
-                          border: '1px solid rgba(28, 185, 85, 0.4)'
-                        }}>
-                          Main: {mainGenre}
-                        </span>
-                        <span style={{ 
-                          background: 'rgba(56, 189, 248, 0.2)', 
-                          color: '#38bdf8', 
-                          fontSize: isMobile ? '0.7rem' : '0.8rem',
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: 12,
-                          border: '1px solid rgba(56, 189, 248, 0.4)'
-                        }}>
-                          Rosamerica: {genreRosamerica}
-                        </span>
-                      </div>
-                  </li>
-                  );
-                })}
-              </ul>
-            </div>
-            
-            <div style={styles.callToAction}>
-              Ready to see your stats?
-            </div>
-          </div>
-        )}
-        {page === 1 && (
-          <ComprehensiveDashboard 
-            analyzedTracks={analyzedTracks} 
-            totalBeats={totalBeats} 
-            avgBeats={avgBeats} 
-            isMobile={isMobile} 
-          />
-        )}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          marginTop: 36,
-          marginBottom: isMobile ? 16 : 24,
-          gap: isMobile ? 24 : 32
-        }}>
-          <button onClick={goPrev} disabled={page === 0} style={{ 
-            opacity: page === 0 ? 0.4 : 1, 
-            ...styles.navButton,
-            ...(prevButtonHover && !page === 0 ? styles.navButtonHover : {}),
-            cursor: page === 0 ? 'default' : 'pointer',
-            width: isMobile ? '48px' : '56px',
-            height: isMobile ? '48px' : '56px',
-            minWidth: isMobile ? '48px' : '56px'
-          }} onMouseEnter={() => setPrevButtonHover(true)} onMouseLeave={() => setPrevButtonHover(false)}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"}>
-              <path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20V11Z"/>
-            </svg>
-          </button>
-          {page === totalPages - 1 ? (
-            <button onClick={onClose} style={{
-              ...styles.navButton,
-              width: isMobile ? '48px' : '56px',
-              height: isMobile ? '48px' : '56px',
-              minWidth: isMobile ? '48px' : '56px',
-              minHeight: isMobile ? '48px' : '56px'
-            }}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"}>
-                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
-              </svg>
-            </button>
-          ) : (
-            <button onClick={goNext} disabled={page === totalPages - 1} style={{ 
-              opacity: page === totalPages - 1 ? 0.4 : 1, 
-              ...styles.navButton,
-              ...(nextButtonHover && !page === totalPages - 1 ? styles.navButtonHover : {}),
-              cursor: page === totalPages - 1 ? 'default' : 'pointer',
-              width: isMobile ? '48px' : '56px',
-              height: isMobile ? '48px' : '56px',
-              minWidth: isMobile ? '48px' : '56px'
-            }} onMouseEnter={() => setNextButtonHover(true)} onMouseLeave={() => setNextButtonHover(false)}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"} style={{ transform: 'rotate(180deg)' }}>
-                <path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20V11Z"/>
-              </svg>
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Animated Beats Page ---
-function AnimatedBeatsPage({ totalBeats, avgBeats, styles }) {
-  const [displayedBeats, setDisplayedBeats] = useState(0);
-  const [showLine1, setShowLine1] = useState(false);
-  const [showBeats, setShowBeats] = useState(false);
-  const [showPulse, setShowPulse] = useState(false);
-  const [showLine2, setShowLine2] = useState(false);
-  useEffect(() => {
-    setDisplayedBeats(0);
-    setShowLine1(false);
-    setShowBeats(false);
-    setShowPulse(false);
-    setShowLine2(false);
-    // Staggered fade-in
-    const t1 = setTimeout(() => setShowLine1(true), 200);
-    const t2 = setTimeout(() => setShowBeats(true), 700);
-    const t3 = setTimeout(() => setShowPulse(true), 1200);
-    const t4 = setTimeout(() => setShowLine2(true), 1800);
-    // Animated counter
-    let start = 0;
-    let duration = 1200;
-    let startTime;
-    function animateCount(ts) {
-      if (!startTime) startTime = ts;
-      let progress = Math.min((ts - startTime) / duration, 1);
-      let val = Math.floor(progress * totalBeats);
-      setDisplayedBeats(val.toLocaleString());
-      if (progress < 1) {
-        requestAnimationFrame(animateCount);
-      } else {
-        setDisplayedBeats(totalBeats.toLocaleString());
-      }
-    }
-    const tCounter = setTimeout(() => requestAnimationFrame(animateCount), 700);
-    return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(tCounter);
-    };
-  }, [totalBeats]);
-  return (
-    <div style={{ textAlign: 'center', padding: '0 12px' }}>
-      <h2 style={{
-        ...styles.beatsPageTitle,
-        ...(!showLine1 ? fadeOut : fadeIn),
-        transitionProperty: 'opacity, transform',
-        transitionDuration: '0.7s',
-        transitionTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-        transitionDelay: '0s'
-      }}>Total Beat Count</h2>
-      <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{
-          ...styles.beatsPageText,
-          ...(!showLine1 ? fadeOut : fadeIn),
-          transitionProperty: 'opacity, transform',
-          transitionDuration: '0.7s',
-          transitionTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-          transitionDelay: '0.1s'
-        }}>
-          You have in total of
-        </div>
-        <div style={{
-          ...styles.beatsPageNumber,
-          ...(!showBeats ? fadeOut : fadeIn),
-          transitionProperty: 'opacity, transform',
-          transitionDuration: '0.7s',
-          transitionTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-          transitionDelay: '0.3s'
-        }}>{displayedBeats}</div>
-        <div style={{
-          ...styles.beatsPageText,
-          ...(!showPulse ? fadeOut : fadeIn),
-          transitionProperty: 'opacity, transform',
-          transitionDuration: '0.7s',
-          transitionTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-          transitionDelay: '0.5s'
-        }}>beats</div>
-        <div style={{
-          ...styles.beatsPageSubtext,
-          ...(!showLine2 ? fadeOut : fadeIn),
-          transitionProperty: 'opacity, transform',
-          transitionDuration: '0.7s',
-          transitionTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-          transitionDelay: '0.7s'
-        }}>
-          That's <span style={{ color: '#38bdf8', fontWeight: 900 }}>{avgBeats}</span> beats per song on average.
-        </div>
-      </div>
-      <div style={{
-        ...styles.beatsPageFooter,
-        ...(!showLine2 ? fadeOut : fadeIn),
-        transitionProperty: 'opacity, transform',
-        transitionDuration: '0.7s',
-        transitionTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-        transitionDelay: '0.9s'
+    <div style={{
+      position: 'fixed',
+      inset: '0px',
+      background: '#1a1b1e',
+      // display: 'flex',
+      // flexDirection: 'column',
+      // zIndex: 1000,
+      // padding: isMobile ? '60px 16px 24px' : '80px 72px 72px',
+      // boxSizing: 'border-box',
+      overflowY: 'auto'
+    }} ref={modalContainerRef}>
+      {/* Close button */}
+      <button onClick={onClose} style={{
+        position: 'absolute',
+        top: isMobile ? 16 : 24,
+        right: isMobile ? 16 : 24,
+        width: isMobile ? '48px' : '56px',
+        height: isMobile ? '48px' : '56px',
+        minWidth: isMobile ? '48px' : '56px',
+        minHeight: isMobile ? '48px' : '56px',
+        border: '1px solid #444',
+        borderRadius: '50%',
+        background: 'none',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        fontSize: isMobile ? '20px' : '24px',
+        transition: 'all 0.2s ease',
+        zIndex: 10
       }}>
-        More stats coming up next!
-      </div>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={isMobile ? "20" : "24"} height={isMobile ? "20" : "24"}>
+          <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+        </svg>
+      </button>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fill-bar {
+          from { width: 0; }
+          to { width: var(--bar-width); }
+        }
+        @keyframes fill-bar-left {
+          from { width: 0; }
+          to { width: var(--bar-width); }
+        }
+        @keyframes fill-bar-right {
+          from { width: 0; }
+          to { width: var(--bar-width); }
+        }
+        .wrapped-modal-container {
+          max-width: 95vw;
+          width: 95vw;
+          margin: 0 auto;
+        }
+        @media (max-width: 799px) {
+          .wrapped-modal-container {
+            max-width: calc(100vw - 32px);
+            width: calc(100vw - 32px);
+            margin: 0 auto;
+          }
+        }
+        @media (max-width: 420px) {
+          .wrapped-modal-container {
+            max-width: calc(100vw - 24px);
+            width: calc(100vw - 24px);
+            margin: 0 auto;
+          }
+          .wrapped-modal-container h1 {
+            font-size: 1.5rem !important;
+          }
+          .wrapped-modal-container h2 {
+            font-size: 1.25rem !important;
+          }
+          .wrapped-modal-container p {
+            font-size: 0.875rem !important;
+          }
+        }
+        .binary-feature-label {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #b3b3b3;
+        }
+      `}</style>
+      
+      <ComprehensiveDashboard 
+        analyzedTracks={analyzedTracks} 
+        totalBeats={totalBeats} 
+        avgBeats={avgBeats} 
+        isMobile={isMobile}
+        onClose={onClose}
+      />
     </div>
   );
-}
+} 
 
-// --- MetricBarCharts component ---
-function MetricBarCharts({ analyzedTracks, styles }) {
-  const [animKey, setAnimKey] = useState(0);
-  useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]); // retrigger on page show
-  
-  // Helper to get average for a highlevel metric (probability of main value)
-  function getAvgHighlevel(key) {
-    let sum = 0, count = 0;
-    analyzedTracks.forEach(r => {
-      // The data is nested under the first key (usually "0")
-      const firstKey = Object.keys(r.highLevel || {})[0];
-      const val = r.highLevel?.[firstKey]?.highlevel?.[key]?.probability;
-      if (typeof val === 'number') { sum += val; count++; }
-    });
-    return count ? sum / count : 0;
-  }
-  
-  // Helper for binary metrics (e.g. mood_acoustic, mood_aggressive, etc.)
-  function getAvgBinary(key, positiveValue) {
-    let sum = 0, count = 0;
-    analyzedTracks.forEach(r => {
-      // The data is nested under the first key (usually "0")
-      const firstKey = Object.keys(r.highLevel || {})[0];
-      const all = r.highLevel?.[firstKey]?.highlevel?.[key]?.all;
-      if (all && typeof all[positiveValue] === 'number') { sum += all[positiveValue]; count++; }
-    });
-    return count ? sum / count : 0;
-  }
-  // Chart data
-  const metrics = [
-    { label: 'Danceability', color: '#22d3ee', value: getAvgHighlevel('danceability') },
-    { label: 'Acousticness', color: '#38bdf8', value: getAvgBinary('mood_acoustic', 'acoustic') },
-    { label: 'Aggressiveness', color: '#f87171', value: getAvgBinary('mood_aggressive', 'aggressive') },
-    { label: 'Electronicness', color: '#818cf8', value: getAvgBinary('mood_electronic', 'electronic') },
-    { label: 'Happiness', color: '#fde047', value: getAvgBinary('mood_happy', 'happy') },
-    { label: 'Partiness', color: '#fbbf24', value: getAvgBinary('mood_party', 'party') },
-    { label: 'Relaxedness', color: '#34d399', value: getAvgBinary('mood_relaxed', 'relaxed') },
-    { label: 'Melancholicness', color: '#60a5fa', value: getAvgBinary('mood_sad', 'sad') },
-  ];
-  return (
-    <div>
-      {metrics.map((m, i) => {
-        const barWidth = `${Math.round(m.value * 100)}%`;
-        const barKey = `${animKey}-${m.label}`;
-        return (
-          <div key={m.label} style={styles.metricBarChart}>
-            <span style={styles.metricLabel}>{m.label}</span>
-            <div style={styles.metricBar}>
-              <div
-                key={barKey}
-                style={{
-                  width: barWidth,
-                  background: m.color,
-                  height: '100%',
-                  borderRadius: styles.metricBar.borderRadius,
-                  animation: `fill-bar 1s cubic-bezier(.4,0,.2,1)`,
-                  animationName: 'fill-bar',
-                  animationDuration: '1s',
-                  animationTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-                  animationFillMode: 'forwards',
-                  animationDelay: '0s',
-                  '--bar-width': barWidth,
-                }}
-              />
-            </div>
-            <span style={styles.metricValue}>{Math.round(m.value * 100)}%</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// --- BinaryBarCharts component ---
-function BinaryBarCharts({ analyzedTracks, styles }) {
-  const [animKey, setAnimKey] = useState(0);
-  useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
-  // Helper to get average for a binary highlevel metric
-  function getAvgBinary(key, left, right) {
-    let leftSum = 0, rightSum = 0, count = 0;
-    analyzedTracks.forEach(r => {
-      // The data is nested under the first key (usually "0")
-      const firstKey = Object.keys(r.highLevel || {})[0];
-      const all = r.highLevel?.[firstKey]?.highlevel?.[key]?.all;
-      if (all && typeof all[left] === 'number' && typeof all[right] === 'number') {
-        leftSum += all[left];
-        rightSum += all[right];
-        count++;
-      }
-    });
-    return count ? { left: leftSum / count, right: rightSum / count } : { left: 0, right: 0 };
-  }
-  // Metrics config
-  const colorLeft = '#B22222';
-  const colorRight = '#60a5fa'; // light blue
-  const metrics = [
-    {
-      label: 'Gender',
-      left: 'Male',
-      right: 'Female',
-      colorLeft,
-      colorRight,
-      avg: getAvgBinary('gender', 'male', 'female')
-    },
-    {
-      label: 'Timbre',
-      left: 'Dark',
-      right: 'Bright',
-      colorLeft,
-      colorRight,
-      avg: getAvgBinary('timbre', 'dark', 'bright')
-    },
-    {
-      label: 'Tonality',
-      left: 'Atonal',
-      right: 'Tonal',
-      colorLeft,
-      colorRight,
-      avg: getAvgBinary('tonal_atonal', 'atonal', 'tonal')
-    },
-    {
-      label: 'Voice',
-      left: 'Vocal',
-      right: 'Instrumental',
-      colorLeft,
-      colorRight,
-      avg: getAvgBinary('voice_instrumental', 'voice', 'instrumental')
-    },
-  ];
-  return (
-    <div>
-      {metrics.map((m, i) => {
-        const leftPct = Math.round(m.avg.left * 100);
-        const rightPct = Math.round(m.avg.right * 100);
-        const leftBarKey = `${animKey}-left-${m.label}`;
-        const rightBarKey = `${animKey}-right-${m.label}`;
-        // Animate towards the dominant side
-        const animateRight = rightPct > leftPct;
-        const leftDominant = leftPct >= rightPct;
-        const rightDominant = rightPct > leftPct;
-        return (
-          <div key={m.label} style={styles.binaryBarChart}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ 
-                color: leftDominant ? '#fff' : '#b0b6be', 
-                fontWeight: leftDominant ? 700 : 500, 
-                ...styles.binaryBarLabel 
-              }}>
-                {m.left} <span style={{ fontWeight: leftDominant ? 700 : 500 }}>{leftPct}%</span>
-              </span>
-              <span style={{ 
-                color: rightDominant ? '#fff' : '#b0b6be', 
-                fontWeight: rightDominant ? 700 : 500, 
-                ...styles.binaryBarLabel 
-              }}>
-                <span style={{ fontWeight: rightDominant ? 700 : 500 }}>{rightPct}%</span> {m.right}
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={styles.binaryBarContainer}>
-                {/* Left fill (dark red, left to right) */}
-                <div
-                  key={leftBarKey}
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    height: '100%',
-                    width: 0,
-                    background: colorLeft,
-                    borderTopLeftRadius: styles.binaryBarContainer.borderRadius,
-                    borderBottomLeftRadius: styles.binaryBarContainer.borderRadius,
-                    borderTopRightRadius: leftPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
-                    borderBottomRightRadius: leftPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
-                    animation: `fill-bar-left 1s cubic-bezier(.4,0,.2,1) forwards`,
-                    animationName: 'fill-bar-left',
-                    animationDuration: '1s',
-                    animationTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-                    animationFillMode: 'forwards',
-                    animationDelay: '0s',
-                    '--bar-width': `${leftPct}%`,
-                    zIndex: 1,
-                  }}
-                />
-                {/* Right fill (light blue, right to left) */}
-                <div
-                  key={rightBarKey}
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: 0,
-                    height: '100%',
-                    width: 0,
-                    background: colorRight,
-                    borderTopRightRadius: styles.binaryBarContainer.borderRadius,
-                    borderBottomRightRadius: styles.binaryBarContainer.borderRadius,
-                    borderTopLeftRadius: rightPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
-                    borderBottomLeftRadius: rightPct === 100 ? styles.binaryBarContainer.borderRadius : 0,
-                    animation: `fill-bar-right 1s cubic-bezier(.4,0,.2,1) forwards`,
-                    animationName: 'fill-bar-right',
-                    animationDuration: '1s',
-                    animationTimingFunction: 'cubic-bezier(.4,0,.2,1)',
-                    animationFillMode: 'forwards',
-                    animationDelay: '0s',
-                    '--bar-width': `${rightPct}%`,
-                    zIndex: 2,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
+// --- Helper functions for staggered reveals ---
 function useStaggeredReveal(count, trigger) {
   const [revealed, setRevealed] = useStateReact(Array(count).fill(false));
   useEffectReact(() => {
@@ -1544,15 +936,34 @@ function useStaggeredReveal(count, trigger) {
   return revealed;
 }
 
+function useStaggeredRevealChord(count, trigger) {
+  const [revealed, setRevealed] = useStateReact(Array(count).fill(false));
+  useEffectReact(() => {
+    setRevealed(Array(count).fill(false));
+    let timeouts = [];
+    for (let i = 0; i < count; i++) {
+      timeouts.push(setTimeout(() => {
+        setRevealed(r => {
+          const arr = [...r];
+          arr[i] = true;
+          return arr;
+        });
+      }, 200 + i * 80));
+    }
+    return () => timeouts.forEach(clearTimeout);
+  }, [trigger, count]);
+  return revealed;
+}
+
 // --- GenreLeaderboards component ---
 function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
   const [animKey, setAnimKey] = useStateReact(0);
   useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
+  
   // Helper to get leaderboard for a highlevel classifier
   function getLeaderboard(key) {
     const counts = {};
     analyzedTracks.forEach(r => {
-      // The data is nested under the first key (usually "0")
       const firstKey = Object.keys(r.highLevel || {})[0];
       const val = r.highLevel?.[firstKey]?.highlevel?.[key]?.value;
       if (val) counts[val] = (counts[val] || 0) + 1;
@@ -1564,7 +975,6 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
   function getMoodLeaderboard() {
     const counts = {};
     analyzedTracks.forEach(r => {
-      // The data is nested under the first key (usually "0")
       const firstKey = Object.keys(r.highLevel || {})[0];
       const val = r.highLevel?.[firstKey]?.highlevel?.moods_mirex?.value;
       if (val) counts[val] = (counts[val] || 0) + 1;
@@ -1584,13 +994,9 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
     // Clean and normalize genres
     const cleanedCounts = {};
     Object.entries(rawCounts).forEach(([rawGenre, count]) => {
-      // Skip extremely long tags (likely data dumps)
       if (rawGenre.length > 50) return;
-      
-      // Skip useless generic tags
       if (['genre', 'other', 'misc', 'various', 'unknown'].includes(rawGenre.toLowerCase())) return;
       
-      // Normalize the genre
       const normalized = normalizeGenre(rawGenre);
       if (normalized) {
         cleanedCounts[normalized] = (cleanedCounts[normalized] || 0) + count;
@@ -1605,8 +1011,6 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
     if (!rawGenre) return null;
     
     const genre = rawGenre.toLowerCase().trim();
-    
-    // Skip if too long or generic
     if (genre.length > 50) return null;
     
     // Hip Hop variations
@@ -1699,7 +1103,6 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
     // If no major category matches, try to extract the most meaningful part
     const words = genre.split(/[\s&\/,]+/).filter(word => word.length > 2);
     if (words.length > 0) {
-      // Capitalize first letter and return the first meaningful word
       return words[0].charAt(0).toUpperCase() + words[0].slice(1);
     }
     
@@ -1710,22 +1113,27 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
   const rosamericaMap = {
     pop: 'Pop', rhy: 'Rhythm & Blues', hip: 'Hip-Hop', roc: 'Rock', dan: 'Dance', spe: 'Speech', ele: 'Electronic', jaz: 'Jazz', ins: 'Instrumental', fol: 'Folk', bla: 'Blues', cou: 'Country', reg: 'Reggae', sou: 'Soul', fun: 'Funk', lat: 'Latin', met: 'Metal', pun: 'Punk', cla: 'Classical', exp: 'Experimental', amb: 'Ambient', wor: 'World', blu: 'Blues', rap: 'Rap', '': ''
   };
-  const tzanetakisMap = {
-    blu: 'Blues', cla: 'Classical', cou: 'Country', dis: 'Disco', hip: 'Hip-Hop', jaz: 'Jazz', met: 'Metal', pop: 'Pop', reg: 'Reggae', roc: 'Rock', '': ''
-  };
-  const ismirMap = {
-    ChaChaCha: 'Cha-Cha-Cha', Jive: 'Jive', Quickstep: 'Quickstep', RumbaAmerican: 'Rumba (American)', RumbaInternational: 'Rumba (International)', Rumba: 'Rumba', Samba: 'Samba', Tango: 'Tango', VienneseWaltz: 'Viennese Waltz', Waltz: 'Waltz', '': ''
-  };
   const mirexMap = {
     cluster1: 'Quiet Moments', cluster2: 'Dance & Social Vibe', cluster3: 'Calm & Focused', cluster4: 'Power Up', cluster5: 'Beat-Driven & Lyrical',
     Cluster1: 'Quiet Moments', Cluster2: 'Dance & Social Vibe', Cluster3: 'Calm & Focused', Cluster4: 'Power Up', Cluster5: 'Beat-Driven & Lyrical',
     '': ''
   };
+
+  // Color mapping for mood classifications
+  const moodColorMap = {
+    'Quiet Moments': { bg: 'rgba(147, 51, 234, 0.2)', text: '#9333ea' },      // Purple
+    'Dance & Social Vibe': { bg: 'rgba(236, 72, 153, 0.2)', text: '#ec4899' }, // Pink
+    'Calm & Focused': { bg: 'rgba(59, 130, 246, 0.2)', text: '#3b82f6' },     // Blue
+    'Power Up': { bg: 'rgba(239, 68, 68, 0.2)', text: '#ef4444' },            // Red
+    'Beat-Driven & Lyrical': { bg: 'rgba(245, 158, 11, 0.2)', text: '#f59e0b' } // Orange
+  };
+  
   const metrics = [
-    { label: 'Main Genre Tags', key: 'metadata_genre', isMetadata: true },
-    { label: 'Genre Rosamerica', key: 'genre_rosamerica', map: rosamericaMap },
-    { label: 'Mood Classification', key: 'moods_mirex', isMood: true, map: mirexMap },
+    { label: 'Genres', key: 'metadata_genre', isMetadata: true },
+    { label: 'Styles', key: 'genre_rosamerica', map: rosamericaMap },
+    { label: 'Mood Classifications', key: 'moods_mirex', isMood: true, map: mirexMap },
   ];
+  
   return (
     <div style={styles.genreLeaderboard}>
       {metrics.map((m, metricIdx) => {
@@ -1747,11 +1155,18 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
               ) : (
                 leaderboard.map(([val, count], i) => {
                   const displayVal = m.map ? (m.map[val] || val) : val;
+                  const isMoodClassification = m.isMood;
+                  const moodColors = isMoodClassification ? moodColorMap[displayVal] : null;
+                  
                   return (
                     <span
                       key={val}
                       style={{
                         ...styles.genreTag,
+                        ...(isMoodClassification && moodColors ? {
+                          background: moodColors.bg,
+                          color: moodColors.text
+                        } : {}),
                         opacity: revealed[i] ? 1 : 0,
                         transform: revealed[i] ? 'translateY(0)' : 'translateY(20px)',
                         transition: 'opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1)',
@@ -1771,37 +1186,18 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
   );
 }
 
-function useStaggeredRevealChord(count, trigger) {
-  const [revealed, setRevealed] = useStateReact(Array(count).fill(false));
-  useEffectReact(() => {
-    setRevealed(Array(count).fill(false));
-    let timeouts = [];
-    for (let i = 0; i < count; i++) {
-      timeouts.push(setTimeout(() => {
-        setRevealed(r => {
-          const arr = [...r];
-          arr[i] = true;
-          return arr;
-        });
-      }, 200 + i * 80));
-    }
-    return () => timeouts.forEach(clearTimeout);
-  }, [trigger, count]);
-  return revealed;
-}
-
 // --- ChordsHistogram component ---
 function ChordsHistogram({ analyzedTracks, styles }) {
   const [animKey, setAnimKey] = useStateReact(0);
   useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
+  
   // Aggregate major and minor chords
   const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   let majorCounts = Array(12).fill(0);
   let minorCounts = Array(12).fill(0);
   analyzedTracks.forEach(r => {
-      // The data is nested under the first key (usually "0")
-      const firstKey = Object.keys(r.lowLevel || {})[0];
-      const hist = r.analysisData?.tonal?.chords_histogram || r.lowLevel?.[firstKey]?.tonal?.chords_histogram || r.highLevel?.[firstKey]?.tonal?.chords_histogram;
+    const firstKey = Object.keys(r.lowLevel || {})[0];
+    const hist = r.analysisData?.tonal?.chords_histogram || r.lowLevel?.[firstKey]?.tonal?.chords_histogram || r.highLevel?.[firstKey]?.tonal?.chords_histogram;
     if (Array.isArray(hist) && hist.length === 24) {
       for (let i = 0; i < 12; i++) {
         majorCounts[i] += hist[i];
@@ -1809,12 +1205,14 @@ function ChordsHistogram({ analyzedTracks, styles }) {
       }
     }
   });
+  
   // Convert to leaderboard
   const numTracks = analyzedTracks.length || 1;
   const majorLeaderboard = chordNames.map((name, i) => [name, majorCounts[i] / numTracks]).sort((a, b) => b[1] - a[1]);
   const minorLeaderboard = chordNames.map((name, i) => [name + 'm', minorCounts[i] / numTracks]).sort((a, b) => b[1] - a[1]);
   const majorRevealed = useStaggeredRevealChord(majorLeaderboard.length, animKey + '-maj');
   const minorRevealed = useStaggeredRevealChord(minorLeaderboard.length, animKey + '-min');
+  
   return (
     <div style={styles.chordsHistogram}>
       <div style={styles.chordSection}>
@@ -1859,11 +1257,9 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
 
   // Chart.js charts effect
   useEffectReact(() => {
-    // Check if Chart.js is available
     if (typeof window !== 'undefined' && window.Chart) {
       createChordsCharts();
     } else {
-      // Load Chart.js dynamically if not available
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
       script.onload = createChordsCharts;
@@ -1872,7 +1268,6 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
   }, [analyzedTracks]);
 
   function createChordsCharts() {
-    // Wait for Chart.js to be available
     if (typeof window === 'undefined' || !window.Chart) {
       setTimeout(createChordsCharts, 100);
       return;
@@ -1880,14 +1275,11 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
 
     const Chart = window.Chart;
     
-    // Chart options
     const chartOptions = {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          display: false
-        },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: function(context) {
@@ -1905,32 +1297,23 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
             callback: function(value) {
               return value + '%';
             },
-            font: {
-              size: isMobile ? 8 : 12
-            },
+            font: { size: isMobile ? 8 : 12 },
             maxTicksLimit: isMobile ? 4 : 6
           },
-          grid: {
-            color: '#535353'
-          }
+          grid: { color: '#535353' }
         },
-        x: {
-          ticks: {
-            color: '#b3b3b3',
-            font: {
-              size: isMobile ? 8 : 12
-            },
-            maxRotation: isMobile ? 45 : 0,
-            minRotation: isMobile ? 45 : 0
-          },
-          grid: {
-            display: false
-          }
-        }
+                 x: {
+           ticks: {
+             color: '#b3b3b3',
+             fontSize: 8,
+             maxRotation: 45,
+             minRotation: 0
+           },
+           grid: { display: false }
+         }
       }
     };
 
-    // Prepare chord data
     const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     let majorCounts = Array(12).fill(0);
     let minorCounts = Array(12).fill(0);
@@ -1950,10 +1333,19 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
     const majorData = chordNames.map((name, i) => majorCounts[i] / numTracks);
     const minorData = chordNames.map((name, i) => minorCounts[i] / numTracks);
 
+    // Filter out zero values for major chords
+    const majorNonZeroIndices = majorData.map((value, index) => ({ value, index })).filter(item => item.value > 0);
+    const majorFilteredLabels = majorNonZeroIndices.map(item => chordNames[item.index]);
+    const majorFilteredData = majorNonZeroIndices.map(item => item.value);
+
+    // Filter out zero values for minor chords
+    const minorNonZeroIndices = minorData.map((value, index) => ({ value, index })).filter(item => item.value > 0);
+    const minorFilteredLabels = minorNonZeroIndices.map(item => chordNames[item.index] + 'm');
+    const minorFilteredData = minorNonZeroIndices.map(item => item.value);
+
     // Create Major Chords Chart
     const majorCtx = document.getElementById('majorChordsChart');
     if (majorCtx) {
-      // Destroy existing chart if it exists
       if (majorCtx.chart) {
         majorCtx.chart.destroy();
       }
@@ -1961,10 +1353,10 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
       majorCtx.chart = new Chart(majorCtx, {
         type: 'bar',
         data: {
-          labels: chordNames,
+          labels: majorFilteredLabels,
           datasets: [{
             label: 'Major Chord Duration',
-            data: majorData,
+            data: majorFilteredData,
             backgroundColor: 'rgba(29, 185, 84, 0.5)',
             borderColor: 'rgba(29, 185, 84, 1)',
             borderWidth: 1,
@@ -1989,7 +1381,6 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
     // Create Minor Chords Chart
     const minorCtx = document.getElementById('minorChordsChart');
     if (minorCtx) {
-      // Destroy existing chart if it exists
       if (minorCtx.chart) {
         minorCtx.chart.destroy();
       }
@@ -1997,10 +1388,10 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
       minorCtx.chart = new Chart(minorCtx, {
         type: 'bar',
         data: {
-          labels: chordNames.map(name => name + 'm'),
+          labels: minorFilteredLabels,
           datasets: [{
             label: 'Minor Chord Duration',
-            data: minorData,
+            data: minorFilteredData,
             backgroundColor: 'rgba(29, 185, 84, 0.5)',
             borderColor: 'rgba(29, 185, 84, 1)',
             borderWidth: 1,
@@ -2098,8 +1489,6 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
     },
   ];
 
-
-
   return (
     <div style={{
       background: '#212121',
@@ -2129,7 +1518,7 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
       {/* Content */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Header */}
-        <header style={{ textAlign: 'center', marginBottom: isMobile ? 24 : 40 }}>
+        <header style={{ textAlign: 'center', marginTop: 50, marginBottom: 40 }}>
           <h1 style={{
             fontSize: isMobile ? '2rem' : '3.5rem',
             fontWeight: 900,
@@ -2137,7 +1526,7 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
             letterSpacing: '-0.025em',
             marginBottom: isMobile ? 6 : 8
           }}>
-            Your Music DNA
+            Your Songs Wrapped
           </h1>
           <p style={{
             fontSize: isMobile ? '0.9rem' : '1.125rem',
@@ -2169,37 +1558,37 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
               textAlign: 'center',
               marginBottom: isMobile ? 12 : 16
             }}>
-              Genre & Rhythm Leaderboards
+              Genre & Style Breakdown
             </h2>
             <GenreLeaderboards analyzedTracks={analyzedTracks} isMobile={isMobile} styles={{
-            genreLeaderboard: {
-              display: 'flex',
-              flexDirection: 'column',
-              gap: isMobile ? 16 : 20
-            },
-            genreSection: {
-              marginBottom: isMobile ? 12 : 16
-            },
-            genreSectionTitle: {
-              color: '#b3b3b3',
-              fontWeight: 600,
-              fontSize: isMobile ? '0.875rem' : '1rem',
-              marginBottom: 4
-            },
-            genreTags: {
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8
-            },
-            genreTag: {
-              background: 'rgba(29, 185, 84, 0.2)',
-              color: '#1db954',
-              fontWeight: 600,
-              fontSize: isMobile ? '0.75rem' : '0.875rem',
-              borderRadius: 9999,
-              padding: '2px 8px'
-            }
-          }} />
+              genreLeaderboard: {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: isMobile ? 16 : 20
+              },
+              genreSection: {
+                marginBottom: isMobile ? 12 : 16
+              },
+              genreSectionTitle: {
+                color: '#b3b3b3',
+                fontWeight: 600,
+                fontSize: isMobile ? '0.875rem' : '1rem',
+                marginBottom: 4
+              },
+              genreTags: {
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 8
+              },
+              genreTag: {
+                background: 'rgba(29, 185, 84, 0.2)',
+                color: '#1db954',
+                fontWeight: 600,
+                fontSize: isMobile ? '0.75rem' : '0.875rem',
+                borderRadius: 9999,
+                padding: '2px 8px'
+              }
+            }} />
           </div>
 
           {/* Total Beat Count */}
@@ -2211,9 +1600,10 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
             textAlign: 'center'
           }}>
             <h2 style={{
-              fontSize: isMobile ? '1rem' : '1.125rem',
-              fontWeight: 600,
-              color: '#b3b3b3',
+              fontSize: isMobile ? '1.1rem' : '1.5rem',
+              fontWeight: 700,
+              color: '#fff',
+              textAlign: 'center',
               marginBottom: isMobile ? 12 : 16
             }}>
               Total Beat Count
@@ -2228,10 +1618,122 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
             </p>
             <p style={{
               fontSize: isMobile ? '0.8rem' : '0.875rem',
-              color: '#b3b3b3'
+              color: '#b3b3b3',
+              marginBottom: isMobile ? 16 : 20
             }}>
               That's <span style={{ fontWeight: 700, color: '#fff' }}>{avgBeats}</span> beats per song on average.
             </p>
+            
+            {/* Summary Information */}
+            {(() => {
+              if (analyzedTracks.length === 0) return null;
+              let earliest = analyzedTracks[0], latest = analyzedTracks[0];
+              let minYear = null, maxYear = null;
+              let totalDurationMs = 0;
+              analyzedTracks.forEach(r => {
+                const year = r.track?.release_year || (r.track?.album?.release_date ? parseInt(r.track.album.release_date.split('-')[0]) : null);
+                if (year) {
+                  if (minYear === null || year < minYear) {
+                    minYear = year;
+                    earliest = r;
+                  }
+                  if (maxYear === null || year > maxYear) {
+                    maxYear = year;
+                    latest = r;
+                  }
+                }
+                totalDurationMs += r.track?.duration_ms || r.track?.duration || 0;
+              });
+              const totalHours = Math.floor(totalDurationMs / 3600000);
+              const totalMins = Math.floor((totalDurationMs % 3600000) / 60000);
+              const totalSecs = Math.floor((totalDurationMs % 60000) / 1000).toString().padStart(2, '0');
+              const formattedTime = `${totalHours}:${totalMins.toString().padStart(2, '0')}:${totalSecs}`;
+              
+              return (
+                <div style={{
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  paddingTop: isMobile ? 12 : 16,
+                  marginTop: isMobile ? 12 : 16
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: isMobile ? 12 : 16,
+                    textAlign: 'left'
+                  }}>
+                    <div>
+                      <div style={{
+                        fontSize: isMobile ? '0.8rem' : '0.9rem',
+                        color: '#1db954',
+                        fontWeight: 600,
+                        marginBottom: 4
+                      }}>
+                        First published
+                      </div>
+                      <div style={{
+                        fontSize: isMobile ? '0.85rem' : '0.95rem',
+                        color: '#fff',
+                        fontWeight: 700,
+                        marginBottom: 4
+                      }}>
+                        {earliest.track?.name}
+                      </div>
+                      <div style={{
+                        fontSize: isMobile ? '0.75rem' : '0.85rem',
+                        color: '#b3b3b3',
+                        fontWeight: 500
+                      }}>
+                        {minYear || 'N/A'}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div style={{
+                        fontSize: isMobile ? '0.8rem' : '0.9rem',
+                        color: '#1db954',
+                        fontWeight: 600,
+                        marginBottom: 4
+                      }}>
+                        Most recent
+                      </div>
+                      <div style={{
+                        fontSize: isMobile ? '0.85rem' : '0.95rem',
+                        color: '#fff',
+                        fontWeight: 700,
+                        marginBottom: 4
+                      }}>
+                        {latest.track?.name}
+                      </div>
+                      <div style={{
+                        fontSize: isMobile ? '0.75rem' : '0.85rem',
+                        color: '#b3b3b3',
+                        fontWeight: 500
+                      }}>
+                        {maxYear || 'N/A'}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div style={{
+                        fontSize: isMobile ? '0.8rem' : '0.9rem',
+                        color: '#1db954',
+                        fontWeight: 600,
+                        marginBottom: 4
+                      }}>
+                        Total listening time
+                      </div>
+                      <div style={{
+                        fontSize: isMobile ? '0.85rem' : '0.95rem',
+                        color: '#fff',
+                        fontWeight: 700
+                      }}>
+                        {formattedTime}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Binary Audio Features */}
@@ -2336,51 +1838,53 @@ function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile
               ))}
             </div>
           </div>
+        </div>
 
-                  {/* Chords Histogram - Full Width */}
-          <div style={{
-            gridColumn: isMobile ? '1' : '1 / -1',
-            background: 'rgba(33, 33, 33, 0.5)',
-            padding: isMobile ? 16 : 24,
-            borderRadius: isMobile ? 12 : 16,
-            border: '1px solid #535353'
+        {/* Chords Histogram - Full Width */}
+        <div style={{
+          gridColumn: isMobile ? '1' : '1 / -1',
+          background: 'rgba(33, 33, 33, 0.5)',
+          padding: isMobile ? 16 : 24,
+          borderRadius: isMobile ? 12 : 16,
+          border: '1px solid #535353',
+          marginTop: isMobile ? 24 : 32
+        }}>
+          <h2 style={{
+            fontSize: isMobile ? '1.1rem' : '1.5rem',
+            fontWeight: 700,
+            color: '#fff',
+            textAlign: 'center',
+            marginBottom: isMobile ? 6 : 8
           }}>
-            <h2 style={{
-              fontSize: isMobile ? '1.1rem' : '1.5rem',
-              fontWeight: 700,
-              color: '#fff',
-              textAlign: 'center',
-              marginBottom: isMobile ? 6 : 8
+            Chords Histogram
+          </h2>
+          <p style={{
+            textAlign: 'center',
+            color: '#b3b3b3',
+            marginBottom: isMobile ? 16 : 24,
+            fontSize: isMobile ? '0.9rem' : '1rem'
+          }}>
+            The average duration of each major and minor chord.
+          </p>
+          <div style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? 16 : 32
+          }}>
+            <div style={{ 
+              position: 'relative', 
+              height: isMobile ? 200 : 400, 
+              width: isMobile ? '100%' : '50%'
             }}>
-              Chords Histogram
-            </h2>
-            <p style={{
-              textAlign: 'center',
-              color: '#b3b3b3',
-              marginBottom: isMobile ? 16 : 24,
-              fontSize: isMobile ? '0.9rem' : '1rem'
+              <canvas id="majorChordsChart"></canvas>
+            </div>
+            <div style={{ 
+              position: 'relative', 
+              height: isMobile ? 200 : 400, 
+              width: isMobile ? '100%' : '50%',
+              paddingRight: isMobile ? 0 : '24px'
             }}>
-              The average duration of each major and minor chord.
-            </p>
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: isMobile ? 16 : 32
-            }}>
-              <div style={{ 
-                position: 'relative', 
-                height: isMobile ? 200 : 400, 
-                width: isMobile ? '100%' : '50%'
-              }}>
-                <canvas id="majorChordsChart"></canvas>
-              </div>
-              <div style={{ 
-                position: 'relative', 
-                height: isMobile ? 200 : 400, 
-                width: isMobile ? '100%' : '50%'
-              }}>
-                <canvas id="minorChordsChart"></canvas>
-              </div>
+              <canvas id="minorChordsChart"></canvas>
             </div>
           </div>
         </div>
