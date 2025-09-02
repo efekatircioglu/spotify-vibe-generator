@@ -176,7 +176,7 @@ export default function Home() {
   const handleAnalyzeNewGenres = async (playlist) => {
     try {
         setAnalyzingPlaylistId(playlist.id);
-        const res = await fetch(`http://127.0.0.1:8000/playlist-genres/${playlist.id}`);
+        const res = await fetch(`${getApiBaseUrl()}/playlist-genres/${playlist.id}`);
         if (!res.ok) throw new Error('Failed to analyze playlist genres');
         const data = await res.json();
         // GenreLeaderboardChart expects: { genreName: count, ... }
@@ -196,7 +196,7 @@ export default function Home() {
   const handleAnalyzeNewArtists = async (playlist) => {
     try {
       setAnalyzingArtistPlaylistId(playlist.id);
-      const res = await fetch(`http://127.0.0.1:8000/playlist-artists/${playlist.id}`);
+      const res = await fetch(`${getApiBaseUrl()}/playlist-artists/${playlist.id}`);
       if (!res.ok) throw new Error('Failed to analyze playlist artists');
       const data = await res.json();
       // GenreLeaderboardChart expects: { artistName: count, ... }
@@ -216,7 +216,7 @@ export default function Home() {
   const handleCreatePlaylistWrapped = async (playlist) => {
     try {
       // Fetch playlist tracks for wrapped analysis (same pattern as Genres feature)
-      const res = await fetch(`http://127.0.0.1:8000/playlist-tracks-for-wrapped/${playlist.id}`);
+      const res = await fetch(`${getApiBaseUrl()}/playlist-tracks-for-wrapped/${playlist.id}`);
       
       if (!res.ok) {
         const errorText = await res.text();
@@ -378,7 +378,7 @@ export default function Home() {
   const handleAnalyzeGenres = async (playlist) => {
     try {
       setAnalyzingPlaylistId(playlist.id);
-      const res = await fetch(`http://127.0.0.1:8000/playlist-genres/${playlist.id}`);
+      const res = await fetch(`${getApiBaseUrl()}/playlist-genres/${playlist.id}`);
       if (!res.ok) throw new Error('Failed to analyze playlist genres');
       const data = await res.json();
       setGenreAnalysis({ name: playlist.name, genres: data.genres });
@@ -394,7 +394,7 @@ export default function Home() {
   const handleAnalyzeArtists = async (playlist) => {
     try {
       setAnalyzingArtistPlaylistId(playlist.id);
-      const res = await fetch(`http://127.0.0.1:8000/playlist-artists/${playlist.id}`);
+      const res = await fetch(`${getApiBaseUrl()}/playlist-artists/${playlist.id}`);
       if (!res.ok) throw new Error('Failed to analyze playlist artists');
       const data = await res.json();
       setArtistAnalysis({ 
@@ -420,14 +420,14 @@ export default function Home() {
     setConcertSearchLoading(true);
     try {
       // 1. Search for artist
-      const res1 = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(searchName)}`);
+      const res1 = await fetch(`${getApiBaseUrl()}/concerts/artist-search?name=${encodeURIComponent(searchName)}`);
       if (!res1.ok) throw new Error('Failed to search artist');
       const data1 = await res1.json();
       const attractions = data1._embedded?.attractions || [];
       if (attractions.length === 0) throw new Error('No artist found');
       const artistId = attractions[0].id;
       // 2. Get events
-      const res2 = await fetch(`http://127.0.0.1:8000/concerts/events?artistId=${artistId}`);
+      const res2 = await fetch(`${getApiBaseUrl()}/concerts/events?artistId=${artistId}`);
       if (!res2.ok) throw new Error('Failed to get events');
       const data2 = await res2.json();
       const events = data2._embedded?.events || [];
@@ -593,7 +593,7 @@ export default function Home() {
           }] : [];
         } else {
           // Spotify
-          const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(value)}`);
+          const spRes = await fetch(`${getApiBaseUrl()}/spotify/artist-search?name=${encodeURIComponent(value)}`);
           const spData = spRes.ok ? await spRes.json() : {};
           spSuggestions = spData.artists?.map(a => ({
             name: a.name,
@@ -604,7 +604,7 @@ export default function Home() {
             source: 'spotify'
           })) || [];
           // Ticketmaster
-          const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(value)}`);
+          const tmRes = await fetch(`${getApiBaseUrl()}/concerts/artist-search?name=${encodeURIComponent(value)}`);
           const tmData = tmRes.ok ? await tmRes.json() : {};
           tmSuggestions = tmData._embedded?.attractions
         ?.filter(a => a.type === 'attraction' && a.classifications?.[0]?.segment?.name === 'Music' && a.classifications?.[0]?.primary)
@@ -720,7 +720,7 @@ export default function Home() {
     } else {
       // Always use the Spotify name for Ticketmaster search
       try {
-        const tmData = await fetchWithRetry(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(artist.name)}`);
+        const tmData = await fetchWithRetry(`${getApiBaseUrl()}/concerts/artist-search?name=${encodeURIComponent(artist.name)}`);
         const attractions = tmData._embedded?.attractions || [];
         // Find an exact name match (case-insensitive)
         const exact = attractions.find(a => a.name.toLowerCase() === artist.name.toLowerCase());
@@ -756,12 +756,12 @@ export default function Home() {
     if (!searchArtist.trim()) return;
 
     // 1. Call Ticketmaster
-    const tmRes = await fetch(`http://127.0.0.1:8000/concerts/artist-search?name=${encodeURIComponent(searchArtist)}`);
+    const tmRes = await fetch(`${getApiBaseUrl()}/concerts/artist-search?name=${encodeURIComponent(searchArtist)}`);
     const tmData = await tmRes.json();
     // Optionally extract ticketmasterId, spotifyId from tmData
 
     // 2. Call Spotify
-    const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(searchArtist)}`);
+    const spRes = await fetch(`${getApiBaseUrl()}/spotify/artist-search?name=${encodeURIComponent(searchArtist)}`);
     const spData = await spRes.json();
     // Optionally extract spotifyId from spData
 
@@ -784,8 +784,8 @@ export default function Home() {
     setShowTopModal(true);
     try {
       const [tracksRes, artistsRes] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/top-tracks?time_range=${time_range}`),
-        fetch(`http://127.0.0.1:8000/top-artists?time_range=${time_range}`)
+        fetch(`${getApiBaseUrl()}/top-tracks?time_range=${time_range}`),
+        fetch(`${getApiBaseUrl()}/top-artists?time_range=${time_range}`)
       ]);
       const tracks = await tracksRes.json();
       const artists = await artistsRes.json();
@@ -842,7 +842,7 @@ export default function Home() {
     try {
       const trackUris = playlistTracks.map(track => track.uri || `spotify:track:${track.id}`);
       
-      const response = await fetch('http://127.0.0.1:8000/create-playlist', {
+      const response = await fetch(`${getApiBaseUrl()}/create-playlist`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -954,7 +954,7 @@ export default function Home() {
 
   // --- LOGGED IN ---
   const handleLogout = async () => {
-    await fetch('http://127.0.0.1:8000/logout');
+    await fetch(`${getApiBaseUrl()}/logout`);
     setUser(null);
     setAnalysis(null);
     // Clear all playlist URLs from localStorage

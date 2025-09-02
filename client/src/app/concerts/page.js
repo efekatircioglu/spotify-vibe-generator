@@ -7,6 +7,7 @@ import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage
 import { optimizedConcertApiCall, optimizedArtistSearch } from '../../utils/concertApiOptimizer';
 import { getCachedTopArtists } from '../../utils/topArtistsCache';
 import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
+import { getApiBaseUrl } from '../../config/api';
 
 export default function ConcertsPage() {
   const router = useRouter();
@@ -86,7 +87,7 @@ export default function ConcertsPage() {
   // Fetch followed artists
   useEffect(() => {
     setLoadingFollowed(true);
-    fetch('http://127.0.0.1:8000/me/following/artists')
+    fetch(`${getApiBaseUrl()}/me/following/artists`)
       .then(res => res.ok ? res.json() : { artists: [] })
       .then(data => {
         setFollowedArtists(data.artists || []);
@@ -216,7 +217,7 @@ export default function ConcertsPage() {
     searchTimeoutRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const data = await fetchWithRetry(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery)}`);
+        const data = await fetchWithRetry(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery)}`);
         console.log('Raw Ticketmaster response:', data);
         // Filter for music artists only
         const attractions = data._embedded?.attractions || data.attractions || [];
@@ -352,7 +353,7 @@ export default function ConcertsPage() {
 
       // Use optimized API call with caching
       const searchData = await optimizedConcertApiCall(
-        'http://127.0.0.1:8000/ticketmaster/search-artist',
+        `${getApiBaseUrl()}/ticketmaster/search-artist`,
         {
           params: { artistName },
           cacheKey: `artist-search-${artistName.toLowerCase()}`
@@ -807,7 +808,7 @@ export default function ConcertsPage() {
       console.log(`Making optimized batch request for ${artistIds.length} artists`);
       
       // Use the new optimized batch endpoint
-      const response = await fetch('http://127.0.0.1:8000/concerts/events/optimized-batch', {
+      const response = await fetch(`${getApiBaseUrl()}/concerts/events/optimized-batch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

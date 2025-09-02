@@ -64,9 +64,9 @@ const scopes = [
 
 // Create a new instance of the SpotifyWebApi client
 const spotifyApi = new SpotifyWebApi({
-  clientId: process.env.SPOTIFY_CLIENT_ID,
+  clientId: '8d1ba0a7bf574cc8bdd4b93dbb2789a8', // Hardcoded client ID
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: process.env.REDIRECT_URI,
+  redirectUri: 'http://46.101.78.90:8000/callback', // Hardcoded redirect URI
 });
 
 // Token refresh function
