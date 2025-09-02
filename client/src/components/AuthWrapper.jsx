@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { setupAuthMonitoring, checkAuthStatus, refreshToken } from '../utils/authUtils';
 import { setupCacheMonitoring, initializeAllCaches } from '../utils/cacheManager';
+import { LOGIN_URL } from '../config/api';
 
 export default function AuthWrapper({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
@@ -213,7 +214,7 @@ export default function AuthWrapper({ children }) {
               }
             </p>
             <button
-              onClick={() => window.location.href = 'http://127.0.0.1:8000/login'}
+                              onClick={() => window.location.href = LOGIN_URL}
               style={{
                 background: '#1db954',
                 color: '#000',

@@ -1,4 +1,5 @@
 // Utility functions for handling authentication and token expiration
+import { getApiBaseUrl, LOGIN_URL } from '../config/api';
 
 // Check if token is expired
 export const isTokenExpired = () => {
@@ -11,7 +12,7 @@ export const isTokenExpired = () => {
 export const checkAuthStatus = async () => {
   try {
     // Check auth status with backend using session
-    const response = await fetch('http://127.0.0.1:8000/me', {
+    const response = await fetch(`${getApiBaseUrl()}/me`, {
       credentials: 'include' // Include cookies for session
     });
     
@@ -67,11 +68,11 @@ export const logoutUser = () => {
     }
 
     // Redirect to login page
-    window.location.href = 'http://127.0.0.1:8000/login';
+    window.location.href = LOGIN_URL;
   } catch (error) {
     console.error('Error during logout:', error);
     // Fallback: just redirect
-    window.location.href = 'http://127.0.0.1:8000/login';
+    window.location.href = LOGIN_URL;
   }
 };
 

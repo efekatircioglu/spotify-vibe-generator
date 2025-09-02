@@ -1,4 +1,4 @@
-// Top Artists Cache Utility
+import { getApiBaseUrl } from '../config/api';
 // Manages localStorage caching for user's top artists to avoid redundant API calls
 
 const CACHE_KEY = 'spotify_top_artists';
@@ -172,9 +172,9 @@ export const fetchAndCacheAllTimePeriods = async () => {
     console.log('[TopArtistsCache] Fetching artists from all time periods...');
     
     const endpoints = [
-      { url: 'http://127.0.0.1:8000/last-4-weeks', timePeriod: '4_weeks' },
-      { url: 'http://127.0.0.1:8000/last-6-months', timePeriod: '6_months' },
-      { url: 'http://127.0.0.1:8000/last-12-months', timePeriod: '12_months' }
+              { url: `${getApiBaseUrl()}/last-4-weeks`, timePeriod: '4_weeks' },
+        { url: `${getApiBaseUrl()}/last-6-months`, timePeriod: '6_months' },
+        { url: `${getApiBaseUrl()}/last-12-months`, timePeriod: '12_months' }
     ];
     
     // Fetch from all endpoints in parallel

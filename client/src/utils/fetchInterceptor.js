@@ -1,4 +1,5 @@
 // Global fetch interceptor to handle authentication errors
+import { LOGIN_URL } from '../config/api';
 
 // Only run on client side
 if (typeof window !== 'undefined') {
@@ -24,13 +25,13 @@ if (typeof window !== 'undefined') {
           // Clear logout flag if it exists
           sessionStorage.removeItem('userLoggedOut');
           
-          window.location.href = 'http://127.0.0.1:8000/login';
+          window.location.href = LOGIN_URL;
           return response;
         }
 
         // Session expired - redirect to login
         console.log('Session expired, redirecting to login');
-        window.location.href = 'http://127.0.0.1:8000/login';
+        window.location.href = LOGIN_URL;
         return response;
       }
 

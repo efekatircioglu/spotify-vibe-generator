@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
+import { getApiBaseUrl } from '../../config/api';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import Sidebar from '../../components/Sidebar';
@@ -30,8 +31,8 @@ export default function Last6MonthsPage() {
     const fetchData = async () => {
       try {
         const [mainData, genreData] = await Promise.all([
-          fetch("http://127.0.0.1:8000/last-6-months").then(res => res.json()),
-          fetch("http://127.0.0.1:8000/genre-details/6-months").then(res => res.json())
+          fetch(`${getApiBaseUrl()}/last-6-months`).then(res => res.json()),
+          fetch(`${getApiBaseUrl()}/genre-details/6-months`).then(res => res.json())
         ]);
         
         setData(mainData);

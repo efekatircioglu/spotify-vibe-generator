@@ -17,6 +17,7 @@ import { getRecentSearches, saveRecentSearch } from '../../utils/recentSearchesC
 import '../../utils/storageMonitor'; // Import storage monitoring utilities
 import QuickStats from '../../components/QuickStats/index';
 import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
+import { getApiBaseUrl, LOGIN_URL } from '../../config/api';
 import { initializeAllCaches, cleanupLocalStorageTokens } from '../../utils/cacheManager';
 
 
@@ -273,18 +274,6 @@ export default function Home() {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [timeRangeDropdownOpen]);
-
-  // Dynamic API base URL based on current hostname
-  const getApiBaseUrl = () => {
-    if (typeof window !== 'undefined' && window.location.hostname === '192.168.1.4') {
-      return 'http://192.168.1.4:8000';
-    }
-    return 'http://127.0.0.1:8000';
-  };
-
-  // This is the URL to our backend's login route
-  // Always use 127.0.0.1 for login to avoid Spotify's HTTPS requirement
-  const LOGIN_URL = 'http://127.0.0.1:8000/login';
 
   const handleGenerateFromRecents = useCallback(async () => {
     setIsAnalyzingRecents(true);

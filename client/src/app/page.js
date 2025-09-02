@@ -5,6 +5,7 @@ import ScrollingText from '@/components/ScrollingText';
 import FeatureCard from '@/components/FeatureCard';
 import { SparklesCore } from '@/components/ui/sparkles';
 import { Typewriter } from '@/components/ui/typewriter-text';
+import { LOGIN_URL } from '../config/api';
 
 const Index = () => {
   const scrollingTexts = [
@@ -17,12 +18,12 @@ const Index = () => {
 
   const handleAnalyticsSignIn = () => {
     // Redirect to Spotify OAuth login, then to analytics dashboard
-    window.location.href = 'http://127.0.0.1:8000/login?destination=analytics';
+    window.location.href = `${LOGIN_URL}?destination=analytics`;
   };
 
   const handleConcertSignIn = () => {
     // Redirect to Spotify OAuth login, then to concert finder
-    window.location.href = 'http://127.0.0.1:8000/login?destination=concerts';
+    window.location.href = `${LOGIN_URL}?destination=concerts`;
   };
 
   return (

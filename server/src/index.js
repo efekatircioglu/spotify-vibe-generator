@@ -18,7 +18,7 @@ const session = require('express-session');
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://192.168.1.4:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://192.168.1.4:3000', 'http://127.0.0.1:3000', 'http://46.101.78.90:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -27,12 +27,13 @@ app.use(cors({
 // Configure session middleware
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false,
-  saveUninitialized: false,
+  resave: true, // Changed to true for better reliability
+  saveUninitialized: true, // Changed to true for better reliability
   cookie: {
     secure: false, // Set to true in production with HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax' // Added for better security
   }
 }));
 
@@ -170,8 +171,20 @@ app.get('/callback', async (req, res) => {
       const destination = state ? state.replace('desktop_oauth_fix_', '') : 'dashboard';
       
       // Redirect back to the appropriate page
-      const origin = req.headers.origin || req.headers.referer || 'http://localhost:3000';
-      const redirectUrl = origin.includes('3001') ? 'http://localhost:3001' : 'http://localhost:3000';
+      const origin = req.headers.origin || req.headers.referer || 'http://46.101.78.90:3000';
+      
+      // Determine redirect URL based on origin
+      let redirectUrl;
+      if (origin.includes('localhost:3001')) {
+        redirectUrl = 'http://localhost:3001';
+      } else if (origin.includes('localhost:3000')) {
+        redirectUrl = 'http://localhost:3000';
+      } else if (origin.includes('46.101.78.90')) {
+        redirectUrl = 'http://46.101.78.90:3000';
+      } else {
+        // Default to cloud server for production
+        redirectUrl = 'http://46.101.78.90:3000';
+      }
       
       let finalRedirectUrl;
       if (destination === 'analytics') {
@@ -230,10 +243,21 @@ app.get('/callback', async (req, res) => {
     console.log('User Agent:', userAgent);
     console.log('Is Mobile:', isMobile);
     
-    // Always redirect to localhost for local development
     // Get the origin from the request headers to determine the correct redirect URL
-    const origin = req.headers.origin || req.headers.referer || 'http://localhost:3000';
-    const redirectUrl = origin.includes('3001') ? 'http://localhost:3001' : 'http://localhost:3000';
+    const origin = req.headers.origin || req.headers.referer || 'http://46.101.78.90:3000';
+    
+    // Determine redirect URL based on origin
+    let redirectUrl;
+    if (origin.includes('localhost:3001')) {
+      redirectUrl = 'http://localhost:3001';
+    } else if (origin.includes('localhost:3000')) {
+      redirectUrl = 'http://localhost:3000';
+    } else if (origin.includes('46.101.78.90')) {
+      redirectUrl = 'http://46.101.78.90:3000';
+    } else {
+      // Default to cloud server for production
+      redirectUrl = 'http://46.101.78.90:3000';
+    }
     
     // Redirect to the destination page directly (session is already established)
     let finalRedirectUrl;

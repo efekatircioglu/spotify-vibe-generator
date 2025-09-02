@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { findMostListenedSongByArtist, findArtistRankings, isCacheValid, hasCompleteCache } from '../utils/topDataCache';
+import { getApiBaseUrl } from '../config/api';
 
 export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
   // State for top track data
@@ -63,9 +64,9 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
         // If not in cache or cache is invalid, fall back to API calls
         console.log('🔄 Cache miss, falling back to API calls...');
         const endpoints = [
-          { url: 'http://127.0.0.1:8000/last-6-months', range: 'medium_term' },
-          { url: 'http://127.0.0.1:8000/last-12-months', range: 'long_term' },
-          { url: 'http://127.0.0.1:8000/last-4-weeks', range: 'short_term' },
+          { url: `${getApiBaseUrl()}/last-6-months`, range: 'medium_term' },
+          { url: `${getApiBaseUrl()}/last-12-months`, range: 'long_term' },
+          { url: `${getApiBaseUrl()}/last-4-weeks`, range: 'short_term' },
         ];
         
         let found = null;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { getApiBaseUrl } from '../config/api';
 import styles from './topartists.module.css';
 import { useRouter } from 'next/navigation';
 import { getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../utils/recentSearchesCache';
@@ -45,7 +45,7 @@ export default function TopArtistsTable({ artists, title }) {
     console.log('[TopArtistsTable] ticketmasterId not found in localStorage, fetching from server for:', artist.name);
     setLoadingIdx(idx);
     try {
-      const backendBase = 'http://127.0.0.1:8000';
+      const backendBase = getApiBaseUrl();
       const res = await fetch(`${backendBase}/concerts/artist-search?name=${encodeURIComponent(artist.name)}`);
       if (res.ok) {
         const data = await res.json();
