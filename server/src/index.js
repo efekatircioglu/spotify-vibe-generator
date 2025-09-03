@@ -66,7 +66,7 @@ const scopes = [
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: 'https://vibegenerator.vercel.app/callback', // Updated for Vercel deployment
+  redirectUri: 'https://46.101.78.90/callback', // HTTPS redirect URI
 });
 // Token refresh function
 const refreshAccessTokenIfNeeded = async () => {
@@ -179,7 +179,7 @@ app.get('/callback', async (req, res) => {
       } else if (origin.includes('localhost:3000')) {
         redirectUrl = 'http://localhost:3000';
       } else if (origin.includes('46.101.78.90')) {
-        redirectUrl = 'http://46.101.78.90:3000';
+        redirectUrl = 'https://46.101.78.90'; // HTTPS for production server
       } else if (origin.includes('vibegenerator.vercel.app')) {
         redirectUrl = 'https://vibegenerator.vercel.app';
       } else {
@@ -253,7 +253,7 @@ app.get('/callback', async (req, res) => {
     } else if (origin.includes('localhost:3000')) {
       redirectUrl = 'http://localhost:3000';
     } else if (origin.includes('46.101.78.90')) {
-      redirectUrl = 'http://46.101.78.90:3000';
+      redirectUrl = 'https://46.101.78.90'; // HTTPS for production server
     } else if (origin.includes('vibegenerator.vercel.app')) {
       redirectUrl = 'https://vibegenerator.vercel.app';
     } else {
