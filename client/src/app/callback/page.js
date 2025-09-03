@@ -2,6 +2,7 @@
 
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getApiBaseUrl } from '../../config/api';
 
 function CallbackContent() {
   const router = useRouter();
@@ -27,7 +28,7 @@ function CallbackContent() {
     // Exchange code for token with your backend
     const exchangeCodeForToken = async () => {
       try {
-        const response = await fetch(`${process.env.REDIRECT_URI || 'http://localhost:8000'}/exchange-token/${code}`, {
+        const response = await fetch(`${getApiBaseUrl()}/exchange-token/${code}`, {
           method: 'GET',
           credentials: 'include',
         });

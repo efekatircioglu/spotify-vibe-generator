@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import styles from '../app/page.module.css';
+import { getApiBaseUrl } from '../config/api';
 
 export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped, showCreatePlaylist = true, showViewPlaylist = true, wrappedLabel = 'Create Your Custom Wrapped' }) {
   const [showModal, setShowModal] = useState(false);
@@ -23,7 +24,9 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
   // On mount, fetch the cached playlist URL for this table from the backend
   useEffect(() => {
     setCreatedPlaylistUrl('');
-    fetch(`http://127.0.0.1:8000/cached-playlist-url?tableType=${encodeURIComponent(playlistNameLabel)}`)
+    fetch(`${getApiBaseUrl()}/cached-playlist-url?tableType=${encodeURIComponent(playlistNameLabel)}`, {
+      credentials: 'include'
+    })
       .then(res => res.json())
       .then(data => setCreatedPlaylistUrl(data.playlistUrl || ''));
   }, [playlistNameLabel]);
@@ -50,7 +53,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
     try {
       // Get unique song IDs as a sorted array
       const trackUris = Array.from(new Set(tracks.map(t => t.id))).sort().map(id => `spotify:track:${id}`);
-      const response = await fetch('http://127.0.0.1:8000/create-playlist', {
+      const response = await fetch(`${getApiBaseUrl()}/create-playlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,6 +61,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           trackUris,
           timeRange: playlistNameLabel,
         }),
+        credentials: 'include'
       });
       if (response.ok) {
         const result = await response.json();

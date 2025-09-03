@@ -1,5 +1,6 @@
 import pLimit from 'p-limit';
 import { getAnalysis, setAnalysis } from './trackAnalysis';
+import { getApiBaseUrl } from '../config/api';
 
 const limit = pLimit(5); // 5 concurrent requests
 
@@ -21,7 +22,9 @@ async function fetchHighLevel(mbid) {
 // Helper to fetch low-level metrics
 async function fetchLowLevel(mbid) {
   try {
-    const res = await fetch(`http://127.0.0.1:8000/${mbid}/low-level`);
+    const res = await fetch(`${getApiBaseUrl()}/${mbid}/low-level`, {
+      credentials: 'include'
+    });
     if (!res.ok) {
       console.log(`[fetchTrackMetrics] Failed to fetch low-level for ${mbid}: ${res.status}`);
       return null;

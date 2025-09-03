@@ -1,5 +1,6 @@
 // Simple cache for Spotify ID to ISRC/MBID mapping, using localStorage
 import { safeSetItem, safeGetItem, safeRemoveItem } from './safeStorage';
+import { getApiBaseUrl } from '../config/api';
 
 const CACHE_KEY = 'spotifyIdToMBID';
 const MAX_CACHE_ENTRIES = 5000; // Maximum number of cached mappings
@@ -85,7 +86,9 @@ export async function lookupTrackMBID(spotifyId) {
   let isrc = getTrackISRC(spotifyId);
   if (!isrc) {
     try {
-      const isrcRes = await fetch(`http://127.0.0.1:8000/track-isrc/${spotifyId}`);
+      const isrcRes = await fetch(`${getApiBaseUrl()}/track-isrc/${spotifyId}`, {
+        credentials: 'include'
+      });
       if (!isrcRes.ok) {
         setTrackISRC(spotifyId, 'Not found');
         return null;

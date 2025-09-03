@@ -11,6 +11,7 @@ import { getCachedArtistId, setArtistCache, getCachedArtistImage, getCachedSpoti
 import { getCachedTopArtists } from '../utils/topArtistsCache';
 import { getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch, saveRecentSearch } from '../utils/recentSearchesCache';
 import { useRouter } from 'next/navigation';
+import { getApiBaseUrl } from '../config/api';
 
 function useIsMobile(breakpoint = 820) {
   const [isMobile, setIsMobile] = React.useState(
@@ -289,7 +290,9 @@ const NoContributorData = () => {
       console.log(`[Genius] Fetching info for: "${track.name}" by "${artistName}"`);
       
       // Call Genius API
-      const response = await fetch(`http://127.0.0.1:8000/genius/song-info?songName=${encodeURIComponent(track.name)}&artistName=${encodeURIComponent(artistName)}`);
+              const response = await fetch(`${getApiBaseUrl()}/genius/song-info?songName=${encodeURIComponent(track.name)}&artistName=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        });
       
       console.log(`[Genius] Response status: ${response.status}`);
       
@@ -356,7 +359,9 @@ const NoContributorData = () => {
           
           try {
             // Search Spotify API for the artist to get their ID
-            const spData = await fetchWithRetry(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+            const spData = await fetchWithRetry(`${getApiBaseUrl()}/spotify/artist-search?name=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        });
             const spotifyArtists = spData.artists || [];
             
             // Find exact match
@@ -457,7 +462,9 @@ const NoContributorData = () => {
       // If we have Spotify ID but no Ticketmaster ID, try to fetch it
       if (spotifyId && !ticketmasterId) {
         try {
-          const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+          const ticketmasterResponse = await fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        });
           if (ticketmasterResponse.ok) {
             const ticketmasterData = await ticketmasterResponse.json();
             const exactMatch = ticketmasterData.allAttractions?.find(

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 // Import the necessary cache utility functions directly into this component
 import { getRecentSearches, saveRecentSearch } from '../utils/recentSearchesCache';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../utils/artistCache';
+import { getApiBaseUrl } from '../config/api';
 
 export default function ArtistSearch({ onArtistSelect, placeholder = "Search for an artist..." }) {
   // MOVED: All state related to search is now inside this component
@@ -73,8 +74,12 @@ export default function ArtistSearch({ onArtistSelect, placeholder = "Search for
         } else {
           // Fetch from Spotify and Ticketmaster APIs
           const [spRes, tmRes] = await Promise.all([
-            fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(value)}`),
-            fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(value)}`)
+            fetch(`${getApiBaseUrl()}/spotify/artist-search?name=${encodeURIComponent(value)}`, {
+              credentials: 'include'
+            }),
+            fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(value)}`, {
+              credentials: 'include'
+            })
           ]);
 
           const spData = spRes.ok ? await spRes.json() : {};
@@ -331,7 +336,9 @@ export default function ArtistSearch({ onArtistSelect, placeholder = "Search for
       } else {
         try {
           console.log(`[ArtistSearch] 🔍 Ticketmaster ID not in cache, making API call for "${artist.name}"`);
-          const tmRes = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artist.name)}`);
+          const tmRes = await fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(artist.name)}`, {
+          credentials: 'include'
+        });
           const tmData = tmRes.ok ? await tmRes.json() : {};
           const exactMatch = tmData._embedded?.attractions?.find(a => a.name.toLowerCase() === artist.name.toLowerCase());
           if (exactMatch) {

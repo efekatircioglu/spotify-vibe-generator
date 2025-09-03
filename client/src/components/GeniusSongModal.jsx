@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getCachedTopArtists, setCachedTopArtists } from '../utils/topArtistsCache';
+import { getApiBaseUrl } from '../config/api';
 
 export default function GeniusSongModal({ open, onClose, songInfo, loading, error }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -27,7 +28,9 @@ export default function GeniusSongModal({ open, onClose, songInfo, loading, erro
       // If no cache, fetch from API (fallback)
       const fetchUserTopArtists = async () => {
         try {
-          const response = await fetch('http://127.0.0.1:8000/all-artists-deduplicated');
+          const response = await fetch(`${getApiBaseUrl()}/all-artists-deduplicated`, {
+            credentials: 'include'
+          });
           if (response.ok) {
             const data = await response.json();
             const artists = data.artists || [];

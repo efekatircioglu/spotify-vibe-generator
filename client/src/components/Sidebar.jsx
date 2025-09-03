@@ -6,6 +6,7 @@ import styles from './Sidebar.module.css';
 import { getRecentSearches, saveRecentSearch, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../utils/recentSearchesCache';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../utils/artistCache';
 import { getCachedTopArtists } from '../utils/topArtistsCache';
+import { getApiBaseUrl } from '../config/api';
 
 export default function Sidebar({ onToggle }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -56,7 +57,7 @@ export default function Sidebar({ onToggle }) {
     const fetchUserProfile = async () => {
       try {
         // Use server-side authentication instead of localStorage tokens
-        const response = await fetch('http://127.0.0.1:8000/me', {
+        const response = await fetch(`${getApiBaseUrl()}/me`, {
           credentials: 'include' // Include session cookies
         });
         
@@ -233,7 +234,9 @@ export default function Sidebar({ onToggle }) {
           }] : [];
         } else {
           // Spotify
-          const spRes = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(value)}`);
+          const spRes = await fetch(`${getApiBaseUrl()}/spotify/artist-search?name=${encodeURIComponent(value)}`, {
+          credentials: 'include'
+        });
           const spData = spRes.ok ? await spRes.json() : {};
           spSuggestions = spData.artists?.map(a => ({
             name: a.name,
@@ -245,7 +248,9 @@ export default function Sidebar({ onToggle }) {
           })) || [];
           
           // Ticketmaster
-          const tmRes = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(value)}`);
+          const tmRes = await fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(value)}`, {
+          credentials: 'include'
+        });
           const tmData = tmRes.ok ? await tmRes.json() : {};
           
           // Handle enhanced response format
@@ -381,7 +386,9 @@ export default function Sidebar({ onToggle }) {
     } else {
               // Always use the Spotify name for Ticketmaster search
         try {
-          const tmRes = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artist.name)}`);
+          const tmRes = await fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(artist.name)}`, {
+          credentials: 'include'
+        });
           const tmData = tmRes.ok ? await tmRes.json() : {};
           
           // Handle enhanced response format
@@ -456,7 +463,9 @@ export default function Sidebar({ onToggle }) {
       // If we have Spotify ID but no Ticketmaster ID, try to fetch it
       if (spotifyId && !ticketmasterId) {
         try {
-          const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery.trim())}`);
+          const ticketmasterResponse = await fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(searchQuery.trim())}`, {
+          credentials: 'include'
+        });
           if (ticketmasterResponse.ok) {
             const ticketmasterData = await ticketmasterResponse.json();
             const exactMatch = ticketmasterData.allAttractions?.find(
@@ -727,7 +736,9 @@ export default function Sidebar({ onToggle }) {
                 window.dispatchEvent(new CustomEvent('userLogout'));
                 
                 // Call logout API
-                await fetch('http://127.0.0.1:8000/logout');
+                await fetch(`${getApiBaseUrl()}/logout`, {
+          credentials: 'include'
+        });
                 
                 // AuthWrapper will handle the UI transition
                 

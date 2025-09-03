@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getCachedArtistImage, setSpotifyArtistCache, clearSpecificArtistCache } from '../utils/artistCache';
+import { getApiBaseUrl } from '../config/api';
 
 // Cache for contributor data to prevent duplicate API calls
 const contributorCache = new Map();
@@ -94,7 +95,9 @@ const NewContributorFinder = ({ mbid, trackInfo, track, closeButton }) => {
     try {
       console.log(`[NewContributorFinder] 🌐 Making API call to Spotify for: "${artistName}"`);
       
-      const response = await axios.get(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`);
+      const response = await axios.get(`${getApiBaseUrl()}/spotify/artist-search?name=${encodeURIComponent(artistName)}`, {
+        withCredentials: true
+      });
       console.log(`[NewContributorFinder] 📡 Spotify API response received:`, response.data);
       
       if (response.data.artists && response.data.artists.length > 0) {

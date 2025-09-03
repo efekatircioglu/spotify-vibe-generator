@@ -10,6 +10,7 @@ import {
   setTrackMBID
 } from '../utils/spotifyIdToMBID';
 import { setAnalysis } from '../utils/trackAnalysis';
+import { getApiBaseUrl } from '../config/api';
 
 ChartJS.register(ArcElement, Legend);
 
@@ -226,7 +227,9 @@ export default function SongAnalysisModal({
     try {
       const [highLevel, lowLevel] = await Promise.all([
         fetch(`https://acousticbrainz.org/${mbid}/high-level`).then(res => res.ok ? res.json() : Promise.reject()),
-        fetch(`http://127.0.0.1:8000/${mbid}/low-level`).then(res => res.ok ? res.json() : Promise.reject())
+        fetch(`${getApiBaseUrl()}/${mbid}/low-level`, {
+          credentials: 'include'
+        }).then(res => res.ok ? res.json() : Promise.reject())
       ]);
       setAcousticMetrics(highLevel);
       setLowLevelMetrics(lowLevel);
@@ -280,7 +283,9 @@ export default function SongAnalysisModal({
       }
       // Fetch ISRC if not cached
       try {
-        const isrcRes = await fetch(`http://127.0.0.1:8000/track-isrc/${spotifyId}`);
+        const isrcRes = await fetch(`${getApiBaseUrl()}/track-isrc/${spotifyId}`, {
+          credentials: 'include'
+        });
         if (!isrcRes.ok) throw new Error();
         const isrcData = await isrcRes.json();
         isrc = isrcData.isrc || 'Not found';

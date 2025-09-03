@@ -7,7 +7,7 @@ const getApiBaseUrl = () => {
   
   // Check if we're on localhost (development)
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://127.0.0.1:8000';
+    return 'https://api.vibegenerator.me'; // Use HTTPS for all environments
   }
   
   // Production cloud server

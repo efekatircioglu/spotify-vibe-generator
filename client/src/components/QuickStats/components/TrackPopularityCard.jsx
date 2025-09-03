@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
+import { getApiBaseUrl } from '../../../config/api';
 
 // Get cached top artists from sessionStorage
 const getCachedTopArtists = () => {
@@ -193,7 +194,9 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
       // If we have Spotify ID but no Ticketmaster ID, try to fetch it
       if (artistId && !ticketmasterId) {
         try {
-          const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+          const ticketmasterResponse = await fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`, {
+        credentials: 'include'
+      });
           
           if (ticketmasterResponse.ok) {
             const ticketmasterData = await ticketmasterResponse.json();

@@ -1,4 +1,6 @@
 // Cache keys for sessionStorage
+import { getApiBaseUrl } from '../config/api';
+
 const CACHE_KEYS = {
   UNIFIED_TOP_TRACKS: 'unified_top_tracks'
 };
@@ -197,15 +199,17 @@ export const fetchAndCacheTopData = async () => {
     console.log('🔄 Fetching and building unified top tracks cache...');
     
     const endpoints = [
-      { url: 'http://127.0.0.1:8000/last-4-weeks', name: '4_weeks' },
-      { url: 'http://127.0.0.1:8000/last-6-months', name: '6_months' },
-      { url: 'http://127.0.0.1:8000/last-12-months', name: '12_months' }
+      { url: `${getApiBaseUrl()}/last-4-weeks`, name: '4_weeks' },
+      { url: `${getApiBaseUrl()}/last-6-months`, name: '6_months' },
+      { url: `${getApiBaseUrl()}/last-12-months`, name: '12_months' }
     ];
 
     // Fetch all data in parallel for maximum speed
     const promises = endpoints.map(async ({ url, name }) => {
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          credentials: 'include'
+        });
         if (!response.ok) {
           console.warn(`HTTP ${response.status} for ${url}: ${response.statusText}`);
           return { success: false, name, error: `HTTP ${response.status}`, tracks: [] };

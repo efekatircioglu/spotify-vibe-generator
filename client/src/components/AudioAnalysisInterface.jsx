@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import '../../public/styles.css' ;
 import GenreBasedAnalysisModal from './GenreBasedAnalysisModal';
+import { getApiBaseUrl } from '../config/api';
 
 
 const tooltips = { danceability: "Classifies whether a track is suitable for dancing based on rhythmic patterns.", 
@@ -418,7 +419,9 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
 
             console.log('Analysis failed, attempting Spotify genre fallback for:', artistName);
             
-            const spotifyResponse = await fetch(`http://127.0.0.1:8000/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`);
+            const spotifyResponse = await fetch(`${getApiBaseUrl()}/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        });
             if (spotifyResponse.ok) {
                 const data = await spotifyResponse.json();
                 if (data && data.primaryGenre) {
@@ -434,7 +437,9 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
             // Spotify genre not found, try Discogs as second fallback
             console.log('Spotify genre not found, attempting Discogs genre fallback for:', artistName);
             
-            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            const discogsResponse = await fetch(`${getApiBaseUrl()}/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`, {
+              credentials: 'include'
+            });
             if (discogsResponse.ok) {
                 const discogsData = await discogsResponse.json();
                 if (discogsData && discogsData.primaryGenre) {
@@ -460,7 +465,9 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
     const handleNoMbidFallback = async (artistName, songName, albumName) => {
         try {
             // Try to get artist genre from Spotify
-            const response = await fetch(`http://127.0.0.1:8000/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`);
+            const response = await fetch(`${getApiBaseUrl()}/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`, {
+              credentials: 'include'
+            });
             if (response.ok) {
                 const data = await response.json();
                 if (data && data.primaryGenre) {
@@ -478,7 +485,9 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
             // No genre found from Spotify, try Discogs as second fallback
             console.log('Spotify genre not found, attempting Discogs genre fallback for:', artistName);
             
-            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            const discogsResponse = await fetch(`${getApiBaseUrl()}/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`, {
+              credentials: 'include'
+            });
             if (discogsResponse.ok) {
                 const discogsData = await discogsResponse.json();
                 if (discogsData && discogsData.primaryGenre) {
@@ -514,7 +523,9 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
         
         Promise.all([
             fetch(`https://acousticbrainz.org/${mbid}/high-level`).then(res => res.ok ? res.json() : Promise.reject('Failed to fetch high-level')),
-            fetch(`http://127.0.0.1:8000/${mbid}/low-level`).then(res => res.ok ? res.json() : Promise.reject('Failed to fetch low-level'))
+            fetch(`${getApiBaseUrl()}/${mbid}/low-level`, {
+              credentials: 'include'
+            }).then(res => res.ok ? res.json() : Promise.reject('Failed to fetch low-level'))
         ]).then(([highLevel, lowLevel]) => {
             setAnalysisData({
                 ...highLevel,
@@ -535,7 +546,9 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
             
             if (artistName) {
                 // Use the same pattern as /artist page - search for artist and get genre
-                fetch(`http://127.0.0.1:8000/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`)
+                fetch(`${getApiBaseUrl()}/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        })
                     .then(res => res.ok ? res.json() : null)
                     .then(data => {
                         if (data && data.primaryGenre) {

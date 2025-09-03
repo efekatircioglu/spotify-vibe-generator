@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import AudioAnalysisInterface from './AudioAnalysisInterface';
 import GenreBasedAnalysisModal from './GenreBasedAnalysisModal';
 import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
+import { getApiBaseUrl } from '../config/api';
 
 export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
   const [mbid, setMbid] = useState(null);
@@ -101,7 +102,9 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
         try {
           const artistName = songInfo.artists ? songInfo.artists[0]?.name : songInfo.artist;
           if (artistName) {
-            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            const discogsResponse = await fetch(`${getApiBaseUrl()}/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`, {
+              credentials: 'include'
+            });
             
             if (discogsResponse.ok) {
               const discogsData = await discogsResponse.json();
@@ -130,7 +133,9 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
       console.log(`[Genre Check] Checking genre for artist Spotify ID: ${mainArtistSpotifyId}`);
 
       // Fetch artist genre from Spotify using the Spotify artist ID
-      const response = await fetch(`http://127.0.0.1:8000/artist-genre/${mainArtistSpotifyId}`);
+      const response = await fetch(`${getApiBaseUrl()}/artist-genre/${mainArtistSpotifyId}`, {
+        credentials: 'include'
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -148,7 +153,9 @@ export default function NewSongAnalysisModal({ open, onClose, songInfo }) {
           
           try {
             const artistName = songInfo.artists ? songInfo.artists[0]?.name : songInfo.artist;
-            const discogsResponse = await fetch(`http://127.0.0.1:8000/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`);
+            const discogsResponse = await fetch(`${getApiBaseUrl()}/discogs/artist/${encodeURIComponent(artistName)}/primary-genre`, {
+              credentials: 'include'
+            });
             
             if (discogsResponse.ok) {
               const discogsData = await discogsResponse.json();

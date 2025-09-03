@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
+import { getApiBaseUrl } from '../../../config/api';
 
 /**
  * TopAlbumsCard Component
@@ -61,7 +62,9 @@ export default function TopAlbumsCard({ albums }) {
     // If we still don't have Ticketmaster ID, try to fetch it
     if (!ticketmasterId) {
       try {
-        const ticketmasterResponse = await fetch(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+        const ticketmasterResponse = await fetch(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        });
         
         if (ticketmasterResponse.ok) {
           const ticketmasterData = await ticketmasterResponse.json();

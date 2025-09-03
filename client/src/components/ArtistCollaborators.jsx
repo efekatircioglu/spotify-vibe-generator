@@ -7,6 +7,7 @@ import NewContributorFinder from './NewContributorFinder';
 import NewSongAnalysisModal from './NewSongAnalysisModal';
 import GeniusSongModal from './GeniusSongModal';
 import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
+import { getApiBaseUrl } from '../config/api';
 
 
 
@@ -181,7 +182,9 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
       console.log(`[Genius] Fetching info for: "${track.name}" by "${artistName}"`);
       
       // Call Genius API
-      const response = await fetch(`http://127.0.0.1:8000/genius/song-info?songName=${encodeURIComponent(track.name)}&artistName=${encodeURIComponent(artistName)}`);
+              const response = await fetch(`${getApiBaseUrl()}/genius/song-info?songName=${encodeURIComponent(track.name)}&artistName=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        });
       
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
@@ -237,7 +240,9 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
           
           try {
             // Search Spotify API for the artist to get their ID
-            const spData = await fetch(`http://127.0.0.1:8000/spotify/artist-search?name=${encodeURIComponent(artistName)}`).then(res => res.json());
+            const spData = await fetch(`${getApiBaseUrl()}/spotify/artist-search?name=${encodeURIComponent(artistName)}`, {
+          credentials: 'include'
+        }).then(res => res.json());
             const spotifyArtists = spData.artists || [];
             
             // Find exact match

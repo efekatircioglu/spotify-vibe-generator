@@ -3,6 +3,7 @@ import { fetchTrackMetrics } from '../utils/fetchTrackMetrics';
 import { lookupTrackMBID, getTrackISRC, setTrackISRC, setTrackMBID, getTrackMBID } from '../utils/spotifyIdToMBID';
 import styles from './WrappedAnalysisModal.module.css'; // Import the CSS module
 import WrappedResultsModal from './WrappedResultsModal';
+import { getApiBaseUrl } from '../config/api';
 
 // Mobile detection hook
 const useIsMobile = (breakpoint = 760) => {
@@ -126,7 +127,9 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
               setStatuses([...newStatuses]);
               
               try {
-                const isrcRes = await fetch(`http://127.0.0.1:8000/track-isrc/${track.id}`);
+                const isrcRes = await fetch(`${getApiBaseUrl()}/track-isrc/${track.id}`, {
+          credentials: 'include'
+        });
                 if (isrcRes.ok) {
                   const isrcData = await isrcRes.json();
                   isrc = isrcData.isrc || 'Not found';
@@ -210,11 +213,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         
         try {
           // Send ALL uncached track IDs in a single request (backend will handle batching)
-          const mbidRes = await fetch('http://127.0.0.1:8000/batch-isrc-mbid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+          const mbidRes = await fetch(`${getApiBaseUrl()}/batch-isrc-mbid`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ trackIds: uncachedTrackIds }),
-            signal: signal
+            signal: signal,
+            credentials: 'include'
           });
           
           if (mbidRes.ok) {
@@ -307,11 +311,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         
         try {
           // Send ALL tracks needing analysis in a single request
-          const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+          const analysisRes = await fetch(`${getApiBaseUrl()}/wrapped-analysis`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tracks: tracksNeedingAnalysis.map(t => t.track) }),
-            signal: signal
+            signal: signal,
+            credentials: 'include'
           });
 
           if (analysisRes.ok) {
@@ -428,11 +433,12 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
         
         try {
           // Send ALL failed tracks in a single batch retry request
-          const analysisRes = await fetch('http://127.0.0.1:8000/wrapped-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+          const analysisRes = await fetch(`${getApiBaseUrl()}/wrapped-analysis`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tracks: failedTracks.map(f => f.track) }),
-            signal: signal
+            signal: signal,
+            credentials: 'include'
           });
 
                   if (analysisRes.ok) {
@@ -604,10 +610,11 @@ export default function WrappedAnalysisModal({ open, onClose, tracks }) {
     // Signal server to stop processing if analysis is in progress
     if (loading && currentStep === 'Analysis Phase') {
       console.log('Signaling server to stop AcousticBrainz analysis...');
-      fetch('http://127.0.0.1:8000/stop-analysis', {
+      fetch(`${getApiBaseUrl()}/stop-analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stop: true })
+        body: JSON.stringify({ stop: true }),
+        credentials: 'include'
       }).catch(() => {}); // Ignore errors if server is busy
     }
     

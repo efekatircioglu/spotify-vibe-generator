@@ -11,6 +11,7 @@ import AlbumContributorsModal from '../../components/AlbumContributorsModal';
 import ArtistCollaborators from '../../components/ArtistCollaborators';
 import ArtistsMosts from '../../components/ArtistsMosts';
 import { getCachedArtistId, setArtistCache, setFailedArtistCache } from '../../utils/artistCache';
+import { getApiBaseUrl } from '../../config/api';
 
 // --- Add this entire helper function ---
 function useIsMobile(breakpoint = 768) {
@@ -46,7 +47,9 @@ async function discogsProfileToLinks(profile) {
     // Make all API calls in parallel
     const artistPromises = artistIds.map(async (id) => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/discogs/artist-id/${id}`);
+        const response = await fetch(`${getApiBaseUrl()}/discogs/artist-id/${id}`, {
+          credentials: 'include'
+        });
         if (response.ok) {
           const artistData = await response.json();
           return { id, name: artistData.name || `Artist #${id}` };
@@ -81,7 +84,9 @@ async function discogsProfileToLinks(profile) {
     // Make all API calls in parallel
     const labelPromises = labelIds.map(async (id) => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/discogs/label-id/${id}`);
+        const response = await fetch(`${getApiBaseUrl()}/discogs/label-id/${id}`, {
+          credentials: 'include'
+        });
         if (response.ok) {
           const labelData = await response.json();
           return { id, name: labelData.name || `Label #${id}` };
@@ -116,7 +121,9 @@ async function discogsProfileToLinks(profile) {
     // Make all API calls in parallel
     const releasePromises = releaseIds.map(async (id) => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/discogs/release-id/${id}`);
+        const response = await fetch(`${getApiBaseUrl()}/discogs/release-id/${id}`, {
+          credentials: 'include'
+        });
         if (response.ok) {
           const releaseData = await response.json();
           return { id, name: releaseData.title || `Release #${id}` };
@@ -377,7 +384,9 @@ function ArtistConcertsPageContent() {
     
     for (const type of types) {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/artist-albums/${artistId}?group=${type}&sortBy=popularity`);
+        const response = await fetch(`${getApiBaseUrl()}/artist-albums/${artistId}?group=${type}&sortBy=popularity`, {
+        credentials: 'include'
+      });
         if (response.ok) {
           const data = await response.json();
           if (data.albums && data.albums.length > 0) {
@@ -408,7 +417,9 @@ function ArtistConcertsPageContent() {
       setSelectedAlbumId(null);
       
       // Always fetch with popularity data so we can sort client-side
-      fetch(`http://127.0.0.1:8000/artist-albums/${selectedArtist.id}?group=${albumGroup}&sortBy=popularity`)
+      fetch(`${getApiBaseUrl()}/artist-albums/${selectedArtist.id}?group=${albumGroup}&sortBy=popularity`, {
+        credentials: 'include'
+      })
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch albums');
           return res.json();
@@ -428,7 +439,9 @@ function ArtistConcertsPageContent() {
     initializeAlbumGroup();
     
     // Explicitly fetch genre/style map from Discogs
-    fetch(`http://localhost:8000/discogs/artist/${encodeURIComponent(selectedArtist.name)}/genre-style-map`)
+          fetch(`${getApiBaseUrl()}/discogs/artist/${encodeURIComponent(selectedArtist.name)}/genre-style-map`, {
+        credentials: 'include'
+      })
       .then(async (res) => {
         if (res.ok) {
           return res.json();
@@ -524,7 +537,7 @@ function ArtistConcertsPageContent() {
     setAlbumContributorsLoading(true);
     setAlbumContributorsError(null);
 
-    const apiUrl = `http://127.0.0.1:8000/album-contributors?albumTitle=${encodeURIComponent(selectedAlbum.name)}&artistName=${encodeURIComponent(selectedArtist.name)}`;
+          const apiUrl = `${getApiBaseUrl()}/album-contributors?albumTitle=${encodeURIComponent(selectedAlbum.name)}&artistName=${encodeURIComponent(selectedArtist.name)}`;
 
     try {
       const startTime = Date.now();
@@ -557,7 +570,9 @@ function ArtistConcertsPageContent() {
     setLoadingTracks(true);
     setTracksError('');
     // Do NOT clear albumTracks here; keep old data visible while loading
-    fetch(`http://127.0.0.1:8000/album-tracks/${selectedAlbumId}`)
+          fetch(`${getApiBaseUrl()}/album-tracks/${selectedAlbumId}`, {
+        credentials: 'include'
+      })
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch album tracks');
         return res.json();
@@ -584,7 +599,9 @@ function ArtistConcertsPageContent() {
   // Fetch artist image, followers, and genres from Spotify
   useEffect(() => {
     if (!spotifyId) return;
-    fetch(`http://127.0.0.1:8000/spotify/artist-details/${spotifyId}`)
+          fetch(`${getApiBaseUrl()}/spotify/artist-details/${spotifyId}`, {
+        credentials: 'include'
+      })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data.images && data.images.length > 0) {
@@ -603,7 +620,9 @@ function ArtistConcertsPageContent() {
   useEffect(() => {
     if (!spotifyId) return;
     setIsFollowing(null);
-    fetch(`http://127.0.0.1:8000/me/following/artist/${spotifyId}`)
+          fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, {
+        credentials: 'include'
+      })
       .then(res => res.ok ? res.json() : { isFollowing: false })
       .then(data => setIsFollowing(data.isFollowing))
       .catch(() => setIsFollowing(false));
@@ -612,7 +631,9 @@ function ArtistConcertsPageContent() {
   // Fetch Discogs artist profile when artistName changes
   useEffect(() => {
     if (!artistName) return;
-    fetch(`http://localhost:8000/discogs/artist-profile?name=${encodeURIComponent(artistName)}`)
+          fetch(`${getApiBaseUrl()}/discogs/artist-profile?name=${encodeURIComponent(artistName)}`, {
+        credentials: 'include'
+      })
       .then(res => res.json())
       .then(data => {
         setDiscogsProfile(data.profile || null);
@@ -684,7 +705,7 @@ function ArtistConcertsPageContent() {
     
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/artist-collaborators/${spotifyId}?minCollaborations=1&albumTypes=${albumTypes}`
+        `${getApiBaseUrl()}/artist-collaborators/${spotifyId}?minCollaborations=1&albumTypes=${albumTypes}`
       );
       
       if (!response.ok) {
@@ -722,7 +743,9 @@ function ArtistConcertsPageContent() {
         return;
       }
 
-      const data = await fetchWithRetry(`http://127.0.0.1:8000/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`);
+      const data = await fetchWithRetry(`${getApiBaseUrl()}/ticketmaster/search-artist?artistName=${encodeURIComponent(artistName)}`, {
+        credentials: 'include'
+      });
       const attractions = data._embedded?.attractions || data.attractions || [];
       const musicArtists = attractions.filter(artist => {
         const isMusic = artist.classifications && 
@@ -772,13 +795,14 @@ function ArtistConcertsPageContent() {
         // Making batch request...
         
         // Use the same batch endpoint as concerts page
-        const response = await fetch('http://127.0.0.1:8000/concerts/events/optimized-batch', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ artistIds: [ticketmasterId] }),
-        });
+              const response = await fetch(`${getApiBaseUrl()}/concerts/events/optimized-batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ artistIds: [ticketmasterId] }),
+        credentials: 'include'
+      });
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -1421,12 +1445,20 @@ function ArtistConcertsPageContent() {
                     setFollowLoading(true);
                     try {
                       if (isFollowing) {
-                        await fetch(`http://127.0.0.1:8000/me/following/artist/${spotifyId}`, { method: 'DELETE' });
+                        await fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, { 
+          method: 'DELETE',
+          credentials: 'include'
+        });
                       } else {
-                        await fetch(`http://127.0.0.1:8000/me/following/artist/${spotifyId}`, { method: 'PUT' });
+                        await fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, { 
+            method: 'PUT',
+            credentials: 'include'
+          });
                       }
                       // Always re-fetch the follow status after the action
-                      const res = await fetch(`http://127.0.0.1:8000/me/following/artist/${spotifyId}`);
+                      const res = await fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, {
+          credentials: 'include'
+        });
                       const data = await res.json();
                       setIsFollowing(data.isFollowing);
                     } catch (e) {}

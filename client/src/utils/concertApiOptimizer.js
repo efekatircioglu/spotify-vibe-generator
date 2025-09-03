@@ -7,6 +7,7 @@
  */
 
 import { getCachedArtistId, getCachedArtistImage, getCachedSpotifyId, isArtistCached, getCachedArtistStatus, setFailedArtistCache, setArtistCache } from './artistCache';
+import { getApiBaseUrl } from '../config/api';
 
 // Cache for storing API responses
 const concertApiCache = new Map();
@@ -213,7 +214,7 @@ export async function optimizedArtistSearch(artistNames, delayBetweenApiCalls = 
         // Make the API call
         const startTime = Date.now();
         const searchData = await optimizedConcertApiCall(
-          'http://127.0.0.1:8000/ticketmaster/search-artist',
+          `${getApiBaseUrl()}/ticketmaster/search-artist`,
           {
             params: { artistName },
             cacheKey: `artist-search-${artistName.toLowerCase()}`
@@ -296,7 +297,7 @@ export async function optimizedConcertSearch(artistIds, delayBetweenApiCalls = 2
         // Make the API call
         const startTime = Date.now();
         const concertData = await optimizedConcertApiCall(
-          'http://127.0.0.1:8000/concerts/events/optimized-batch',
+          `${getApiBaseUrl()}/concerts/events/optimized-batch`,
           {
             method: 'POST',
             body: { artistIds: [artistId] },
