@@ -1346,7 +1346,7 @@ app.post('/create-playlist', express.json(), async (req, res) => {
     // Create the playlist
     const { body: playlist } = await spotifyApi.createPlaylist(user.id, {
       name: name,
-      description: `Created from Spotify Vibe Generator - ${timeRange || 'Custom'}`
+      description: `Created from Vibe Generator - ${timeRange || 'Custom'}`
     });
 
     // Add tracks to the playlist (Spotify API limit is 100 tracks per request)
