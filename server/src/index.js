@@ -18,7 +18,7 @@ const session = require('express-session');
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://192.168.1.4:3000', 'http://127.0.0.1:3000', 'http://46.101.78.90:3000'],
+  origin: ['http://localhost:3000', 'http://192.168.1.4:3000', 'http://127.0.0.1:3000', 'http://46.101.78.90:3000', 'https://vibegenerator.vercel.app'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -66,7 +66,7 @@ const scopes = [
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: 'http://46.101.78.90:8000/callback', // Use HTTP since server doesn't have SSL
+  redirectUri: 'https://vibegenerator.vercel.app/callback', // Updated for Vercel deployment
 });
 
 // Token refresh function
