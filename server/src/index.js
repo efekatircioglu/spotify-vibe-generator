@@ -66,7 +66,7 @@ const scopes = [
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: 'https://vibegenerator.vercel.app/callback', // Updated for Vercel deployment
+  redirectUri: 'http://46.101.78.90:8000/callback', // Updated for Vercel deployment
 });
 
 // Token refresh function
