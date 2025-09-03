@@ -1,5 +1,6 @@
 // Recent Tracks Cache Utility
 // Manages sessionStorage caching for user's recent tracks to avoid redundant API calls
+import { getApiBaseUrl } from '../config/api';
 
 const CACHE_KEY = 'spotify_recent_tracks';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
@@ -151,7 +152,9 @@ export const fetchAndCacheRecentTracks = async () => {
   try {
     console.log('[RecentTracksCache] Fetching recent tracks from API...');
     
-    const response = await fetch('http://127.0.0.1:8000/recent-tracks');
+    const response = await fetch(`${getApiBaseUrl()}/recent-tracks`, {
+      credentials: 'include'
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch recent tracks: ${response.status}`);

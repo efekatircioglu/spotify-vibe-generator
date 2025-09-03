@@ -2,6 +2,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../../../utils/topDataCache';
 import { getCachedTopArtists, calculateAveragePopularity } from '../../../utils/topArtistsCache';
 import { analyzeListeningEvolution, analyzeTimeOfDay, analyzeListenerType } from '../utils/analysisUtils';
+import { getApiBaseUrl } from '../../../config/api';
 
 /**
  * useMemoizedCalculations Hook
@@ -120,7 +121,9 @@ export const useMemoizedCalculations = () => {
     
     try {
       // Load recent tracks
-      const recentTracksResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
+      const recentTracksResponse = await fetch(`${getApiBaseUrl()}/recent-tracks`, {
+        credentials: 'include'
+      });
       let recentTracks = [];
       
       if (recentTracksResponse.ok) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../../utils/topDataCache';
 import { getCachedTopArtists, calculateAveragePopularity } from '../../utils/topArtistsCache';
+import { getApiBaseUrl } from '../../config/api';
 
 // Import individual components
 import TopArtistCard from './components/TopArtistCard';
@@ -211,7 +212,9 @@ export default function QuickStats({ isMobile }) {
       let recentTracks = getCachedRecentTracks();
       
       if (!recentTracks) {
-        const recentTracksResponse = await fetch('http://127.0.0.1:8000/recent-tracks');
+        const recentTracksResponse = await fetch(`${getApiBaseUrl()}/recent-tracks`, {
+          credentials: 'include'
+        });
         
         if (recentTracksResponse.ok) {
           const recentData = await recentTracksResponse.json();
