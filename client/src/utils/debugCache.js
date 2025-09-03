@@ -1,118 +1,64 @@
-// Debug script for cache troubleshooting
-// Run this in the browser console to check cache status
-
-import { getCacheStatus, doCachesExist, forceRefreshAllCaches } from './cacheManager.js';
-
-/**
- * Debug cache status
- */
+// Debug utility to check cache status
 export const debugCacheStatus = () => {
-  console.log('🔍 Debugging cache status...');
+  console.log('🔍 DEBUG: Checking cache status...');
   
-  // Check centralized cache status
-  const status = getCacheStatus();
-  console.log('📊 Cache Status:', status);
+  // Check sessionStorage for all cache keys
+  const cacheKeys = [
+    'spotify_top_artists',
+    'unified_top_tracks', 
+    'spotify_recent_tracks',
+    'quickStatsCache'
+  ];
   
-  // Check if caches exist
-  const exists = doCachesExist();
-  console.log('✅ Caches exist:', exists);
-  
-      // Check sessionStorage directly
-    const artistsCache = sessionStorage.getItem('spotify_top_artists');
-    const tracksCache = sessionStorage.getItem('unified_top_tracks');
-    const recentTracksCache = sessionStorage.getItem('spotify_recent_tracks');
-  const timestamp = localStorage.getItem('cache_timestamp');
-  
-  console.log('🎵 Artists cache:', artistsCache ? 'EXISTS' : 'MISSING');
-  console.log('🎧 Tracks cache:', tracksCache ? 'EXISTS' : 'MISSING');
-  console.log('🕐 Recent tracks cache:', recentTracksCache ? 'EXISTS' : 'MISSING');
-  console.log('⏰ Cache timestamp:', timestamp ? 'EXISTS' : 'MISSING');
-  
-  if (artistsCache) {
+  cacheKeys.forEach(key => {
     try {
-      const artistsData = JSON.parse(artistsCache);
-      console.log('👥 Artists data:', {
-        count: artistsData?.artists?.length || 0,
-        hasArtists: !!artistsData?.artists,
-        structure: Object.keys(artistsData || {})
-      });
-    } catch (e) {
-      console.error('❌ Error parsing artists cache:', e);
+      const data = sessionStorage.getItem(key);
+      if (data) {
+        const parsed = JSON.parse(data);
+        console.log(`✅ ${key}:`, {
+          exists: true,
+          type: typeof parsed,
+          length: Array.isArray(parsed) ? parsed.length : 'N/A',
+          hasData: parsed && (Array.isArray(parsed) ? parsed.length > 0 : Object.keys(parsed).length > 0)
+        });
+      } else {
+        console.log(`❌ ${key}: Not found`);
+      }
+    } catch (error) {
+      console.log(`⚠️ ${key}: Error parsing -`, error.message);
     }
+  });
+  
+  // Check specific cache utilities
+  try {
+    const { getCachedTopArtists } = require('./topArtistsCache');
+    const { getCachedTopTracks, isCacheValid } = require('./topDataCache');
+    const { getCachedRecentTracks } = require('./recentTracksCache');
+    
+    const topArtists = getCachedTopArtists();
+    const topTracks = getCachedTopTracks();
+    const recentTracks = getCachedRecentTracks();
+    
+    console.log('🔍 Cache utility results:');
+    console.log('  Top Artists:', topArtists ? `${topArtists.length} artists` : 'null');
+    console.log('  Top Tracks:', topTracks ? `${topTracks.length} tracks` : 'null');
+    console.log('  Recent Tracks:', recentTracks ? `${recentTracks.length} tracks` : 'null');
+    console.log('  Cache Valid:', isCacheValid());
+  } catch (error) {
+    console.log('⚠️ Error checking cache utilities:', error.message);
   }
-  
-  if (tracksCache) {
-    try {
-      const tracksData = JSON.parse(tracksCache);
-      console.log('🎵 Tracks data:', {
-        count: tracksData?.length || 0,
-        hasTracks: !!tracksData,
-        structure: Array.isArray(tracksData) ? 'Array' : typeof tracksData
-      });
-    } catch (e) {
-      console.error('❌ Error parsing tracks cache:', e);
-    }
-  }
-  
-  if (recentTracksCache) {
-    try {
-      const recentTracksData = JSON.parse(recentTracksCache);
-      console.log('🕐 Recent tracks data:', {
-        count: recentTracksData?.tracks?.length || 0,
-        hasTracks: !!recentTracksData?.tracks,
-        timestamp: new Date(recentTracksData?.timestamp).toLocaleString(),
-        structure: Object.keys(recentTracksData || {})
-      });
-    } catch (e) {
-      console.error('❌ Error parsing recent tracks cache:', e);
-    }
-  }
-  
-  
-  return { status, exists, artistsCache: !!artistsCache, tracksCache: !!tracksCache, recentTracksCache: !!recentTracksCache };
 };
 
-/**
- * Force refresh all caches
- */
-export const refreshCaches = async () => {
-  console.log('🔄 Force refreshing all caches...');
+// Function to manually trigger cache initialization
+export const manualCacheInit = async () => {
+  console.log('🔄 Manually triggering cache initialization...');
   try {
-    const result = await forceRefreshAllCaches();
-    console.log('✅ Cache refresh result:', result);
-    
-    // Check status after refresh
-    setTimeout(() => {
-      debugCacheStatus();
-    }, 1000);
-    
+    const { initializeAllCaches } = await import('./cacheManager');
+    const result = await initializeAllCaches();
+    console.log('✅ Manual cache init result:', result);
     return result;
   } catch (error) {
-    console.error('❌ Error refreshing caches:', error);
+    console.error('❌ Manual cache init failed:', error);
     return false;
   }
 };
-
-/**
- * Clear all caches
- */
-export const clearCaches = () => {
-  console.log('🗑️ Clearing all caches...');
-      sessionStorage.removeItem('spotify_top_artists');
-    sessionStorage.removeItem('unified_top_tracks');
-    sessionStorage.removeItem('spotify_recent_tracks');
-  localStorage.removeItem('cache_timestamp');
-  console.log('✅ Caches cleared');
-  
-  // Check status after clearing
-  setTimeout(() => {
-    debugCacheStatus();
-  }, 100);
-};
-
-// Export for use in browser console
-if (typeof window !== 'undefined') {
-  window.debugCacheStatus = debugCacheStatus;
-  window.refreshCaches = refreshCaches;
-  window.clearCaches = clearCaches;
-}

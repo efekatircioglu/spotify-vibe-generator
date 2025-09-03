@@ -98,9 +98,32 @@ export default function QuickStats({ isMobile }) {
     const topArtists = getCachedTopArtists();
     const topTracks = getCachedTopTracks();
     
+    console.log('🔍 QuickStats: Checking cache data...');
+    console.log('  Top Artists:', topArtists ? `${topArtists.length} artists` : 'null');
+    console.log('  Top Tracks:', topTracks ? `${topTracks.length} tracks` : 'null');
+    
     if (!topArtists || !topTracks) {
-      loadQuickStats.isRunning = false;
-      return;
+      console.log('❌ QuickStats: Missing required cache data, attempting to initialize...');
+      
+      // Try to manually initialize cache
+      try {
+        const { initializeAllCaches } = await import('../../utils/cacheManager');
+        await initializeAllCaches();
+        
+        // Check again after initialization
+        const retryTopArtists = getCachedTopArtists();
+        const retryTopTracks = getCachedTopTracks();
+        
+        if (!retryTopArtists || !retryTopTracks) {
+          console.log('❌ QuickStats: Still missing data after cache initialization');
+          loadQuickStats.isRunning = false;
+          return;
+        }
+      } catch (error) {
+        console.error('❌ QuickStats: Failed to initialize cache:', error);
+        loadQuickStats.isRunning = false;
+        return;
+      }
     }
 
     try {
