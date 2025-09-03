@@ -66,9 +66,8 @@ const scopes = [
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: 'http://46.101.78.90:8000/callback', // Updated for Vercel deployment
+  redirectUri: 'https://vibegenerator.vercel.app/callback', // Updated for Vercel deployment
 });
-
 // Token refresh function
 const refreshAccessTokenIfNeeded = async () => {
   try {
@@ -171,8 +170,8 @@ app.get('/callback', async (req, res) => {
       const destination = state ? state.replace('desktop_oauth_fix_', '') : 'dashboard';
       
       // Redirect back to the appropriate page
-      const origin = req.headers.origin || req.headers.referer || 'http://46.101.78.90:3000';
-      
+      const origin = req.headers.origin || req.headers.referer || 'https://vibegenerator.vercel.app';
+
       // Determine redirect URL based on origin
       let redirectUrl;
       if (origin.includes('localhost:3001')) {
@@ -181,9 +180,11 @@ app.get('/callback', async (req, res) => {
         redirectUrl = 'http://localhost:3000';
       } else if (origin.includes('46.101.78.90')) {
         redirectUrl = 'http://46.101.78.90:3000';
+      } else if (origin.includes('vibegenerator.vercel.app')) {
+        redirectUrl = 'https://vibegenerator.vercel.app';
       } else {
-        // Default to cloud server for production
-        redirectUrl = 'http://46.101.78.90:3000';
+        // Default to Vercel for production
+        redirectUrl = 'https://vibegenerator.vercel.app';
       }
       
       let finalRedirectUrl;
@@ -244,8 +245,7 @@ app.get('/callback', async (req, res) => {
     console.log('Is Mobile:', isMobile);
     
     // Get the origin from the request headers to determine the correct redirect URL
-    const origin = req.headers.origin || req.headers.referer || 'http://46.101.78.90:3000';
-    
+    const origin = req.headers.origin || req.headers.referer || 'https://vibegenerator.vercel.app';    
     // Determine redirect URL based on origin
     let redirectUrl;
     if (origin.includes('localhost:3001')) {
@@ -254,9 +254,11 @@ app.get('/callback', async (req, res) => {
       redirectUrl = 'http://localhost:3000';
     } else if (origin.includes('46.101.78.90')) {
       redirectUrl = 'http://46.101.78.90:3000';
+    } else if (origin.includes('vibegenerator.vercel.app')) {
+      redirectUrl = 'https://vibegenerator.vercel.app';
     } else {
-      // Default to cloud server for production
-      redirectUrl = 'http://46.101.78.90:3000';
+      // Default to Vercel for production
+      redirectUrl = 'https://vibegenerator.vercel.app';
     }
     
     // Redirect to the destination page directly (session is already established)
