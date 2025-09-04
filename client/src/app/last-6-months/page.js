@@ -30,19 +30,38 @@ export default function Last6MonthsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const [mainDataRes, genreDataRes] = await Promise.all([
+          fetch(`${getApiBaseUrl()}/last-6-months?t=${Date.now()}`, {
+            credentials: 'include'
+          }),
+          fetch(`${getApiBaseUrl()}/genre-details/6-months?t=${Date.now()}`, {
+            credentials: 'include'
+          })
+        ]);
+        
+        // Check if responses are ok before parsing JSON
+        if (!mainDataRes.ok) {
+          const errorText = await mainDataRes.text();
+          console.error('Main data response error:', errorText);
+          throw new Error(`Failed to fetch main data: ${mainDataRes.status} ${mainDataRes.statusText}`);
+        }
+        
+        if (!genreDataRes.ok) {
+          const errorText = await genreDataRes.text();
+          console.error('Genre data response error:', errorText);
+          throw new Error(`Failed to fetch genre data: ${genreDataRes.status} ${genreDataRes.statusText}`);
+        }
+        
         const [mainData, genreData] = await Promise.all([
-          fetch(`${getApiBaseUrl()}/last-6-months`, {
-            credentials: 'include'
-          }).then(res => res.json()),
-          fetch(`${getApiBaseUrl()}/genre-details/6-months`, {
-            credentials: 'include'
-          }).then(res => res.json())
+          mainDataRes.json(),
+          genreDataRes.json()
         ]);
         
         setData(mainData);
         setGenreDetails(genreData.genres);
       } catch (err) {
-        setError("Failed to fetch data");
+        console.error('❌ Error fetching 6-months data:', err);
+        setError(`Failed to fetch data: ${err.message}`);
       } finally {
         setLoading(false);
       }

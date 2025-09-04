@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
 import { getApiBaseUrl } from '../../../config/api';
+import { MusicNoteIcon } from '../../ui/icons';
 
 /**
  * TopAlbumsCard Component
@@ -290,7 +291,7 @@ export default function TopAlbumsCard({ albums }) {
                   backdropFilter: 'blur(10px)',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
                 }}>
-                  {album.artist ? album.artist[0] : '🎵'}
+                  <MusicNoteIcon size={24} color="#000" />
                 </div>
               )}
               

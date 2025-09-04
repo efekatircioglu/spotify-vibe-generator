@@ -2,6 +2,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
 import { getApiBaseUrl } from '../../../config/api';
+import { MusicNoteIcon } from '../../ui/icons';
 
 // Get cached top artists from sessionStorage
 const getCachedTopArtists = () => {
@@ -210,7 +211,7 @@ export default function TopSongCard({ song, timeRange }) {
             fontWeight: '700',
             fontSize: '1.5rem'
           }}>
-            🎵
+            <MusicNoteIcon size={32} color="#000" />
           </div>
         )}
         

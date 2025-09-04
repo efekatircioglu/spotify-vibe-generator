@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../utils/recentSearchesCache';
 import { getApiBaseUrl } from '../config/api';
+import { MusicNoteIcon } from './ui/icons';
 
 // Get cached top artists from sessionStorage
 const getCachedTopArtists = () => {
@@ -334,7 +335,7 @@ function ArtistSongsModal({ isOpen, onClose, artist, artistCount, songs, loading
                 e.target.style.borderColor = 'rgba(34, 202, 123, 0.4)';
               }}
             >
-              🎵 View Full Artist Profile
+              <MusicNoteIcon size={16} color="currentColor" /> View Full Artist Profile
             </button>
           </div>
         </div>

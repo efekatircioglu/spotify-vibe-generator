@@ -2,6 +2,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { getRecentSearches, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../../../utils/recentSearchesCache';
 import { getApiBaseUrl } from '../../../config/api';
+import { MusicNoteIcon } from '../../ui/icons';
 
 // Get cached top artists from sessionStorage
 const getCachedTopArtists = () => {
@@ -263,7 +264,7 @@ export default function ListeningEvolutionCard({ evolution }) {
                           fontSize: '12px',
                           fontWeight: 'bold'
                         }}>
-                          🎵
+                          <MusicNoteIcon size={16} color="#000" />
                         </div>
                       )}
                     </div>
@@ -530,7 +531,7 @@ export default function ListeningEvolutionCard({ evolution }) {
                           fontSize: '12px',
                           fontWeight: 'bold'
                         }}>
-                          🎵
+                          <MusicNoteIcon size={16} color="#000" />
                         </div>
                       )}
                     </div>

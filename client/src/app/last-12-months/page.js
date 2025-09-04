@@ -31,19 +31,38 @@ export default function Last12MonthsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [mainData, genreData] = await Promise.all([
+        const [mainDataRes, genreDataRes] = await Promise.all([
           fetch(`${getApiBaseUrl()}/last-12-months`, {
             credentials: 'include'
-          }).then(res => res.json()),
+          }),
           fetch(`${getApiBaseUrl()}/genre-details/12-months`, {
             credentials: 'include'
-          }).then(res => res.json())
+          })
+        ]);
+        
+        // Check if responses are ok before parsing JSON
+        if (!mainDataRes.ok) {
+          const errorText = await mainDataRes.text();
+          console.error('Main data response error:', errorText);
+          throw new Error(`Failed to fetch main data: ${mainDataRes.status} ${mainDataRes.statusText}`);
+        }
+        
+        if (!genreDataRes.ok) {
+          const errorText = await genreDataRes.text();
+          console.error('Genre data response error:', errorText);
+          throw new Error(`Failed to fetch genre data: ${genreDataRes.status} ${genreDataRes.statusText}`);
+        }
+        
+        const [mainData, genreData] = await Promise.all([
+          mainDataRes.json(),
+          genreDataRes.json()
         ]);
         
         setData(mainData);
         setGenreDetails(genreData.genres);
       } catch (err) {
-        setError("Failed to fetch data");
+        console.error('❌ Error fetching 12-months data:', err);
+        setError(`Failed to fetch data: ${err.message}`);
       } finally {
         setLoading(false);
       }

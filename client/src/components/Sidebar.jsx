@@ -7,6 +7,7 @@ import { getRecentSearches, saveRecentSearch, getTicketmasterIdFromRecentSearch,
 import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../utils/artistCache';
 import { getCachedTopArtists } from '../utils/topArtistsCache';
 import { getApiBaseUrl } from '../config/api';
+import { ChevronLeftIcon, ChevronRightIcon } from './ui/icons';
 
 export default function Sidebar({ onToggle }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -569,7 +570,7 @@ export default function Sidebar({ onToggle }) {
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
           >
-            {isOpen ? '◀' : '▶'}
+            {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <ChevronRightIcon size={20} color="#fff" />}
           </button>
         </div>
 

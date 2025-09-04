@@ -1239,7 +1239,7 @@ const MetricCard = ({ title, value, description, tooltipText, onClick, onMouseMo
 };
 
 // DetailedChartCard with safe defaults for onMouseMove/onMouseLeave
-const DetailedChartCard = ({ title, chartType, analysisData, tooltipText, onCardClick, onMouseMove = () => {}, onMouseLeave = () => {} }) => {
+const DetailedChartCard = ({ chartType, analysisData }) => {
     const canvasRef = useRef(null);
     const chartInstance = useRef(null);
 
@@ -1253,13 +1253,123 @@ const DetailedChartCard = ({ title, chartType, analysisData, tooltipText, onCard
 
             switch (chartType) {
                 case 'tonality':
-                    config = { type: 'line', data: { labels: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], datasets: [{ label: 'Pitch Strength', data: tonal.thpcp.slice(0, 12), borderColor: 'rgba(22, 163, 74, 1)', backgroundColor: 'rgba(22, 163, 74, 0.2)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { color: '#9CA3AF' } } } } };
+                    config = { 
+                        type: 'line', 
+                        data: { 
+                            labels: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], 
+                            datasets: [{ 
+                                label: 'Pitch Strength', 
+                                data: tonal.thpcp.slice(0, 12), 
+                                borderColor: 'rgba(22, 163, 74, 1)', 
+                                backgroundColor: 'rgba(22, 163, 74, 0.2)', 
+                                fill: true, 
+                                tension: 0.4,
+                                pointRadius: 3,
+                                pointHoverRadius: 5
+                            }] 
+                        }, 
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { legend: { display: false } }, 
+                            scales: { 
+                                y: { display: false }, 
+                                x: { 
+                                    ticks: { 
+                                        color: '#9CA3AF',
+                                        font: { size: 10 }
+                                    } 
+                                } 
+                            } 
+                        } 
+                    };
                     break;
                 case 'melbands':
-                    config = { type: 'line', data: { labels: analysisData.lowlevel.melbands.mean.map((_, i) => `B${i + 1}`), datasets: [{ label: 'Mean Energy', data: analysisData.lowlevel.melbands.mean, borderColor: 'rgba(34, 211, 238, 1)', backgroundColor: 'rgba(34, 211, 238, 0.2)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { color: '#9CA3AF', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } } } } };
+                    config = { 
+                        type: 'line', 
+                        data: { 
+                            labels: analysisData.lowlevel.melbands.mean.map((_, i) => `B${i + 1}`), 
+                            datasets: [{ 
+                                label: 'Mean Energy', 
+                                data: analysisData.lowlevel.melbands.mean, 
+                                borderColor: 'rgba(34, 211, 238, 1)', 
+                                backgroundColor: 'rgba(34, 211, 238, 0.2)', 
+                                fill: true, 
+                                tension: 0.4,
+                                pointRadius: 3,
+                                pointHoverRadius: 5
+                            }] 
+                        }, 
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { legend: { display: false } }, 
+                            scales: { 
+                                y: { display: false }, 
+                                x: { 
+                                    ticks: { 
+                                        color: '#9CA3AF', 
+                                        maxRotation: 0, 
+                                        autoSkip: true, 
+                                        maxTicksLimit: 8,
+                                        font: { size: 10 }
+                                    } 
+                                } 
+                            } 
+                        } 
+                    };
                     break;
                 case 'chords':
-                    config = { type: 'line', data: { labels: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], datasets: [{ label: 'Major Chords', data: tonal.chords_histogram.slice(0, 12), borderColor: 'rgba(59, 130, 246, 1)', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true, tension: 0.3 }, { label: 'Minor Chords', data: tonal.chords_histogram.slice(12), borderColor: 'rgba(234, 179, 8, 1)', backgroundColor: 'rgba(234, 179, 8, 0.2)', fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false }, x: { ticks: { color: '#9CA3AF' } } }, plugins: { legend: { labels: { color: '#d1d5db' }, position: 'bottom' } } } };
+                    config = { 
+                        type: 'line', 
+                        data: { 
+                            labels: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], 
+                            datasets: [
+                                { 
+                                    label: 'Major Chords', 
+                                    data: tonal.chords_histogram.slice(0, 12), 
+                                    borderColor: 'rgba(59, 130, 246, 1)', 
+                                    backgroundColor: 'rgba(59, 130, 246, 0.2)', 
+                                    fill: true, 
+                                    tension: 0.3,
+                                    pointRadius: 3,
+                                    pointHoverRadius: 5
+                                }, 
+                                { 
+                                    label: 'Minor Chords', 
+                                    data: tonal.chords_histogram.slice(12), 
+                                    borderColor: 'rgba(234, 179, 8, 1)', 
+                                    backgroundColor: 'rgba(234, 179, 8, 0.2)', 
+                                    fill: true, 
+                                    tension: 0.3,
+                                    pointRadius: 3,
+                                    pointHoverRadius: 5
+                                }
+                            ] 
+                        }, 
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            scales: { 
+                                y: { display: false }, 
+                                x: { 
+                                    ticks: { 
+                                        color: '#9CA3AF',
+                                        font: { size: 10 }
+                                    } 
+                                } 
+                            }, 
+                            plugins: { 
+                                legend: { 
+                                    labels: { 
+                                        color: '#d1d5db',
+                                        font: { size: 10 }
+                                    }, 
+                                    position: 'bottom' 
+                                } 
+                            } 
+                        } 
+                    };
                     break;
                 default:
                     break;
@@ -1272,12 +1382,8 @@ const DetailedChartCard = ({ title, chartType, analysisData, tooltipText, onCard
     }, [chartType, analysisData]);
 
     return (
-        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700 card-hover"
-            onClick={onCardClick}
-            onMouseMove={(e) => onMouseMove(e, tooltipText)}
-            onMouseLeave={onMouseLeave}>
-            <h4 className="text-lg font-semibold mb-2 text-gray-200" style={{ textAlign: 'left' }}>{title}</h4>
-            <div className="chart-container">
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div className="chart-container" style={{ flex: 1, minHeight: '120px' }}>
                 <canvas ref={canvasRef}></canvas>
             </div>
         </div>
@@ -1715,10 +1821,10 @@ const FocusChartView = ({ chartType, analysisData }) => {
 
     {/* --- Left Column: Text Content --- */}
     <div style={{ flex: 2 }}>
-      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Interpretation:</b> {interpretation}</div>
-      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Definition:</b> {definition}</div>
-      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>X Axis:</b> {xAxisExplanation}</div>
-      <div style={{ fontSize: '0.98rem', color: '#e5e7eb', marginBottom: 8 }}><b>Y Axis:</b> {yAxisExplanation}</div>
+      <div style={{ fontSize: '0.85rem', color: '#e5e7eb', marginBottom: 6 }}><b>Interpretation:</b> {interpretation}</div>
+      <div style={{ fontSize: '0.85rem', color: '#e5e7eb', marginBottom: 6 }}><b>Definition:</b> {definition}</div>
+      <div style={{ fontSize: '0.85rem', color: '#e5e7eb', marginBottom: 6 }}><b>X Axis:</b> {xAxisExplanation}</div>
+      <div style={{ fontSize: '0.85rem', color: '#e5e7eb', marginBottom: 6 }}><b>Y Axis:</b> {yAxisExplanation}</div>
     </div>
 
     {/* --- Right Column: Leaderboard --- */}
@@ -1726,10 +1832,10 @@ const FocusChartView = ({ chartType, analysisData }) => {
       {chartType === 'chords' ? (
         <div style={{ display: 'flex', gap: '1.5rem', width: '100%' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Major Chords Leaderboard</div>
+            <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0', fontSize: '0.85rem' }}>Major Chords Leaderboard</div>
             <div style={{ borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px', width: 'fit-content' }}>
               {majorLeaderboard.map(([label, val], i) => (
-                <div key={label + '-maj'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== majorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                <div key={label + '-maj'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '3px 0', borderBottom: i !== majorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
                   <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}</span>
                   <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500, paddingLeft: '1.5rem' }}>{val.toFixed(1)} %</span>
                 </div>
@@ -1737,10 +1843,10 @@ const FocusChartView = ({ chartType, analysisData }) => {
             </div>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Minor Chords Leaderboard</div>
+            <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0', fontSize: '0.85rem' }}>Minor Chords Leaderboard</div>
             <div style={{ borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: '12px 8px', width: 'fit-content' }}>
               {minorLeaderboard.map(([label, val], i) => (
-                <div key={label + '-min'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '3px 0', borderBottom: i !== minorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+                <div key={label + '-min'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '3px 0', borderBottom: i !== minorLeaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
                   <span style={{ color: '#38bdf8', fontWeight: 600 }}>{rosamericaMap[label] || tzanetakisMap[label] || label}m</span>
                   <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500, paddingLeft: '1.5rem' }}>{val.toFixed(1)} %</span>
                 </div>
@@ -1750,10 +1856,10 @@ const FocusChartView = ({ chartType, analysisData }) => {
         </div>
       ) : (
         <>
-          <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0' }}>Leaderboard</div>
+          <div style={{ fontWeight: 600, color: '#e5e7eb', margin: '8px 0 4px 0', fontSize: '0.85rem' }}>Leaderboard</div>
           <div style={{ borderRadius: 8, background: 'rgba(255,255,255,0.03)', padding: 8, width: 'fit-content' }}>
             {leaderboard.map(([label, val], i) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1rem', padding: '2px 0', borderBottom: i !== leaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '2px 0', borderBottom: i !== leaderboard.length - 1 ? '1px solid #222a' : 'none' }}>
                 <span style={{ color: '#38bdf8', fontWeight: 600 }}>{label}</span>
                 <span style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 500, paddingLeft: '1.5rem' }}>{val.toFixed(3)}</span>
               </div>

@@ -11,6 +11,7 @@ import {
 } from '../utils/spotifyIdToMBID';
 import { setAnalysis } from '../utils/trackAnalysis';
 import { getApiBaseUrl } from '../config/api';
+import { DrumIcon, MusicSheetIcon } from './ui/icons';
 
 ChartJS.register(ArcElement, Legend);
 
@@ -177,10 +178,10 @@ function Tooltip({ text, children }) {
 
 // Definitions for tooltips
 const METRIC_DEFINITIONS = {
-  bpm: `<b>BPM (Beats Per Minute) 🥁</b><br/><br/>BPM measures the tempo or speed of a song in Beats Per Minute. It's the most fundamental way to understand a song's energy level. A low BPM suggests a slower, more relaxed track, while a high BPM indicates a faster, more energetic song.<br/><br/><b>Below 70 BPM (Very Slow):</b> Typical for ambient music, drones, and very slow ballads.<br/><br/><b>70 - 90 BPM (Relaxed Pace):</b> A common tempo for hip-hop, lo-fi, and chill-out tracks.<br/><br/><b>90 - 110 BPM (Groovy/Moderate):</b> The "walking pace" of music. Found in many pop, funk, and mid-tempo rock songs.<br/><br/><b>110 - 130 BPM (Upbeat):</b> The classic tempo for pop and mainstream dance music.<br/><br/><b>Above 130 BPM (Fast/Very Fast):</b> Found in high-energy genres like techno, pop-punk, drum & bass, and metal.`,
+  bpm: `<b>BPM (Beats Per Minute)</b><br/><br/>BPM measures the tempo or speed of a song in Beats Per Minute. It's the most fundamental way to understand a song's energy level. A low BPM suggests a slower, more relaxed track, while a high BPM indicates a faster, more energetic song.<br/><br/><b>Below 70 BPM (Very Slow):</b> Typical for ambient music, drones, and very slow ballads.<br/><br/><b>70 - 90 BPM (Relaxed Pace):</b> A common tempo for hip-hop, lo-fi, and chill-out tracks.<br/><br/><b>90 - 110 BPM (Groovy/Moderate):</b> The "walking pace" of music. Found in many pop, funk, and mid-tempo rock songs.<br/><br/><b>110 - 130 BPM (Upbeat):</b> The classic tempo for pop and mainstream dance music.<br/><br/><b>Above 130 BPM (Fast/Very Fast):</b> Found in high-energy genres like techno, pop-punk, drum & bass, and metal.`,
   beats: `<b>Beats (Total Beat Count)</b><br/><br/>The Total Beat Count is the number of primary rhythmic pulses detected in a song from start to finish. This metric is highly dependent on both the song's length and its BPM. A low count often suggests a sparse or short track, while a high count indicates a long or fast-paced song.<br/><br/><b>Below 300 Beats (Low Count):</b> Typical for very slow ballads, ambient tracks, or short songs.<br/><br/><b>300 - 500 Beats (Medium Count):</b> A very common range for standard 3-4 minute pop, rock, and hip-hop tracks.<br/><br/><b>500 - 700 Beats (High Count):</b> Often found in faster music like upbeat pop and dance tracks.<br/><br/><b>Above 700 Beats (Very High Count):</b> Common in very fast genres like drum & bass, or long electronic tracks.`,
   groove: `<b>Groove (Rhythmic Density)</b><br/><br/>Groove measures the rhythmic complexity by counting how many new sound events (like drum hits or notes) occur per second. It tells you how "busy" or "dense" the rhythm is.<br/><br/><b>0 - 2 onsets/sec (Simple Groove):</b> A sparse, minimalist rhythm. Found in ambient music or slow ballads.<br/><br/><b>2 - 5 onsets/sec (Steady Groove):</b> The standard level of activity for most pop, rock, and hip-hop.<br/><br/><b>5 - 8 onsets/sec (Complex Groove):</b> A busy and dense rhythm with many layers. Common in funk, jazz, and some electronic music.<br/><br/><b>Above 8 onsets/sec (Very Complex Groove):</b> Extremely dense and intricate, often found in genres like drum & bass or fast metal.`,
-  key: `<b>Key (Musical Harmony) 🎼</b><br/><br/>The Key is the musical scale (a group of notes) that a song is built around, defining its harmonic "home base." The key strongly influences a song's mood. The confidence score shows how clearly the song follows the rules of that key.`,
+  key: `<b>Key (Musical Harmony)</b><br/><br/>The Key is the musical scale (a group of notes) that a song is built around, defining its harmonic "home base." The key strongly influences a song's mood. The confidence score shows how clearly the song follows the rules of that key.`,
   melodyClarity: `<b>Melody Clarity</b><br/><br/>Melody Clarity measures how clear and prominent the main melody is. A high score means the melody is distinct and easy to follow (like a lead vocal or a synth line), while a low score suggests a more ambient or textural sound where no single instrument dominates.<br/><br/><b>Below 30% (Ambient Texture):</b> The song is primarily textural, with no single, clear melody.<br/><br/><b>30% - 70% (Balanced):</b> The melody is present but may share focus with other instruments.<br/><br/><b>Above 70% (Clear & Prominent):</b> The song has a very strong, easily identifiable melody.`,
   harmonicTension: `<b>Harmonic Tension</b><br/><br/>Harmonic Tension measures the amount of "dissonance" or "harshness" in the song's harmonies. It's not about being "good" or "bad," but about emotional character.<br/><br/><b>Below 30% (Smooth & Resolved):</b> The harmonies are very pleasant and conventional.<br/><br/><b>30% - 60% (Balanced Tension):</b> A standard level of tension that keeps the song engaging.<br/><br/><b>Above 60% (Tense & Edgy):</b> The harmonies are more complex and can create a feeling of suspense or raw emotion. This is common in jazz, blues, and some rock genres.`,
   volume: `<b>Volume (Average Loudness) 🔊</b><br/><br/>Volume reflects the average loudness of the track after being normalized to a standard level. This indicates how consistently loud the track is.<br/><br/><b>Below 60% (Soft / Very Dynamic):</b> The track likely has very quiet sections or a soft overall production.<br/><br/><b>60% - 85% (Moderate):</b> A good balance of loudness and dynamics.<br/><br/><b>Above 85% (Consistently Loud):</b> Very little change in overall volume. Common in modern pop, rock, and electronic music due to studio compression.`,
@@ -709,7 +710,10 @@ export default function SongAnalysisModal({
               </div>
               {/* Rhythm & Tempo */}
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>Rhythm & Tempo 🥁</div>
+                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>
+                  <DrumIcon size={20} color="#fff" style={{ marginRight: 8, display: 'inline-block' }} />
+                  Rhythm & Tempo
+                </div>
                 <div style={{ marginBottom: 4 }}><Tooltip text={METRIC_DEFINITIONS.bpm}>BPM:</Tooltip> <b>{bpm}</b>{bpm && bpm !== "Unknown" && <span style={{ color: '#aaa', fontSize: 14 }}> ({getBpmLabel(bpm)})</span>}</div>
                 <div style={{ marginBottom: 4 }}>
                   <Tooltip text={METRIC_DEFINITIONS.beats}>Beats:</Tooltip> <b>{beats}</b>
@@ -724,7 +728,10 @@ export default function SongAnalysisModal({
               </div>
               {/* Pitch & Harmony */}
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>Pitch & Harmony 🎼</div>
+                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>
+                  <MusicSheetIcon size={20} color="#fff" style={{ marginRight: 8, display: 'inline-block' }} />
+                  Pitch & Harmony
+                </div>
                 <div style={{ marginBottom: 4 }}><Tooltip text={METRIC_DEFINITIONS.key}>Key:</Tooltip> <b>{key}</b>
                   {keyStrength !== null && keyStrength !== undefined && (
                     <span style={{ color: '#aaa', fontSize: 13, marginLeft: 6 }}>({Math.round(keyStrength * 100)}%)</span>

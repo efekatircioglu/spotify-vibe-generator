@@ -8,6 +8,7 @@ import NewSongAnalysisModal from './NewSongAnalysisModal';
 import GeniusSongModal from './GeniusSongModal';
 import { lookupTrackMBID } from '../utils/spotifyIdToMBID';
 import { getApiBaseUrl } from '../config/api';
+import { ChevronDownIcon, ChevronRightIcon } from './ui/icons';
 
 
 
@@ -639,7 +640,7 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
                   
                   {/* Expand indicator */}
                   <div style={{ color: '#1db954', fontWeight: 'bold', fontSize: '18px' }}>
-                    {expandedCollaborator === collaborator.id ? '▼' : '▶'}
+                    {expandedCollaborator === collaborator.id ? <ChevronDownIcon size={18} color="#1db954" /> : <ChevronRightIcon size={18} color="#1db954" />}
                   </div>
                 </div>
                 

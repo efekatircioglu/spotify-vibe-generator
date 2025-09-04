@@ -1730,7 +1730,7 @@ function ArtistConcertsPageContent() {
                 genres={genresForTable}
                 showContributorsButton={true}
                 onGetContributors={handleGetAlbumContributors}
-                wrappedLabel={'Create Album Analysis'}
+                wrappedLabel={'Album Analysis'}
                 isArtistContext={true}
               />
             </div>
