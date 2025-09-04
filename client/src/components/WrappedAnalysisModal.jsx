@@ -7,10 +7,10 @@ import { getApiBaseUrl } from '../config/api';
 
 // Mobile detection hook
 const useIsMobile = (breakpoint = 760) => {
-  const [isMobile, setIsMobile] = React.useState(
+  const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
   );
-  React.useEffect(() => {
+  useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= breakpoint);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);

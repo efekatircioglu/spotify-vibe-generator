@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Doughnut, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Legend } from 'chart.js';
 import PropTypes from 'prop-types';
@@ -90,13 +90,13 @@ function ProgressBar({ value, max = 1, color = '#8B5CF6', label, style = {} }) {
 
 // Tooltip component
 function Tooltip({ text, children }) {
-  const [visible, setVisible] = React.useState(false);
-  const [direction, setDirection] = React.useState('bottom');
-  const [coords, setCoords] = React.useState({ top: 0, left: 0 });
-  const tooltipRef = React.useRef(null);
-  const wrapperRef = React.useRef(null);
+  const [visible, setVisible] = useState(false);
+  const [direction, setDirection] = useState('bottom');
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const tooltipRef = useRef(null);
+  const wrapperRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible && wrapperRef.current && tooltipRef.current) {
       const wrapperRect = wrapperRef.current.getBoundingClientRect();
       const tooltipRect = tooltipRef.current.getBoundingClientRect();

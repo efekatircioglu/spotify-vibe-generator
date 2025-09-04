@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../app/page.module.css';
 
 // Same useIsMobile hook as in NewTrackTable
 function useIsMobile(breakpoint = 600) {
-  const [isMobile, setIsMobile] = React.useState(
+  const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
   );
-  React.useEffect(() => {
+  useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= breakpoint);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);

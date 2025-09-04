@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useState as useStateReact, useEffect as useEffectReact } from 'react';
 
 // --- Responsive styling helper ---
 const getResponsiveStyles = (isMobile) => {
@@ -924,8 +923,8 @@ export default function WrappedResultsModal({ open, onClose, results, tracks }) 
 
 // --- Helper functions for staggered reveals ---
 function useStaggeredReveal(count, trigger) {
-  const [revealed, setRevealed] = useStateReact(Array(count).fill(false));
-  useEffectReact(() => {
+  const [revealed, setRevealed] = useState(Array(count).fill(false));
+  useEffect(() => {
     setRevealed(Array(count).fill(false));
     let timeouts = [];
     for (let i = 0; i < count; i++) {
@@ -943,8 +942,8 @@ function useStaggeredReveal(count, trigger) {
 }
 
 function useStaggeredRevealChord(count, trigger) {
-  const [revealed, setRevealed] = useStateReact(Array(count).fill(false));
-  useEffectReact(() => {
+  const [revealed, setRevealed] = useState(Array(count).fill(false));
+  useEffect(() => {
     setRevealed(Array(count).fill(false));
     let timeouts = [];
     for (let i = 0; i < count; i++) {
@@ -963,8 +962,8 @@ function useStaggeredRevealChord(count, trigger) {
 
 // --- GenreLeaderboards component ---
 function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
-  const [animKey, setAnimKey] = useStateReact(0);
-  useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
+  const [animKey, setAnimKey] = useState(0);
+  useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
   
   // Helper to get leaderboard for a highlevel classifier
   function getLeaderboard(key) {
@@ -1194,8 +1193,8 @@ function GenreLeaderboards({ analyzedTracks, styles, isMobile }) {
 
 // --- ChordsHistogram component ---
 function ChordsHistogram({ analyzedTracks, styles }) {
-  const [animKey, setAnimKey] = useStateReact(0);
-  useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
+  const [animKey, setAnimKey] = useState(0);
+  useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
   
   // Aggregate major and minor chords
   const chordNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -1261,7 +1260,7 @@ function ArtistTracksModal({ open, onClose, artistName, tracks, isMobile }) {
   if (!open) return null;
 
   // Prevent body scrolling when modal is open
-  useEffectReact(() => {
+  useEffect(() => {
     if (open) {
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
@@ -1484,14 +1483,14 @@ function ArtistTracksModal({ open, onClose, artistName, tracks, isMobile }) {
 
 // --- ComprehensiveDashboard component ---
 function ComprehensiveDashboard({ analyzedTracks, totalBeats, avgBeats, isMobile, tracks, onClose, showArtistTracksModal, setShowArtistTracksModal }) {
-  const [animKey, setAnimKey] = useStateReact(0);
-  const [selectedArtistTracks, setSelectedArtistTracks] = useStateReact([]);
-  const [selectedArtistName, setSelectedArtistName] = useStateReact('');
+  const [animKey, setAnimKey] = useState(0);
+  const [selectedArtistTracks, setSelectedArtistTracks] = useState([]);
+  const [selectedArtistName, setSelectedArtistName] = useState('');
   
-  useEffectReact(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
+  useEffect(() => { setAnimKey(k => k + 1); }, [analyzedTracks]);
 
   // Chart.js charts effect
-  useEffectReact(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined' && window.Chart) {
       createChordsCharts();
     } else {

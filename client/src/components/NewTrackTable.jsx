@@ -14,10 +14,10 @@ import { useRouter } from 'next/navigation';
 import { getApiBaseUrl } from '../config/api';
 
 function useIsMobile(breakpoint = 820) {
-  const [isMobile, setIsMobile] = React.useState(
+  const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
   );
-  React.useEffect(() => {
+  useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= breakpoint);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);

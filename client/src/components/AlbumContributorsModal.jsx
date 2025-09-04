@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 export default function AlbumContributorsModal({ isOpen, onClose, contributors, loading, error }) {
   // Log when modal opens/closes and data changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       console.log(`\n📱 [MODAL] Album Contributors Modal opened`);
       if (contributors) {
@@ -17,7 +17,7 @@ export default function AlbumContributorsModal({ isOpen, onClose, contributors, 
   }, [isOpen, contributors, loading, error]);
 
   // Prevent body scrolling when modal is open
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       // Save current scroll position
       const scrollY = window.scrollY;
