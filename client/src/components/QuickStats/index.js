@@ -67,6 +67,7 @@ export default function QuickStats({ isMobile }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [hasAutoRefreshed, setHasAutoRefreshed] = useState(false);
 
   // Custom hooks
   const { loadingStates, setLoadingState, shouldShowCard } = useProgressiveLoading();
@@ -295,14 +296,20 @@ export default function QuickStats({ isMobile }) {
     }
   }, [updateResultsSection, setLoadingState, getCachedResults]);
 
-  // Effect for initial load - wait for cache to be ready
+  // Effect for initial load - auto-refresh approach
   useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') {
       return;
     }
 
-    console.log('🔄 QuickStats: Component mounted, waiting for cache to be ready...');
+    // Check if we've already auto-refreshed in this session
+    const hasRefreshedThisSession = sessionStorage.getItem('quickStatsAutoRefreshed');
+    if (hasRefreshedThisSession) {
+      console.log('🔄 QuickStats: Already auto-refreshed this session, skipping auto-refresh');
+    }
+
+    console.log('🔄 QuickStats: Component mounted, checking for data...');
 
     // Check if cache is already ready
     const topArtists = getCachedTopArtists();
@@ -314,31 +321,49 @@ export default function QuickStats({ isMobile }) {
       return;
     }
 
-    // Cache not ready, wait for cache-ready event
-    console.log('⏳ QuickStats: Cache not ready, waiting for cache-ready event...');
+    // Cache not ready, try to initialize and then auto-refresh
+    console.log('⏳ QuickStats: Cache not ready, attempting to initialize and auto-refresh...');
     
-    const handleCacheReady = () => {
-      console.log('🎉 QuickStats: Cache ready event received, loading data...');
-      clearTimeout(fallbackTimeout); // Clear fallback timeout
-      loadQuickStats();
+    const initializeAndRefresh = async () => {
+      try {
+        // Try to initialize cache
+        const { initializeAllCaches } = await import('../../utils/cacheManager');
+        await initializeAllCaches();
+        
+        // Wait a bit for cache to be written
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check if we have data now
+        const retryTopArtists = getCachedTopArtists();
+        const retryTopTracks = getCachedTopTracks();
+        
+        if (retryTopArtists && retryTopTracks) {
+          console.log('✅ QuickStats: Cache initialized successfully, loading data');
+          loadQuickStats();
+        } else {
+          console.log('❌ QuickStats: Cache initialization failed, auto-refreshing page...');
+          // Auto-refresh the page once per session
+          if (!hasAutoRefreshed && !hasRefreshedThisSession) {
+            setHasAutoRefreshed(true);
+            sessionStorage.setItem('quickStatsAutoRefreshed', 'true');
+            console.log('🔄 QuickStats: Auto-refreshing page to load data...');
+            window.location.reload();
+          }
+        }
+      } catch (error) {
+        console.error('❌ QuickStats: Error during cache initialization:', error);
+        // Auto-refresh the page once per session
+        if (!hasAutoRefreshed && !hasRefreshedThisSession) {
+          setHasAutoRefreshed(true);
+          sessionStorage.setItem('quickStatsAutoRefreshed', 'true');
+          console.log('🔄 QuickStats: Auto-refreshing page due to error...');
+          window.location.reload();
+        }
+      }
     };
 
-    // Register for cache-ready event
-    onCacheReady(handleCacheReady);
-
-    // Fallback: if cache-ready event doesn't fire within 10 seconds, try loading anyway
-    const fallbackTimeout = setTimeout(() => {
-      console.log('⏰ QuickStats: Cache-ready event timeout, trying to load data anyway...');
-      const fallbackTopArtists = getCachedTopArtists();
-      const fallbackTopTracks = getCachedTopTracks();
-      
-      if (fallbackTopArtists && fallbackTopTracks) {
-        console.log('✅ QuickStats: Fallback successful, data found');
-        loadQuickStats();
-      } else {
-        console.log('❌ QuickStats: Fallback failed, still no data');
-      }
-    }, 10000);
+    // Start the initialization process
+    initializeAndRefresh();
 
     // Clean up expired cache entries on mount
     try {
@@ -346,13 +371,13 @@ export default function QuickStats({ isMobile }) {
     } catch (error) {
       console.warn('Could not cleanup expired cache:', error);
     }
-    
-    // Cleanup function
+
+    // Cleanup function to clear sessionStorage flag when component unmounts
     return () => {
-      clearCacheReadyCallbacks();
-      clearTimeout(fallbackTimeout);
+      // Clear the auto-refresh flag when component unmounts
+      sessionStorage.removeItem('quickStatsAutoRefreshed');
     };
-  }, []); // Empty dependency array - only run once on mount
+  }, [hasAutoRefreshed]); // Include hasAutoRefreshed in dependencies
 
 
 
