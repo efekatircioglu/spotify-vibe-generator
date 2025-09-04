@@ -563,14 +563,14 @@ export default function Sidebar({ onToggle }) {
               <circle cx="6" cy="18" r="3"></circle>
               <circle cx="18" cy="16" r="3"></circle>
             </svg>
-            <span className={styles.logoText}>Vibe Gen</span>
+            <span className={styles.logoText}>Vibe Generator</span>
           </div>
           <button 
             className={styles.toggleButton}
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
           >
-            {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <ChevronRightIcon size={20} color="#fff" />}
+git add .             {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <ChevronRightIcon size={20} color="#fff" />}
           </button>
         </div>
 

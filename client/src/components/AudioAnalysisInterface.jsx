@@ -850,9 +850,9 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
                                 .section-container .high-level-card {
                                     padding: 0.75rem !important;
                                     min-height: 120px !important;
-                                    max-height: 140px !important;
                                     width: 100% !important;
                                     box-sizing: border-box !important;
+                                    overflow: hidden !important;
                                 }
                                 
                                 .section-container .high-level-card .card-title {
