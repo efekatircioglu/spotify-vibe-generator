@@ -26,7 +26,7 @@ export default function Last12MonthsPage() {
   // Contributor modal state
   const [fetchingMbidForTrackId, setFetchingMbidForTrackId] = useState(null);
   const [selectedTrackForContributors, setSelectedTrackForContributors] = useState(null);
-  const [showContributorModal] = useState(false);
+  const [showContributorModal, setShowContributorModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
