@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { getApiBaseUrl } from '../config/api';
 import styles from './topartists.module.css';
 import { useRouter } from 'next/navigation';
