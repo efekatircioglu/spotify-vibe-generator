@@ -374,14 +374,23 @@ export default function QuickStats({ isMobile }) {
     }
   }, [loading]);
 
-  // Effect to refresh page when QuickStats data is loaded
+  // Effect to refresh page when QuickStats data is loaded (only on first dashboard visit)
   useEffect(() => {
     if (dataLoaded && data.topArtist && data.topSong) {
-      console.log('🔄 QuickStats: Data loaded successfully, refreshing page...');
-      // Add a small delay to ensure the data is fully rendered
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Check if this is the first time visiting dashboard in this session
+      const hasVisitedDashboard = sessionStorage.getItem('dashboardVisited');
+      
+      if (!hasVisitedDashboard) {
+        console.log('🔄 QuickStats: First dashboard visit with data, refreshing page...');
+        // Mark that we've visited the dashboard
+        sessionStorage.setItem('dashboardVisited', 'true');
+        // Add a small delay to ensure the data is fully rendered
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        console.log('🔄 QuickStats: Data loaded, but not first visit - skipping refresh');
+      }
     }
   }, [dataLoaded, data.topArtist, data.topSong]);
 
