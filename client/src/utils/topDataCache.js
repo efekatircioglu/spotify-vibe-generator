@@ -36,6 +36,133 @@ export const hasCompleteCache = () => {
 // Build unified tracks with rankings across all time periods
 const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
   const unifiedTracks = new Map(); // Use Map to avoid duplicates by track ID
+  const trackNameMap = new Map(); // Use Map to avoid duplicates by name + artist
+  
+  console.log('🔄 Building unified tracks...');
+  console.log(`4 weeks tracks: ${tracks4Weeks?.length || 0}`);
+  console.log(`6 months tracks: ${tracks6Months?.length || 0}`);
+  console.log(`12 months tracks: ${tracks12Months?.length || 0}`);
+  
+  // Helper function to create a unique key for a track
+  const getTrackKey = (track) => {
+    const artistNames = track.artists?.map(a => a.name.toLowerCase().trim()) || [];
+    return `${track.name.toLowerCase().trim()}-${artistNames.sort().join(',')}`;
+  };
+  
+  // Enhanced helper function to create a unique key based on duration and main artist
+  const getEnhancedTrackKey = (track) => {
+    const duration = track.duration_ms;
+    const mainArtist = track.artists?.[0]?.name?.toLowerCase().trim() || '';
+    const normalizedName = track.name.toLowerCase().trim()
+      .replace(/\(.*?\)/g, '') // Remove parentheses content
+      .replace(/\[.*?\]/g, '') // Remove bracket content
+      .replace(/feat\.?/gi, '') // Remove "feat." variations
+      .replace(/ft\.?/gi, '') // Remove "ft." variations
+      .replace(/featuring/gi, '') // Remove "featuring"
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+    
+    return `${duration}-${mainArtist}-${normalizedName}`;
+  };
+  
+  // Helper function to check if tracks are likely the same
+  const areTracksSimilar = (track1, track2) => {
+    // Check duration (should be very close)
+    const durationDiff = Math.abs(track1.duration_ms - track2.duration_ms);
+    if (durationDiff > 1000) return false; // More than 1 second difference
+    
+    // Check main artist
+    const artist1 = track1.artists?.[0]?.name?.toLowerCase().trim() || '';
+    const artist2 = track2.artists?.[0]?.name?.toLowerCase().trim() || '';
+    if (artist1 !== artist2) return false;
+    
+    // Check normalized names
+    const normalizeName = (name) => name.toLowerCase().trim()
+      .replace(/\(.*?\)/g, '')
+      .replace(/\[.*?\]/g, '')
+      .replace(/feat\.?/gi, '')
+      .replace(/ft\.?/gi, '')
+      .replace(/featuring/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    const name1 = normalizeName(track1.name);
+    const name2 = normalizeName(track2.name);
+    
+    // Check for exact match or very similar names
+    if (name1 === name2) return true;
+    
+    // Check for slight variations (e.g., "Blinding Lights" vs "Blinding Lights (Single)")
+    const similarity = calculateSimilarity(name1, name2);
+    return similarity > 0.8; // 80% similarity threshold
+  };
+  
+  // Simple string similarity function
+  const calculateSimilarity = (str1, str2) => {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  };
+  
+  // Levenshtein distance for string similarity
+  const levenshteinDistance = (str1, str2) => {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  };
+  
+  // Helper function to merge track data
+  const mergeTrackData = (existing, newTrack, timePeriod, ranking) => {
+    existing.rankings[timePeriod] = ranking;
+    
+    // Keep the best metadata (prefer the one with more info)
+    if (newTrack.release_date && !existing.release_date) {
+      existing.release_date = newTrack.release_date;
+    }
+    if (newTrack.popularity !== null && newTrack.popularity !== undefined && 
+        (existing.popularity === null || existing.popularity === undefined || newTrack.popularity > existing.popularity)) {
+      existing.popularity = newTrack.popularity;
+    }
+    if (newTrack.album && !existing.album) {
+      existing.album = {
+        id: newTrack.album.id,
+        name: newTrack.album.name,
+        images: newTrack.album.images || [],
+        release_date: newTrack.album.release_date || null
+      };
+    }
+    
+    // Keep the track ID that appears first (usually the more popular version)
+    if (!existing.id) {
+      existing.id = newTrack.id;
+    }
+  };
   
   console.log('🔄 Building unified tracks...');
   console.log(`4 weeks tracks: ${tracks4Weeks?.length || 0}`);
@@ -46,62 +173,87 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
   if (Array.isArray(tracks4Weeks)) {
     tracks4Weeks.forEach((track, index) => {
       if (track && track.id) {
-        unifiedTracks.set(track.id, {
-          id: track.id,
-          name: track.name,
-          artists: track.artists?.map(artist => ({
-            id: artist.id,
-            name: artist.name
-          })) || [],
-          album: track.album ? {
-            id: track.album.id,
-            name: track.album.name,
-            images: track.album.images || [],
-            release_date: track.album.release_date || null
-          } : null,
-          release_date: track.release_date || null,
-          popularity: track.popularity || null,
-          rankings: {
-            '4_weeks': index + 1,
-            '6_months': null,
-            '12_months': null
+        const trackKey = getTrackKey(track);
+        const enhancedKey = getEnhancedTrackKey(track);
+        
+        // Try to find existing track using enhanced key first
+        let existingTrack = null;
+        let existingKey = null;
+        
+        // Check if we have a track with similar duration and main artist
+        for (const [key, existing] of trackNameMap.entries()) {
+          if (areTracksSimilar(track, existing)) {
+            existingTrack = existing;
+            existingKey = key;
+            break;
           }
-        });
+        }
+        
+        if (existingTrack) {
+          // Merge with existing track
+          console.log(`🔄 Merging similar tracks: "${track.name}" (${track.duration_ms}ms) by ${track.artists.map(a => a.name).join(', ')} with "${existingTrack.name}" (${existingTrack.duration_ms}ms)`);
+          mergeTrackData(existingTrack, track, '4_weeks', index + 1);
+        } else {
+          // Create new track
+          const newTrack = {
+            id: track.id,
+            name: track.name,
+            artists: track.artists?.map(artist => ({
+              id: artist.id,
+              name: artist.name
+            })) || [],
+            album: track.album ? {
+              id: track.album.id,
+              name: track.album.name,
+              images: track.album.images || [],
+              release_date: track.album.release_date || null
+            } : null,
+            release_date: track.release_date || null,
+            popularity: track.popularity || null,
+            duration_ms: track.duration_ms || null,
+            rankings: {
+              '4_weeks': index + 1,
+              '6_months': null,
+              '12_months': null
+            }
+          };
+          
+          trackNameMap.set(enhancedKey, newTrack);
+          unifiedTracks.set(track.id, newTrack);
+        }
       }
     });
   }
   
-  console.log(`After 4 weeks processing: ${unifiedTracks.size} unique tracks`);
+  console.log(`After 4 weeks processing: ${trackNameMap.size} unique tracks`);
   
   // Process 6 months tracks
   if (Array.isArray(tracks6Months)) {
     tracks6Months.forEach((track, index) => {
       if (track && track.id) {
-        if (unifiedTracks.has(track.id)) {
-          // Update existing track with 6 months ranking
-          const existing = unifiedTracks.get(track.id);
-          existing.rankings['6_months'] = index + 1;
-          // Preserve release date information if it exists in the new track
-          if (track.release_date) {
-            existing.release_date = track.release_date;
+        const trackKey = getTrackKey(track);
+        const enhancedKey = getEnhancedTrackKey(track);
+        
+        // Try to find existing track using enhanced key first
+        let existingTrack = null;
+        let existingKey = null;
+        
+        // Check if we have a track with similar duration and main artist
+        for (const [key, existing] of trackNameMap.entries()) {
+          if (areTracksSimilar(track, existing)) {
+            existingTrack = existing;
+            existingKey = key;
+            break;
           }
-          if (track.album && track.album.release_date) {
-            if (!existing.album) {
-              existing.album = {
-                id: track.album.id,
-                name: track.album.name,
-                images: track.album.images || []
-              };
-            }
-            existing.album.release_date = track.album.release_date;
-          }
-          // Preserve popularity information if it exists in the new track
-          if (track.popularity !== null && track.popularity !== undefined) {
-            existing.popularity = track.popularity;
-          }
+        }
+        
+        if (existingTrack) {
+          // Merge with existing track
+          console.log(`🔄 Merging similar tracks: "${track.name}" (${track.duration_ms}ms) by ${track.artists.map(a => a.name).join(', ')} with "${existingTrack.name}" (${existingTrack.duration_ms}ms)`);
+          mergeTrackData(existingTrack, track, '6_months', index + 1);
         } else {
-          // Add new track
-          unifiedTracks.set(track.id, {
+          // Create new track
+          const newTrack = {
             id: track.id,
             name: track.name,
             artists: track.artists?.map(artist => ({
@@ -116,48 +268,50 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
             } : null,
             release_date: track.release_date || null,
             popularity: track.popularity || null,
+            duration_ms: track.duration_ms || null,
             rankings: {
               '4_weeks': null,
               '6_months': index + 1,
               '12_months': null
             }
-          });
+          };
+          
+          trackNameMap.set(enhancedKey, newTrack);
+          unifiedTracks.set(track.id, newTrack);
         }
       }
     });
   }
   
-  console.log(`After 6 months processing: ${unifiedTracks.size} unique tracks`);
+  console.log(`After 6 months processing: ${trackNameMap.size} unique tracks`);
   
   // Process 12 months tracks
   if (Array.isArray(tracks12Months)) {
     tracks12Months.forEach((track, index) => {
       if (track && track.id) {
-        if (unifiedTracks.has(track.id)) {
-          // Update existing track with 12 months ranking
-          const existing = unifiedTracks.get(track.id);
-          existing.rankings['12_months'] = index + 1;
-          // Preserve release date information if it exists in the new track
-          if (track.release_date) {
-            existing.release_date = track.release_date;
+        const trackKey = getTrackKey(track);
+        const enhancedKey = getEnhancedTrackKey(track);
+        
+        // Try to find existing track using enhanced key first
+        let existingTrack = null;
+        let existingKey = null;
+        
+        // Check if we have a track with similar duration and main artist
+        for (const [key, existing] of trackNameMap.entries()) {
+          if (areTracksSimilar(track, existing)) {
+            existingTrack = existing;
+            existingKey = key;
+            break;
           }
-          if (track.album && track.album.release_date) {
-            if (!existing.album) {
-              existing.album = {
-                id: track.album.id,
-                name: track.album.name,
-                images: track.album.images || []
-              };
-            }
-            existing.album.release_date = track.album.release_date;
-          }
-          // Preserve popularity information if it exists in the new track
-          if (track.popularity !== null && track.popularity !== undefined) {
-            existing.popularity = track.popularity;
-          }
+        }
+        
+        if (existingTrack) {
+          // Merge with existing track
+          console.log(`🔄 Merging similar tracks: "${track.name}" (${track.duration_ms}ms) by ${track.artists.map(a => a.name).join(', ')} with "${existingTrack.name}" (${existingTrack.duration_ms}ms)`);
+          mergeTrackData(existingTrack, track, '12_months', index + 1);
         } else {
-          // Add new track
-          unifiedTracks.set(track.id, {
+          // Create new track
+          const newTrack = {
             id: track.id,
             name: track.name,
             artists: track.artists?.map(artist => ({
@@ -172,21 +326,25 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
             } : null,
             release_date: track.release_date || null,
             popularity: track.popularity || null,
+            duration_ms: track.duration_ms || null,
             rankings: {
               '4_weeks': null,
               '6_months': null,
               '12_months': index + 1
             }
-          });
+          };
+          
+          trackNameMap.set(enhancedKey, newTrack);
+          unifiedTracks.set(track.id, newTrack);
         }
       }
     });
   }
   
-  console.log(`After 12 months processing: ${unifiedTracks.size} unique tracks`);
+  console.log(`After 12 months processing: ${trackNameMap.size} unique tracks`);
   
   // Convert Map to array and sort by best overall ranking
-  const result = Array.from(unifiedTracks.values()).sort((a, b) => {
+  const result = Array.from(trackNameMap.values()).sort((a, b) => {
     // Get best ranking for each track (lower number = better ranking)
     const aBestRank = Math.min(...Object.values(a.rankings).filter(rank => rank !== null));
     const bBestRank = Math.min(...Object.values(b.rankings).filter(rank => rank !== null));
