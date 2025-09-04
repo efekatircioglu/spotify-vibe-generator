@@ -32,8 +32,12 @@ export default function Last12MonthsPage() {
     const fetchData = async () => {
       try {
         const [mainData, genreData] = await Promise.all([
-          fetch(`${getApiBaseUrl()}/last-12-months`).then(res => res.json()),
-          fetch(`${getApiBaseUrl()}/genre-details/12-months`).then(res => res.json())
+          fetch(`${getApiBaseUrl()}/last-12-months`, {
+            credentials: 'include'
+          }).then(res => res.json()),
+          fetch(`${getApiBaseUrl()}/genre-details/12-months`, {
+            credentials: 'include'
+          }).then(res => res.json())
         ]);
         
         setData(mainData);

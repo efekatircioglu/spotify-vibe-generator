@@ -524,6 +524,7 @@ export default function Sidebar({ onToggle }) {
 
   // Handle navigation
   const handleNavigation = (path) => {
+    console.log('🔄 Sidebar: Navigating to:', path);
     router.push(path);
     // Close sidebar on mobile after navigation
     if (isMobile) {
@@ -700,7 +701,10 @@ export default function Sidebar({ onToggle }) {
           {navItems.map((item) => (
             <button
               key={item.path}
-              onClick={() => handleNavigation(item.path)}
+              onClick={() => {
+                console.log('🖱️ Sidebar: Navigation button clicked:', item.path);
+                handleNavigation(item.path);
+              }}
               className={`${styles.navItem} ${isActivePath(item.path) ? styles.active : ''}`}
             >
               <span className={styles.navIcon}>{item.icon}</span>
