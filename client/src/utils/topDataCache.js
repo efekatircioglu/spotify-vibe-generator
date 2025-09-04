@@ -2,7 +2,8 @@
 import { getApiBaseUrl } from '../config/api';
 
 const CACHE_KEYS = {
-  UNIFIED_TOP_TRACKS: 'unified_top_tracks'
+  UNIFIED_TOP_TRACKS: 'unified_top_tracks',
+  CACHE_TIMESTAMP: 'top_data_cache_timestamp'
 };
 
 // Check if cache exists and is valid
@@ -243,6 +244,7 @@ export const fetchAndCacheTopData = async () => {
     
     // Cache the unified tracks
     sessionStorage.setItem(CACHE_KEYS.UNIFIED_TOP_TRACKS, JSON.stringify(unifiedTracks));
+    sessionStorage.setItem(CACHE_KEYS.CACHE_TIMESTAMP, Date.now().toString());
     
     const successCount = results.filter(r => r.success).length;
     console.log(`✅ Built unified cache with ${unifiedTracks.length} unique tracks from ${successCount}/3 time ranges`);
@@ -404,7 +406,7 @@ export const findMostListenedSongByArtist = (artistId, artistName) => {
 export const clearTopDataCache = () => {
   try {
     Object.values(CACHE_KEYS).forEach(key => {
-      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
     });
     console.log('🗑️ Top data cache cleared');
   } catch (error) {
@@ -415,14 +417,14 @@ export const clearTopDataCache = () => {
 // Get cache statistics
 export const getCacheStats = () => {
   try {
-    const timestamp = localStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
+    const timestamp = sessionStorage.getItem(CACHE_KEYS.CACHE_TIMESTAMP);
     const age = timestamp ? Date.now() - parseInt(timestamp) : null;
     
     // Calculate cache size
     let totalSize = 0;
     let trackCount = 0;
     
-    const unifiedTracksData = localStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
+    const unifiedTracksData = sessionStorage.getItem(CACHE_KEYS.UNIFIED_TOP_TRACKS);
     if (unifiedTracksData) {
       totalSize += new Blob([unifiedTracksData]).size;
       const parsed = JSON.parse(unifiedTracksData);

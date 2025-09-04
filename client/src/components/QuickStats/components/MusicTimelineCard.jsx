@@ -96,8 +96,8 @@ export default function MusicTimelineCard({ yearAnalysis }) {
 
         {/* Overview of Unified Top Tracks */}
         {(() => {
-          // Get unified top tracks data from localStorage
-          const unifiedTopTracksData = localStorage.getItem('unified_top_tracks');
+          // Get unified top tracks data from sessionStorage
+          const unifiedTopTracksData = sessionStorage.getItem('unified_top_tracks');
           const unifiedTopTracks = unifiedTopTracksData ? JSON.parse(unifiedTopTracksData) : [];
           
           if (unifiedTopTracks.length === 0) return null;
