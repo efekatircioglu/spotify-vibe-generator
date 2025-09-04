@@ -158,7 +158,7 @@ export default function Last4WeeksPage() {
             onExploreContributions={handleExploreContributions}
             showCreatePlaylist={true}
             showViewPlaylist={true}
-            wrappedLabel={'Create Your Custom Wrapped'}
+            wrappedLabel={'Create Wrapped Analysis'}
             isArtistContext={false}
           />
         </div>

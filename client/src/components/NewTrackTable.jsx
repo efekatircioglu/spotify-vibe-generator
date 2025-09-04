@@ -25,7 +25,7 @@ function useIsMobile(breakpoint = 820) {
   return isMobile;
 }
 
-export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [], showContributorsButton = false, onGetContributors = null, wrappedLabel = 'Create Your Custom Wrapped', isArtistContext = false }) {
+export default function TrackTable({ tracks, title, playlistKey, onExploreGenre, onExploreContributions, loading, error, showCreatePlaylist = true, showViewPlaylist = true, genres = [], showContributorsButton = false, onGetContributors = null, wrappedLabel = 'Create Wrapped Analysis', isArtistContext = false }) {
   // Helper function to format listening time
   const formatListeningTime = (playedAt) => {
     if (!playedAt) return '--';

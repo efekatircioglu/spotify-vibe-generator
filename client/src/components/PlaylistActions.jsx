@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import styles from '../app/page.module.css';
 import { getApiBaseUrl } from '../config/api';
 
-export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped, showCreatePlaylist = true, showViewPlaylist = true, wrappedLabel = 'Create Your Custom Wrapped' }) {
+export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist', onWrapped, showCreatePlaylist = true, showViewPlaylist = true, wrappedLabel = 'Create Wrapped Analysis' }) {
   const [showModal, setShowModal] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -137,7 +137,7 @@ export default function PlaylistActions({ tracks, playlistNameLabel = 'Playlist'
           onClick={handleViewPlaylist}
           disabled={!createdPlaylistUrl}
         >
-          View Last Created Playlist
+          View Created Playlist
         </button>
       )}
       <button
