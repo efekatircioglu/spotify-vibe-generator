@@ -113,13 +113,12 @@ export default function Last4WeeksPage() {
     <>
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
       <div style={{ 
-        padding: 32, 
         background: '#101114', 
         minHeight: '100vh',
         marginLeft: sidebarOpen ? '280px' : '0',
         transition: 'margin-left 0.3s ease'
       }}>
-        <main style={{ background: '#101114', minHeight: '100vh' }}>
+        <main style={{ background: '#101114', minHeight: '100vh', minWidth: '100vh' }}>
           
           {/* Page Heading */}
           <div style={{
