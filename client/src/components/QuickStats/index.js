@@ -374,6 +374,17 @@ export default function QuickStats({ isMobile }) {
     }
   }, [loading]);
 
+  // Effect to refresh page when QuickStats data is loaded
+  useEffect(() => {
+    if (dataLoaded && data.topArtist && data.topSong) {
+      console.log('🔄 QuickStats: Data loaded successfully, refreshing page...');
+      // Add a small delay to ensure the data is fully rendered
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
+  }, [dataLoaded, data.topArtist, data.topSong]);
+
 
 
   // Don't render if no data or on server side
