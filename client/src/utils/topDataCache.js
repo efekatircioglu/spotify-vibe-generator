@@ -37,6 +37,11 @@ export const hasCompleteCache = () => {
 const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
   const unifiedTracks = new Map(); // Use Map to avoid duplicates by track ID
   
+  console.log('🔄 Building unified tracks...');
+  console.log(`4 weeks tracks: ${tracks4Weeks?.length || 0}`);
+  console.log(`6 months tracks: ${tracks6Months?.length || 0}`);
+  console.log(`12 months tracks: ${tracks12Months?.length || 0}`);
+  
   // Process 4 weeks tracks
   if (Array.isArray(tracks4Weeks)) {
     tracks4Weeks.forEach((track, index) => {
@@ -65,6 +70,8 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
       }
     });
   }
+  
+  console.log(`After 4 weeks processing: ${unifiedTracks.size} unique tracks`);
   
   // Process 6 months tracks
   if (Array.isArray(tracks6Months)) {
@@ -120,6 +127,8 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
     });
   }
   
+  console.log(`After 6 months processing: ${unifiedTracks.size} unique tracks`);
+  
   // Process 12 months tracks
   if (Array.isArray(tracks12Months)) {
     tracks12Months.forEach((track, index) => {
@@ -174,11 +183,13 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
     });
   }
   
+  console.log(`After 12 months processing: ${unifiedTracks.size} unique tracks`);
+  
   // Convert Map to array and sort by best overall ranking
-  return Array.from(unifiedTracks.values()).sort((a, b) => {
+  const result = Array.from(unifiedTracks.values()).sort((a, b) => {
     // Get best ranking for each track (lower number = better ranking)
     const aBestRank = Math.min(...Object.values(a.rankings).filter(rank => rank !== null));
-    const bBestRank = Math.min(...Object.values(a.rankings).filter(rank => rank !== null));
+    const bBestRank = Math.min(...Object.values(b.rankings).filter(rank => rank !== null));
     
     // If both have rankings, sort by best rank
     if (aBestRank !== Infinity && bBestRank !== Infinity) {
@@ -192,6 +203,27 @@ const buildUnifiedTracks = (tracks4Weeks, tracks6Months, tracks12Months) => {
     // If neither has rankings, maintain original order
     return 0;
   });
+  
+  console.log(`Final result: ${result.length} tracks`);
+  console.log('Sample tracks with rankings:', result.slice(0, 3).map(t => ({
+    name: t.name,
+    rankings: t.rankings
+  })));
+  
+  // Check for potential duplicates by name and artist
+  const trackNames = new Map();
+  result.forEach(track => {
+    const key = `${track.name}-${track.artists.map(a => a.name).join(',')}`;
+    if (trackNames.has(key)) {
+      console.warn(`⚠️ Potential duplicate found: ${track.name} by ${track.artists.map(a => a.name).join(', ')}`);
+      console.warn(`  Existing: ${JSON.stringify(trackNames.get(key))}`);
+      console.warn(`  Current: ${JSON.stringify(track)}`);
+    } else {
+      trackNames.set(key, track);
+    }
+  });
+  
+  return result;
 };
 
 // Fetch all top data and cache it
