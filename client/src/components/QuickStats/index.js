@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../../utils/topDataCache';
 import { getCachedTopArtists, calculateAveragePopularity } from '../../utils/topArtistsCache';
 import { getApiBaseUrl } from '../../config/api';
+import { onCacheReady, clearCacheReadyCallbacks } from '../../utils/cacheManager';
 
 // Import individual components
 import TopArtistCard from './components/TopArtistCard';
@@ -66,7 +67,6 @@ export default function QuickStats({ isMobile }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
-  const retryIntervalRef = useRef(null);
 
   // Custom hooks
   const { loadingStates, setLoadingState, shouldShowCard } = useProgressiveLoading();
@@ -103,27 +103,9 @@ export default function QuickStats({ isMobile }) {
     console.log('  Top Tracks:', topTracks ? `${topTracks.length} tracks` : 'null');
     
     if (!topArtists || !topTracks) {
-      console.log('❌ QuickStats: Missing required cache data, attempting to initialize...');
-      
-      // Try to manually initialize cache
-      try {
-        const { initializeAllCaches } = await import('../../utils/cacheManager');
-        await initializeAllCaches();
-        
-        // Check again after initialization
-        const retryTopArtists = getCachedTopArtists();
-        const retryTopTracks = getCachedTopTracks();
-        
-        if (!retryTopArtists || !retryTopTracks) {
-          console.log('❌ QuickStats: Still missing data after cache initialization');
-          loadQuickStats.isRunning = false;
-          return;
-        }
-      } catch (error) {
-        console.error('❌ QuickStats: Failed to initialize cache:', error);
-        loadQuickStats.isRunning = false;
-        return;
-      }
+      console.log('❌ QuickStats: Missing required cache data, this should not happen with cache-ready event system');
+      loadQuickStats.isRunning = false;
+      return;
     }
 
     try {
@@ -313,17 +295,50 @@ export default function QuickStats({ isMobile }) {
     }
   }, [updateResultsSection, setLoadingState, getCachedResults]);
 
-  // Effect for initial load - start calculations immediately when component mounts
+  // Effect for initial load - wait for cache to be ready
   useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') {
       return;
     }
 
+    console.log('🔄 QuickStats: Component mounted, waiting for cache to be ready...');
 
-    const loadData = async () => {
-      await loadQuickStats();
+    // Check if cache is already ready
+    const topArtists = getCachedTopArtists();
+    const topTracks = getCachedTopTracks();
+    
+    if (topArtists && topTracks) {
+      console.log('✅ QuickStats: Cache already ready, loading data immediately');
+      loadQuickStats();
+      return;
+    }
+
+    // Cache not ready, wait for cache-ready event
+    console.log('⏳ QuickStats: Cache not ready, waiting for cache-ready event...');
+    
+    const handleCacheReady = () => {
+      console.log('🎉 QuickStats: Cache ready event received, loading data...');
+      clearTimeout(fallbackTimeout); // Clear fallback timeout
+      loadQuickStats();
     };
+
+    // Register for cache-ready event
+    onCacheReady(handleCacheReady);
+
+    // Fallback: if cache-ready event doesn't fire within 10 seconds, try loading anyway
+    const fallbackTimeout = setTimeout(() => {
+      console.log('⏰ QuickStats: Cache-ready event timeout, trying to load data anyway...');
+      const fallbackTopArtists = getCachedTopArtists();
+      const fallbackTopTracks = getCachedTopTracks();
+      
+      if (fallbackTopArtists && fallbackTopTracks) {
+        console.log('✅ QuickStats: Fallback successful, data found');
+        loadQuickStats();
+      } else {
+        console.log('❌ QuickStats: Fallback failed, still no data');
+      }
+    }, 10000);
 
     // Clean up expired cache entries on mount
     try {
@@ -332,47 +347,14 @@ export default function QuickStats({ isMobile }) {
       console.warn('Could not cleanup expired cache:', error);
     }
     
-    // Start calculations immediately
-    loadData();
-    
-    // Set up a retry mechanism in case data isn't ready yet
-    retryIntervalRef.current = setInterval(() => {
-      const topArtists = getCachedTopArtists();
-      const topTracks = getCachedTopTracks();
-      
-      if (topArtists && topTracks && loading) {
-        if (retryIntervalRef.current) {
-          clearInterval(retryIntervalRef.current);
-          retryIntervalRef.current = null;
-        }
-        loadData();
-      }
-    }, 1000); // Check every second
-    
-    // Clean up interval after 30 seconds to prevent infinite checking
-    setTimeout(() => {
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current);
-        retryIntervalRef.current = null;
-      }
-    }, 30000);
-    
-    // Clean up interval when component unmounts
+    // Cleanup function
     return () => {
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current);
-        retryIntervalRef.current = null;
-      }
+      clearCacheReadyCallbacks();
+      clearTimeout(fallbackTimeout);
     };
   }, []); // Empty dependency array - only run once on mount
 
-  // Effect to clean up retry interval when loading is complete
-  useEffect(() => {
-    if (!loading && retryIntervalRef.current) {
-      clearInterval(retryIntervalRef.current);
-      retryIntervalRef.current = null;
-    }
-  }, [loading]);
+
 
 
 
