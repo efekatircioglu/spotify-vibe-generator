@@ -122,13 +122,26 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
       }
     });
     
-    // Combine 6 and 12 months artist IDs
+    // Combine 6 and 12 months artist IDs from top artists
     const longTermArtistIdsFromTopArtists = new Set([...sixMonthsArtistIds, ...twelveMonthsArtistIds]);
+    
+    // Also check for artists that appear as guest artists on tracks in 6-12 months
+    const longTermGuestArtistIds = new Set();
+    longTermTracks.forEach(track => {
+      if (track.artists && track.artists.length > 0) {
+        track.artists.forEach(artist => {
+          longTermGuestArtistIds.add(artist.id);
+        });
+      }
+    });
+    
+    // Combine both: artists from top artists cache AND guest artists from tracks
+    const allLongTermArtistIds = new Set([...longTermArtistIdsFromTopArtists, ...longTermGuestArtistIds]);
     
     tracks.forEach(track => {
       if (track.artists && track.artists.length > 0) {
         track.artists.forEach(artist => {
-          if (recentAndFourWeeksArtistIds.has(artist.id) && !longTermArtistIdsFromTopArtists.has(artist.id)) {
+          if (recentAndFourWeeksArtistIds.has(artist.id) && !allLongTermArtistIds.has(artist.id)) {
             const existingArtist = evolution.newArtists.find(a => a.id === artist.id);
             if (!existingArtist) {
               // Try to get artist image from localStorage cache
@@ -163,9 +176,15 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
       }
     });
 
-    // RULE 3: Songs Taking a Break - in 6-12 months but NOT in last 4 weeks unified_top_tracks
+    // RULE 3: Songs Taking a Break - in 12 months but NOT in 6 months AND NOT in last 4 weeks unified_top_tracks AND NOT in last 50 songs
     const allRecentSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
-    longTermTracks.forEach(track => {
+    
+    // Get only 12 months tracks (exclude 6 months)
+    const twelveMonthsTracks = tracks.filter(track => 
+      track.rankings && track.rankings['12_months'] && !track.rankings['6_months']
+    );
+    
+    twelveMonthsTracks.forEach(track => {
       if (!allRecentSongIds.has(track.id)) {
         evolution.breakSongs.push({
           id: track.id,
@@ -177,46 +196,62 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
       }
     });
 
-    // RULE 4: Artists Taking a Break - in 6-12 months but NOT in last 4 weeks spotify_top_artists
+    // RULE 4: Artists Taking a Break - in 12 months but NOT in 6 months spotify_top_artists AND their songs only in 12 months unified_top_tracks (not 6 months, not 4 weeks, not recent 50)
     const allRecentArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
     
     // Use the same top artists data we got earlier
     topArtistsFromCache.forEach(artist => {
-      // Check if artist appears in 6 or 12 months but not in recent + 4 weeks
-      const hasLongTermRanking = (artist.rankings && artist.rankings['6_months']) || 
-                                (artist.rankings && artist.rankings['12_months']);
+      // Check if artist appears ONLY in 12 months (not 6 months) and not in recent + 4 weeks
+      const hasTwelveMonthsRanking = artist.rankings && artist.rankings['12_months'];
+      const hasSixMonthsRanking = artist.rankings && artist.rankings['6_months'];
       const hasRecentRanking = (artist.rankings && artist.rankings['4_weeks']) || 
                                allRecentArtistIds.has(artist.id);
       
-      if (hasLongTermRanking && !hasRecentRanking) {
-        const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
-        if (!existingArtist) {
-          // Try to get artist image from localStorage cache
-          const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
+      // Artist should be in 12 months but NOT in 6 months and NOT in recent
+      if (hasTwelveMonthsRanking && !hasSixMonthsRanking && !hasRecentRanking) {
+        // Additional check: make sure their songs only appear in 12 months tracks (not 6 months, not 4 weeks, not recent 50)
+        const artistTracks = tracks.filter(track => 
+          track.artists && track.artists.some(a => a.id === artist.id)
+        );
+        
+        // Check if all their tracks are ONLY in 12 months (not 6 months, not 4 weeks, not recent 50)
+        const allTracksOnlyInTwelveMonths = artistTracks.every(track => {
+          const hasTwelveMonths = track.rankings && track.rankings['12_months'];
+          const hasSixMonths = track.rankings && track.rankings['6_months'];
+          const hasFourWeeks = track.rankings && track.rankings['4_weeks'];
+          const isInRecent = recentSongIds.has(track.id);
           
-          // Try to find album image from tracks featuring this artist
-          let albumImage = null;
-          const artistTracks = tracks.filter(track => 
-            track.artists && track.artists.some(a => a.id === artist.id)
-          );
-          if (artistTracks.length > 0) {
-            const trackWithAlbum = artistTracks.find(track => 
-              track.album && track.album.images && track.album.images[0] && track.album.images[0].url
-            );
-            if (trackWithAlbum) {
-              albumImage = trackWithAlbum.album.images[0].url;
+          // Track should ONLY be in 12 months, not in any other time period
+          return hasTwelveMonths && !hasSixMonths && !hasFourWeeks && !isInRecent;
+        });
+        
+        if (allTracksOnlyInTwelveMonths) {
+          const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
+          if (!existingArtist) {
+            // Try to get artist image from localStorage cache
+            const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
+            
+            // Try to find album image from tracks featuring this artist
+            let albumImage = null;
+            if (artistTracks.length > 0) {
+              const trackWithAlbum = artistTracks.find(track => 
+                track.album && track.album.images && track.album.images[0] && track.album.images[0].url
+              );
+              if (trackWithAlbum) {
+                albumImage = trackWithAlbum.album.images[0].url;
+              }
             }
+            
+            evolution.breakArtists.push({
+              id: artist.id,
+              name: artist.name,
+              images: artistDataWithImages?.images || artist.images,
+              albumImage: albumImage,
+              trackCount: 1
+            });
+          } else {
+            existingArtist.trackCount++;
           }
-          
-          evolution.breakArtists.push({
-            id: artist.id,
-            name: artist.name,
-            images: artistDataWithImages?.images || artist.images,
-            albumImage: albumImage,
-            trackCount: 1
-          });
-        } else {
-          existingArtist.trackCount++;
         }
       }
     });
