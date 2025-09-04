@@ -37,6 +37,7 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
       return null;
     }
   };
+
   const evolution = {
     newSongs: [],
     newArtists: [],
@@ -77,7 +78,7 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
       }
     });
 
-    // Find newly discovered songs (in recent + 4 weeks but not in 6-12 months)
+    // RULE 1: Newly Discovered Songs - in recent + 4 weeks but NOT in 6 or 12 months unified_top_tracks
     const recentAndFourWeeksSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
     tracks.forEach(track => {
       if (recentAndFourWeeksSongIds.has(track.id) && !longTermSongIds.has(track.id)) {
@@ -91,21 +92,7 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
       }
     });
 
-    // Find songs taking a break (in 6-12 months but not in recent + 4 weeks)
-    const allRecentSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
-    longTermTracks.forEach(track => {
-      if (!allRecentSongIds.has(track.id)) {
-        evolution.breakSongs.push({
-          id: track.id,
-          name: track.name,
-          artists: track.artists,
-          album: track.album,
-          rankings: track.rankings
-        });
-      }
-    });
-
-    // Find newly discovered artists (in recent + 4 weeks but not in 6-12 months)
+    // RULE 2: Newly Discovered Artists - in recent + 4 weeks but NOT in 6 or 12 months spotify_top_artists
     const recentAndFourWeeksArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
     tracks.forEach(track => {
       if (track.artists && track.artists.length > 0) {
@@ -145,7 +132,21 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
       }
     });
 
-    // Find artists taking a break (in 6-12 months but not in recent + 4 weeks)
+    // RULE 3: Songs Taking a Break - in 6-12 months but NOT in last 4 weeks unified_top_tracks
+    const allRecentSongIds = new Set([...recentSongIds, ...fourWeeksSongIds]);
+    longTermTracks.forEach(track => {
+      if (!allRecentSongIds.has(track.id)) {
+        evolution.breakSongs.push({
+          id: track.id,
+          name: track.name,
+          artists: track.artists,
+          album: track.album,
+          rankings: track.rankings
+        });
+      }
+    });
+
+    // RULE 4: Artists Taking a Break - in 6-12 months but NOT in last 4 weeks spotify_top_artists
     const allRecentArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
     longTermTracks.forEach(track => {
       if (track.artists && track.artists.length > 0) {
