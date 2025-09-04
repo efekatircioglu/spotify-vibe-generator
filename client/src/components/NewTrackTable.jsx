@@ -762,7 +762,7 @@ if (isMobile) {
     return (
       <div style={{
         background: '#181818',
-        padding: '6vw 0', // Vertical padding, no horizontal padding
+        padding: '12px 0', // Vertical padding, no horizontal padding
         width: '100%',
         boxSizing: 'border-box',
       }}>

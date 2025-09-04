@@ -118,13 +118,14 @@ export default function Last4WeeksPage() {
         marginLeft: sidebarOpen ? '280px' : '0',
         transition: 'margin-left 0.3s ease'
       }}>
-        <main style={{ background: '#101114', minHeight: '100vh', minWidth: '100vh' }}>
+        <main style={{ background: '#101114', minHeight: '100vh', boxSizing: 'border-box' }}>
           
           {/* Page Heading */}
           <div style={{
             textAlign: 'center',
             marginBottom: '32px',
-            paddingTop: '24px'
+            paddingTop: '24px',
+            width: '100%'
           }}>
             <h1 style={{
               color: '#f3f3f3',
