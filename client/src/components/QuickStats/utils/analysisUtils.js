@@ -94,10 +94,41 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
 
     // RULE 2: Newly Discovered Artists - in recent + 4 weeks but NOT in 6 or 12 months spotify_top_artists
     const recentAndFourWeeksArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
+    
+    // Get top artists from cache to check their rankings
+    let topArtistsFromCache = [];
+    try {
+      const topArtistsData = sessionStorage.getItem('spotify_top_artists');
+      if (topArtistsData) {
+        const topArtistsCache = JSON.parse(topArtistsData);
+        topArtistsFromCache = topArtistsCache.artists || topArtistsCache || [];
+      }
+    } catch (error) {
+      console.error('Error reading top artists cache:', error);
+    }
+    
+    // Create sets for artists that appear in 6 or 12 months top artists
+    const sixMonthsArtistIds = new Set();
+    const twelveMonthsArtistIds = new Set();
+    
+    topArtistsFromCache.forEach(artist => {
+      if (artist.rankings) {
+        if (artist.rankings['6_months']) {
+          sixMonthsArtistIds.add(artist.id);
+        }
+        if (artist.rankings['12_months']) {
+          twelveMonthsArtistIds.add(artist.id);
+        }
+      }
+    });
+    
+    // Combine 6 and 12 months artist IDs
+    const longTermArtistIdsFromTopArtists = new Set([...sixMonthsArtistIds, ...twelveMonthsArtistIds]);
+    
     tracks.forEach(track => {
       if (track.artists && track.artists.length > 0) {
         track.artists.forEach(artist => {
-          if (recentAndFourWeeksArtistIds.has(artist.id) && !longTermArtistIds.has(artist.id)) {
+          if (recentAndFourWeeksArtistIds.has(artist.id) && !longTermArtistIdsFromTopArtists.has(artist.id)) {
             const existingArtist = evolution.newArtists.find(a => a.id === artist.id);
             if (!existingArtist) {
               // Try to get artist image from localStorage cache
@@ -148,41 +179,45 @@ export const analyzeListeningEvolution = async (tracks, recentTracks, topArtists
 
     // RULE 4: Artists Taking a Break - in 6-12 months but NOT in last 4 weeks spotify_top_artists
     const allRecentArtistIds = new Set([...recentArtistIds, ...fourWeeksArtistIds]);
-    longTermTracks.forEach(track => {
-      if (track.artists && track.artists.length > 0) {
-        track.artists.forEach(artist => {
-          if (!allRecentArtistIds.has(artist.id)) {
-            const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
-            if (!existingArtist) {
-              // Try to get artist image from localStorage cache
-              const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
-              
-              // Try to find album image from tracks featuring this artist
-              let albumImage = null;
-              const artistTracks = tracks.filter(track => 
-                track.artists && track.artists.some(a => a.id === artist.id)
-              );
-              if (artistTracks.length > 0) {
-                const trackWithAlbum = artistTracks.find(track => 
-                  track.album && track.album.images && track.album.images[0] && track.album.images[0].url
-                );
-                if (trackWithAlbum) {
-                  albumImage = trackWithAlbum.album.images[0].url;
-                }
-              }
-              
-              evolution.breakArtists.push({
-                id: artist.id,
-                name: artist.name,
-                images: artistDataWithImages?.images || artist.images,
-                albumImage: albumImage,
-                trackCount: 1
-              });
-            } else {
-              existingArtist.trackCount++;
+    
+    // Use the same top artists data we got earlier
+    topArtistsFromCache.forEach(artist => {
+      // Check if artist appears in 6 or 12 months but not in recent + 4 weeks
+      const hasLongTermRanking = (artist.rankings && artist.rankings['6_months']) || 
+                                (artist.rankings && artist.rankings['12_months']);
+      const hasRecentRanking = (artist.rankings && artist.rankings['4_weeks']) || 
+                               allRecentArtistIds.has(artist.id);
+      
+      if (hasLongTermRanking && !hasRecentRanking) {
+        const existingArtist = evolution.breakArtists.find(a => a.id === artist.id);
+        if (!existingArtist) {
+          // Try to get artist image from localStorage cache
+          const artistDataWithImages = getArtistDataWithImages(artist.id, artist.name);
+          
+          // Try to find album image from tracks featuring this artist
+          let albumImage = null;
+          const artistTracks = tracks.filter(track => 
+            track.artists && track.artists.some(a => a.id === artist.id)
+          );
+          if (artistTracks.length > 0) {
+            const trackWithAlbum = artistTracks.find(track => 
+              track.album && track.album.images && track.album.images[0] && track.album.images[0].url
+            );
+            if (trackWithAlbum) {
+              albumImage = trackWithAlbum.album.images[0].url;
             }
           }
-        });
+          
+          evolution.breakArtists.push({
+            id: artist.id,
+            name: artist.name,
+            images: artistDataWithImages?.images || artist.images,
+            albumImage: albumImage,
+            trackCount: 1
+          });
+        } else {
+          existingArtist.trackCount++;
+        }
       }
     });
 
