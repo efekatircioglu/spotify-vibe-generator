@@ -143,6 +143,7 @@ export default function QuickStats({ isMobile }) {
           recentTracks: cachedResults.recentTracks || getCachedRecentTracks() || []
         };
         
+        console.log('📊 QuickStats: Setting cached data:', newData);
         setData(newData);
         
         // Show all components since data is ready
@@ -167,8 +168,18 @@ export default function QuickStats({ isMobile }) {
       // Start with basic stats
       const basicStats = calculateBasicStats(topArtists, topTracks);
       if (basicStats) {
+        console.log('📊 QuickStats: Basic stats calculated:', basicStats);
         setLoadingState('basicStats', true);
         updateResultsSection(topArtists, topTracks, 'basicStats', basicStats);
+        
+        // Update data immediately for basic stats
+        setData(prev => ({
+          ...prev,
+          topArtist: basicStats.bestArtist,
+          topArtistTimeRange: basicStats.bestTimeRange,
+          topSong: basicStats.bestTrack,
+          topSongTimeRange: basicStats.bestTrackTimeRange
+        }));
       }
 
       // Load genres
@@ -285,6 +296,7 @@ export default function QuickStats({ isMobile }) {
       });
 
       console.log('✅ QuickStats: All calculations complete and cached');
+      console.log('📊 QuickStats: Final data state:', data);
       setLoading(false);
       setDataLoaded(true);
       
@@ -361,12 +373,21 @@ export default function QuickStats({ isMobile }) {
     return null;
   }
   
+  console.log('🎨 QuickStats: Rendering component');
+  console.log('  Loading:', loading);
+  console.log('  Data loaded:', dataLoaded);
+  console.log('  Top artist:', data.topArtist);
+  console.log('  Top song:', data.topSong);
+  console.log('  Loading states:', loadingStates);
+  
   // Only show loading phase when we're actually loading and don't have enough data
   if (loading && (!data.topArtist || !data.topSong || data.topGenres.length === 0)) {
+    console.log('🎨 QuickStats: Showing loading phase');
     return <LoadingPhase isMobile={isMobile} />;
   }
   
   if (!data.topArtist || !data.topSong) {
+    console.log('🎨 QuickStats: No data available, returning null');
     return null;
   }
 
