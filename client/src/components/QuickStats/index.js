@@ -320,8 +320,16 @@ export default function QuickStats({ isMobile }) {
       return;
     }
 
-
     const loadData = async () => {
+      // First, ensure caches are initialized
+      try {
+        const { initializeAllCaches } = await import('../../utils/cacheManager');
+        await initializeAllCaches();
+      } catch (error) {
+        console.warn('Could not initialize caches:', error);
+      }
+      
+      // Then load QuickStats data
       await loadQuickStats();
     };
 
