@@ -549,7 +549,13 @@ export default function Sidebar({ onToggle }) {
       {isMobile && isOpen && (
         <div 
           className={styles.overlay}
-          onClick={() => setIsOpen(false)}
+          onClick={(e) => {
+            // Don't close if clicking on search suggestions or search input
+            if (e.target.closest('[data-search-container]')) {
+              return;
+            }
+            setIsOpen(false);
+          }}
         />
       )}
 
@@ -570,7 +576,7 @@ export default function Sidebar({ onToggle }) {
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
           >
-git add .             {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <ChevronRightIcon size={20} color="#fff" />}
+            {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <ChevronRightIcon size={20} color="#fff" />}
           </button>
         </div>
 
@@ -597,8 +603,8 @@ git add .             {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <Ch
         )}
 
         {/* Search Bar */}
-        <div className={styles.searchContainer}>
-          <form onSubmit={handleSearch} className={styles.searchForm}>
+        <div className={styles.searchContainer} data-search-container>
+          <form onSubmit={handleSearch} className={styles.searchForm} onClick={(e) => e.stopPropagation()}>
             <div className={styles.searchInputWrapper} style={{ position: 'relative' }}>
               <svg className={styles.searchIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -614,12 +620,15 @@ git add .             {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <Ch
                 onKeyDown={handleArtistKeyDown}
                 className={styles.searchInput}
                 autoComplete="off"
+                onClick={(e) => e.stopPropagation()}
               />
               
               {/* Search Suggestions */}
               {showSuggestions && artistSuggestions.length > 0 && (
                 <div
                   ref={suggestionsRef}
+                  data-search-container
+                  onClick={(e) => e.stopPropagation()}
                   style={{
                     position: 'absolute',
                     top: '100%',
@@ -674,21 +683,24 @@ git add .             {isOpen ? <ChevronLeftIcon size={20} color="#fff" /> : <Ch
               
               {/* Loading indicator */}
               {isSearching && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  background: '#232323',
-                  border: '1px solid #444',
-                  borderRadius: '8px',
-                  marginTop: '8px',
-                  padding: '12px',
-                  zIndex: 1000,
-                  width: '100%',
-                  textAlign: 'center',
-                  color: '#e5e7eb'
-                }}>
+                <div 
+                  data-search-container
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: '#232323',
+                    border: '1px solid #444',
+                    borderRadius: '8px',
+                    marginTop: '8px',
+                    padding: '12px',
+                    zIndex: 1000,
+                    width: '100%',
+                    textAlign: 'center',
+                    color: '#e5e7eb'
+                  }}>
                   Searching...
                 </div>
               )}
