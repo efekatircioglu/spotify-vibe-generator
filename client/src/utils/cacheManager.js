@@ -253,29 +253,6 @@ export const setupCacheMonitoring = () => {
   }
 };
 
-// Cache ready event system
-let cacheReadyCallbacks = [];
-
-export const onCacheReady = (callback) => {
-  cacheReadyCallbacks.push(callback);
-};
-
-export const emitCacheReady = () => {
-  console.log('🎉 Cache ready event emitted');
-  cacheReadyCallbacks.forEach(callback => {
-    try {
-      callback();
-    } catch (error) {
-      console.error('Error in cache ready callback:', error);
-    }
-  });
-  cacheReadyCallbacks = []; // Clear callbacks after emitting
-};
-
-export const clearCacheReadyCallbacks = () => {
-  cacheReadyCallbacks = [];
-};
-
 // Clean up any existing localStorage tokens (security fix)
 export const cleanupLocalStorageTokens = () => {
   if (typeof window !== 'undefined') {

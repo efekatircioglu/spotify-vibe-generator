@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { setupAuthMonitoring, checkAuthStatus, refreshToken } from '../utils/authUtils';
-import { setupCacheMonitoring, initializeAllCaches, emitCacheReady } from '../utils/cacheManager';
+import { setupCacheMonitoring, initializeAllCaches } from '../utils/cacheManager';
 import { LOGIN_URL } from '../config/api';
 
 export default function AuthWrapper({ children }) {
@@ -85,12 +85,8 @@ export default function AuthWrapper({ children }) {
             console.log('[AuthWrapper] Caches don\'t exist, initializing...');
             const { initializeAllCaches } = await import('../utils/cacheManager');
             await initializeAllCaches();
-            console.log('[AuthWrapper] Cache initialization complete, emitting cache-ready event');
-            emitCacheReady();
           } else {
             console.log('[AuthWrapper] Caches already exist, skipping initialization');
-            console.log('[AuthWrapper] Emitting cache-ready event for existing caches');
-            emitCacheReady();
           }
           
           // Store cleanup function for later

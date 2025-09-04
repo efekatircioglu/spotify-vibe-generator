@@ -70,8 +70,12 @@ export default function Last4WeeksPage() {
     const fetchData = async () => {
       try {
         const [mainData, genreData] = await Promise.all([
-          fetch(`${getApiBaseUrl()}/last-4-weeks`).then(res => res.json()),
-          fetch(`${getApiBaseUrl()}/genre-details/4-weeks`).then(res => res.json())
+          fetch(`${getApiBaseUrl()}/last-4-weeks`, {
+            credentials: 'include'
+          }).then(res => res.json()),
+          fetch(`${getApiBaseUrl()}/genre-details/4-weeks`, {
+            credentials: 'include'
+          }).then(res => res.json())
         ]);
         
         setData(mainData);

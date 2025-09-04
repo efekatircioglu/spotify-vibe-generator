@@ -176,7 +176,9 @@ export default function Home() {
   const handleAnalyzeNewGenres = async (playlist) => {
     try {
         setAnalyzingPlaylistId(playlist.id);
-        const res = await fetch(`${getApiBaseUrl()}/playlist-genres/${playlist.id}`);
+        const res = await fetch(`${getApiBaseUrl()}/playlist-genres/${playlist.id}`, {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('Failed to analyze playlist genres');
         const data = await res.json();
         // GenreLeaderboardChart expects: { genreName: count, ... }
@@ -196,7 +198,9 @@ export default function Home() {
   const handleAnalyzeNewArtists = async (playlist) => {
     try {
       setAnalyzingArtistPlaylistId(playlist.id);
-      const res = await fetch(`${getApiBaseUrl()}/playlist-artists/${playlist.id}`);
+      const res = await fetch(`${getApiBaseUrl()}/playlist-artists/${playlist.id}`, {
+        credentials: 'include'
+      });
       if (!res.ok) throw new Error('Failed to analyze playlist artists');
       const data = await res.json();
       // GenreLeaderboardChart expects: { artistName: count, ... }
@@ -216,7 +220,9 @@ export default function Home() {
   const handleCreatePlaylistWrapped = async (playlist) => {
     try {
       // Fetch playlist tracks for wrapped analysis (same pattern as Genres feature)
-      const res = await fetch(`${getApiBaseUrl()}/playlist-tracks-for-wrapped/${playlist.id}`);
+      const res = await fetch(`${getApiBaseUrl()}/playlist-tracks-for-wrapped/${playlist.id}`, {
+        credentials: 'include'
+      });
       
       if (!res.ok) {
         const errorText = await res.text();
@@ -280,7 +286,9 @@ export default function Home() {
     setAnalysis(null);
     setShowSongsTable(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/recent-tracks`);
+              const res = await fetch(`${getApiBaseUrl()}/recent-tracks`, {
+          credentials: 'include'
+        });
       if (!res.ok) throw new Error('Failed to fetch recent tracks');
       const data = await res.json();
       
@@ -303,7 +311,9 @@ export default function Home() {
 
   // This function runs when the page loads
   useEffect(() => {
-    fetch(`${getApiBaseUrl()}/me`)
+            fetch(`${getApiBaseUrl()}/me`, {
+          credentials: 'include'
+        })
       .then((res) => {
         if (!res.ok) throw new Error('User not logged in');
         return res.json();
@@ -340,7 +350,9 @@ export default function Home() {
     setIsAnalyzingPlaylists(true);
     setShowPlaylistsTable(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/playlists-with-duration`);
+              const res = await fetch(`${getApiBaseUrl()}/playlists-with-duration`, {
+          credentials: 'include'
+        });
       if (!res.ok) throw new Error('Failed to fetch playlists');
       const data = await res.json();
       setPlaylists(data.playlists || []);
@@ -364,7 +376,9 @@ export default function Home() {
   // Fetch metrics for a single song by its ID (only when clicking the name cell)
   const handleSongNameClick = async (song) => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/audio-features/${song.id}`);
+              const res = await fetch(`${getApiBaseUrl()}/audio-features/${song.id}`, {
+          credentials: 'include'
+        });
       if (!res.ok) throw new Error('Failed to fetch audio features');
       const data = await res.json();
       setSelectedSongMetrics({ ...data, name: song.name, artist: song.artist });

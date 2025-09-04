@@ -87,9 +87,7 @@ export default function ConcertsPage() {
   // Fetch followed artists
   useEffect(() => {
     setLoadingFollowed(true);
-    fetch(`${getApiBaseUrl()}/me/following/artists`, {
-      credentials: 'include'
-    })
+    fetch(`${getApiBaseUrl()}/me/following/artists`)
       .then(res => res.ok ? res.json() : { artists: [] })
       .then(data => {
         setFollowedArtists(data.artists || []);
