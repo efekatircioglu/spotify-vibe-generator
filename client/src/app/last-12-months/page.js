@@ -101,19 +101,19 @@ export default function Last12MonthsPage() {
     <>
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
       <div style={{ 
-        padding: 32, 
         background: '#101114', 
         minHeight: '100vh',
         marginLeft: sidebarOpen ? '280px' : '0',
         transition: 'margin-left 0.3s ease'
       }}>
-        <main style={{ padding: 32, background: '#101114', minHeight: '100vh' }}>
+        <main style={{ background: '#101114', minHeight: '100vh', boxSizing: 'border-box' }}>
           
           {/* Page Heading */}
           <div style={{
             textAlign: 'center',
             marginBottom: '32px',
-            paddingTop: '24px'
+            paddingTop: '24px',
+            width: '100%'
           }}>
             <h1 style={{
               color: '#f3f3f3',
@@ -121,7 +121,7 @@ export default function Last12MonthsPage() {
               fontWeight: 900,
               letterSpacing: 1,
               textShadow: '0 2px 8px #0008',
-              margin: 0,
+              marginTop: '50px',
               lineHeight: 1.2
             }}>
               Your Last 12 Months&apos; Report
@@ -131,17 +131,25 @@ export default function Last12MonthsPage() {
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: 'red' }}>{error}</div>}
       {data && !loading && !error && (
-       <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-       <NewTrackTable
-         tracks={data.tracks}
-         title="Top Tracks Of Last Year"
-         playlistKey="last4weeks"
-         loading={loading}
-         error={error}
-         onExploreGenre={handleExploreGenre}
-         onExploreContributions={handleExploreContributions}
-       />
-   </div>
+        <div style={{ 
+          marginBottom: 48,
+          display: 'flex',
+          justifyContent: 'center'
+         }}>
+          <NewTrackTable
+            tracks={data.tracks}
+            title="Top Tracks Of Last Year"
+            playlistKey="last12months"
+            loading={loading}
+            error={error}
+            onExploreGenre={handleExploreGenre}
+            onExploreContributions={handleExploreContributions}
+            showCreatePlaylist={true}
+            showViewPlaylist={true}
+            wrappedLabel={'Create Wrapped Analysis'}
+            isArtistContext={false}
+          />
+        </div>
       )}
       {data && data.artists && (
         <>
