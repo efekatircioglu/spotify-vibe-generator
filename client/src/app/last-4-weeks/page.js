@@ -133,7 +133,7 @@ export default function Last4WeeksPage() {
               fontWeight: 900,
               letterSpacing: 1,
               textShadow: '0 2px 8px #0008',
-              margin: 0,
+              marginTop: '50px',
               lineHeight: 1.2
             }}>
               Your Last 4 Weeks&apos; Report
