@@ -79,59 +79,51 @@ export default function QuickStats({ isMobile }) {
     cleanupExpired
   } = useQuickStatsResultsCache();
 
-  // Load data function
-  const loadQuickStats = useCallback(async () => {
+    // Single function to handle QuickStats: check cache, calculate if needed, show results
+  const handleQuickStats = useCallback(async () => {
     // Only run on client side
     if (typeof window === 'undefined') {
       return;
     }
 
     // Add a flag to prevent multiple executions
-    if (loadQuickStats.isRunning) {
+    if (handleQuickStats.isRunning) {
       console.log('🔄 QuickStats: Already running, skipping...');
       return;
     }
     
-    loadQuickStats.isRunning = true;
+    handleQuickStats.isRunning = true;
 
-    // Check if we have the required data to start calculations
-    const topArtists = getCachedTopArtists();
-    const topTracks = getCachedTopTracks();
-    
-    console.log('🔍 QuickStats: Checking cache data...');
-    console.log('  Top Artists:', topArtists ? `${topArtists.length} artists` : 'null');
-    console.log('  Top Tracks:', topTracks ? `${topTracks.length} tracks` : 'null');
-    
-    if (!topArtists || !topTracks) {
-      console.log('❌ QuickStats: Missing required cache data, attempting to initialize...');
-      
-      // Try to manually initialize cache
+    try {
+      // 1. Ensure caches are initialized
       try {
         const { initializeAllCaches } = await import('../../utils/cacheManager');
         await initializeAllCaches();
-        
-        // Check again after initialization
-        const retryTopArtists = getCachedTopArtists();
-        const retryTopTracks = getCachedTopTracks();
-        
-        if (!retryTopArtists || !retryTopTracks) {
-          console.log('❌ QuickStats: Still missing data after cache initialization');
-          loadQuickStats.isRunning = false;
-          return;
-        }
       } catch (error) {
-        console.error('❌ QuickStats: Failed to initialize cache:', error);
-        loadQuickStats.isRunning = false;
+        console.warn('Could not initialize caches:', error);
+      }
+
+      // 2. Get required data for calculations
+      const topArtists = getCachedTopArtists();
+      const topTracks = getCachedTopTracks();
+      
+      console.log('🔍 QuickStats: Checking cache data...');
+      console.log('  Top Artists:', topArtists ? `${topArtists.length} artists` : 'null');
+      console.log('  Top Tracks:', topTracks ? `${topTracks.length} tracks` : 'null');
+      
+      if (!topArtists || !topTracks) {
+        console.log('❌ QuickStats: Missing required cache data');
+        setError('Required data not available');
+        setLoading(false);
         return;
       }
-    }
 
-    try {
-
-      // Check if we have cached results first
+      // 3. Check cache first
       const cachedResults = getCachedResults(topArtists, topTracks);
       if (cachedResults && cachedResults.basicStats?.bestArtist && cachedResults.basicStats?.bestTrack) {
-        // Load all data from cache
+        console.log('✅ QuickStats: Cache HIT - Loading from cache');
+        
+        // CACHE HIT: Show cached data immediately
         const newData = {
           ...data,
           topArtist: cachedResults.basicStats?.bestArtist || null,
@@ -151,10 +143,9 @@ export default function QuickStats({ isMobile }) {
           recentTracks: cachedResults.recentTracks || getCachedRecentTracks() || []
         };
         
-        
         setData(newData);
-
-        // Set all loading states to true since data is ready
+        
+        // Show all components since data is ready
         setLoadingState('basicStats', true);
         setLoadingState('genres', true);
         setLoadingState('albumsDecades', true);
@@ -167,17 +158,18 @@ export default function QuickStats({ isMobile }) {
         
         setLoading(false);
         setDataLoaded(true);
-        return;
-      } 
+        return; // Exit early - no calculations needed
+      }
+
+      // 4. CACHE MISS: Calculate everything
+      console.log('❌ QuickStats: Cache MISS - Starting calculations');
+      
       // Start with basic stats
       const basicStats = calculateBasicStats(topArtists, topTracks);
       if (basicStats) {
         setLoadingState('basicStats', true);
-        // Store in results cache
         updateResultsSection(topArtists, topTracks, 'basicStats', basicStats);
       }
-
-
 
       // Load genres
       const genresData = await loadGenres(topArtists);
@@ -186,9 +178,8 @@ export default function QuickStats({ isMobile }) {
         topGenres: genresData.genres,
         genreDetails: genresData.genreDetails
       }));
-              setLoadingState('genres', true);
-        // Store in results cache
-        updateResultsSection(topArtists, topTracks, 'genres', genresData);
+      setLoadingState('genres', true);
+      updateResultsSection(topArtists, topTracks, 'genres', genresData);
 
       // Load albums and decades
       const albumsDecades = await calculateAlbumsAndDecades(topTracks);
@@ -198,7 +189,6 @@ export default function QuickStats({ isMobile }) {
         topDecades: albumsDecades.decades
       }));
       setLoadingState('albumsDecades', true);
-      // Store in results cache
       updateResultsSection(topArtists, topTracks, 'albumsDecades', albumsDecades);
 
       // Load popularity analysis
@@ -208,7 +198,6 @@ export default function QuickStats({ isMobile }) {
         averagePopularity: popularityStats
       }));
       setLoadingState('popularity', true);
-      // Store in results cache
       updateResultsSection(topArtists, topTracks, 'popularity', popularityStats);
 
       // Load year analysis
@@ -218,7 +207,6 @@ export default function QuickStats({ isMobile }) {
         yearAnalysis
       }));
       setLoadingState('yearAnalysis', true);
-      // Store in results cache
       updateResultsSection(topArtists, topTracks, 'yearAnalysis', yearAnalysis);
 
       // Load track popularity
@@ -228,7 +216,6 @@ export default function QuickStats({ isMobile }) {
         trackPopularityAnalysis: trackPopularity
       }));
       setLoadingState('trackPopularity', true);
-      // Store in results cache
       updateResultsSection(topArtists, topTracks, 'trackPopularity', trackPopularity);
 
       // Load recent tracks from cache or API
@@ -242,12 +229,10 @@ export default function QuickStats({ isMobile }) {
         if (recentTracksResponse.ok) {
           const recentData = await recentTracksResponse.json();
           recentTracks = recentData.tracks || [];
-          // Cache the recent tracks for future use
           setCachedRecentTracks(recentTracks);
         } else {
           recentTracks = [];
         }
-      } else {
       }
 
       // Run external analyses in parallel
@@ -279,20 +264,18 @@ export default function QuickStats({ isMobile }) {
       updateResultsSection(topArtists, topTracks, 'listenerTypeAnalysis', listenerTypeResult);
       updateResultsSection(topArtists, topTracks, 'recentTracks', recentTracks);
 
-      // Update year analysis with recent tracks - always include recent_50 data
+      // Update year analysis with recent tracks
       setData(prev => {
         let updatedYearAnalysis;
         if (recentTracks.length > 0) {
           updatedYearAnalysis = updateYearAnalysisWithRecent(prev.yearAnalysis, recentTracks);
         } else {
-          // If no recent tracks, ensure we have a basic yearAnalysis structure
           updatedYearAnalysis = prev.yearAnalysis || {};
           if (!updatedYearAnalysis.recent_50) {
             updatedYearAnalysis.recent_50 = { average: new Date().getFullYear(), count: 0 };
           }
         }
         
-        // Update the results cache with the final year analysis
         updateResultsSection(topArtists, topTracks, 'yearAnalysis', updatedYearAnalysis);
         
         return {
@@ -301,15 +284,17 @@ export default function QuickStats({ isMobile }) {
         };
       });
 
+      console.log('✅ QuickStats: All calculations complete and cached');
       setLoading(false);
       setDataLoaded(true);
+      
     } catch (err) {
-      console.error('Error loading quick stats:', err);
+      console.error('Error in QuickStats:', err);
       setError(err.message);
       setLoading(false);
     } finally {
       // Reset the running flag
-      loadQuickStats.isRunning = false;
+      handleQuickStats.isRunning = false;
     }
   }, [updateResultsSection, setLoadingState, getCachedResults]);
 
@@ -320,19 +305,6 @@ export default function QuickStats({ isMobile }) {
       return;
     }
 
-    const loadData = async () => {
-      // First, ensure caches are initialized
-      try {
-        const { initializeAllCaches } = await import('../../utils/cacheManager');
-        await initializeAllCaches();
-      } catch (error) {
-        console.warn('Could not initialize caches:', error);
-      }
-      
-      // Then load QuickStats data
-      await loadQuickStats();
-    };
-
     // Clean up expired cache entries on mount
     try {
       cleanupExpired();
@@ -340,8 +312,8 @@ export default function QuickStats({ isMobile }) {
       console.warn('Could not cleanup expired cache:', error);
     }
     
-    // Start calculations immediately
-    loadData();
+    // Start the single QuickStats handler
+    handleQuickStats();
     
     // Set up a retry mechanism in case data isn't ready yet
     retryIntervalRef.current = setInterval(() => {
@@ -353,7 +325,7 @@ export default function QuickStats({ isMobile }) {
           clearInterval(retryIntervalRef.current);
           retryIntervalRef.current = null;
         }
-        loadData();
+        handleQuickStats();
       }
     }, 1000); // Check every second
     
@@ -381,26 +353,6 @@ export default function QuickStats({ isMobile }) {
       retryIntervalRef.current = null;
     }
   }, [loading]);
-
-  // Effect to refresh page when QuickStats data is loaded (only on first dashboard visit)
-  useEffect(() => {
-    if (dataLoaded && data.topArtist && data.topSong) {
-      // Check if this is the first time visiting dashboard in this session
-      const hasVisitedDashboard = sessionStorage.getItem('dashboardVisited');
-      
-      if (!hasVisitedDashboard) {
-        console.log('🔄 QuickStats: First dashboard visit with data, refreshing page...');
-        // Mark that we've visited the dashboard
-        sessionStorage.setItem('dashboardVisited', 'true');
-        // Add a small delay to ensure the data is fully rendered
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      } else {
-        console.log('🔄 QuickStats: Data loaded, but not first visit - skipping refresh');
-      }
-    }
-  }, [dataLoaded, data.topArtist, data.topSong]);
 
 
 
