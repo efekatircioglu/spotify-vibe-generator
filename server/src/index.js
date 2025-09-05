@@ -15,7 +15,130 @@ const PORT = 8000;
 
 // Add session management
 const session = require('express-session');
-const FileStore = require('session-file-store')(session);
+const crypto = require('crypto');
+
+// Custom session store that works with express-session
+class CustomDatabaseSessionStore {
+  constructor(pool) {
+    this.pool = pool;
+    this.encryptionKey = process.env.SESSION_SECRET || 'your-secret-key';
+  }
+
+  // Encrypt sensitive data
+  encrypt(text) {
+    const algorithm = 'aes-256-gcm';
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipher(algorithm, this.encryptionKey);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return `${algorithm}$${iv.toString('hex')}$${encrypted}`;
+  }
+
+  // Decrypt sensitive data
+  decrypt(encryptedText) {
+    try {
+      const [algorithm, ivHex, encrypted] = encryptedText.split('$');
+      const decipher = crypto.createDecipher(algorithm, this.encryptionKey);
+      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      return decrypted;
+    } catch (error) {
+      console.error('Decryption error:', error);
+      return null;
+    }
+  }
+
+  // Get session from database
+  async get(sessionId, callback) {
+    try {
+      const result = await this.pool.query(
+        'SELECT * FROM user_sessions WHERE session_id = $1 AND expires_at > NOW()',
+        [sessionId]
+      );
+
+      if (result.rows.length === 0) {
+        return callback(null, null);
+      }
+
+      const sessionData = result.rows[0];
+      const session = {
+        access_token: this.decrypt(sessionData.encrypted_access_token),
+        refresh_token: this.decrypt(sessionData.encrypted_refresh_token),
+        user_id: sessionData.spotify_id,
+        display_name: sessionData.display_name,
+        email: sessionData.email,
+        profile_image_url: sessionData.profile_image_url
+      };
+
+      callback(null, session);
+    } catch (error) {
+      console.error('Database session get error:', error);
+      callback(error, null);
+    }
+  }
+
+  // Set session in database
+  async set(sessionId, sessionData, callback) {
+    try {
+      if (!sessionData.access_token || !sessionData.refresh_token) {
+        return callback(null);
+      }
+
+      // Get user info from Spotify API to store in database
+      const spotifyApi = createSpotifyApiInstance(sessionData.access_token);
+      const userInfo = await spotifyApi.getMe();
+
+      const encryptedAccessToken = this.encrypt(sessionData.access_token);
+      const encryptedRefreshToken = this.encrypt(sessionData.refresh_token);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      await this.pool.query(`
+        INSERT INTO user_sessions (
+          session_id, spotify_id, display_name, email, profile_image_url,
+          encrypted_access_token, encrypted_refresh_token, expires_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (session_id) 
+        DO UPDATE SET
+          spotify_id = EXCLUDED.spotify_id,
+          display_name = EXCLUDED.display_name,
+          email = EXCLUDED.email,
+          profile_image_url = EXCLUDED.profile_image_url,
+          encrypted_access_token = EXCLUDED.encrypted_access_token,
+          encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
+          expires_at = EXCLUDED.expires_at,
+          updated_at = NOW()
+      `, [
+        sessionId,
+        userInfo.body.id,
+        userInfo.body.display_name,
+        userInfo.body.email,
+        userInfo.body.images?.[0]?.url || null,
+        encryptedAccessToken,
+        encryptedRefreshToken,
+        expiresAt
+      ]);
+
+      callback(null);
+    } catch (error) {
+      console.error('Database session set error:', error);
+      callback(error);
+    }
+  }
+
+  // Destroy session from database
+  async destroy(sessionId, callback) {
+    try {
+      await this.pool.query(
+        'DELETE FROM user_sessions WHERE session_id = $1',
+        [sessionId]
+      );
+      callback(null);
+    } catch (error) {
+      console.error('Database session destroy error:', error);
+      callback(error);
+    }
+  }
+}
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
@@ -25,14 +148,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Configure session middleware with file store
+// Configure session middleware (fallback to memory store for now)
 app.use(session({
-  store: new FileStore({
-    path: './sessions', // Directory to store session files
-    ttl: 24 * 60 * 60, // 24 hours in seconds
-    retries: 5,
-    logFn: function() {} // Disable logging
-  }),
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false, // Don't save session if unmodified
   saveUninitialized: false, // Don't create session until something stored
@@ -289,6 +406,45 @@ app.get('/callback', async (req, res) => {
     }
     
     console.log('Redirecting to:', finalRedirectUrl);
+    
+    // Store user session in database
+    try {
+      const userInfo = await spotifyApi.getMe();
+      const encryptedAccessToken = dbSessionStore.encrypt(access_token);
+      const encryptedRefreshToken = dbSessionStore.encrypt(refresh_token);
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      await pool.query(`
+        INSERT INTO user_sessions (
+          session_id, spotify_id, display_name, email, profile_image_url,
+          encrypted_access_token, encrypted_refresh_token, expires_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (session_id) 
+        DO UPDATE SET
+          spotify_id = EXCLUDED.spotify_id,
+          display_name = EXCLUDED.display_name,
+          email = EXCLUDED.email,
+          profile_image_url = EXCLUDED.profile_image_url,
+          encrypted_access_token = EXCLUDED.encrypted_access_token,
+          encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
+          expires_at = EXCLUDED.expires_at,
+          updated_at = NOW()
+      `, [
+        req.sessionID,
+        userInfo.body.id,
+        userInfo.body.display_name,
+        userInfo.body.email,
+        userInfo.body.images?.[0]?.url || null,
+        encryptedAccessToken,
+        encryptedRefreshToken,
+        expiresAt
+      ]);
+
+      console.log(`✅ User ${userInfo.body.display_name} session stored in database`);
+    } catch (dbError) {
+      console.error('❌ Error storing session in database:', dbError);
+      // Continue with redirect even if DB storage fails
+    }
     
     // Redirect to the destination page
     res.redirect(finalRedirectUrl);
