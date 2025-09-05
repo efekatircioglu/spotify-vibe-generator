@@ -15,18 +15,6 @@ const PORT = 8000;
 
 // Add session management
 const session = require('express-session');
-const crypto = require('crypto');
-
-// Simple encryption function for tokens
-function encrypt(text, key = process.env.SESSION_SECRET || 'your-secret-key') {
-  const algorithm = 'aes-256-cbc';
-  const keyHash = crypto.createHash('sha256').update(key).digest();
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(algorithm, keyHash, iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  return iv.toString('hex') + ':' + encrypted;
-}
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
@@ -334,74 +322,6 @@ app.get('/me', async (req, res) => {
     // Clear session if token is invalid
     req.session.destroy();
     res.status(401).json({ error: 'Invalid or expired token' });
-  }
-});
-
-// Endpoint to store user data in database after successful login
-app.post('/store-user-data', async (req, res) => {
-  try {
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-    
-    // Set the access token from session
-    spotifyApi.setAccessToken(req.session.access_token);
-    
-    // Get user info from Spotify API
-    const userInfo = await spotifyApi.getMe();
-    
-    // Encrypt tokens
-    const encryptedAccessToken = encrypt(req.session.access_token);
-    const encryptedRefreshToken = encrypt(req.session.refresh_token);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    // Store user session in database
-    await pool.query(`
-      INSERT INTO user_sessions (
-        session_id, spotify_id, display_name, email, profile_image_url,
-        encrypted_access_token, encrypted_refresh_token, expires_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (session_id) 
-      DO UPDATE SET
-        spotify_id = EXCLUDED.spotify_id,
-        display_name = EXCLUDED.display_name,
-        email = EXCLUDED.email,
-        profile_image_url = EXCLUDED.profile_image_url,
-        encrypted_access_token = EXCLUDED.encrypted_access_token,
-        encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
-        expires_at = EXCLUDED.expires_at,
-        updated_at = NOW()
-    `, [
-      req.sessionID,
-      userInfo.body.id,
-      userInfo.body.display_name,
-      userInfo.body.email,
-      userInfo.body.images?.[0]?.url || null,
-      encryptedAccessToken,
-      encryptedRefreshToken,
-      expiresAt
-    ]);
-
-    console.log(`✅ User ${userInfo.body.display_name} data stored in database`);
-    
-    res.json({ 
-      success: true, 
-      message: 'User data stored successfully',
-      user: {
-        id: userInfo.body.id,
-        display_name: userInfo.body.display_name,
-        email: userInfo.body.email
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Error storing user data:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to store user data',
-      message: error.message 
-    });
   }
 });
 
@@ -3746,4 +3666,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is accessible from internet at https://api.vibegenerator.me`);
 });
 
+// export the pool
 module.exports = pool;
