@@ -18,8 +18,11 @@ const session = require('express-session');
 const crypto = require('crypto');
 
 // Custom session store that works with express-session
-class CustomDatabaseSessionStore {
+const EventEmitter = require('events');
+
+class CustomDatabaseSessionStore extends EventEmitter {
   constructor(pool) {
+    super();
     this.pool = pool;
     this.encryptionKey = process.env.SESSION_SECRET || 'your-secret-key';
   }
@@ -150,6 +153,24 @@ class CustomDatabaseSessionStore {
         return callback(null);
       }
       console.error('Database session destroy error:', error);
+      callback(error);
+    }
+  }
+
+  // Touch method - update session expiration
+  async touch(sessionId, session, callback) {
+    try {
+      await this.pool.query(
+        'UPDATE user_sessions SET expires_at = $1 WHERE session_id = $2',
+        [new Date(Date.now() + 24 * 60 * 60 * 1000), sessionId]
+      );
+      callback(null);
+    } catch (error) {
+      // If table doesn't exist, just continue
+      if (error.code === '42P01') { // Table doesn't exist
+        return callback(null);
+      }
+      console.error('Database session touch error:', error);
       callback(error);
     }
   }
