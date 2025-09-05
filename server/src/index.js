@@ -4,7 +4,19 @@ const cors = require('cors');
 const express = require('express');
 const SpotifyWebApi = require('spotify-web-api-node');
 const { Pool } = require('pg');
-const pool = new Pool(); // Uses .env variables automatically
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+    require: true
+  },
+  // Additional options to handle SASL issues
+  application_name: 'vibegenerator-api',
+  statement_timeout: 30000,
+  query_timeout: 30000,
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000
+});
 const axios = require('axios');
 const { getDiscogsArtistProfile } = require('./services/discogsService');
 const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName, getArtistPrimaryGenre } = require('./services/discogsService');
@@ -17,167 +29,7 @@ const PORT = 8000;
 const session = require('express-session');
 const crypto = require('crypto');
 
-// Custom session store that works with express-session
-const EventEmitter = require('events');
-
-class CustomDatabaseSessionStore extends EventEmitter {
-  constructor(pool) {
-    super();
-    this.pool = pool;
-    this.encryptionKey = process.env.SESSION_SECRET || 'your-secret-key';
-  }
-
-  // Encrypt sensitive data
-  encrypt(text) {
-    const algorithm = 'aes-256-cbc';
-    const key = crypto.scryptSync(this.encryptionKey, 'salt', 32);
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return `${algorithm}$${iv.toString('hex')}$${encrypted}`;
-  }
-
-  // Decrypt sensitive data
-  decrypt(encryptedText) {
-    try {
-      const [algorithm, ivHex, encrypted] = encryptedText.split('$');
-      const key = crypto.scryptSync(this.encryptionKey, 'salt', 32);
-      const iv = Buffer.from(ivHex, 'hex');
-      const decipher = crypto.createDecipheriv(algorithm, key, iv);
-      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-      return decrypted;
-    } catch (error) {
-      console.error('Decryption error:', error);
-      return null;
-    }
-  }
-
-  // Get session from database
-  async get(sessionId, callback) {
-    try {
-      const result = await this.pool.query(
-        'SELECT * FROM user_sessions WHERE session_id = $1 AND expires_at > NOW()',
-        [sessionId]
-      );
-
-      if (result.rows.length === 0) {
-        return callback(null, null);
-      }
-
-      const sessionData = result.rows[0];
-      const session = {
-        access_token: this.decrypt(sessionData.encrypted_access_token),
-        refresh_token: this.decrypt(sessionData.encrypted_refresh_token),
-        user_id: sessionData.spotify_id,
-        display_name: sessionData.display_name,
-        email: sessionData.email,
-        profile_image_url: sessionData.profile_image_url
-      };
-
-      callback(null, session);
-    } catch (error) {
-      // If table doesn't exist, return null (no session)
-      if (error.code === '42P01') { // Table doesn't exist
-        console.log('ℹ️ Database table not created yet - returning null session');
-        return callback(null, null);
-      }
-      console.error('Database session get error:', error);
-      callback(error, null);
-    }
-  }
-
-  // Set session in database
-  async set(sessionId, sessionData, callback) {
-    try {
-      if (!sessionData.access_token || !sessionData.refresh_token) {
-        return callback(null);
-      }
-
-      // Get user info from Spotify API to store in database
-      const spotifyApi = createSpotifyApiInstance(sessionData.access_token);
-      const userInfo = await spotifyApi.getMe();
-
-      const encryptedAccessToken = this.encrypt(sessionData.access_token);
-      const encryptedRefreshToken = this.encrypt(sessionData.refresh_token);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-      await this.pool.query(`
-        INSERT INTO user_sessions (
-          session_id, spotify_id, display_name, email, profile_image_url,
-          encrypted_access_token, encrypted_refresh_token, expires_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (session_id) 
-        DO UPDATE SET
-          spotify_id = EXCLUDED.spotify_id,
-          display_name = EXCLUDED.display_name,
-          email = EXCLUDED.email,
-          profile_image_url = EXCLUDED.profile_image_url,
-          encrypted_access_token = EXCLUDED.encrypted_access_token,
-          encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
-          expires_at = EXCLUDED.expires_at,
-          updated_at = NOW()
-      `, [
-        sessionId,
-        userInfo.body.id,
-        userInfo.body.display_name,
-        userInfo.body.email,
-        userInfo.body.images?.[0]?.url || null,
-        encryptedAccessToken,
-        encryptedRefreshToken,
-        expiresAt
-      ]);
-
-      callback(null);
-    } catch (error) {
-      // If table doesn't exist, just log and continue
-      if (error.code === '42P01') { // Table doesn't exist
-        console.log('ℹ️ Database table not created yet - skipping session storage');
-        console.log('Run the SQL in create_user_sessions_table.sql to enable database storage');
-        return callback(null);
-      }
-      console.error('Database session set error:', error);
-      callback(error);
-    }
-  }
-
-  // Destroy session from database
-  async destroy(sessionId, callback) {
-    try {
-      await this.pool.query(
-        'DELETE FROM user_sessions WHERE session_id = $1',
-        [sessionId]
-      );
-      callback(null);
-    } catch (error) {
-      // If table doesn't exist, just continue
-      if (error.code === '42P01') { // Table doesn't exist
-        return callback(null);
-      }
-      console.error('Database session destroy error:', error);
-      callback(error);
-    }
-  }
-
-  // Touch method - update session expiration
-  async touch(sessionId, session, callback) {
-    try {
-      await this.pool.query(
-        'UPDATE user_sessions SET expires_at = $1 WHERE session_id = $2',
-        [new Date(Date.now() + 24 * 60 * 60 * 1000), sessionId]
-      );
-      callback(null);
-    } catch (error) {
-      // If table doesn't exist, just continue
-      if (error.code === '42P01') { // Table doesn't exist
-        return callback(null);
-      }
-      console.error('Database session touch error:', error);
-      callback(error);
-    }
-  }
-}
+// Using memory-based sessions (no database dependency for session management)
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
@@ -187,7 +39,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Configure session middleware (temporarily using memory store)
+// Configure session middleware with memory store (no database dependency)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false, // Don't save session if unmodified
@@ -446,10 +298,6 @@ app.get('/callback', async (req, res) => {
     
     console.log('Redirecting to:', finalRedirectUrl);
     
-    // Store user session in database (temporarily disabled)
-    // TODO: Fix database connection issue
-    console.log('ℹ️ Database session storage temporarily disabled');
-    
     // Redirect to the destination page
     res.redirect(finalRedirectUrl);
  
@@ -524,6 +372,83 @@ app.get('/me', setAccessTokenFromSession, async (req, res) => {
     // Clear session if token is invalid
     req.session.destroy();
     res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
+// Endpoint to store user data in database after successful login
+app.post('/store-user-data', setAccessTokenFromSession, async (req, res) => {
+  try {
+    // Check if we have a valid session
+    if (!req.session || !req.session.access_token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    // Get user info from Spotify API
+    const spotifyApiInstance = req.spotifyApi;
+    const userInfo = await spotifyApiInstance.getMe();
+    
+    // Simple encryption function for tokens
+    function encrypt(text, key = process.env.SESSION_SECRET || 'your-secret-key') {
+      const algorithm = 'aes-256-cbc';
+      const keyHash = crypto.createHash('sha256').update(key).digest();
+      const iv = crypto.randomBytes(16);
+      const cipher = crypto.createCipheriv(algorithm, keyHash, iv);
+      let encrypted = cipher.update(text, 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+      return iv.toString('hex') + ':' + encrypted;
+    }
+    
+    // Encrypt tokens
+    const encryptedAccessToken = encrypt(req.session.access_token);
+    const encryptedRefreshToken = encrypt(req.session.refresh_token);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Store user session in database
+    await pool.query(`
+      INSERT INTO user_sessions (
+        session_id, spotify_id, display_name, email, profile_image_url,
+        encrypted_access_token, encrypted_refresh_token, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (session_id) 
+      DO UPDATE SET
+        spotify_id = EXCLUDED.spotify_id,
+        display_name = EXCLUDED.display_name,
+        email = EXCLUDED.email,
+        profile_image_url = EXCLUDED.profile_image_url,
+        encrypted_access_token = EXCLUDED.encrypted_access_token,
+        encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
+        expires_at = EXCLUDED.expires_at,
+        updated_at = NOW()
+    `, [
+      req.sessionID,
+      userInfo.body.id,
+      userInfo.body.display_name,
+      userInfo.body.email,
+      userInfo.body.images?.[0]?.url || null,
+      encryptedAccessToken,
+      encryptedRefreshToken,
+      expiresAt
+    ]);
+
+    console.log(`✅ User ${userInfo.body.display_name} data stored in database`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User data stored successfully',
+      user: {
+        id: userInfo.body.id,
+        display_name: userInfo.body.display_name,
+        email: userInfo.body.email
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error storing user data:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to store user data',
+      message: error.message 
+    });
   }
 });
 
