@@ -101,7 +101,7 @@ export default function Last12MonthsPage() {
     <>
       <Sidebar onToggle={(open) => setSidebarOpen(open)} />
       <div style={{ 
-git         background: '#101114', 
+        background: '#101114', 
         minHeight: '100vh',
         marginLeft: sidebarOpen ? '280px' : '0',
         transition: 'margin-left 0.3s ease'
