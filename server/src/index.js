@@ -4,19 +4,7 @@ const cors = require('cors');
 const express = require('express');
 const SpotifyWebApi = require('spotify-web-api-node');
 const { Pool } = require('pg');
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-    require: true
-  },
-  // Additional options to handle SASL issues
-  application_name: 'vibegenerator-api',
-  statement_timeout: 30000,
-  query_timeout: 30000,
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 30000
-});
+const pool = new Pool(); // Uses .env variables automatically
 const axios = require('axios');
 const { getDiscogsArtistProfile } = require('./services/discogsService');
 const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName, getArtistPrimaryGenre } = require('./services/discogsService');
@@ -29,7 +17,16 @@ const PORT = 8000;
 const session = require('express-session');
 const crypto = require('crypto');
 
-// Using memory-based sessions (no database dependency for session management)
+// Simple encryption function for tokens
+function encrypt(text, key = process.env.SESSION_SECRET || 'your-secret-key') {
+  const algorithm = 'aes-256-cbc';
+  const keyHash = crypto.createHash('sha256').update(key).digest();
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(algorithm, keyHash, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+}
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
@@ -39,30 +36,23 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Configure session middleware with memory store (no database dependency)
+// Configure session middleware
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false, // Don't save session if unmodified
-  saveUninitialized: false, // Don't create session until something stored
+  resave: true, // Changed to true for better reliability
+  saveUninitialized: true, // Changed to true for better reliability
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Only secure in production
+    secure: true, // Set to true for HTTPS
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax' // Added for better security
   }
 }));
 
-// Middleware to create per-user Spotify API instance from session
+// Middleware to set access token from session
 const setAccessTokenFromSession = (req, res, next) => {
   if (req.session && req.session.access_token) {
-    // Create a new Spotify API instance for this user
-    req.spotifyApi = createSpotifyApiInstance(
-      req.session.access_token,
-      req.session.refresh_token
-    );
-  } else {
-    // No session, create instance without tokens
-    req.spotifyApi = createSpotifyApiInstance();
+    spotifyApi.setAccessToken(req.session.access_token);
   }
   next();
 };
@@ -84,30 +74,16 @@ const scopes = [
   'user-follow-modify',
 ];
 
-// Create a factory function for Spotify API instances
-const createSpotifyApiInstance = (accessToken = null, refreshToken = null) => {
-  const spotifyApi = new SpotifyWebApi({
-    clientId: process.env.SPOTIFY_CLIENT_ID,
-    clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-    redirectUri: 'https://api.vibegenerator.me/callback', // Updated for new domain
-  });
-  
-  if (accessToken) {
-    spotifyApi.setAccessToken(accessToken);
-  }
-  if (refreshToken) {
-    spotifyApi.setRefreshToken(refreshToken);
-  }
-  
-  return spotifyApi;
-};
-
-// Keep a global instance for OAuth flow only (no tokens)
-const spotifyApi = createSpotifyApiInstance();
-// Token refresh function for per-user instances
-const refreshAccessTokenIfNeeded = async (spotifyApiInstance) => {
+// Create a new instance of the SpotifyWebApi client
+const spotifyApi = new SpotifyWebApi({
+  clientId: process.env.SPOTIFY_CLIENT_ID,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+  redirectUri: 'https://api.vibegenerator.me/callback', // Updated for new domain
+});
+// Token refresh function
+const refreshAccessTokenIfNeeded = async () => {
   try {
-    const accessToken = spotifyApiInstance.getAccessToken();
+    const accessToken = spotifyApi.getAccessToken();
     if (!accessToken) {
       console.log('No access token available');
       return false;
@@ -115,20 +91,20 @@ const refreshAccessTokenIfNeeded = async (spotifyApiInstance) => {
     
     // Try to make a simple API call to test if token is valid
     try {
-      await spotifyApiInstance.getMe();
+      await spotifyApi.getMe();
       return true; // Token is still valid
     } catch (error) {
       if (error.statusCode === 401) {
         console.log('Access token expired, attempting to refresh...');
-        const refreshToken = spotifyApiInstance.getRefreshToken();
+        const refreshToken = spotifyApi.getRefreshToken();
         if (!refreshToken) {
           console.log('No refresh token available');
           return false;
         }
         
-        const data = await spotifyApiInstance.refreshAccessToken();
+        const data = await spotifyApi.refreshAccessToken();
         const newAccessToken = data.body.access_token;
-        spotifyApiInstance.setAccessToken(newAccessToken);
+        spotifyApi.setAccessToken(newAccessToken);
         console.log('Successfully refreshed access token');
         return true;
       }
@@ -172,9 +148,9 @@ app.get('/login', (req, res) => {
   
   // For different account login, try to clear any existing session first
   if (showDialog) {
-    // Clear any existing session to force fresh authentication
-    // Note: We can't access req.session here since this is a GET route
-    // The session will be cleared when the user goes through OAuth flow
+    // Clear any existing tokens to force fresh authentication
+    spotifyApi.setAccessToken(null);
+    spotifyApi.setRefreshToken(null);
   }
   
   console.log('Redirecting to Spotify OAuth:', authorizeURL);
@@ -247,6 +223,10 @@ app.get('/callback', async (req, res) => {
     const data = await spotifyApi.authorizationCodeGrant(code);
     const { access_token, refresh_token } = data.body;
 
+    // Set the tokens on our Spotify API object
+    spotifyApi.setAccessToken(access_token);
+    spotifyApi.setRefreshToken(refresh_token);
+
     console.log('Successfully retrieved access token!');
     console.log('Access Token:', access_token);
     
@@ -309,38 +289,26 @@ app.get('/callback', async (req, res) => {
 });
 
 // API endpoint for the frontend to check auth status and get user data.
-app.get('/me', setAccessTokenFromSession, async (req, res) => {
+app.get('/me', async (req, res) => {
   try {
-    // Use the per-user Spotify API instance from middleware
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Not authenticated' });
+    // Set the access token from session if available
+    if (req.session && req.session.access_token) {
+      spotifyApi.setAccessToken(req.session.access_token);
     }
     
-    // Check if token needs refresh
-    const isValid = await refreshAccessTokenIfNeeded(spotifyApiInstance);
-    
-    if (!isValid) {
-      console.log('Token is invalid, clearing session');
-      req.session.destroy();
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-    
-    const { body } = await spotifyApiInstance.getMe();
+    const { body } = await spotifyApi.getMe();
     
     // Get user's public profile to access follower count and following count
     let followerCount = null;
     let followingCount = null;
     let product = null;
     try {
-      const { body: profileBody } = await spotifyApiInstance.getUser(body.id);
+      const { body: profileBody } = await spotifyApi.getUser(body.id);
       followerCount = profileBody.followers?.total || null;
       
       // Get following count (artists and users the user follows)
       try {
-        const { body: followingBody } = await spotifyApiInstance.getFollowedArtists();
+        const { body: followingBody } = await spotifyApi.getFollowedArtists();
         followingCount = followingBody.artists?.total || 0;
       } catch (followingErr) {
         console.log('Could not fetch following count:', followingErr.message);
@@ -352,12 +320,6 @@ app.get('/me', setAccessTokenFromSession, async (req, res) => {
     
     // Get user's product (Premium/Free status) from the main user data
     product = body.product || null;
-    
-    // Update session with user ID if not set
-    if (!req.session.user_id) {
-      req.session.user_id = body.id;
-      req.session.save();
-    }
     
     // Return user data with follower count, following count, and product
     res.json({
@@ -376,27 +338,18 @@ app.get('/me', setAccessTokenFromSession, async (req, res) => {
 });
 
 // Endpoint to store user data in database after successful login
-app.post('/store-user-data', setAccessTokenFromSession, async (req, res) => {
+app.post('/store-user-data', async (req, res) => {
   try {
     // Check if we have a valid session
     if (!req.session || !req.session.access_token) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     
-    // Get user info from Spotify API
-    const spotifyApiInstance = req.spotifyApi;
-    const userInfo = await spotifyApiInstance.getMe();
+    // Set the access token from session
+    spotifyApi.setAccessToken(req.session.access_token);
     
-    // Simple encryption function for tokens
-    function encrypt(text, key = process.env.SESSION_SECRET || 'your-secret-key') {
-      const algorithm = 'aes-256-cbc';
-      const keyHash = crypto.createHash('sha256').update(key).digest();
-      const iv = crypto.randomBytes(16);
-      const cipher = crypto.createCipheriv(algorithm, keyHash, iv);
-      let encrypted = cipher.update(text, 'utf8', 'hex');
-      encrypted += cipher.final('hex');
-      return iv.toString('hex') + ':' + encrypted;
-    }
+    // Get user info from Spotify API
+    const userInfo = await spotifyApi.getMe();
     
     // Encrypt tokens
     const encryptedAccessToken = encrypt(req.session.access_token);
@@ -453,23 +406,22 @@ app.post('/store-user-data', setAccessTokenFromSession, async (req, res) => {
 });
 
 // POST endpoint for token refresh
-app.post('/me', setAccessTokenFromSession, async (req, res) => {
+app.post('/me', async (req, res) => {
   try {
     const { refresh, refresh_token } = req.body;
     
     if (refresh && refresh_token) {
       console.log('Attempting to refresh token...');
       
-      // Create a temporary instance for refresh
-      const tempSpotifyApi = createSpotifyApiInstance(null, refresh_token);
+      // Set the refresh token and try to refresh
+      spotifyApi.setRefreshToken(refresh_token);
       
       try {
-        const data = await tempSpotifyApi.refreshAccessToken();
+        const data = await spotifyApi.refreshAccessToken();
         const newAccessToken = data.body['access_token'];
         
-        // Update session with new token
-        req.session.access_token = newAccessToken;
-        req.session.save();
+        // Update the API object with new token
+        spotifyApi.setAccessToken(newAccessToken);
         
         console.log('Token refreshed successfully');
         res.json({ token: newAccessToken });
@@ -490,20 +442,10 @@ app.post('/me', setAccessTokenFromSession, async (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-  // Clear session (this is the only thing we need to clear)
-  req.session.destroy((err) => {
-    if (err) {
-      console.error('Error destroying session:', err);
-    } else {
-      console.log('Session destroyed successfully');
-    }
-  });
+  // Clear all tokens from the server
+  spotifyApi.setAccessToken(null);
+  spotifyApi.setRefreshToken(null);
   
-  res.json({ message: 'Logged out successfully' });
-});
-
-// Add a force-logout endpoint for different account login
-app.get('/force-logout', (req, res) => {
   // Clear session
   req.session.destroy((err) => {
     if (err) {
@@ -512,6 +454,21 @@ app.get('/force-logout', (req, res) => {
       console.log('Session destroyed successfully');
     }
   });
+  
+  // Clear any global token storage
+  if (global.tempTokens) {
+    global.tempTokens = {};
+  }
+  
+  res.json({ message: 'Logged out successfully' });
+});
+
+// Add a force-logout endpoint for different account login
+app.get('/force-logout', (req, res) => {
+  // Clear all server-side tokens
+  spotifyApi.setAccessToken(null);
+  spotifyApi.setRefreshToken(null);
+  if (global.tempTokens) { global.tempTokens = {}; }
   
   const destination = req.query.destination || 'dashboard';
   
@@ -591,17 +548,14 @@ app.get('/analyze-recents', async (req, res) => {
 
 app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
   try {
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
     // Fetch up to 50 recently played tracks
-    const { body } = await spotifyApiInstance.getMyRecentlyPlayedTracks({ limit: 50 });
+    const { body } = await spotifyApi.getMyRecentlyPlayedTracks({ limit: 50 });
     
     // Extract track IDs to fetch detailed information
     const trackIds = body.items.map(item => item.track.id).filter(Boolean);
     
     // Fetch detailed track information including release dates
-    const { body: detailedTracksBody } = await spotifyApiInstance.getTracks(trackIds);
+    const { body: detailedTracksBody } = await spotifyApi.getTracks(trackIds);
     const detailedTracks = detailedTracksBody.tracks;
     
     // Get all first artist IDs
@@ -611,7 +565,7 @@ app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
     let artistGenres = {};
     for (let i = 0; i < artistIds.length; i += 50) {
       const batch = artistIds.slice(i, i + 50);
-      const { body: artistsBody } = await spotifyApiInstance.getArtists(batch);
+      const { body: artistsBody } = await spotifyApi.getArtists(batch);
       artistsBody.artists.forEach(artist => {
         artistGenres[artist.id] = artist.genres && artist.genres.length > 0 ? artist.genres[0] : null;
       });
@@ -656,29 +610,21 @@ app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
   }
 });
 
-app.get('/playlists', setAccessTokenFromSession, async (req, res) => {
+app.get('/playlists', async (req, res) => {
   try {
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
     // Refresh access token if needed
-    const tokenValid = await refreshAccessTokenIfNeeded(spotifyApiInstance);
+    const tokenValid = await refreshAccessTokenIfNeeded();
     if (!tokenValid) {
       console.error('Could not obtain valid access token');
       return res.status(401).json({ error: 'Authentication required. Please log in again.' });
     }
     
     // Get the current user's Spotify ID
-    const me = await spotifyApiInstance.getMe();
+    const me = await spotifyApi.getMe();
     const userId = me.body.id;
 
     // Fetch all playlists (max 50 per request)
-    const { body } = await spotifyApiInstance.getUserPlaylists({ limit: 50 });
+    const { body } = await spotifyApi.getUserPlaylists({ limit: 50 });
 
     // Filter to only playlists where the owner is the current user
     const playlists = await Promise.all(
@@ -703,29 +649,21 @@ app.get('/playlists', setAccessTokenFromSession, async (req, res) => {
 });
 
 // New endpoint to get playlists with duration information
-app.get('/playlists-with-duration', setAccessTokenFromSession, async (req, res) => {
+app.get('/playlists-with-duration', async (req, res) => {
   try {
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
     // Refresh access token if needed
-    const tokenValid = await refreshAccessTokenIfNeeded(spotifyApiInstance);
+    const tokenValid = await refreshAccessTokenIfNeeded();
     if (!tokenValid) {
       console.error('Could not obtain valid access token');
       return res.status(401).json({ error: 'Authentication required. Please log in again.' });
     }
     
     // Get the current user's Spotify ID
-    const me = await spotifyApiInstance.getMe();
+    const me = await spotifyApi.getMe();
     const userId = me.body.id;
 
     // Fetch all playlists (max 50 per request)
-    const { body } = await spotifyApiInstance.getUserPlaylists({ limit: 50 });
+    const { body } = await spotifyApi.getUserPlaylists({ limit: 50 });
 
     // Filter to only playlists where the owner is the current user and fetch duration
     const playlists = await Promise.all(
@@ -740,7 +678,7 @@ app.get('/playlists-with-duration', setAccessTokenFromSession, async (req, res) 
             let first = true;
             
             while (first || allTracks.length < total) {
-              const { body: tracksBody } = await spotifyApiInstance.getPlaylistTracks(item.id, { offset, limit: 100 });
+              const { body: tracksBody } = await spotifyApi.getPlaylistTracks(item.id, { offset, limit: 100 });
               if (first) {
                 total = tracksBody.total;
                 first = false;
@@ -782,21 +720,13 @@ app.get('/playlists-with-duration', setAccessTokenFromSession, async (req, res) 
   }
 });
 
-app.get('/playlist-genres/:id', setAccessTokenFromSession, async (req, res) => {
+app.get('/playlist-genres/:id', async (req, res) => {
   try {
     const playlistId = req.params.id;
     if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
     
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
     // Refresh access token if needed
-    const tokenValid = await refreshAccessTokenIfNeeded(spotifyApiInstance);
+    const tokenValid = await refreshAccessTokenIfNeeded();
     if (!tokenValid) {
       console.error('Could not obtain valid access token');
       return res.status(401).json({ error: 'Authentication required. Please log in again.' });
@@ -808,7 +738,7 @@ app.get('/playlist-genres/:id', setAccessTokenFromSession, async (req, res) => {
     let total = 1;
     let first = true;
     while (first || allTracks.length < total) {
-      const { body: tracksBody } = await spotifyApiInstance.getPlaylistTracks(playlistId, { offset, limit: 100 });
+      const { body: tracksBody } = await spotifyApi.getPlaylistTracks(playlistId, { offset, limit: 100 });
       if (first) {
         total = tracksBody.total;
         first = false;
@@ -852,7 +782,7 @@ app.get('/playlist-genres/:id', setAccessTokenFromSession, async (req, res) => {
     
     for (let i = 0; i < artistIds.length; i += 50) {
       const batch = artistIds.slice(i, i + 50);
-      const { body } = await spotifyApiInstance.getArtists(batch);
+      const { body } = await spotifyApi.getArtists(batch);
       
       body.artists.forEach(artist => {
         const artistData = artistTrackMap.get(artist.id);
@@ -903,21 +833,13 @@ app.get('/playlist-genres/:id', setAccessTokenFromSession, async (req, res) => {
   }
 });
 
-app.get('/playlist-tracks-for-wrapped/:id', setAccessTokenFromSession, async (req, res) => {
+app.get('/playlist-tracks-for-wrapped/:id', async (req, res) => {
   try {
     const playlistId = req.params.id;
     if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
     
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
     // Refresh access token if needed
-    const tokenValid = await refreshAccessTokenIfNeeded(spotifyApiInstance);
+    const tokenValid = await refreshAccessTokenIfNeeded();
     if (!tokenValid) {
       console.error('Could not obtain valid access token');
       return res.status(401).json({ error: 'Authentication required. Please log in again.' });
@@ -930,7 +852,7 @@ app.get('/playlist-tracks-for-wrapped/:id', setAccessTokenFromSession, async (re
     let first = true;
     
     while (first || allTracks.length < total) {
-      const { body: tracksBody } = await spotifyApiInstance.getPlaylistTracks(playlistId, { offset, limit: 100 });
+      const { body: tracksBody } = await spotifyApi.getPlaylistTracks(playlistId, { offset, limit: 100 });
       if (first) {
         total = tracksBody.total;
         first = false;
@@ -984,20 +906,11 @@ app.get('/playlist-tracks-for-wrapped/:id', setAccessTokenFromSession, async (re
   }
 });
 
-app.get('/artist-genre/:id', setAccessTokenFromSession, async (req, res) => {
+app.get('/artist-genre/:id', async (req, res) => {
   try {
     const artistId = req.params.id;
     if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
-    
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
-    const { body } = await spotifyApiInstance.getArtist(artistId);
+    const { body } = await spotifyApi.getArtist(artistId);
     res.json({ genres: body.genres });
   } catch (err) {
     console.error('Error fetching artist genre:', err);
@@ -1006,23 +919,15 @@ app.get('/artist-genre/:id', setAccessTokenFromSession, async (req, res) => {
 });
 
 // New endpoint to get artist genre by name (following /artist page pattern)
-app.get('/artist-genre-by-name', setAccessTokenFromSession, async (req, res) => {
+app.get('/artist-genre-by-name', async (req, res) => {
   try {
     const { artistName } = req.query;
     if (!artistName) return res.status(400).json({ error: 'Missing artist name' });
     
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
     // Searching for artist...
     
     // Search for the artist using Spotify API (same as /artist page)
-    const searchRes = await spotifyApiInstance.searchArtists(artistName, { limit: 10 });
+    const searchRes = await spotifyApi.searchArtists(artistName, { limit: 10 });
     const artists = searchRes.body.artists.items;
     
     if (artists && artists.length > 0) {
@@ -1132,21 +1037,13 @@ app.get('/concerts/events', async (req, res) => {
   }
 });
 
-app.get('/playlist-artists/:id', setAccessTokenFromSession, async (req, res) => {
+app.get('/playlist-artists/:id', async (req, res) => {
   try {
     const playlistId = req.params.id;
     if (!playlistId) return res.status(400).json({ error: 'Missing playlist ID' });
     
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
     // Refresh access token if needed
-    const tokenValid = await refreshAccessTokenIfNeeded(spotifyApiInstance);
+    const tokenValid = await refreshAccessTokenIfNeeded();
     if (!tokenValid) {
       console.error('Could not obtain valid access token');
       return res.status(401).json({ error: 'Authentication required. Please log in again.' });
@@ -1159,7 +1056,7 @@ app.get('/playlist-artists/:id', setAccessTokenFromSession, async (req, res) => 
     let first = true;
     
     while (first || allTracks.length < total) {
-      const { body: tracksBody } = await spotifyApiInstance.getPlaylistTracks(playlistId, { offset, limit: 100 });
+      const { body: tracksBody } = await spotifyApi.getPlaylistTracks(playlistId, { offset, limit: 100 });
       if (first) {
         total = tracksBody.total;
         first = false;
@@ -1212,18 +1109,10 @@ app.get('/playlist-artists/:id', setAccessTokenFromSession, async (req, res) => 
   }
 });
 
-app.get('/top-tracks', setAccessTokenFromSession, async (req, res) => {
+app.get('/top-tracks', async (req, res) => {
   const { time_range = 'short_term', limit } = req.query;
   try {
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
-    const { body } = await spotifyApiInstance.getMyTopTracks({ time_range, limit: limit ? Number(limit) : 50 });
+    const { body } = await spotifyApi.getMyTopTracks({ time_range, limit: limit ? Number(limit) : 50 });
     res.json(body.items);
   } catch (err) {
     console.error('Error fetching top tracks:', err);
@@ -1231,18 +1120,10 @@ app.get('/top-tracks', setAccessTokenFromSession, async (req, res) => {
   }
 });
 
-app.get('/top-artists', setAccessTokenFromSession, async (req, res) => {
+app.get('/top-artists', async (req, res) => {
   const { time_range = 'short_term', limit } = req.query;
   try {
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
-    const { body } = await spotifyApiInstance.getMyTopArtists({ time_range, limit: limit ? Number(limit) : 50 });
+    const { body } = await spotifyApi.getMyTopArtists({ time_range, limit: limit ? Number(limit) : 50 });
     res.json(body.items);
   } catch (err) {
     console.error('Error fetching top artists:', err);
@@ -1251,10 +1132,10 @@ app.get('/top-artists', setAccessTokenFromSession, async (req, res) => {
 });
 
 // Helper to get top data for a given time range
-async function getTopData(time_range, spotifyApiInstance) {
+async function getTopData(time_range) {
   const [tracksRes, artistsRes] = await Promise.all([
-    spotifyApiInstance.getMyTopTracks({ time_range, limit: 50 }),
-    spotifyApiInstance.getMyTopArtists({ time_range, limit: 50 })
+    spotifyApi.getMyTopTracks({ time_range, limit: 50 }),
+    spotifyApi.getMyTopArtists({ time_range, limit: 50 })
   ]);
   const basicTracks = tracksRes.body.items;
   const artists = artistsRes.body.items;
@@ -1265,7 +1146,7 @@ async function getTopData(time_range, spotifyApiInstance) {
   
   // Fetch detailed track information including release dates
   const trackIds = basicTracks.map(track => track.id);
-  const detailedTracksRes = await spotifyApiInstance.getTracks(trackIds);
+  const detailedTracksRes = await spotifyApi.getTracks(trackIds);
   const detailedTracks = detailedTracksRes.body.tracks;
   
   // Debug: Check if detailed tracks have release date information
@@ -1312,7 +1193,7 @@ async function getTopData(time_range, spotifyApiInstance) {
 
 app.get('/last-4-weeks', setAccessTokenFromSession, async (req, res) => {
   try {
-    const data = await getTopData('short_term', req.spotifyApi);
+    const data = await getTopData('short_term');
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1322,7 +1203,7 @@ app.get('/last-4-weeks', setAccessTokenFromSession, async (req, res) => {
 
 app.get('/last-6-months', setAccessTokenFromSession, async (req, res) => {
   try {
-    const data = await getTopData('medium_term', req.spotifyApi);
+    const data = await getTopData('medium_term');
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1332,7 +1213,7 @@ app.get('/last-6-months', setAccessTokenFromSession, async (req, res) => {
 
 app.get('/last-12-months', setAccessTokenFromSession, async (req, res) => {
   try {
-    const data = await getTopData('long_term', req.spotifyApi);
+    const data = await getTopData('long_term');
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1372,7 +1253,7 @@ app.get('/genre-details/:timeRange', setAccessTokenFromSession, async (req, res)
 });
 
 // New endpoint to search for artist by name and get spotifyId
-app.get('/search-artist', setAccessTokenFromSession, async (req, res) => {
+app.get('/search-artist', async (req, res) => {
   try {
     const { name } = req.query;
     
@@ -1380,18 +1261,10 @@ app.get('/search-artist', setAccessTokenFromSession, async (req, res) => {
       return res.status(400).json({ error: 'Artist name is required' });
     }
     
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
     console.log(`[search-artist] Searching for artist: ${name}`);
     
     // Search for the artist using Spotify API
-    const searchRes = await spotifyApiInstance.searchArtists(name, { limit: 5 });
+    const searchRes = await spotifyApi.searchArtists(name, { limit: 5 });
     const artists = searchRes.body.artists.items;
     
     if (artists && artists.length > 0) {
@@ -1523,16 +1396,8 @@ function getCachedPlaylistUrl(accessToken, tableType) {
 }
 
 // --- Endpoint to get cached playlist URL for current token and table type ---
-app.get('/cached-playlist-url', setAccessTokenFromSession, (req, res) => {
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-  }
-  
-  const accessToken = spotifyApiInstance.getAccessToken();
+app.get('/cached-playlist-url', (req, res) => {
+  const accessToken = spotifyApi.getAccessToken();
   const tableType = req.query.tableType;
   if (!accessToken || !tableType) return res.json({ playlistUrl: null });
   const url = getCachedPlaylistUrl(accessToken, tableType);
@@ -1540,27 +1405,19 @@ app.get('/cached-playlist-url', setAccessTokenFromSession, (req, res) => {
 });
 
 // Create playlist endpoint
-app.post('/create-playlist', setAccessTokenFromSession, express.json(), async (req, res) => {
+app.post('/create-playlist', express.json(), async (req, res) => {
   try {
     const { name, trackUris, timeRange } = req.body;
-
+    
     if (!name || !trackUris || !Array.isArray(trackUris)) {
       return res.status(400).json({ error: 'Missing required fields: name and trackUris array' });
     }
 
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-
     // Get current user
-    const { body: user } = await spotifyApiInstance.getMe();
+    const { body: user } = await spotifyApi.getMe();
     
     // Create the playlist
-    const { body: playlist } = await spotifyApiInstance.createPlaylist(user.id, {
+    const { body: playlist } = await spotifyApi.createPlaylist(user.id, {
       name: name,
       description: `Created from Vibe Generator - ${timeRange || 'Custom'}`
     });
@@ -1569,11 +1426,11 @@ app.post('/create-playlist', setAccessTokenFromSession, express.json(), async (r
     const batchSize = 100;
     for (let i = 0; i < trackUris.length; i += batchSize) {
       const batch = trackUris.slice(i, i + batchSize);
-      await spotifyApiInstance.addTracksToPlaylist(playlist.id, batch);
+      await spotifyApi.addTracksToPlaylist(playlist.id, batch);
     }
 
     // Cache the playlist URL for this access token and table type
-    const accessToken = spotifyApiInstance.getAccessToken();
+    const accessToken = spotifyApi.getAccessToken();
     if (accessToken && timeRange) {
       cachePlaylistUrl(accessToken, timeRange, playlist.external_urls.spotify, 3600); // 1 hour expiry
     }
@@ -1591,20 +1448,11 @@ app.post('/create-playlist', setAccessTokenFromSession, express.json(), async (r
 });
 
 
-app.get('/track-isrc/:id', setAccessTokenFromSession, async (req, res) => {
+app.get('/track-isrc/:id', async (req, res) => {
   const trackId = req.params.id;
   if (!trackId) return res.status(400).json({ error: 'Missing track ID' });
-  
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-  }
-  
   try {
-    const { body } = await spotifyApiInstance.getTrack(trackId);
+    const { body } = await spotifyApi.getTrack(trackId);
     const isrc = body && body.external_ids && body.external_ids.isrc ? body.external_ids.isrc : null;
     res.json({ isrc });
   } catch (err) {
@@ -1691,18 +1539,10 @@ app.get('/:mbid/low-level', async (req, res) => {
 });
 
 // Get albums by artist ID (Spotify)
-app.get('/artist-albums/:artistId', setAccessTokenFromSession, async (req, res) => {
+app.get('/artist-albums/:artistId', async (req, res) => {
   const artistId = req.params.artistId;
   if (!artistId) {
     return res.status(400).json({ error: 'Missing artist ID' });
-  }
-
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
   }
 
   try {
@@ -1717,7 +1557,7 @@ app.get('/artist-albums/:artistId', setAccessTokenFromSession, async (req, res) 
     const validSortOptions = ['release_date', 'popularity'];
     const sortParam = validSortOptions.includes(sortBy) ? sortBy : 'release_date';
     
-    const { body } = await spotifyApiInstance.getArtistAlbums(artistId, {
+    const { body } = await spotifyApi.getArtistAlbums(artistId, {
       limit: 50,
       include_groups: groupParam,
       album_type: groupParam
@@ -1808,20 +1648,11 @@ app.get('/artist-albums/:artistId', setAccessTokenFromSession, async (req, res) 
 });
 
 // Search for artist by name (Spotify)
-app.get('/spotify/artist-search', setAccessTokenFromSession, async (req, res) => {
+app.get('/spotify/artist-search', async (req, res) => {
   const { name } = req.query;
   if (!name) return res.status(400).json({ error: 'Missing artist name' });
-  
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-  }
-  
   try {
-    const { body } = await spotifyApiInstance.searchArtists(name, { limit: 10 });
+    const { body } = await spotifyApi.searchArtists(name, { limit: 10 });
     // Simplify artist data for frontend
     const artists = (body.artists?.items || []).map(artist => ({
       id: artist.id,
@@ -1840,20 +1671,11 @@ app.get('/spotify/artist-search', setAccessTokenFromSession, async (req, res) =>
 
 
 // Get artist details by Spotify artist ID
-app.get('/spotify/artist-details/:id', setAccessTokenFromSession, async (req, res) => {
+app.get('/spotify/artist-details/:id', async (req, res) => {
   const artistId = req.params.id;
   if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
-  
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-  }
-  
   try {
-    const { body } = await spotifyApiInstance.getArtist(artistId);
+    const { body } = await spotifyApi.getArtist(artistId);
     res.json(body);
   } catch (err) {
     console.error('Error fetching artist details:', err);
@@ -1862,20 +1684,11 @@ app.get('/spotify/artist-details/:id', setAccessTokenFromSession, async (req, re
 });
 
 // Get tracks by album ID (Spotify)
-app.get('/album-tracks/:albumId', setAccessTokenFromSession, async (req, res) => {
+app.get('/album-tracks/:albumId', async (req, res) => {
   const albumId = req.params.albumId;
   if (!albumId) return res.status(400).json({ error: 'Missing album ID' });
-  
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-  }
-  
   try {
-    const { body } = await spotifyApiInstance.getAlbumTracks(albumId, { limit: 50 });
+    const { body } = await spotifyApi.getAlbumTracks(albumId, { limit: 50 });
     // Simplify track data for frontend
     const tracks = (body.items || []).map(track => ({
       id: track.id,
@@ -1900,21 +1713,13 @@ app.get('/album-tracks/:albumId', setAccessTokenFromSession, async (req, res) =>
 });
 
 // Get artist collaborators/friends based on their albums
-app.get('/artist-collaborators/:artistId', setAccessTokenFromSession, async (req, res) => {
+app.get('/artist-collaborators/:artistId', async (req, res) => {
   const artistId = req.params.artistId;
   const minCollaborations = parseInt(req.query.minCollaborations) || 1; // Minimum collabs to be considered a "friend"
   const albumTypes = req.query.albumTypes || 'album'; // Default to albums only for speed
   
   if (!artistId) {
     return res.status(400).json({ error: 'Missing artist ID' });
-  }
-
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
   }
 
   try {
@@ -1935,7 +1740,7 @@ app.get('/artist-collaborators/:artistId', setAccessTokenFromSession, async (req
         // Multiple types requested - make separate calls for each
         const types = albumTypes.split(',');
         const albumPromises = types.map(async (type) => {
-          const { body } = await spotifyApiInstance.getArtistAlbums(artistId, {
+          const { body } = await spotifyApi.getArtistAlbums(artistId, {
             limit: 50, // Full limit since we're being specific
             include_groups: type.trim()
           });
@@ -1966,7 +1771,7 @@ app.get('/artist-collaborators/:artistId', setAccessTokenFromSession, async (req
         allAlbums = filteredArrays.flat(); // Combine all arrays
       } else {
         // Single type requested - simple call
-        const { body: albumsBody } = await spotifyApiInstance.getArtistAlbums(artistId, {
+        const { body: albumsBody } = await spotifyApi.getArtistAlbums(artistId, {
           limit: 50, // Full limit for single type
           include_groups: albumTypes
         });
@@ -1998,7 +1803,7 @@ app.get('/artist-collaborators/:artistId', setAccessTokenFromSession, async (req
         
         // Simple retry with the requested album types
         try {
-          const { body: albumsBody } = await spotifyApiInstance.getArtistAlbums(artistId, {
+          const { body: albumsBody } = await spotifyApi.getArtistAlbums(artistId, {
             limit: 50,
             include_groups: albumTypes
           });
@@ -2397,17 +2202,9 @@ app.delete('/me/following/artist/:id', async (req, res) => {
 });
 
 // Get all followed artists
-app.get('/me/following/artists', setAccessTokenFromSession, async (req, res) => {
+app.get('/me/following/artists', async (req, res) => {
   try {
-    // Use the per-user Spotify API instance
-    const spotifyApiInstance = req.spotifyApi;
-    
-    // Check if we have a valid session
-    if (!req.session || !req.session.access_token) {
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
-    
-    const { body } = await spotifyApiInstance.getFollowedArtists({ limit: 50 });
+    const { body } = await spotifyApi.getFollowedArtists({ limit: 50 });
     globalApiCallCounter.spotify++;
     globalApiCallCounter.total++;
     res.json({ artists: body.artists.items });
@@ -2418,20 +2215,11 @@ app.get('/me/following/artists', setAccessTokenFromSession, async (req, res) => 
 });
 
 // Search artists
-app.get('/spotify/search-artists', setAccessTokenFromSession, async (req, res) => {
+app.get('/spotify/search-artists', async (req, res) => {
   const { q } = req.query;
   if (!q) return res.status(400).json({ error: 'Missing search query' });
-  
-  // Use the per-user Spotify API instance
-  const spotifyApiInstance = req.spotifyApi;
-  
-  // Check if we have a valid session
-  if (!req.session || !req.session.access_token) {
-    return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-  }
-  
   try {
-    const { body } = await spotifyApiInstance.searchArtists(q, { limit: 10 });
+    const { body } = await spotifyApi.searchArtists(q, { limit: 10 });
     res.json({ artists: body.artists.items });
   } catch (err) {
     console.error('Error searching artists:', err);
