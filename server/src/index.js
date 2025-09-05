@@ -9,6 +9,7 @@ const axios = require('axios');
 const { getDiscogsArtistProfile } = require('./services/discogsService');
 const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName, getArtistPrimaryGenre } = require('./services/discogsService');
 const geniusService = require('./services/geniusService');
+const databaseService = require('./services/databaseService');
 
 const app = express();
 const PORT = 8000;
@@ -218,56 +219,74 @@ app.get('/callback', async (req, res) => {
     console.log('Successfully retrieved access token!');
     console.log('Access Token:', access_token);
     
+    // Get user information from Spotify
+    const userData = await spotifyApi.getMe();
+    console.log('User data retrieved:', userData.body);
+    
     // Store tokens in session for persistent authentication
     req.session.access_token = access_token;
     req.session.refresh_token = refresh_token;
-    req.session.user_id = null; // Will be set when we get user info
+    req.session.user_id = userData.body.id;
     
-    // Save session
+    // Store user session in database
+    try {
+      await databaseService.createOrUpdateUserSession(
+        req.sessionID,
+        userData.body,
+        { access_token, refresh_token }
+      );
+      console.log('User session stored in database successfully');
+    } catch (dbError) {
+      console.error('Error storing user session in database:', dbError);
+      // Continue with the flow even if database storage fails
+    }
+    
+    // Save session and redirect after session is saved
     req.session.save((err) => {
       if (err) {
         console.error('Error saving session:', err);
-      } else {
-        console.log('Session saved successfully');
+        return res.status(500).send('Session save error');
       }
+      
+      console.log('Session saved successfully');
+      
+      // Send the user back to the 'face' of your application
+      // Check if the request came from mobile or desktop
+      const userAgent = req.headers['user-agent'] || '';
+      const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
+      
+      console.log('User Agent:', userAgent);
+      console.log('Is Mobile:', isMobile);
+      
+      // Get the origin from the request headers to determine the correct redirect URL
+      const origin = req.headers.origin || req.headers.referer || 'https://vibegenerator.vercel.app';
+      
+      // Determine redirect URL based on origin
+      let redirectUrl;
+      if (origin.includes('localhost:3000')) {
+        redirectUrl = 'http://localhost:3000';
+      } else if (origin.includes('localhost:3001')) {
+        redirectUrl = 'http://localhost:3001';
+      } else {
+        // Default to Vercel for production
+        redirectUrl = 'https://vibegenerator.vercel.app';
+      }
+      
+      // Redirect to the destination page after session is saved
+      let finalRedirectUrl;
+      if (destination === 'analytics') {
+        finalRedirectUrl = `${redirectUrl}/dashboard`;
+      } else if (destination === 'concerts') {
+        finalRedirectUrl = `${redirectUrl}/concerts`;
+      } else {
+        finalRedirectUrl = `${redirectUrl}/dashboard`;
+      }
+      
+      console.log('Redirecting to:', finalRedirectUrl);
+      
+      // Redirect to the destination page
+      res.redirect(finalRedirectUrl);
     });
-    
-    // Send the user back to the 'face' of your application
-    // Check if the request came from mobile or desktop
-    const userAgent = req.headers['user-agent'] || '';
-    const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
-    
-    console.log('User Agent:', userAgent);
-    console.log('Is Mobile:', isMobile);
-    
-    // Get the origin from the request headers to determine the correct redirect URL
-    const origin = req.headers.origin || req.headers.referer || 'https://vibegenerator.vercel.app';
-    
-    // Determine redirect URL based on origin
-    let redirectUrl;
-    if (origin.includes('localhost:3000')) {
-      redirectUrl = 'http://localhost:3000';
-    } else if (origin.includes('localhost:3001')) {
-      redirectUrl = 'http://localhost:3001';
-    } else {
-      // Default to Vercel for production
-      redirectUrl = 'https://vibegenerator.vercel.app';
-    }
-    
-    // Redirect to the destination page directly (session is already established)
-    let finalRedirectUrl;
-    if (destination === 'analytics') {
-      finalRedirectUrl = `${redirectUrl}/dashboard`;
-    } else if (destination === 'concerts') {
-      finalRedirectUrl = `${redirectUrl}/concerts`;
-    } else {
-      finalRedirectUrl = `${redirectUrl}/dashboard`;
-    }
-    
-    console.log('Redirecting to:', finalRedirectUrl);
-    
-    // Redirect to the destination page
-    res.redirect(finalRedirectUrl);
  
   } catch (err) {
     console.error('--- ERROR GETTING TOKENS ---');
@@ -325,6 +344,58 @@ app.get('/me', async (req, res) => {
   }
 });
 
+// API endpoint to get user sessions from database
+app.get('/user-sessions', async (req, res) => {
+  try {
+    const sessionId = req.sessionID;
+    const userSession = await databaseService.getUserSession(sessionId);
+    
+    if (!userSession) {
+      return res.status(404).json({ error: 'Session not found or expired' });
+    }
+    
+    // Return user session data (tokens are already decrypted by the service)
+    res.json({
+      session_id: userSession.session_id,
+      spotify_id: userSession.spotify_id,
+      display_name: userSession.display_name,
+      email: userSession.email,
+      profile_image_url: userSession.profile_image_url,
+      created_at: userSession.created_at,
+      updated_at: userSession.updated_at,
+      expires_at: userSession.expires_at,
+      authenticated: true
+    });
+  } catch (error) {
+    console.error('Error retrieving user session:', error);
+    res.status(500).json({ error: 'Failed to retrieve user session' });
+  }
+});
+
+// API endpoint to get all user sessions (admin endpoint)
+app.get('/admin/user-sessions', async (req, res) => {
+  try {
+    // This would typically require admin authentication
+    const client = await databaseService.pool.connect();
+    const query = `
+      SELECT id, session_id, spotify_id, display_name, email, profile_image_url,
+             created_at, updated_at, expires_at
+      FROM user_sessions 
+      ORDER BY created_at DESC
+    `;
+    const result = await client.query(query);
+    client.release();
+    
+    res.json({
+      sessions: result.rows,
+      total: result.rows.length
+    });
+  } catch (error) {
+    console.error('Error retrieving all user sessions:', error);
+    res.status(500).json({ error: 'Failed to retrieve user sessions' });
+  }
+});
+
 // POST endpoint for token refresh
 app.post('/me', async (req, res) => {
   try {
@@ -342,6 +413,21 @@ app.post('/me', async (req, res) => {
         
         // Update the API object with new token
         spotifyApi.setAccessToken(newAccessToken);
+        
+        // Update session with new token
+        req.session.access_token = newAccessToken;
+        
+        // Update database with new token
+        try {
+          await databaseService.updateUserSessionTokens(
+            req.sessionID,
+            { access_token: newAccessToken, refresh_token: refresh_token }
+          );
+          console.log('Token updated in database successfully');
+        } catch (dbError) {
+          console.error('Error updating token in database:', dbError);
+          // Continue even if database update fails
+        }
         
         console.log('Token refreshed successfully');
         res.json({ token: newAccessToken });
@@ -3661,9 +3747,17 @@ app.post('/batch-isrc-mbid', async (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`Server is accessible from internet at https://api.vibegenerator.me`);
+  
+  // Test database connection
+  try {
+    await databaseService.testConnection();
+    console.log('Database connection established successfully');
+  } catch (error) {
+    console.error('Failed to connect to database:', error);
+  }
 });
 
 module.exports = pool;
