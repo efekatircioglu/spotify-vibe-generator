@@ -3666,5 +3666,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is accessible from internet at https://api.vibegenerator.me`);
 });
 
-// export the pool
 module.exports = pool;
