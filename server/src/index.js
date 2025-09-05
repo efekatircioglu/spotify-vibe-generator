@@ -37,10 +37,17 @@ app.use(session({
   }
 }));
 
-// Middleware to set access token from session
+// Middleware to create per-user Spotify API instance from session
 const setAccessTokenFromSession = (req, res, next) => {
   if (req.session && req.session.access_token) {
-    spotifyApi.setAccessToken(req.session.access_token);
+    // Create a new Spotify API instance for this user
+    req.spotifyApi = createSpotifyApiInstance(
+      req.session.access_token,
+      req.session.refresh_token
+    );
+  } else {
+    // No session, create instance without tokens
+    req.spotifyApi = createSpotifyApiInstance();
   }
   next();
 };
@@ -62,16 +69,30 @@ const scopes = [
   'user-follow-modify',
 ];
 
-// Create a new instance of the SpotifyWebApi client
-const spotifyApi = new SpotifyWebApi({
-  clientId: process.env.SPOTIFY_CLIENT_ID,
-  clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: 'https://api.vibegenerator.me/callback', // Updated for new domain
-});
-// Token refresh function
-const refreshAccessTokenIfNeeded = async () => {
+// Create a factory function for Spotify API instances
+const createSpotifyApiInstance = (accessToken = null, refreshToken = null) => {
+  const spotifyApi = new SpotifyWebApi({
+    clientId: process.env.SPOTIFY_CLIENT_ID,
+    clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+    redirectUri: 'https://api.vibegenerator.me/callback', // Updated for new domain
+  });
+  
+  if (accessToken) {
+    spotifyApi.setAccessToken(accessToken);
+  }
+  if (refreshToken) {
+    spotifyApi.setRefreshToken(refreshToken);
+  }
+  
+  return spotifyApi;
+};
+
+// Keep a global instance for OAuth flow only (no tokens)
+const spotifyApi = createSpotifyApiInstance();
+// Token refresh function for per-user instances
+const refreshAccessTokenIfNeeded = async (spotifyApiInstance) => {
   try {
-    const accessToken = spotifyApi.getAccessToken();
+    const accessToken = spotifyApiInstance.getAccessToken();
     if (!accessToken) {
       console.log('No access token available');
       return false;
@@ -79,20 +100,20 @@ const refreshAccessTokenIfNeeded = async () => {
     
     // Try to make a simple API call to test if token is valid
     try {
-      await spotifyApi.getMe();
+      await spotifyApiInstance.getMe();
       return true; // Token is still valid
     } catch (error) {
       if (error.statusCode === 401) {
         console.log('Access token expired, attempting to refresh...');
-        const refreshToken = spotifyApi.getRefreshToken();
+        const refreshToken = spotifyApiInstance.getRefreshToken();
         if (!refreshToken) {
           console.log('No refresh token available');
           return false;
         }
         
-        const data = await spotifyApi.refreshAccessToken();
+        const data = await spotifyApiInstance.refreshAccessToken();
         const newAccessToken = data.body.access_token;
-        spotifyApi.setAccessToken(newAccessToken);
+        spotifyApiInstance.setAccessToken(newAccessToken);
         console.log('Successfully refreshed access token');
         return true;
       }
@@ -136,9 +157,9 @@ app.get('/login', (req, res) => {
   
   // For different account login, try to clear any existing session first
   if (showDialog) {
-    // Clear any existing tokens to force fresh authentication
-    spotifyApi.setAccessToken(null);
-    spotifyApi.setRefreshToken(null);
+    // Clear any existing session to force fresh authentication
+    // Note: We can't access req.session here since this is a GET route
+    // The session will be cleared when the user goes through OAuth flow
   }
   
   console.log('Redirecting to Spotify OAuth:', authorizeURL);
@@ -211,10 +232,6 @@ app.get('/callback', async (req, res) => {
     const data = await spotifyApi.authorizationCodeGrant(code);
     const { access_token, refresh_token } = data.body;
 
-    // Set the tokens on our Spotify API object
-    spotifyApi.setAccessToken(access_token);
-    spotifyApi.setRefreshToken(refresh_token);
-
     console.log('Successfully retrieved access token!');
     console.log('Access Token:', access_token);
     
@@ -277,26 +294,38 @@ app.get('/callback', async (req, res) => {
 });
 
 // API endpoint for the frontend to check auth status and get user data.
-app.get('/me', async (req, res) => {
+app.get('/me', setAccessTokenFromSession, async (req, res) => {
   try {
-    // Set the access token from session if available
-    if (req.session && req.session.access_token) {
-      spotifyApi.setAccessToken(req.session.access_token);
+    // Use the per-user Spotify API instance from middleware
+    const spotifyApiInstance = req.spotifyApi;
+    
+    // Check if we have a valid session
+    if (!req.session || !req.session.access_token) {
+      return res.status(401).json({ error: 'Not authenticated' });
     }
     
-    const { body } = await spotifyApi.getMe();
+    // Check if token needs refresh
+    const isValid = await refreshAccessTokenIfNeeded(spotifyApiInstance);
+    
+    if (!isValid) {
+      console.log('Token is invalid, clearing session');
+      req.session.destroy();
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    
+    const { body } = await spotifyApiInstance.getMe();
     
     // Get user's public profile to access follower count and following count
     let followerCount = null;
     let followingCount = null;
     let product = null;
     try {
-      const { body: profileBody } = await spotifyApi.getUser(body.id);
+      const { body: profileBody } = await spotifyApiInstance.getUser(body.id);
       followerCount = profileBody.followers?.total || null;
       
       // Get following count (artists and users the user follows)
       try {
-        const { body: followingBody } = await spotifyApi.getFollowedArtists();
+        const { body: followingBody } = await spotifyApiInstance.getFollowedArtists();
         followingCount = followingBody.artists?.total || 0;
       } catch (followingErr) {
         console.log('Could not fetch following count:', followingErr.message);
@@ -308,6 +337,12 @@ app.get('/me', async (req, res) => {
     
     // Get user's product (Premium/Free status) from the main user data
     product = body.product || null;
+    
+    // Update session with user ID if not set
+    if (!req.session.user_id) {
+      req.session.user_id = body.id;
+      req.session.save();
+    }
     
     // Return user data with follower count, following count, and product
     res.json({
@@ -326,22 +361,23 @@ app.get('/me', async (req, res) => {
 });
 
 // POST endpoint for token refresh
-app.post('/me', async (req, res) => {
+app.post('/me', setAccessTokenFromSession, async (req, res) => {
   try {
     const { refresh, refresh_token } = req.body;
     
     if (refresh && refresh_token) {
       console.log('Attempting to refresh token...');
       
-      // Set the refresh token and try to refresh
-      spotifyApi.setRefreshToken(refresh_token);
+      // Create a temporary instance for refresh
+      const tempSpotifyApi = createSpotifyApiInstance(null, refresh_token);
       
       try {
-        const data = await spotifyApi.refreshAccessToken();
+        const data = await tempSpotifyApi.refreshAccessToken();
         const newAccessToken = data.body['access_token'];
         
-        // Update the API object with new token
-        spotifyApi.setAccessToken(newAccessToken);
+        // Update session with new token
+        req.session.access_token = newAccessToken;
+        req.session.save();
         
         console.log('Token refreshed successfully');
         res.json({ token: newAccessToken });
@@ -362,11 +398,7 @@ app.post('/me', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-  // Clear all tokens from the server
-  spotifyApi.setAccessToken(null);
-  spotifyApi.setRefreshToken(null);
-  
-  // Clear session
+  // Clear session (this is the only thing we need to clear)
   req.session.destroy((err) => {
     if (err) {
       console.error('Error destroying session:', err);
@@ -375,20 +407,19 @@ app.get('/logout', (req, res) => {
     }
   });
   
-  // Clear any global token storage
-  if (global.tempTokens) {
-    global.tempTokens = {};
-  }
-  
   res.json({ message: 'Logged out successfully' });
 });
 
 // Add a force-logout endpoint for different account login
 app.get('/force-logout', (req, res) => {
-  // Clear all server-side tokens
-  spotifyApi.setAccessToken(null);
-  spotifyApi.setRefreshToken(null);
-  if (global.tempTokens) { global.tempTokens = {}; }
+  // Clear session
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+    } else {
+      console.log('Session destroyed successfully');
+    }
+  });
   
   const destination = req.query.destination || 'dashboard';
   
@@ -468,14 +499,17 @@ app.get('/analyze-recents', async (req, res) => {
 
 app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
   try {
+    // Use the per-user Spotify API instance
+    const spotifyApiInstance = req.spotifyApi;
+    
     // Fetch up to 50 recently played tracks
-    const { body } = await spotifyApi.getMyRecentlyPlayedTracks({ limit: 50 });
+    const { body } = await spotifyApiInstance.getMyRecentlyPlayedTracks({ limit: 50 });
     
     // Extract track IDs to fetch detailed information
     const trackIds = body.items.map(item => item.track.id).filter(Boolean);
     
     // Fetch detailed track information including release dates
-    const { body: detailedTracksBody } = await spotifyApi.getTracks(trackIds);
+    const { body: detailedTracksBody } = await spotifyApiInstance.getTracks(trackIds);
     const detailedTracks = detailedTracksBody.tracks;
     
     // Get all first artist IDs
@@ -485,7 +519,7 @@ app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
     let artistGenres = {};
     for (let i = 0; i < artistIds.length; i += 50) {
       const batch = artistIds.slice(i, i + 50);
-      const { body: artistsBody } = await spotifyApi.getArtists(batch);
+      const { body: artistsBody } = await spotifyApiInstance.getArtists(batch);
       artistsBody.artists.forEach(artist => {
         artistGenres[artist.id] = artist.genres && artist.genres.length > 0 ? artist.genres[0] : null;
       });
@@ -1052,10 +1086,10 @@ app.get('/top-artists', async (req, res) => {
 });
 
 // Helper to get top data for a given time range
-async function getTopData(time_range) {
+async function getTopData(time_range, spotifyApiInstance) {
   const [tracksRes, artistsRes] = await Promise.all([
-    spotifyApi.getMyTopTracks({ time_range, limit: 50 }),
-    spotifyApi.getMyTopArtists({ time_range, limit: 50 })
+    spotifyApiInstance.getMyTopTracks({ time_range, limit: 50 }),
+    spotifyApiInstance.getMyTopArtists({ time_range, limit: 50 })
   ]);
   const basicTracks = tracksRes.body.items;
   const artists = artistsRes.body.items;
@@ -1066,7 +1100,7 @@ async function getTopData(time_range) {
   
   // Fetch detailed track information including release dates
   const trackIds = basicTracks.map(track => track.id);
-  const detailedTracksRes = await spotifyApi.getTracks(trackIds);
+  const detailedTracksRes = await spotifyApiInstance.getTracks(trackIds);
   const detailedTracks = detailedTracksRes.body.tracks;
   
   // Debug: Check if detailed tracks have release date information
@@ -1113,7 +1147,7 @@ async function getTopData(time_range) {
 
 app.get('/last-4-weeks', setAccessTokenFromSession, async (req, res) => {
   try {
-    const data = await getTopData('short_term');
+    const data = await getTopData('short_term', req.spotifyApi);
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1123,7 +1157,7 @@ app.get('/last-4-weeks', setAccessTokenFromSession, async (req, res) => {
 
 app.get('/last-6-months', setAccessTokenFromSession, async (req, res) => {
   try {
-    const data = await getTopData('medium_term');
+    const data = await getTopData('medium_term', req.spotifyApi);
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1133,7 +1167,7 @@ app.get('/last-6-months', setAccessTokenFromSession, async (req, res) => {
 
 app.get('/last-12-months', setAccessTokenFromSession, async (req, res) => {
   try {
-    const data = await getTopData('long_term');
+    const data = await getTopData('long_term', req.spotifyApi);
     res.json(data);
   } catch (err) {
     console.error(err);
