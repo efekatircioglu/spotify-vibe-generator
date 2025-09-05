@@ -15,6 +15,7 @@ const PORT = 8000;
 
 // Add session management
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 
 // after being logged in go to localhost:3000 (now it has welcome, your name)
 app.use(cors({
@@ -24,11 +25,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Configure session middleware
+// Configure session middleware with file store
 app.use(session({
+  store: new FileStore({
+    path: './sessions', // Directory to store session files
+    ttl: 24 * 60 * 60, // 24 hours in seconds
+    retries: 5,
+    logFn: function() {} // Disable logging
+  }),
   secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: true, // Changed to true for better reliability
-  saveUninitialized: true, // Changed to true for better reliability
+  resave: false, // Don't save session if unmodified
+  saveUninitialized: false, // Don't create session until something stored
   cookie: {
     secure: process.env.NODE_ENV === 'production', // Only secure in production
     httpOnly: true,
