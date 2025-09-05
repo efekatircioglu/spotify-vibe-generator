@@ -72,6 +72,11 @@ class CustomDatabaseSessionStore {
 
       callback(null, session);
     } catch (error) {
+      // If table doesn't exist, return null (no session)
+      if (error.code === '42P01') { // Table doesn't exist
+        console.log('ℹ️ Database table not created yet - returning null session');
+        return callback(null, null);
+      }
       console.error('Database session get error:', error);
       callback(error, null);
     }
@@ -120,6 +125,12 @@ class CustomDatabaseSessionStore {
 
       callback(null);
     } catch (error) {
+      // If table doesn't exist, just log and continue
+      if (error.code === '42P01') { // Table doesn't exist
+        console.log('ℹ️ Database table not created yet - skipping session storage');
+        console.log('Run the SQL in create_user_sessions_table.sql to enable database storage');
+        return callback(null);
+      }
       console.error('Database session set error:', error);
       callback(error);
     }
@@ -134,6 +145,10 @@ class CustomDatabaseSessionStore {
       );
       callback(null);
     } catch (error) {
+      // If table doesn't exist, just continue
+      if (error.code === '42P01') { // Table doesn't exist
+        return callback(null);
+      }
       console.error('Database session destroy error:', error);
       callback(error);
     }
@@ -148,8 +163,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Configure session middleware (fallback to memory store for now)
+// Create database session store instance
+const dbSessionStore = new CustomDatabaseSessionStore(pool);
+
+// Configure session middleware with database store
 app.use(session({
+  store: dbSessionStore,
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false, // Don't save session if unmodified
   saveUninitialized: false, // Don't create session until something stored
