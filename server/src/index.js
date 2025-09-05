@@ -187,12 +187,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Create database session store instance
-const dbSessionStore = new CustomDatabaseSessionStore(pool);
-
-// Configure session middleware with database store
+// Configure session middleware (temporarily using memory store)
 app.use(session({
-  store: dbSessionStore,
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false, // Don't save session if unmodified
   saveUninitialized: false, // Don't create session until something stored
@@ -450,44 +446,9 @@ app.get('/callback', async (req, res) => {
     
     console.log('Redirecting to:', finalRedirectUrl);
     
-    // Store user session in database
-    try {
-      const userInfo = await spotifyApi.getMe();
-      const encryptedAccessToken = dbSessionStore.encrypt(access_token);
-      const encryptedRefreshToken = dbSessionStore.encrypt(refresh_token);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-      await pool.query(`
-        INSERT INTO user_sessions (
-          session_id, spotify_id, display_name, email, profile_image_url,
-          encrypted_access_token, encrypted_refresh_token, expires_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (session_id) 
-        DO UPDATE SET
-          spotify_id = EXCLUDED.spotify_id,
-          display_name = EXCLUDED.display_name,
-          email = EXCLUDED.email,
-          profile_image_url = EXCLUDED.profile_image_url,
-          encrypted_access_token = EXCLUDED.encrypted_access_token,
-          encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
-          expires_at = EXCLUDED.expires_at,
-          updated_at = NOW()
-      `, [
-        req.sessionID,
-        userInfo.body.id,
-        userInfo.body.display_name,
-        userInfo.body.email,
-        userInfo.body.images?.[0]?.url || null,
-        encryptedAccessToken,
-        encryptedRefreshToken,
-        expiresAt
-      ]);
-
-      console.log(`✅ User ${userInfo.body.display_name} session stored in database`);
-    } catch (dbError) {
-      console.error('❌ Error storing session in database:', dbError);
-      // Continue with redirect even if DB storage fails
-    }
+    // Store user session in database (temporarily disabled)
+    // TODO: Fix database connection issue
+    console.log('ℹ️ Database session storage temporarily disabled');
     
     // Redirect to the destination page
     res.redirect(finalRedirectUrl);
