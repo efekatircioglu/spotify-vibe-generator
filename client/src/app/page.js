@@ -26,6 +26,16 @@ const Index = () => {
     window.location.href = `${LOGIN_URL}?destination=concerts`;
   };
 
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen relative">
       {/* Sparkles Background */}
@@ -82,7 +92,10 @@ const Index = () => {
             {/* Desktop Layout - 3 columns */}
             <div className="hidden md:grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               <div className="mobile-card-reveal poster-element" style={{ animationDelay: '0s' }}>
-                <div className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10">
+                <div 
+                  className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
+                  onClick={() => scrollToSection('features-heading')}
+                >
                   <div className="text-5xl mb-6 poster-glow flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 18V5l12-2v13"></path>
@@ -96,7 +109,10 @@ const Index = () => {
                 </div>
               </div>
               <div className="mobile-card-reveal poster-element" style={{ animationDelay: '1s' }}>
-                <div className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10">
+                <div 
+                  className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
+                  onClick={() => scrollToSection('features-heading')}
+                >
                   <div className="text-5xl mb-6 poster-glow flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -110,7 +126,10 @@ const Index = () => {
                 </div>
               </div>
               <div className="mobile-card-reveal poster-element" style={{ animationDelay: '2s' }}>
-                <div className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10">
+                <div 
+                  className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
+                  onClick={() => scrollToSection('features-heading')}
+                >
                   <div className="text-5xl mb-6 poster-glow flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -129,7 +148,10 @@ const Index = () => {
             {/* Mobile Layout - Staggered single column */}
             <div className="md:hidden space-y-6 max-w-sm mx-auto">
               <div className="mobile-card-reveal">
-                <div className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10">
+                <div 
+                  className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
+                  onClick={() => scrollToSection('features-heading')}
+                >
                   <div className="text-4xl mb-4 poster-glow flex justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 18V5l12-2v13"></path>
@@ -144,7 +166,10 @@ const Index = () => {
               </div>
               
               <div className="mobile-card-reveal">
-                <div className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10">
+                <div 
+                  className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
+                  onClick={() => scrollToSection('features-heading')}
+                >
                   <div className="text-4xl mb-4 poster-glow flex justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -159,7 +184,10 @@ const Index = () => {
               </div>
               
               <div className="mobile-card-reveal">
-                <div className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10">
+                <div 
+                  className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
+                  onClick={() => scrollToSection('features-heading')}
+                >
                   <div className="text-4xl mb-4 poster-glow flex justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
