@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { getApiBaseUrl } from '../../config/api';
+import jwtManager from '../../utils/jwtManager';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import Sidebar from '../../components/Sidebar';
@@ -32,25 +32,21 @@ export default function Last12MonthsPage() {
     const fetchData = async () => {
       try {
         const [mainDataRes, genreDataRes] = await Promise.all([
-          fetch(`${getApiBaseUrl()}/last-12-months`, {
-            credentials: 'include'
-          }),
-          fetch(`${getApiBaseUrl()}/genre-details/12-months`, {
-            credentials: 'include'
-          })
+          jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/last-12-months`),
+          jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/genre-details/12-months`)
         ]);
         
         // Check if responses are ok before parsing JSON
-        if (!mainDataRes.ok) {
-          const errorText = await mainDataRes.text();
+        if (!mainDataRes || !mainDataRes.ok) {
+          const errorText = mainDataRes ? await mainDataRes.text() : 'No response';
           console.error('Main data response error:', errorText);
-          throw new Error(`Failed to fetch main data: ${mainDataRes.status} ${mainDataRes.statusText}`);
+          throw new Error(`Failed to fetch main data: ${mainDataRes?.status || 'No response'} ${mainDataRes?.statusText || 'No response'}`);
         }
         
-        if (!genreDataRes.ok) {
-          const errorText = await genreDataRes.text();
+        if (!genreDataRes || !genreDataRes.ok) {
+          const errorText = genreDataRes ? await genreDataRes.text() : 'No response';
           console.error('Genre data response error:', errorText);
-          throw new Error(`Failed to fetch genre data: ${genreDataRes.status} ${genreDataRes.statusText}`);
+          throw new Error(`Failed to fetch genre data: ${genreDataRes?.status || 'No response'} ${genreDataRes?.statusText || 'No response'}`);
         }
         
         const [mainData, genreData] = await Promise.all([

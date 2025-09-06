@@ -362,9 +362,8 @@ export default function Home() {
     setIsAnalyzingPlaylists(true);
     setShowPlaylistsTable(true);
     try {
-              const res = await fetch(`${getApiBaseUrl()}/playlists-with-duration`, {
-          credentials: 'include'
-        });
+              const res = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/playlists-with-duration`);
+      if (!res) return; // JWT manager handles redirects
       if (!res.ok) throw new Error('Failed to fetch playlists');
       const data = await res.json();
       setPlaylists(data.playlists || []);
@@ -388,9 +387,8 @@ export default function Home() {
   // Fetch metrics for a single song by its ID (only when clicking the name cell)
   const handleSongNameClick = async (song) => {
     try {
-              const res = await fetch(`${getApiBaseUrl()}/audio-features/${song.id}`, {
-          credentials: 'include'
-        });
+              const res = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/audio-features/${song.id}`);
+      if (!res) return; // JWT manager handles redirects
       if (!res.ok) throw new Error('Failed to fetch audio features');
       const data = await res.json();
       setSelectedSongMetrics({ ...data, name: song.name, artist: song.artist });

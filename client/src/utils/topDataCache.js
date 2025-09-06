@@ -1,5 +1,5 @@
 // Cache keys for sessionStorage
-import { getApiBaseUrl } from '../config/api';
+import jwtManager from './jwtManager';
 
 const CACHE_KEYS = {
   UNIFIED_TOP_TRACKS: 'unified_top_tracks',
@@ -398,12 +398,10 @@ export const fetchAndCacheTopData = async () => {
     // Fetch all data in parallel for maximum speed
     const promises = endpoints.map(async ({ url, name }) => {
       try {
-        const response = await fetch(url, {
-          credentials: 'include'
-        });
-        if (!response.ok) {
-          console.warn(`HTTP ${response.status} for ${url}: ${response.statusText}`);
-          return { success: false, name, error: `HTTP ${response.status}`, tracks: [] };
+        const response = await jwtManager.makeAuthenticatedRequest(url);
+        if (!response || !response.ok) {
+          console.warn(`HTTP ${response?.status || 'No response'} for ${url}: ${response?.statusText || 'No response'}`);
+          return { success: false, name, error: `HTTP ${response?.status || 'No response'}`, tracks: [] };
         }
         const data = await response.json();
         

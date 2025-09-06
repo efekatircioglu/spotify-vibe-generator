@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import '../../public/styles.css' ;
 import GenreBasedAnalysisModal from './GenreBasedAnalysisModal';
-import { getApiBaseUrl } from '../config/api';
+import jwtManager from '../utils/jwtManager';
 
 
 const tooltips = { danceability: "Classifies whether a track is suitable for dancing based on rhythmic patterns.", 
@@ -523,9 +523,7 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
         
         Promise.all([
             fetch(`https://acousticbrainz.org/${mbid}/high-level`).then(res => res.ok ? res.json() : Promise.reject('Failed to fetch high-level')),
-            fetch(`${getApiBaseUrl()}/${mbid}/low-level`, {
-              credentials: 'include'
-            }).then(res => res.ok ? res.json() : Promise.reject('Failed to fetch low-level'))
+            jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/${mbid}/low-level`).then(res => res && res.ok ? res.json() : Promise.reject('Failed to fetch low-level'))
         ]).then(([highLevel, lowLevel]) => {
             setAnalysisData({
                 ...highLevel,
@@ -546,9 +544,7 @@ const AudioAnalysisInterface = ({ mbid, onClose, songInfo }) => {
             
             if (artistName) {
                 // Use the same pattern as /artist page - search for artist and get genre
-                fetch(`${getApiBaseUrl()}/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`, {
-          credentials: 'include'
-        })
+                jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/artist-genre-by-name?artistName=${encodeURIComponent(artistName)}`)
                     .then(res => res.ok ? res.json() : null)
                     .then(data => {
                         if (data && data.primaryGenre) {
