@@ -3,6 +3,7 @@ import Chart from 'chart.js/auto';
 import '../../public/styles.css' ;
 import GenreBasedAnalysisModal from './GenreBasedAnalysisModal';
 import jwtManager from '../utils/jwtManager';
+import { getApiBaseUrl } from '../config/api';
 
 
 const tooltips = { danceability: "Classifies whether a track is suitable for dancing based on rhythmic patterns.", 

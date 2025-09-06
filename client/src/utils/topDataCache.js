@@ -1,5 +1,6 @@
 // Cache keys for sessionStorage
 import jwtManager from './jwtManager';
+import { getApiBaseUrl } from '../config/api';
 
 const CACHE_KEYS = {
   UNIFIED_TOP_TRACKS: 'unified_top_tracks',

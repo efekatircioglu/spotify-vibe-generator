@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import jwtManager from '../../utils/jwtManager';
+import { getApiBaseUrl } from '../../config/api';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import Sidebar from '../../components/Sidebar';
