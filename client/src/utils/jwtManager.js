@@ -1,4 +1,6 @@
 // JWT Token Management Utility
+import { LOGIN_URL } from '../config/api';
+
 class JWTManager {
   constructor() {
     this.tokenKey = 'vibegenerator_jwt_token';
@@ -104,7 +106,7 @@ class JWTManager {
       if (response.status === 401) {
         console.log('🔐 Unauthorized request, removing token');
         this.removeToken();
-        window.location.href = '/login';
+        window.location.href = LOGIN_URL;
         return;
       }
       

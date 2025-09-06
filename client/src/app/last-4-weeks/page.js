@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import jwtManager from '../../utils/jwtManager';
-import { getApiBaseUrl } from '../../config/api';
+import { getApiBaseUrl, LOGIN_URL } from '../../config/api';
 import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import Sidebar from '../../components/Sidebar';
@@ -97,6 +97,14 @@ export default function Last4WeeksPage() {
         setGenreDetails(genreData.genres);
       } catch (err) {
         console.error('❌ Error fetching 4-weeks data:', err);
+        
+        // Check if it's an authentication error
+        if (err.message === 'No authentication token available' || err.message.includes('authentication')) {
+          console.log('🔐 Authentication error detected, redirecting to login');
+          window.location.href = LOGIN_URL;
+          return;
+        }
+        
         setError(`Failed to fetch data: ${err.message}`);
       } finally {
         setLoading(false);

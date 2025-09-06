@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '../config/api';
+import { getApiBaseUrl, LOGIN_URL } from '../config/api';
 import jwtManager from './jwtManager';
 
 // API client utility for making requests to the backend
@@ -29,7 +29,7 @@ export const apiClient = {
     if (response.status === 401) {
       console.log('🔐 Unauthorized request, redirecting to login');
       jwtManager.removeToken();
-      window.location.href = '/login';
+      window.location.href = LOGIN_URL;
       return;
     }
 
