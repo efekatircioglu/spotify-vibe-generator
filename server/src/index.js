@@ -627,14 +627,9 @@ app.get('/recent-tracks', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAu
   }
 });
 
-app.get('/playlists', async (req, res) => {
+app.get('/playlists', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
-    // Refresh access token if needed
-    const tokenValid = await refreshAccessTokenIfNeeded();
-    if (!tokenValid) {
-      console.error('Could not obtain valid access token');
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
+    const spotifyApi = req.userSpotifyApi;
     
     // Get the current user's Spotify ID
     const me = await spotifyApi.getMe();
@@ -666,14 +661,9 @@ app.get('/playlists', async (req, res) => {
 });
 
 // New endpoint to get playlists with duration information
-app.get('/playlists-with-duration', async (req, res) => {
+app.get('/playlists-with-duration', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
-    // Refresh access token if needed
-    const tokenValid = await refreshAccessTokenIfNeeded();
-    if (!tokenValid) {
-      console.error('Could not obtain valid access token');
-      return res.status(401).json({ error: 'Authentication required. Please log in again.' });
-    }
+    const spotifyApi = req.userSpotifyApi;
     
     // Get the current user's Spotify ID
     const me = await spotifyApi.getMe();
@@ -1419,7 +1409,8 @@ function getCachedPlaylistUrl(accessToken, tableType) {
 }
 
 // --- Endpoint to get cached playlist URL for current token and table type ---
-app.get('/cached-playlist-url', (req, res) => {
+app.get('/cached-playlist-url', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), (req, res) => {
+  const spotifyApi = req.userSpotifyApi;
   const accessToken = spotifyApi.getAccessToken();
   const tableType = req.query.tableType;
   if (!accessToken || !tableType) return res.json({ playlistUrl: null });
@@ -1428,7 +1419,7 @@ app.get('/cached-playlist-url', (req, res) => {
 });
 
 // Create playlist endpoint
-app.post('/create-playlist', express.json(), async (req, res) => {
+app.post('/create-playlist', express.json(), jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const { name, trackUris, timeRange } = req.body;
     
@@ -1436,6 +1427,8 @@ app.post('/create-playlist', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: name and trackUris array' });
     }
 
+    const spotifyApi = req.userSpotifyApi;
+    
     // Get current user
     const { body: user } = await spotifyApi.getMe();
     

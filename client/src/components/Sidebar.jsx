@@ -7,6 +7,7 @@ import { getRecentSearches, saveRecentSearch, getTicketmasterIdFromRecentSearch,
 import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../utils/artistCache';
 import { getCachedTopArtists } from '../utils/topArtistsCache';
 import jwtManager from '../utils/jwtManager';
+import { getApiBaseUrl } from '../config/api';
 import { ChevronLeftIcon, ChevronRightIcon } from './ui/icons';
 
 export default function Sidebar({ onToggle }) {
