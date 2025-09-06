@@ -11,7 +11,7 @@ import AlbumContributorsModal from '../../components/AlbumContributorsModal';
 import ArtistCollaborators from '../../components/ArtistCollaborators';
 import ArtistsMosts from '../../components/ArtistsMosts';
 import { getCachedArtistId, setArtistCache, setFailedArtistCache } from '../../utils/artistCache';
-import { getApiBaseUrl } from '../../config/api';
+import jwtManager from '../../utils/jwtManager';
 
 // --- Add this entire helper function ---
 function useIsMobile(breakpoint = 768) {
@@ -620,10 +620,8 @@ function ArtistConcertsPageContent() {
   useEffect(() => {
     if (!spotifyId) return;
     setIsFollowing(null);
-          fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, {
-        credentials: 'include'
-      })
-      .then(res => res.ok ? res.json() : { isFollowing: false })
+          jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`)
+      .then(res => res && res.ok ? res.json() : { isFollowing: false })
       .then(data => setIsFollowing(data.isFollowing))
       .catch(() => setIsFollowing(false));
   }, [spotifyId]);
@@ -1445,20 +1443,16 @@ function ArtistConcertsPageContent() {
                     setFollowLoading(true);
                     try {
                       if (isFollowing) {
-                        await fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, { 
-          method: 'DELETE',
-          credentials: 'include'
+                        await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, { 
+          method: 'DELETE'
         });
                       } else {
-                        await fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, { 
-            method: 'PUT',
-            credentials: 'include'
+                        await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, { 
+            method: 'PUT'
           });
                       }
                       // Always re-fetch the follow status after the action
-                      const res = await fetch(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`, {
-          credentials: 'include'
-        });
+                      const res = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me/following/artist/${spotifyId}`);
                       const data = await res.json();
                       setIsFollowing(data.isFollowing);
                     } catch (e) {}

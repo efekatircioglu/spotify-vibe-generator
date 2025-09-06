@@ -1,5 +1,6 @@
 // Utility functions for handling authentication and token expiration
 import { getApiBaseUrl, LOGIN_URL } from '../config/api';
+import jwtManager from './jwtManager';
 
 // Check if token is expired
 export const isTokenExpired = () => {
@@ -11,12 +12,10 @@ export const isTokenExpired = () => {
 // Check authentication status with backend
 export const checkAuthStatus = async () => {
   try {
-    // Check auth status with backend using session
-    const response = await fetch(`${getApiBaseUrl()}/me`, {
-      credentials: 'include' // Include cookies for session
-    });
+    // Check auth status with backend using JWT
+    const response = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me`);
     
-    if (response.ok) {
+    if (response && response.ok) {
       const data = await response.json();
       return data.authenticated || false;
     }

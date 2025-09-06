@@ -6,7 +6,7 @@ import styles from './Sidebar.module.css';
 import { getRecentSearches, saveRecentSearch, getTicketmasterIdFromRecentSearch, updateTicketmasterIdInRecentSearch } from '../utils/recentSearchesCache';
 import { getCachedArtistId, setArtistCache, getCachedArtistImage } from '../utils/artistCache';
 import { getCachedTopArtists } from '../utils/topArtistsCache';
-import { getApiBaseUrl } from '../config/api';
+import jwtManager from '../utils/jwtManager';
 import { ChevronLeftIcon, ChevronRightIcon } from './ui/icons';
 
 export default function Sidebar({ onToggle }) {
@@ -57,12 +57,10 @@ export default function Sidebar({ onToggle }) {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        // Use server-side authentication instead of localStorage tokens
-        const response = await fetch(`${getApiBaseUrl()}/me`, {
-          credentials: 'include' // Include session cookies
-        });
+        // Use JWT authentication instead of session cookies
+        const response = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me`);
         
-        if (response.ok) {
+        if (response && response.ok) {
           const userData = await response.json();
           
           setUserProfile({

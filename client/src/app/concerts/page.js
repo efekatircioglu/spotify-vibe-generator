@@ -7,7 +7,7 @@ import { getArtistCache, setArtistCache, getCachedArtistId, getCachedArtistImage
 import { optimizedConcertApiCall, optimizedArtistSearch } from '../../utils/concertApiOptimizer';
 import { getCachedTopArtists } from '../../utils/topArtistsCache';
 import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
-import { getApiBaseUrl } from '../../config/api';
+import jwtManager from '../../utils/jwtManager';
 
 export default function ConcertsPage() {
   const router = useRouter();
@@ -87,10 +87,8 @@ export default function ConcertsPage() {
   // Fetch followed artists
   useEffect(() => {
     setLoadingFollowed(true);
-    fetch(`${getApiBaseUrl()}/me/following/artists`, {
-      credentials: 'include'
-    })
-      .then(res => res.ok ? res.json() : { artists: [] })
+    jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me/following/artists`)
+      .then(res => res && res.ok ? res.json() : { artists: [] })
       .then(data => {
         setFollowedArtists(data.artists || []);
       })
