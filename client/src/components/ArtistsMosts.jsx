@@ -18,9 +18,13 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
     let cancelled = false;
     const run = async () => {
       if (!spotifyId && !artistName) return;
-      setLoadingTopTrack(true);
+      
+      // Clear previous data immediately when artist changes
+      setTopTrackLastYear(null);
+      setArtistRankings(null);
       setTopTrackError('');
       setTopTrackTimeRange(null);
+      setLoadingTopTrack(true);
 
       try {
         // First, try to find artist rankings from cache
@@ -127,7 +131,15 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
     };
     
     run();
-    return () => { cancelled = true; };
+    return () => { 
+      cancelled = true;
+      // Cleanup: reset all state when component unmounts or artist changes
+      setTopTrackLastYear(null);
+      setArtistRankings(null);
+      setTopTrackError('');
+      setTopTrackTimeRange(null);
+      setLoadingTopTrack(false);
+    };
   }, [spotifyId, artistName]);
 
   // Don't render anything if no artist data

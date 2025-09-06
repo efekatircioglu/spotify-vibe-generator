@@ -1544,6 +1544,7 @@ function ArtistConcertsPageContent() {
               {/* Top track card positioned below Follow/Play buttons */}
               <div style={{ marginTop: 24 }}>
                 <ArtistsMosts 
+                  key={`${spotifyId}-${selectedArtist?.name}`}
                   spotifyId={spotifyId}
                   artistName={selectedArtist?.name}
                   isMobile={isMobile}
