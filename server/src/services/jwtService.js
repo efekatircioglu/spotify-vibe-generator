@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 class JWTService {
   constructor() {
     this.secret = process.env.JWT_SECRET || 'your-jwt-secret-key-change-in-production';
-    this.expiresIn = '1h'; // JWT expires in 1 hour
+    this.expiresIn = '1h'; // JWT expires in 1 hour (matches Spotify access token)
   }
 
   // Generate JWT token for a user
@@ -12,12 +12,11 @@ class JWTService {
       spotifyId: userData.id,
       displayName: userData.display_name,
       email: userData.email,
-      iat: Math.floor(Date.now() / 1000), // Issued at
-      exp: Math.floor(Date.now() / 1000) + (60 * 60) // Expires in 1 hour
+      iat: Math.floor(Date.now() / 1000) // Issued at
     };
 
-    const token = jwt.sign(payload, this.secret);
-    console.log(`🔐 [JWT] Generated token for user: ${userData.display_name} (${userData.id})`);
+    const token = jwt.sign(payload, this.secret, { expiresIn: this.expiresIn });
+    console.log(`🔐 [JWT] Generated token for user: ${userData.display_name} (${userData.id}) - expires in 1h`);
     return token;
   }
 

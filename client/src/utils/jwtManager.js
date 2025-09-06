@@ -93,6 +93,13 @@ class JWTManager {
     try {
       const response = await fetch(url, requestOptions);
       
+      // Check for new JWT token in response headers (when Spotify token is refreshed)
+      const newJwtToken = response.headers.get('X-New-JWT-Token');
+      if (newJwtToken) {
+        console.log('🔐 Received new JWT token, updating localStorage');
+        this.setToken(newJwtToken);
+      }
+      
       // If unauthorized, remove token and redirect to login
       if (response.status === 401) {
         console.log('🔐 Unauthorized request, removing token');

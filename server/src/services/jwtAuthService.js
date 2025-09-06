@@ -40,15 +40,26 @@ class JWTAuthService {
           const refreshData = await spotifyApi.refreshAccessToken();
           const newAccessToken = refreshData.body.access_token;
           
-          // Update database with new token
+          // Get fresh user data to recreate JWT token
+          spotifyApi.setAccessToken(newAccessToken);
+          const userData = await spotifyApi.getMe();
+          
+          // Generate new JWT token for the refreshed session
+          const newJwtToken = jwtService.generateToken(userData.body);
+          
+          // Update database with new tokens and new JWT
           await databaseService.updateUserSessionTokensBySpotifyId(
             userSession.spotify_id,
             { access_token: newAccessToken, refresh_token: userSession.refresh_token }
           );
           
-          // Update the API instance with new token
-          spotifyApi.setAccessToken(newAccessToken);
-          console.log('✅ [JWTAuth] Token refreshed successfully');
+          // Update JWT token in database
+          await databaseService.updateUserSessionJWTBySpotifyId(userSession.spotify_id, newJwtToken);
+          
+          console.log('✅ [JWTAuth] Token refreshed and new JWT created');
+          
+          // Add new JWT token to response headers for client to update
+          res.setHeader('X-New-JWT-Token', newJwtToken);
         } else {
           throw error;
         }

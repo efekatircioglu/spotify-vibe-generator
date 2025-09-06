@@ -311,6 +311,22 @@ class DatabaseService {
     }
   }
 
+  // Update JWT token for a user session by Spotify ID
+  async updateUserSessionJWTBySpotifyId(spotifyId, jwtToken) {
+    const client = await this.pool.connect();
+    try {
+      const query = 'UPDATE user_sessions SET jwt_token = $1, updated_at = NOW() WHERE spotify_id = $2';
+      const result = await client.query(query, [jwtToken, spotifyId]);
+      console.log(`JWT token updated for user: ${spotifyId}`);
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error updating JWT token:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   // Clean up expired sessions
   async cleanupExpiredSessions() {
     const client = await this.pool.connect();
