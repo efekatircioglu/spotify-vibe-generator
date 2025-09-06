@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../config/api';
+import jwtManager from './jwtManager';
 // Manages localStorage caching for user's top artists to avoid redundant API calls
 
 const CACHE_KEY = 'spotify_top_artists';
@@ -181,9 +182,9 @@ export const fetchAndCacheAllTimePeriods = async () => {
     const results = await Promise.all(
       endpoints.map(async ({ url, timePeriod }) => {
         try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            console.warn(`[TopArtistsCache] HTTP ${response.status} for ${url}`);
+          const response = await jwtManager.makeAuthenticatedRequest(url);
+          if (!response || !response.ok) {
+            console.warn(`[TopArtistsCache] HTTP ${response?.status || 'No response'} for ${url}`);
             return { success: false, timePeriod, artists: [] };
           }
           const data = await response.json();
