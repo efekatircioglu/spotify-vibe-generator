@@ -2181,11 +2181,12 @@ app.get('/artist-collaborators/:artistId', async (req, res) => {
 });
 
 // --- Spotify Follow/Unfollow/Check Endpoints ---
-app.get('/me/following/artist/:id', async (req, res) => {
+app.get('/me/following/artist/:id', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const artistId = req.params.id;
     if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
-    const isFollowing = await spotifyService.isFollowingArtist(artistId);
+    const spotifyApi = req.userSpotifyApi;
+    const isFollowing = await spotifyService.isFollowingArtist(artistId, spotifyApi);
     res.json({ isFollowing });
   } catch (err) {
     console.error('Error checking follow status:', err);
@@ -2193,11 +2194,12 @@ app.get('/me/following/artist/:id', async (req, res) => {
   }
 });
 
-app.put('/me/following/artist/:id', async (req, res) => {
+app.put('/me/following/artist/:id', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const artistId = req.params.id;
     if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
-    await spotifyService.followArtist(artistId);
+    const spotifyApi = req.userSpotifyApi;
+    await spotifyService.followArtist(artistId, spotifyApi);
     res.json({ success: true });
   } catch (err) {
     console.error('Error following artist:', err);
@@ -2205,11 +2207,12 @@ app.put('/me/following/artist/:id', async (req, res) => {
   }
 });
 
-app.delete('/me/following/artist/:id', async (req, res) => {
+app.delete('/me/following/artist/:id', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const artistId = req.params.id;
     if (!artistId) return res.status(400).json({ error: 'Missing artist ID' });
-    await spotifyService.unfollowArtist(artistId);
+    const spotifyApi = req.userSpotifyApi;
+    await spotifyService.unfollowArtist(artistId, spotifyApi);
     res.json({ success: true });
   } catch (err) {
     console.error('Error unfollowing artist:', err);
@@ -2218,8 +2221,9 @@ app.delete('/me/following/artist/:id', async (req, res) => {
 });
 
 // Get all followed artists
-app.get('/me/following/artists', async (req, res) => {
+app.get('/me/following/artists', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
+    const spotifyApi = req.userSpotifyApi;
     const { body } = await spotifyApi.getFollowedArtists({ limit: 50 });
     globalApiCallCounter.spotify++;
     globalApiCallCounter.total++;

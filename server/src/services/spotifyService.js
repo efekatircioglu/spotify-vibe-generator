@@ -112,8 +112,9 @@ async function analyzePlaylist(playlistId) {
  * @param {string} artistId - The Spotify artist ID.
  * @returns {Promise<boolean>} - True if following, false otherwise.
  */
-async function isFollowingArtist(artistId) {
-  const { body } = await spotifyApi.isFollowingArtists([artistId]);
+async function isFollowingArtist(artistId, customSpotifyApi = null) {
+  const api = customSpotifyApi || spotifyApi;
+  const { body } = await api.isFollowingArtists([artistId]);
   return body[0];
 }
 
@@ -122,8 +123,9 @@ async function isFollowingArtist(artistId) {
  * @param {string} artistId - The Spotify artist ID.
  * @returns {Promise<void>}
  */
-async function followArtist(artistId) {
-  await spotifyApi.followArtists([artistId]);
+async function followArtist(artistId, customSpotifyApi = null) {
+  const api = customSpotifyApi || spotifyApi;
+  await api.followArtists([artistId]);
 }
 
 /**
@@ -131,8 +133,9 @@ async function followArtist(artistId) {
  * @param {string} artistId - The Spotify artist ID.
  * @returns {Promise<void>}
  */
-async function unfollowArtist(artistId) {
-  await spotifyApi.unfollowArtists([artistId]);
+async function unfollowArtist(artistId, customSpotifyApi = null) {
+  const api = customSpotifyApi || spotifyApi;
+  await api.unfollowArtists([artistId]);
 }
 
 // We export the functions we want other files to be able to use.
