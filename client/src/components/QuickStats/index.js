@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../../utils/topDataCache';
 import { getCachedTopArtists, calculateAveragePopularity } from '../../utils/topArtistsCache';
 import { getApiBaseUrl } from '../../config/api';
+import jwtManager from '../../utils/jwtManager';
 
 // Import individual components
 import TopArtistCard from './components/TopArtistCard';
@@ -233,11 +234,9 @@ export default function QuickStats({ isMobile }) {
       let recentTracks = getCachedRecentTracks();
       
       if (!recentTracks) {
-        const recentTracksResponse = await fetch(`${getApiBaseUrl()}/recent-tracks`, {
-          credentials: 'include'
-        });
+        const recentTracksResponse = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/recent-tracks`);
         
-        if (recentTracksResponse.ok) {
+        if (recentTracksResponse && recentTracksResponse.ok) {
           const recentData = await recentTracksResponse.json();
           recentTracks = recentData.tracks || [];
           setCachedRecentTracks(recentTracks);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { findMostListenedSongByArtist, findArtistRankings, isCacheValid, hasCompleteCache } from '../utils/topDataCache';
 import { getApiBaseUrl } from '../config/api';
+import jwtManager from '../utils/jwtManager';
 
 export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
   // State for top track data
@@ -76,7 +77,8 @@ export default function ArtistsMosts({ spotifyId, artistName, isMobile }) {
           if (cancelled) break;
           
           try {
-            const res = await fetch(url);
+            const res = await jwtManager.makeAuthenticatedRequest(url);
+            if (!res) return; // JWT manager handles redirects
             if (!res.ok) continue;
             const data = await res.json();
             const tracks = data?.tracks || [];

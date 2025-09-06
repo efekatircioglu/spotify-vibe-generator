@@ -3,6 +3,7 @@ import { getCachedTopTracks, isCacheValid, hasCompleteCache } from '../../../uti
 import { getCachedTopArtists, calculateAveragePopularity } from '../../../utils/topArtistsCache';
 import { analyzeListeningEvolution, analyzeTimeOfDay, analyzeListenerType } from '../utils/analysisUtils';
 import { getApiBaseUrl } from '../../../config/api';
+import jwtManager from '../../../utils/jwtManager';
 
 /**
  * useMemoizedCalculations Hook
@@ -121,12 +122,10 @@ export const useMemoizedCalculations = () => {
     
     try {
       // Load recent tracks
-      const recentTracksResponse = await fetch(`${getApiBaseUrl()}/recent-tracks`, {
-        credentials: 'include'
-      });
+      const recentTracksResponse = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/recent-tracks`);
       let recentTracks = [];
       
-      if (recentTracksResponse.ok) {
+      if (recentTracksResponse && recentTracksResponse.ok) {
         const recentData = await recentTracksResponse.json();
         recentTracks = recentData.tracks || [];
       }
