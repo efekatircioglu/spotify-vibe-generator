@@ -36,6 +36,34 @@ const Index = () => {
     }
   };
 
+  const scrollToAnalyticsButton = () => {
+    // Find the "Analyze My Music with Spotify" button
+    const analyticsButton = document.querySelector('button[class*="bg-primary"]');
+    if (analyticsButton) {
+      analyticsButton.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'center'
+      });
+    } else {
+      // Fallback to features section if button not found
+      scrollToSection('features-heading');
+    }
+  };
+
+  const scrollToConcertsButton = () => {
+    // Find the "Find My Perfect Concerts" button
+    const concertsButton = document.querySelector('button[class*="bg-secondary"]');
+    if (concertsButton) {
+      concertsButton.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'center'
+      });
+    } else {
+      // Fallback to features section if button not found
+      scrollToSection('features-heading');
+    }
+  };
+
   return (
     <div className="min-h-screen relative">
       {/* Sparkles Background */}
@@ -94,7 +122,7 @@ const Index = () => {
               <div className="mobile-card-reveal poster-element" style={{ animationDelay: '0s' }}>
                 <div 
                   className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
-                  onClick={() => scrollToSection('features-heading')}
+                  onClick={scrollToAnalyticsButton}
                 >
                   <div className="text-5xl mb-6 poster-glow flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -111,7 +139,7 @@ const Index = () => {
               <div className="mobile-card-reveal poster-element" style={{ animationDelay: '1s' }}>
                 <div 
                   className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
-                  onClick={() => scrollToSection('features-heading')}
+                  onClick={scrollToAnalyticsButton}
                 >
                   <div className="text-5xl mb-6 poster-glow flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -128,7 +156,7 @@ const Index = () => {
               <div className="mobile-card-reveal poster-element" style={{ animationDelay: '2s' }}>
                 <div 
                   className="poster-card-3d p-8 rounded-3xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
-                  onClick={() => scrollToSection('features-heading')}
+                  onClick={scrollToConcertsButton}
                 >
                   <div className="text-5xl mb-6 poster-glow flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -150,7 +178,7 @@ const Index = () => {
               <div className="mobile-card-reveal">
                 <div 
                   className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
-                  onClick={() => scrollToSection('features-heading')}
+                  onClick={scrollToAnalyticsButton}
                 >
                   <div className="text-4xl mb-4 poster-glow flex justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -168,7 +196,7 @@ const Index = () => {
               <div className="mobile-card-reveal">
                 <div 
                   className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
-                  onClick={() => scrollToSection('features-heading')}
+                  onClick={scrollToAnalyticsButton}
                 >
                   <div className="text-4xl mb-4 poster-glow flex justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -186,7 +214,7 @@ const Index = () => {
               <div className="mobile-card-reveal">
                 <div 
                   className="poster-card-3d p-6 rounded-2xl bg-black/20 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/30 transition-all duration-300 hover:scale-105"
-                  onClick={() => scrollToSection('features-heading')}
+                  onClick={scrollToConcertsButton}
                 >
                   <div className="text-4xl mb-4 poster-glow flex justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
