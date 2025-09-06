@@ -19,6 +19,7 @@ import QuickStats from '../../components/QuickStats/index';
 import TopDataCacheInitializer from '../../components/TopDataCacheInitializer';
 import { getApiBaseUrl, LOGIN_URL } from '../../config/api';
 import { initializeAllCaches, cleanupLocalStorageTokens } from '../../utils/cacheManager';
+import jwtManager from '../../utils/jwtManager';
 
 
 
@@ -286,9 +287,8 @@ export default function Home() {
     setAnalysis(null);
     setShowSongsTable(true);
     try {
-              const res = await fetch(`${getApiBaseUrl()}/recent-tracks`, {
-          credentials: 'include'
-        });
+      const res = await jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/recent-tracks`);
+      if (!res) return; // JWT manager handles redirects
       if (!res.ok) throw new Error('Failed to fetch recent tracks');
       const data = await res.json();
       
@@ -311,22 +311,34 @@ export default function Home() {
 
   // This function runs when the page loads
   useEffect(() => {
-            fetch(`${getApiBaseUrl()}/me`, {
-          credentials: 'include'
-        })
+    // Initialize JWT manager to extract token from URL if present
+    jwtManager.getToken();
+    
+    // Check if we have a valid JWT token
+    if (!jwtManager.isTokenValid()) {
+      console.log('🔐 No valid JWT token found, redirecting to login');
+      window.location.href = LOGIN_URL;
+      return;
+    }
+    
+    // Make authenticated request using JWT
+    jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/me`)
       .then((res) => {
+        if (!res) return; // JWT manager handles redirects
         if (!res.ok) throw new Error('User not logged in');
         return res.json();
       })
       .then((data) => {
-        setUser(data);
-        setLoading(false);
-        // Clean up localStorage tokens for security
-        cleanupLocalStorageTokens();
-        // Initialize caches when user is logged in
-        initializeAllCaches();
-        // Auto-load last 50 songs when user is logged in (playlists will be loaded manually)
-        handleGenerateFromRecents();
+        if (data) {
+          setUser(data);
+          setLoading(false);
+          // Clean up localStorage tokens for security
+          cleanupLocalStorageTokens();
+          // Initialize caches when user is logged in
+          initializeAllCaches();
+          // Auto-load last 50 songs when user is logged in (playlists will be loaded manually)
+          handleGenerateFromRecents();
+        }
       })
       .catch(() => {
         setUser(null);

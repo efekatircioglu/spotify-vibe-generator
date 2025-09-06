@@ -58,11 +58,6 @@ class DatabaseService {
   async createOrUpdateUserSession(sessionId, spotifyData, tokens, jwtToken = null) {
     const client = await this.pool.connect();
     try {
-      console.log('🔐 [DB] Creating/updating user session...');
-      console.log('🔐 [DB] Session ID:', sessionId.substring(0, 25) + '...');
-      console.log('🔐 [DB] Spotify ID:', spotifyData.id);
-      console.log('🔐 [DB] Display Name:', spotifyData.display_name);
-      console.log('🔐 [DB] JWT Token:', jwtToken ? jwtToken.substring(0, 50) + '...' : 'NULL');
       
       const {
         id: spotifyId,
@@ -79,10 +74,8 @@ class DatabaseService {
       const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
 
       // First, delete any existing sessions for this Spotify user
-      console.log('🔐 [DB] Deleting existing sessions for Spotify ID:', spotifyId);
       const deleteQuery = 'DELETE FROM user_sessions WHERE spotify_id = $1';
-      const deleteResult = await client.query(deleteQuery, [spotifyId]);
-      console.log('🔐 [DB] Deleted', deleteResult.rowCount, 'existing sessions');
+      await client.query(deleteQuery, [spotifyId]);
 
       // Then insert the new session
       const insertQuery = `
@@ -105,14 +98,11 @@ class DatabaseService {
         expiresAt
       ];
 
-      console.log('🔐 [DB] Inserting new session with JWT token...');
       const result = await client.query(insertQuery, values);
-      console.log('🔐 [DB] Session inserted successfully:', result.rows[0]);
-      console.log('🔐 [DB] JWT token in database:', result.rows[0].jwt_token ? result.rows[0].jwt_token.substring(0, 50) + '...' : 'NULL');
-      
+      console.log('User session saved to database (Spotify ID unique):', result.rows[0]);
       return result.rows[0];
     } catch (error) {
-      console.error('🔐 [DB] Error saving user session to database:', error);
+      console.error('Error saving user session to database:', error);
       throw error;
     } finally {
       client.release();
