@@ -419,11 +419,15 @@ app.post('/me', async (req, res) => {
         
         // Update database with new token
         try {
-          await databaseService.updateUserSessionTokens(
-            req.sessionID,
+          // Get current user info to find Spotify ID
+          const userData = await spotifyApi.getMe();
+          const spotifyId = userData.body.id;
+          
+          await databaseService.updateUserSessionTokensBySpotifyId(
+            spotifyId,
             { access_token: newAccessToken, refresh_token: refresh_token }
           );
-          console.log('Token updated in database successfully');
+          console.log('Token updated in database successfully by Spotify ID');
         } catch (dbError) {
           console.error('Error updating token in database:', dbError);
           // Continue even if database update fails

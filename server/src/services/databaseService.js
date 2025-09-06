@@ -56,21 +56,16 @@ class DatabaseService {
       // Calculate expiration time (Spotify tokens typically expire in 1 hour)
       const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
 
-      const query = `
+      // First, delete any existing sessions for this Spotify user
+      const deleteQuery = 'DELETE FROM user_sessions WHERE spotify_id = $1';
+      await client.query(deleteQuery, [spotifyId]);
+
+      // Then insert the new session
+      const insertQuery = `
         INSERT INTO user_sessions (
           session_id, spotify_id, display_name, email, profile_image_url,
           encrypted_access_token, encrypted_refresh_token, expires_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (session_id) 
-        DO UPDATE SET
-          spotify_id = EXCLUDED.spotify_id,
-          display_name = EXCLUDED.display_name,
-          email = EXCLUDED.email,
-          profile_image_url = EXCLUDED.profile_image_url,
-          encrypted_access_token = EXCLUDED.encrypted_access_token,
-          encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
-          expires_at = EXCLUDED.expires_at,
-          updated_at = NOW()
         RETURNING id, created_at, updated_at
       `;
 
@@ -85,11 +80,47 @@ class DatabaseService {
         expiresAt
       ];
 
-      const result = await client.query(query, values);
-      console.log('User session saved to database:', result.rows[0]);
+      const result = await client.query(insertQuery, values);
+      console.log('User session saved to database (Spotify ID unique):', result.rows[0]);
       return result.rows[0];
     } catch (error) {
       console.error('Error saving user session to database:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Get user session by Spotify ID
+  async getUserSessionBySpotifyId(spotifyId) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        SELECT id, session_id, spotify_id, display_name, email, profile_image_url,
+               encrypted_access_token, encrypted_refresh_token, created_at, updated_at, expires_at
+        FROM user_sessions 
+        WHERE spotify_id = $1 AND expires_at > NOW()
+      `;
+      
+      const result = await client.query(query, [spotifyId]);
+      
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const session = result.rows[0];
+      
+      // Decrypt tokens
+      session.access_token = this.decrypt(session.encrypted_access_token);
+      session.refresh_token = this.decrypt(session.encrypted_refresh_token);
+      
+      // Remove encrypted tokens from response
+      delete session.encrypted_access_token;
+      delete session.encrypted_refresh_token;
+      
+      return session;
+    } catch (error) {
+      console.error('Error retrieving user session by Spotify ID from database:', error);
       throw error;
     } finally {
       client.release();
@@ -126,6 +157,45 @@ class DatabaseService {
       return session;
     } catch (error) {
       console.error('Error retrieving user session from database:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Update tokens for existing session by Spotify ID
+  async updateUserSessionTokensBySpotifyId(spotifyId, tokens) {
+    const client = await this.pool.connect();
+    try {
+      const encryptedAccessToken = this.encrypt(tokens.access_token);
+      const encryptedRefreshToken = this.encrypt(tokens.refresh_token);
+      const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+
+      const query = `
+        UPDATE user_sessions 
+        SET encrypted_access_token = $1, 
+            encrypted_refresh_token = $2, 
+            expires_at = $3,
+            updated_at = NOW()
+        WHERE spotify_id = $4
+        RETURNING id, updated_at
+      `;
+
+      const result = await client.query(query, [
+        encryptedAccessToken,
+        encryptedRefreshToken,
+        expiresAt,
+        spotifyId
+      ]);
+
+      if (result.rows.length === 0) {
+        throw new Error('Session not found for Spotify ID');
+      }
+
+      console.log('User session tokens updated in database by Spotify ID:', result.rows[0]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error updating user session tokens by Spotify ID in database:', error);
       throw error;
     } finally {
       client.release();
