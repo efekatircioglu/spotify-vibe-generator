@@ -808,8 +808,8 @@ export default function Home() {
     setShowTopModal(true);
     try {
       const [tracksRes, artistsRes] = await Promise.all([
-        fetch(`${getApiBaseUrl()}/top-tracks?time_range=${time_range}`),
-        fetch(`${getApiBaseUrl()}/top-artists?time_range=${time_range}`)
+        jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/top-tracks?time_range=${time_range}`),
+        jwtManager.makeAuthenticatedRequest(`${getApiBaseUrl()}/top-artists?time_range=${time_range}`)
       ]);
       const tracks = await tracksRes.json();
       const artists = await artistsRes.json();

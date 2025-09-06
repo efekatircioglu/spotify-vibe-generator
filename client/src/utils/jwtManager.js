@@ -111,9 +111,30 @@ class JWTManager {
         this.setToken(newJwtToken);
       }
       
-      // If unauthorized, remove token and redirect to login
+      // If unauthorized, handle specific error codes
       if (response.status === 401) {
         console.log('🔐 [JWT Request] Unauthorized response (401), removing token');
+        
+        try {
+          const errorData = await response.json();
+          console.log('🔐 [JWT Request] Error details:', errorData);
+          
+          // Handle specific error codes
+          if (errorData.code === 'TOKEN_EXPIRED') {
+            console.log('🔐 [JWT Request] Token expired, redirecting to login');
+          } else if (errorData.code === 'INVALID_TOKEN') {
+            console.log('🔐 [JWT Request] Invalid token, redirecting to login');
+          } else if (errorData.code === 'SESSION_NOT_FOUND') {
+            console.log('🔐 [JWT Request] Session not found, redirecting to login');
+          } else if (errorData.code === 'NO_TOKEN') {
+            console.log('🔐 [JWT Request] No token provided, redirecting to login');
+          } else {
+            console.log('🔐 [JWT Request] Authentication failed, redirecting to login');
+          }
+        } catch (parseError) {
+          console.log('🔐 [JWT Request] Could not parse error response');
+        }
+        
         this.removeToken();
         window.location.href = LOGIN_URL;
         return;

@@ -10,7 +10,26 @@ class JWTAuthService {
       
       // Extract and verify JWT token
       const authHeader = req.headers.authorization;
+      
+      if (!authHeader) {
+        console.log('❌ [JWTAuth] No authorization header provided');
+        return res.status(401).json({ 
+          error: 'Authentication required', 
+          message: 'No authorization token provided',
+          code: 'NO_TOKEN'
+        });
+      }
+      
       const token = jwtService.extractTokenFromHeader(authHeader);
+      if (!token) {
+        console.log('❌ [JWTAuth] Invalid authorization header format');
+        return res.status(401).json({ 
+          error: 'Authentication required', 
+          message: 'Invalid authorization header format',
+          code: 'INVALID_HEADER'
+        });
+      }
+      
       const decoded = jwtService.verifyToken(token);
       
       console.log(`✅ [JWTAuth] JWT verified for user: ${decoded.displayName} (${decoded.spotifyId})`);
@@ -77,10 +96,34 @@ class JWTAuthService {
       next();
     } catch (error) {
       console.error(`❌ [JWTAuth] Authentication failed: ${error.message}`);
-      res.status(401).json({ 
-        error: 'Authentication required. Please log in again.',
-        details: error.message 
-      });
+      
+      // Handle specific JWT errors
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          error: 'Authentication required', 
+          message: 'Token expired. Please log in again.',
+          code: 'TOKEN_EXPIRED'
+        });
+      } else if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ 
+          error: 'Authentication required', 
+          message: 'Invalid token. Please log in again.',
+          code: 'INVALID_TOKEN'
+        });
+      } else if (error.message === 'No valid session found for JWT token') {
+        return res.status(401).json({ 
+          error: 'Authentication required', 
+          message: 'Session not found. Please log in again.',
+          code: 'SESSION_NOT_FOUND'
+        });
+      } else {
+        return res.status(401).json({ 
+          error: 'Authentication required', 
+          message: 'Authentication failed. Please log in again.',
+          code: 'AUTH_FAILED',
+          details: error.message 
+        });
+      }
     }
   }
 }
