@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 class DatabaseService {
   constructor() {
@@ -8,13 +9,49 @@ class DatabaseService {
     });
   }
 
-  // For testing purposes - no encryption needed
-  encrypt(text) {
-    return text; // Just return the text as-is
+  // Encryption key - in production, this should be stored securely
+  getEncryptionKey() {
+    return process.env.ENCRYPTION_KEY || 'default-encryption-key-change-in-production';
   }
 
+  // Encrypt sensitive data
+  encrypt(text) {
+    const algorithm = 'aes-256-cbc';
+    const key = crypto.scryptSync(this.getEncryptionKey(), 'salt', 32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return iv.toString('hex') + ':' + encrypted;
+  }
+
+  // Decrypt sensitive data (backward compatible)
   decrypt(encryptedText) {
-    return encryptedText; // Just return the text as-is
+    const algorithm = 'aes-256-cbc';
+    const key = crypto.scryptSync(this.getEncryptionKey(), 'salt', 32);
+    
+    // Check if the encrypted text contains IV (new format)
+    if (encryptedText.includes(':')) {
+      // New format with IV
+      const textParts = encryptedText.split(':');
+      const iv = Buffer.from(textParts.shift(), 'hex');
+      const encryptedData = textParts.join(':');
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
+      let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      return decrypted;
+    } else {
+      // Old format without IV (backward compatibility)
+      try {
+        const decipher = crypto.createDecipher(algorithm, this.getEncryptionKey());
+        let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+      } catch (error) {
+        console.error('Error decrypting with old method:', error);
+        throw error;
+      }
+    }
   }
 
   // Create or update user session
