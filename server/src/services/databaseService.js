@@ -58,6 +58,12 @@ class DatabaseService {
   async createOrUpdateUserSession(sessionId, spotifyData, tokens, jwtToken = null) {
     const client = await this.pool.connect();
     try {
+      console.log('🔐 [DB] Creating/updating user session...');
+      console.log('🔐 [DB] Session ID:', sessionId.substring(0, 25) + '...');
+      console.log('🔐 [DB] Spotify ID:', spotifyData.id);
+      console.log('🔐 [DB] Display Name:', spotifyData.display_name);
+      console.log('🔐 [DB] JWT Token:', jwtToken ? jwtToken.substring(0, 50) + '...' : 'NULL');
+      
       const {
         id: spotifyId,
         display_name: displayName,
@@ -73,8 +79,10 @@ class DatabaseService {
       const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
 
       // First, delete any existing sessions for this Spotify user
+      console.log('🔐 [DB] Deleting existing sessions for Spotify ID:', spotifyId);
       const deleteQuery = 'DELETE FROM user_sessions WHERE spotify_id = $1';
-      await client.query(deleteQuery, [spotifyId]);
+      const deleteResult = await client.query(deleteQuery, [spotifyId]);
+      console.log('🔐 [DB] Deleted', deleteResult.rowCount, 'existing sessions');
 
       // Then insert the new session
       const insertQuery = `
@@ -82,7 +90,7 @@ class DatabaseService {
           session_id, spotify_id, display_name, email, profile_image_url,
           encrypted_access_token, encrypted_refresh_token, jwt_token, expires_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, created_at, updated_at
+        RETURNING id, created_at, updated_at, jwt_token
       `;
 
       const values = [
@@ -97,11 +105,14 @@ class DatabaseService {
         expiresAt
       ];
 
+      console.log('🔐 [DB] Inserting new session with JWT token...');
       const result = await client.query(insertQuery, values);
-      console.log('User session saved to database (Spotify ID unique):', result.rows[0]);
+      console.log('🔐 [DB] Session inserted successfully:', result.rows[0]);
+      console.log('🔐 [DB] JWT token in database:', result.rows[0].jwt_token ? result.rows[0].jwt_token.substring(0, 50) + '...' : 'NULL');
+      
       return result.rows[0];
     } catch (error) {
-      console.error('Error saving user session to database:', error);
+      console.error('🔐 [DB] Error saving user session to database:', error);
       throw error;
     } finally {
       client.release();

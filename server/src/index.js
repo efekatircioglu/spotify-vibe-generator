@@ -235,19 +235,22 @@ app.get('/callback', async (req, res) => {
     req.session.user_id = userData.body.id;
     
     // Generate JWT token
+    console.log('🔐 [LOGIN] Generating JWT token for user:', userData.body.display_name);
     const jwtToken = jwtService.generateToken(userData.body);
+    console.log('🔐 [LOGIN] JWT token generated:', jwtToken.substring(0, 50) + '...');
     
     // Store user session in database with JWT token
     try {
-      await databaseService.createOrUpdateUserSession(
+      console.log('🔐 [LOGIN] Storing session in database with JWT token...');
+      const result = await databaseService.createOrUpdateUserSession(
         req.sessionID,
         userData.body,
         { access_token, refresh_token },
         jwtToken
       );
-      console.log('User session stored in database successfully with JWT token');
+      console.log('🔐 [LOGIN] User session stored in database successfully with JWT token:', result.id);
     } catch (dbError) {
-      console.error('Error storing user session in database:', dbError);
+      console.error('🔐 [LOGIN] Error storing user session in database:', dbError);
       // Continue with the flow even if database storage fails
     }
     
