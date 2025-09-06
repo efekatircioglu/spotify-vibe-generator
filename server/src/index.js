@@ -10,6 +10,7 @@ const { getDiscogsArtistProfile } = require('./services/discogsService');
 const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistName, getArtistPrimaryGenre } = require('./services/discogsService');
 const geniusService = require('./services/geniusService');
 const databaseService = require('./services/databaseService');
+const userSpotifyService = require('./services/userSpotifyService');
 
 const app = express();
 const PORT = 8000;
@@ -38,13 +39,16 @@ app.use(session({
   }
 }));
 
-// Middleware to set access token from session
+// Middleware to set access token from session (DEPRECATED - use userSpotifyService instead)
 const setAccessTokenFromSession = (req, res, next) => {
   if (req.session && req.session.access_token) {
     spotifyApi.setAccessToken(req.session.access_token);
   }
   next();
 };
+
+// New middleware to ensure user has valid Spotify API access
+const ensureUserSpotifyApi = userSpotifyService.ensureUserSpotifyApi.bind(userSpotifyService);
 
 // Parse JSON bodies for POST requests with increased limit for large playlists
 app.use(express.json({ limit: '50mb' }));
@@ -296,13 +300,9 @@ app.get('/callback', async (req, res) => {
 });
 
 // API endpoint for the frontend to check auth status and get user data.
-app.get('/me', async (req, res) => {
+app.get('/me', ensureUserSpotifyApi, async (req, res) => {
   try {
-    // Set the access token from session if available
-    if (req.session && req.session.access_token) {
-      spotifyApi.setAccessToken(req.session.access_token);
-    }
-    
+    const spotifyApi = req.userSpotifyApi;
     const { body } = await spotifyApi.getMe();
     
     // Get user's public profile to access follower count and following count
@@ -556,8 +556,9 @@ app.get('/analyze-recents', async (req, res) => {
   }
 });
 
-app.get('/recent-tracks', setAccessTokenFromSession, async (req, res) => {
+app.get('/recent-tracks', ensureUserSpotifyApi, async (req, res) => {
   try {
+    const spotifyApi = req.userSpotifyApi;
     // Fetch up to 50 recently played tracks
     const { body } = await spotifyApi.getMyRecentlyPlayedTracks({ limit: 50 });
     
@@ -1119,9 +1120,10 @@ app.get('/playlist-artists/:id', async (req, res) => {
   }
 });
 
-app.get('/top-tracks', async (req, res) => {
+app.get('/top-tracks', ensureUserSpotifyApi, async (req, res) => {
   const { time_range = 'short_term', limit } = req.query;
   try {
+    const spotifyApi = req.userSpotifyApi;
     const { body } = await spotifyApi.getMyTopTracks({ time_range, limit: limit ? Number(limit) : 50 });
     res.json(body.items);
   } catch (err) {
@@ -1130,9 +1132,10 @@ app.get('/top-tracks', async (req, res) => {
   }
 });
 
-app.get('/top-artists', async (req, res) => {
+app.get('/top-artists', ensureUserSpotifyApi, async (req, res) => {
   const { time_range = 'short_term', limit } = req.query;
   try {
+    const spotifyApi = req.userSpotifyApi;
     const { body } = await spotifyApi.getMyTopArtists({ time_range, limit: limit ? Number(limit) : 50 });
     res.json(body.items);
   } catch (err) {
@@ -1142,7 +1145,7 @@ app.get('/top-artists', async (req, res) => {
 });
 
 // Helper to get top data for a given time range
-async function getTopData(time_range) {
+async function getTopData(time_range, spotifyApi) {
   const [tracksRes, artistsRes] = await Promise.all([
     spotifyApi.getMyTopTracks({ time_range, limit: 50 }),
     spotifyApi.getMyTopArtists({ time_range, limit: 50 })
@@ -1201,9 +1204,10 @@ async function getTopData(time_range) {
   };
 }
 
-app.get('/last-4-weeks', setAccessTokenFromSession, async (req, res) => {
+app.get('/last-4-weeks', ensureUserSpotifyApi, async (req, res) => {
   try {
-    const data = await getTopData('short_term');
+    const spotifyApi = req.userSpotifyApi;
+    const data = await getTopData('short_term', spotifyApi);
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1211,9 +1215,10 @@ app.get('/last-4-weeks', setAccessTokenFromSession, async (req, res) => {
   }
 });
 
-app.get('/last-6-months', setAccessTokenFromSession, async (req, res) => {
+app.get('/last-6-months', ensureUserSpotifyApi, async (req, res) => {
   try {
-    const data = await getTopData('medium_term');
+    const spotifyApi = req.userSpotifyApi;
+    const data = await getTopData('medium_term', spotifyApi);
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1221,9 +1226,10 @@ app.get('/last-6-months', setAccessTokenFromSession, async (req, res) => {
   }
 });
 
-app.get('/last-12-months', setAccessTokenFromSession, async (req, res) => {
+app.get('/last-12-months', ensureUserSpotifyApi, async (req, res) => {
   try {
-    const data = await getTopData('long_term');
+    const spotifyApi = req.userSpotifyApi;
+    const data = await getTopData('long_term', spotifyApi);
     res.json(data);
   } catch (err) {
     console.error(err);
@@ -1232,9 +1238,10 @@ app.get('/last-12-months', setAccessTokenFromSession, async (req, res) => {
 });
 
 // New endpoint to get detailed genre information with artists
-app.get('/genre-details/:timeRange', setAccessTokenFromSession, async (req, res) => {
+app.get('/genre-details/:timeRange', ensureUserSpotifyApi, async (req, res) => {
   try {
     const { timeRange } = req.params;
+    const spotifyApi = req.userSpotifyApi;
     let time_range;
     
     switch (timeRange) {
@@ -1251,7 +1258,7 @@ app.get('/genre-details/:timeRange', setAccessTokenFromSession, async (req, res)
         return res.status(400).json({ error: 'Invalid time range. Use: 4-weeks, 6-months, or 12-months' });
     }
     
-    const data = await getTopData(time_range);
+    const data = await getTopData(time_range, spotifyApi);
     res.json({
       genres: data.genreDetails,
       timeRange: timeRange
