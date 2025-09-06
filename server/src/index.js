@@ -71,7 +71,7 @@ const scopes = [
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
   clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-  redirectUri: 'https://api.vibegenerator.me/callback', // Updated for new domain
+  redirectUri: process.env.REDIRECT_URI || 'https://api.vibegenerator.me/callback',
 });
 // Token refresh function
 const refreshAccessTokenIfNeeded = async () => {
@@ -300,9 +300,13 @@ app.get('/callback', async (req, res) => {
 });
 
 // API endpoint for the frontend to check auth status and get user data.
-app.get('/me', ensureUserSpotifyApi, async (req, res) => {
+app.get('/me', async (req, res) => {
   try {
-    const spotifyApi = req.userSpotifyApi;
+    // Set the access token from session if available
+    if (req.session && req.session.access_token) {
+      spotifyApi.setAccessToken(req.session.access_token);
+    }
+    
     const { body } = await spotifyApi.getMe();
     
     // Get user's public profile to access follower count and following count

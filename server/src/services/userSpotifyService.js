@@ -5,7 +5,7 @@ class UserSpotifyService {
   constructor() {
     this.clientId = process.env.SPOTIFY_CLIENT_ID;
     this.clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-    this.redirectUri = 'https://api.vibegenerator.me/callback';
+    this.redirectUri = process.env.REDIRECT_URI || 'https://api.vibegenerator.me/callback';
   }
 
   // Create a user-specific Spotify API instance
