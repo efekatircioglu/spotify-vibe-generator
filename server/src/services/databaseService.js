@@ -55,7 +55,7 @@ class DatabaseService {
   }
 
   // Create or update user session
-  async createOrUpdateUserSession(sessionId, spotifyData, tokens) {
+  async createOrUpdateUserSession(sessionId, spotifyData, tokens, jwtToken = null) {
     const client = await this.pool.connect();
     try {
       const {
@@ -80,8 +80,8 @@ class DatabaseService {
       const insertQuery = `
         INSERT INTO user_sessions (
           session_id, spotify_id, display_name, email, profile_image_url,
-          encrypted_access_token, encrypted_refresh_token, expires_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          encrypted_access_token, encrypted_refresh_token, jwt_token, expires_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, created_at, updated_at
       `;
 
@@ -93,6 +93,7 @@ class DatabaseService {
         profileImageUrl,
         encryptedAccessToken,
         encryptedRefreshToken,
+        jwtToken,
         expiresAt
       ];
 
@@ -173,6 +174,42 @@ class DatabaseService {
       return session;
     } catch (error) {
       console.error('Error retrieving user session from database:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Get user session by JWT token
+  async getUserSessionByJWT(jwtToken) {
+    const client = await this.pool.connect();
+    try {
+      const query = `
+        SELECT id, session_id, spotify_id, display_name, email, profile_image_url,
+               encrypted_access_token, encrypted_refresh_token, created_at, updated_at, expires_at
+        FROM user_sessions 
+        WHERE jwt_token = $1 AND expires_at > NOW()
+      `;
+      
+      const result = await client.query(query, [jwtToken]);
+      
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      const session = result.rows[0];
+      
+      // Decrypt tokens
+      session.access_token = this.decrypt(session.encrypted_access_token);
+      session.refresh_token = this.decrypt(session.encrypted_refresh_token);
+      
+      // Remove encrypted tokens from response
+      delete session.encrypted_access_token;
+      delete session.encrypted_refresh_token;
+      
+      return session;
+    } catch (error) {
+      console.error('Error retrieving user session by JWT from database:', error);
       throw error;
     } finally {
       client.release();

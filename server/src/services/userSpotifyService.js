@@ -29,8 +29,11 @@ class UserSpotifyService {
   // Get user-specific Spotify API instance from session
   async getUserSpotifyApi(req) {
     try {
+      console.log('🔍 [getUserSpotifyApi] Starting...');
+      
       // First try to get tokens from session
       if (req.session && req.session.access_token) {
+        console.log('   📝 Found session tokens, using them...');
         const spotifyApi = this.createUserSpotifyApi(
           req.session.access_token,
           req.session.refresh_token
@@ -39,11 +42,12 @@ class UserSpotifyService {
         // Test if the token is still valid
         try {
           await spotifyApi.getMe();
+          console.log('   ✅ Session tokens are valid');
           return spotifyApi;
         } catch (error) {
           if (error.statusCode === 401) {
             // Token expired, try to refresh
-            console.log('Token expired, attempting to refresh...');
+            console.log('   🔄 Session token expired, attempting to refresh...');
             return await this.refreshUserToken(req, spotifyApi);
           }
           throw error;
@@ -52,8 +56,10 @@ class UserSpotifyService {
 
       // If no session tokens, try to get from database using session ID
       if (req.sessionID) {
+        console.log('   📝 No session tokens, trying database with session ID...');
         const userSession = await databaseService.getUserSession(req.sessionID);
         if (userSession && userSession.access_token) {
+          console.log(`   ✅ Found database session: ${userSession.display_name}`);
           const spotifyApi = this.createUserSpotifyApi(
             userSession.access_token,
             userSession.refresh_token
@@ -62,21 +68,26 @@ class UserSpotifyService {
           // Test if the token is still valid
           try {
             await spotifyApi.getMe();
+            console.log('   ✅ Database tokens are valid');
             return spotifyApi;
           } catch (error) {
             if (error.statusCode === 401) {
               // Token expired, try to refresh
-              console.log('Token expired, attempting to refresh from database...');
+              console.log('   🔄 Database token expired, attempting to refresh...');
               return await this.refreshUserTokenFromDatabase(req, userSession, spotifyApi);
             }
             throw error;
           }
+        } else {
+          console.log('   ❌ No database session found for session ID');
         }
+      } else {
+        console.log('   ❌ No session ID available');
       }
 
       throw new Error('No valid access token found');
     } catch (error) {
-      console.error('Error getting user Spotify API:', error);
+      console.error('❌ [getUserSpotifyApi] Error:', error.message);
       throw error;
     }
   }
@@ -155,10 +166,15 @@ class UserSpotifyService {
   // Middleware to ensure user has valid Spotify API access
   async ensureUserSpotifyApi(req, res, next) {
     try {
+      console.log('🔍 [ensureUserSpotifyApi] Starting middleware...');
+      console.log(`   Session ID: ${req.sessionID ? req.sessionID.substring(0, 25) + '...' : 'No session ID'}`);
+      console.log(`   Session tokens: ${req.session && req.session.access_token ? 'Present' : 'Not present'}`);
+      
       req.userSpotifyApi = await this.getUserSpotifyApi(req);
+      console.log('✅ [ensureUserSpotifyApi] Successfully got user Spotify API');
       next();
     } catch (error) {
-      console.error('Failed to get user Spotify API:', error);
+      console.error('❌ [ensureUserSpotifyApi] Failed to get user Spotify API:', error.message);
       res.status(401).json({ error: 'Authentication required. Please log in again.' });
     }
   }

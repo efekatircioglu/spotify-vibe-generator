@@ -11,6 +11,8 @@ const { getArtistBio, getAllAlbumsByArtistName, getAlbumGenreStyleMapByArtistNam
 const geniusService = require('./services/geniusService');
 const databaseService = require('./services/databaseService');
 const userSpotifyService = require('./services/userSpotifyService');
+const jwtService = require('./services/jwtService');
+const jwtAuthService = require('./services/jwtAuthService');
 
 const app = express();
 const PORT = 8000;
@@ -232,14 +234,18 @@ app.get('/callback', async (req, res) => {
     req.session.refresh_token = refresh_token;
     req.session.user_id = userData.body.id;
     
-    // Store user session in database
+    // Generate JWT token
+    const jwtToken = jwtService.generateToken(userData.body);
+    
+    // Store user session in database with JWT token
     try {
       await databaseService.createOrUpdateUserSession(
         req.sessionID,
         userData.body,
-        { access_token, refresh_token }
+        { access_token, refresh_token },
+        jwtToken
       );
-      console.log('User session stored in database successfully');
+      console.log('User session stored in database successfully with JWT token');
     } catch (dbError) {
       console.error('Error storing user session in database:', dbError);
       // Continue with the flow even if database storage fails
@@ -276,14 +282,14 @@ app.get('/callback', async (req, res) => {
         redirectUrl = 'https://vibegenerator.vercel.app';
       }
       
-      // Redirect to the destination page after session is saved
+      // Redirect to the destination page after session is saved with JWT token
       let finalRedirectUrl;
       if (destination === 'analytics') {
-        finalRedirectUrl = `${redirectUrl}/dashboard`;
+        finalRedirectUrl = `${redirectUrl}/dashboard?token=${jwtToken}`;
       } else if (destination === 'concerts') {
-        finalRedirectUrl = `${redirectUrl}/concerts`;
+        finalRedirectUrl = `${redirectUrl}/concerts?token=${jwtToken}`;
       } else {
-        finalRedirectUrl = `${redirectUrl}/dashboard`;
+        finalRedirectUrl = `${redirectUrl}/dashboard?token=${jwtToken}`;
       }
       
       console.log('Redirecting to:', finalRedirectUrl);
@@ -300,13 +306,9 @@ app.get('/callback', async (req, res) => {
 });
 
 // API endpoint for the frontend to check auth status and get user data.
-app.get('/me', async (req, res) => {
+app.get('/me', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
-    // Set the access token from session if available
-    if (req.session && req.session.access_token) {
-      spotifyApi.setAccessToken(req.session.access_token);
-    }
-    
+    const spotifyApi = req.userSpotifyApi;
     const { body } = await spotifyApi.getMe();
     
     // Get user's public profile to access follower count and following count
@@ -560,7 +562,7 @@ app.get('/analyze-recents', async (req, res) => {
   }
 });
 
-app.get('/recent-tracks', ensureUserSpotifyApi, async (req, res) => {
+app.get('/recent-tracks', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const spotifyApi = req.userSpotifyApi;
     // Fetch up to 50 recently played tracks
@@ -1124,7 +1126,7 @@ app.get('/playlist-artists/:id', async (req, res) => {
   }
 });
 
-app.get('/top-tracks', ensureUserSpotifyApi, async (req, res) => {
+app.get('/top-tracks', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   const { time_range = 'short_term', limit } = req.query;
   try {
     const spotifyApi = req.userSpotifyApi;
@@ -1136,7 +1138,7 @@ app.get('/top-tracks', ensureUserSpotifyApi, async (req, res) => {
   }
 });
 
-app.get('/top-artists', ensureUserSpotifyApi, async (req, res) => {
+app.get('/top-artists', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   const { time_range = 'short_term', limit } = req.query;
   try {
     const spotifyApi = req.userSpotifyApi;
@@ -1208,7 +1210,7 @@ async function getTopData(time_range, spotifyApi) {
   };
 }
 
-app.get('/last-4-weeks', ensureUserSpotifyApi, async (req, res) => {
+app.get('/last-4-weeks', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const spotifyApi = req.userSpotifyApi;
     const data = await getTopData('short_term', spotifyApi);
@@ -1219,7 +1221,7 @@ app.get('/last-4-weeks', ensureUserSpotifyApi, async (req, res) => {
   }
 });
 
-app.get('/last-6-months', ensureUserSpotifyApi, async (req, res) => {
+app.get('/last-6-months', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const spotifyApi = req.userSpotifyApi;
     const data = await getTopData('medium_term', spotifyApi);
@@ -1230,7 +1232,7 @@ app.get('/last-6-months', ensureUserSpotifyApi, async (req, res) => {
   }
 });
 
-app.get('/last-12-months', ensureUserSpotifyApi, async (req, res) => {
+app.get('/last-12-months', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const spotifyApi = req.userSpotifyApi;
     const data = await getTopData('long_term', spotifyApi);

@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../config/api';
+import jwtManager from './jwtManager';
 
 // API client utility for making requests to the backend
 export const apiClient = {
@@ -7,10 +8,14 @@ export const apiClient = {
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}${endpoint}`;
     
+    // Get JWT token for authentication
+    const authHeader = jwtManager.getAuthHeader();
+    
     const defaultOptions = {
       credentials: 'include', // Include cookies for session management
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeader && { 'Authorization': authHeader }), // Add JWT token if available
         ...options.headers,
       },
     };
@@ -19,6 +24,14 @@ export const apiClient = {
       ...defaultOptions,
       ...options,
     });
+
+    // Handle authentication errors
+    if (response.status === 401) {
+      console.log('🔐 Unauthorized request, redirecting to login');
+      jwtManager.removeToken();
+      window.location.href = '/login';
+      return;
+    }
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
