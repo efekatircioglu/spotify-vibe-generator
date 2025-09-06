@@ -11,6 +11,7 @@ import AlbumContributorsModal from '../../components/AlbumContributorsModal';
 import ArtistCollaborators from '../../components/ArtistCollaborators';
 import ArtistsMosts from '../../components/ArtistsMosts';
 import { getCachedArtistId, setArtistCache, setFailedArtistCache } from '../../utils/artistCache';
+import { getApiBaseUrl } from '../../config/api';
 import jwtManager from '../../utils/jwtManager';
 
 // --- Add this entire helper function ---
