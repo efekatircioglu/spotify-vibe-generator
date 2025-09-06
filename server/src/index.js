@@ -1244,7 +1244,7 @@ app.get('/last-12-months', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtA
 });
 
 // New endpoint to get detailed genre information with artists
-app.get('/genre-details/:timeRange', ensureUserSpotifyApi, async (req, res) => {
+app.get('/genre-details/:timeRange', jwtAuthService.authenticateAndGetSpotifyApi.bind(jwtAuthService), async (req, res) => {
   try {
     const { timeRange } = req.params;
     const spotifyApi = req.userSpotifyApi;

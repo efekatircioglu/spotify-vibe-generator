@@ -98,13 +98,21 @@ export default function Last4WeeksPage() {
       } catch (err) {
         console.error('❌ Error fetching 4-weeks data:', err);
         
-        // Check if it's an authentication error
-        if (err.message === 'No authentication token available' || err.message.includes('authentication')) {
-          console.log('🔐 Authentication error detected, redirecting to login');
+        // Only redirect to login for specific authentication errors
+        if (err.message === 'No authentication token available') {
+          console.log('🔐 No JWT token found, redirecting to login');
           window.location.href = LOGIN_URL;
           return;
         }
         
+        // Check if it's a 401 Unauthorized response from server
+        if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+          console.log('🔐 Server returned 401 Unauthorized, redirecting to login');
+          window.location.href = LOGIN_URL;
+          return;
+        }
+        
+        // For all other errors, show error message instead of redirecting
         setError(`Failed to fetch data: ${err.message}`);
       } finally {
         setLoading(false);

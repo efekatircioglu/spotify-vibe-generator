@@ -40,24 +40,27 @@ class JWTManager {
   // Check if token exists and is not expired
   isTokenValid() {
     const token = this.getToken();
-    if (!token) return false;
+    console.log('🔐 [JWT Validation] Checking token validity...');
+    console.log('🔐 [JWT Validation] Token exists:', !!token);
+    
+    if (!token) {
+      console.log('🔐 [JWT Validation] No token found');
+      return false;
+    }
 
+    // Don't do client-side validation - let server handle it
+    // Just check if token exists and has basic structure
     try {
-      // Decode JWT payload (without verification - just for expiration check)
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Math.floor(Date.now() / 1000);
-      
-      // Check if token is expired
-      if (payload.exp && payload.exp < currentTime) {
-        console.log('🔐 JWT token expired');
-        this.removeToken();
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.log('🔐 [JWT Validation] Invalid token structure');
         return false;
       }
       
+      console.log('🔐 [JWT Validation] Token structure is valid');
       return true;
     } catch (error) {
-      console.error('🔐 Error validating JWT token:', error);
-      this.removeToken();
+      console.error('🔐 [JWT Validation] Error checking token structure:', error);
       return false;
     }
   }
@@ -77,23 +80,29 @@ class JWTManager {
 
   // Make authenticated API request
   async makeAuthenticatedRequest(url, options = {}) {
-    const authHeader = this.getAuthHeader();
+    console.log('🔐 [JWT Request] Making authenticated request to:', url);
     
-    if (!authHeader) {
-      throw new Error('No authentication token available');
-    }
+    const token = this.getToken();
+    console.log('🔐 [JWT Request] Token exists:', !!token);
+    
+    // Don't validate token client-side - let server handle validation
+    // Just send whatever token we have (or null if none)
+    const authHeader = token ? `Bearer ${token}` : null;
+    console.log('🔐 [JWT Request] Auth header exists:', !!authHeader);
 
     const requestOptions = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader,
+        ...(authHeader && { 'Authorization': authHeader }),
         ...options.headers
       }
     };
 
     try {
+      console.log('🔐 [JWT Request] Sending request with auth header');
       const response = await fetch(url, requestOptions);
+      console.log('🔐 [JWT Request] Response status:', response.status);
       
       // Check for new JWT token in response headers (when Spotify token is refreshed)
       const newJwtToken = response.headers.get('X-New-JWT-Token');
@@ -104,7 +113,7 @@ class JWTManager {
       
       // If unauthorized, remove token and redirect to login
       if (response.status === 401) {
-        console.log('🔐 Unauthorized request, removing token');
+        console.log('🔐 [JWT Request] Unauthorized response (401), removing token');
         this.removeToken();
         window.location.href = LOGIN_URL;
         return;
@@ -112,7 +121,7 @@ class JWTManager {
       
       return response;
     } catch (error) {
-      console.error('🔐 API request failed:', error);
+      console.error('🔐 [JWT Request] API request failed:', error);
       throw error;
     }
   }
