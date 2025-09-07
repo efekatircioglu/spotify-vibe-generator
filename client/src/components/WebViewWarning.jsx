@@ -25,10 +25,10 @@ const WebViewWarning = ({ onDismiss }) => {
     alert('Link copied! Paste it in your preferred browser.');
   };
 
-  const openInBrowser = (browserUrl) => {
-    // Try to open in specific browser
-    window.location.href = browserUrl + window.location.href;
-  };
+  // const openInBrowser = (browserUrl) => {
+  //   // Try to open in specific browser
+  //   window.location.href = browserUrl + window.location.href;
+  // };
 
   if (!showWarning || !webViewInfo) return null;
 
@@ -78,7 +78,7 @@ const WebViewWarning = ({ onDismiss }) => {
             {recommendedBrowsers.map((browser, index) => (
               <button
                 key={index}
-                onClick={() => openInBrowser(browser.url)}
+                onClick={() => browser.url}
                 style={{
                   backgroundColor: '#1db954',
                   color: '#000',
