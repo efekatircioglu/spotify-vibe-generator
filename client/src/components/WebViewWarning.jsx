@@ -26,25 +26,8 @@ const WebViewWarning = ({ onDismiss }) => {
   };
 
   const openInBrowser = (browserUrl) => {
-    const currentUrl = window.location.href;
-    
-    // Handle different browser URL schemes
-    if (browserUrl.includes('googlechrome://')) {
-      // Chrome: googlechrome://navigate?url=...
-      window.location.href = `googlechrome://navigate?url=${encodeURIComponent(currentUrl)}`;
-    } else if (browserUrl.includes('safari://')) {
-      // Safari: safari://open-url?url=...
-      window.location.href = `safari://open-url?url=${encodeURIComponent(currentUrl)}`;
-    } else if (browserUrl.includes('firefox://')) {
-      // Firefox: firefox://open-url?url=...
-      window.location.href = `firefox://open-url?url=${encodeURIComponent(currentUrl)}`;
-    } else if (browserUrl.includes('samsungbrowser://')) {
-      // Samsung Internet: samsungbrowser://navigate?url=...
-      window.location.href = `samsungbrowser://navigate?url=${encodeURIComponent(currentUrl)}`;
-    } else {
-      // For desktop browsers, open in new tab
-      window.open(currentUrl, '_blank');
-    }
+    // Try to open in specific browser
+    window.location.href = browserUrl + window.location.href;
   };
 
   if (!showWarning || !webViewInfo) return null;
@@ -125,52 +108,6 @@ const WebViewWarning = ({ onDismiss }) => {
           </div>
         </div>
 
-        {/* Copy Link Option */}
-        <div style={{ marginBottom: '24px' }}>
-          <button
-            onClick={copyCurrentUrl}
-            style={{
-              backgroundColor: 'transparent',
-              color: '#1db954',
-              border: '2px solid #1db954',
-              borderRadius: '8px',
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              width: '100%'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#1db954';
-              e.target.style.color = '#000';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = '#1db954';
-            }}
-          >
-            Copy Link & Open in Browser
-          </button>
-        </div>
-
-        {/* Instructions */}
-        <div style={{
-          backgroundColor: '#0a0a0a',
-          borderRadius: '8px',
-          padding: '16px',
-          marginBottom: '24px',
-          border: '1px solid #333'
-        }}>
-          <h4 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '14px' }}>
-            How to switch:
-          </h4>
-          <ol style={{ color: '#b3b3b3', fontSize: '12px', textAlign: 'left', margin: 0, paddingLeft: '20px' }}>
-            <li>Tap the menu (⋮) or share button</li>
-            <li>Select "Open in Browser" or "Open in Safari/Chrome"</li>
-            <li>Or copy the link and paste in your preferred browser</li>
-          </ol>
-        </div>
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '12px' }}>

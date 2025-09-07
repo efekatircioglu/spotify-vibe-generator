@@ -79,7 +79,7 @@ export function getRecommendedBrowsers(platform) {
     case 'iOS':
       return [
         { name: 'Safari', icon: '', url: 'safari://' },
-        { name: 'Chrome', icon: '', url: 'googlechrome://' },
+        { name: 'Chrome', icon: '', url: 'googlechrome://https://vibegenerator.vercel.app/' },
         { name: 'Firefox', icon: '', url: 'firefox://' }
       ];
     case 'Android':
