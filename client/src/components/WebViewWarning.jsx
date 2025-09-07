@@ -6,6 +6,7 @@ import { detectWebView, getRecommendedBrowsers } from '../utils/webViewDetector'
 const WebViewWarning = ({ onDismiss }) => {
   const [webViewInfo, setWebViewInfo] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     const detection = detectWebView();
@@ -22,7 +23,11 @@ const WebViewWarning = ({ onDismiss }) => {
 
   const copyCurrentUrl = () => {
     navigator.clipboard.writeText(window.location.href);
-    alert('Link copied! Paste it in your preferred browser.');
+    setLinkCopied(true);
+    // Reset after 3 seconds
+    setTimeout(() => {
+      setLinkCopied(false);
+    }, 3000);
   };
 
   // const openInBrowser = (browserUrl) => {
@@ -68,7 +73,6 @@ const WebViewWarning = ({ onDismiss }) => {
           </p>
         </div>
 
-
         {/* Recommended Browsers */}
         <div style={{ marginBottom: '24px' }}>
           <h3 style={{ color: '#1db954', margin: '0 0 16px 0', fontSize: '18px' }}>
@@ -108,6 +112,40 @@ const WebViewWarning = ({ onDismiss }) => {
           </div>
         </div>
 
+        {/* Copy Link Option */}
+        <div style={{ marginBottom: '24px' }}>
+          <button
+            onClick={copyCurrentUrl}
+            style={{
+              backgroundColor: linkCopied ? '#10b981' : 'transparent',
+              color: linkCopied ? '#000' : '#1db954',
+              border: '2px solid #1db954',
+              borderRadius: '8px',
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              width: '100%'
+            }}
+            onMouseEnter={(e) => {
+              if (!linkCopied) {
+                e.target.style.backgroundColor = '#1db954';
+                e.target.style.color = '#000';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!linkCopied) {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#1db954';
+              }
+            }}
+          >
+            {linkCopied ? 'Link Copied!' : 'Copy Link & Open in Browser'}
+          </button>
+        </div>
+
+        
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -132,13 +170,13 @@ const WebViewWarning = ({ onDismiss }) => {
               e.target.style.backgroundColor = '#666';
             }}
           >
-            Continue Here
+            Continue Here (not recommended)
           </button>
           <button
             onClick={copyCurrentUrl}
             style={{
-              backgroundColor: '#1db954',
-              color: '#000',
+              backgroundColor: linkCopied ? '#10b981' : '#1db954',
+              color: linkCopied ? '#000' : '#000',
               border: 'none',
               borderRadius: '8px',
               padding: '12px 24px',
@@ -149,13 +187,17 @@ const WebViewWarning = ({ onDismiss }) => {
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#1ed760';
+              if (!linkCopied) {
+                e.target.style.backgroundColor = '#1ed760';
+              }
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#1db954';
+              if (!linkCopied) {
+                e.target.style.backgroundColor = '#1db954';
+              }
             }}
           >
-            Copy Link
+            {linkCopied ? 'Link Copied!' : 'Copy Link'}
           </button>
         </div>
       </div>
