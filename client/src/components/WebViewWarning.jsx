@@ -21,64 +21,29 @@ const WebViewWarning = ({ onDismiss }) => {
   };
 
   const copyCurrentUrl = () => {
-    const targetUrl = 'https://vibegenerator.vercel.app/';
-    navigator.clipboard.writeText(targetUrl);
+    navigator.clipboard.writeText(window.location.href);
     alert('Link copied! Paste it in your preferred browser.');
   };
 
   const openInBrowser = (browserUrl) => {
-    const targetUrl = 'https://vibegenerator.vercel.app/';
+    const currentUrl = window.location.href;
     
-    // Try to open in specific browser using window.open
+    // Handle different browser URL schemes
     if (browserUrl.includes('googlechrome://')) {
-      // Try Chrome
-      try {
-        window.open(`googlechrome://navigate?url=${encodeURIComponent(targetUrl)}`, '_blank');
-        // Fallback: try to open in new tab
-        setTimeout(() => {
-          window.open(targetUrl, '_blank');
-        }, 500);
-      } catch (error) {
-        // Final fallback: copy link
-        navigator.clipboard.writeText(targetUrl);
-        alert('Chrome not available. Link copied! Paste it in Chrome.');
-      }
-    } else if (browserUrl.includes('x-web-search://')) {
-      // Try Safari
-      try {
-        window.open(`x-web-search://?${encodeURIComponent(targetUrl)}`, '_blank');
-        setTimeout(() => {
-          window.open(targetUrl, '_blank');
-        }, 500);
-      } catch (error) {
-        navigator.clipboard.writeText(targetUrl);
-        alert('Safari not available. Link copied! Paste it in Safari.');
-      }
+      // Chrome: googlechrome://navigate?url=...
+      window.location.href = `googlechrome://navigate?url=${encodeURIComponent(currentUrl)}`;
+    } else if (browserUrl.includes('safari://')) {
+      // Safari: safari://open-url?url=...
+      window.location.href = `safari://open-url?url=${encodeURIComponent(currentUrl)}`;
     } else if (browserUrl.includes('firefox://')) {
-      // Try Firefox
-      try {
-        window.open(`firefox://open-url?url=${encodeURIComponent(targetUrl)}`, '_blank');
-        setTimeout(() => {
-          window.open(targetUrl, '_blank');
-        }, 500);
-      } catch (error) {
-        navigator.clipboard.writeText(targetUrl);
-        alert('Firefox not available. Link copied! Paste it in Firefox.');
-      }
+      // Firefox: firefox://open-url?url=...
+      window.location.href = `firefox://open-url?url=${encodeURIComponent(currentUrl)}`;
     } else if (browserUrl.includes('samsungbrowser://')) {
-      // Try Samsung Internet
-      try {
-        window.open(`samsungbrowser://navigate?url=${encodeURIComponent(targetUrl)}`, '_blank');
-        setTimeout(() => {
-          window.open(targetUrl, '_blank');
-        }, 500);
-      } catch (error) {
-        navigator.clipboard.writeText(targetUrl);
-        alert('Samsung Internet not available. Link copied! Paste it in Samsung Internet.');
-      }
+      // Samsung Internet: samsungbrowser://navigate?url=...
+      window.location.href = `samsungbrowser://navigate?url=${encodeURIComponent(currentUrl)}`;
     } else {
-      // For desktop or unknown browsers, open in new tab
-      window.open(targetUrl, '_blank');
+      // For desktop browsers, open in new tab
+      window.open(currentUrl, '_blank');
     }
   };
 
@@ -160,6 +125,53 @@ const WebViewWarning = ({ onDismiss }) => {
           </div>
         </div>
 
+        {/* Copy Link Option */}
+        <div style={{ marginBottom: '24px' }}>
+          <button
+            onClick={copyCurrentUrl}
+            style={{
+              backgroundColor: 'transparent',
+              color: '#1db954',
+              border: '2px solid #1db954',
+              borderRadius: '8px',
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              width: '100%'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#1db954';
+              e.target.style.color = '#000';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.color = '#1db954';
+            }}
+          >
+            Copy Link & Open in Browser
+          </button>
+        </div>
+
+        {/* Instructions */}
+        <div style={{
+          backgroundColor: '#0a0a0a',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '24px',
+          border: '1px solid #333'
+        }}>
+          <h4 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '14px' }}>
+            How to switch:
+          </h4>
+          <ol style={{ color: '#b3b3b3', fontSize: '12px', textAlign: 'left', margin: 0, paddingLeft: '20px' }}>
+            <li>Tap the menu (⋮) or share button</li>
+            <li>Select "Open in Browser" or "Open in Safari/Chrome"</li>
+            <li>Or copy the link and paste in your preferred browser</li>
+          </ol>
+        </div>
+
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
@@ -183,7 +195,7 @@ const WebViewWarning = ({ onDismiss }) => {
               e.target.style.backgroundColor = '#666';
             }}
           >
-            Continue Here (not recommended)
+            Continue Here
           </button>
           <button
             onClick={copyCurrentUrl}
