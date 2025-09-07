@@ -2,48 +2,17 @@
 export function detectWebView() {
   const userAgent = navigator.userAgent.toLowerCase();
   
-  // Common WebView patterns
+  // Only detect Snapchat and LinkedIn WebView patterns
   const webViewPatterns = [
-    // Social Media Apps
     /snapchat/i,
-    /instagram/i,
-    /facebook/i,
-    /twitter/i,
-    /tiktok/i,
     /linkedin/i,
-    /pinterest/i,
-    
-    // Messaging Apps
-    /whatsapp/i,
-    /telegram/i,
-    /discord/i,
-    /slack/i,
-    
-    // Other Apps
-    /line/i,
-    /wechat/i,
-    /reddit/i,
-    /youtube/i,
-    
-    // Generic WebView indicators
-    /wv\)/i, // Android WebView
-    /version\/.*safari/i, // iOS WebView (but not regular Safari)
   ];
   
   // Check for WebView patterns
   const isWebView = webViewPatterns.some(pattern => pattern.test(userAgent));
   
-  // Additional checks for iOS WebView
-  const isIOSWebView = /iphone|ipad|ipod/i.test(userAgent) && 
-                      /version\/.*safari/i.test(userAgent) && 
-                      !/crios|fxios/i.test(userAgent); // Exclude Chrome and Firefox
-  
-  // Additional checks for Android WebView
-  const isAndroidWebView = /android/i.test(userAgent) && 
-                          /wv\)/i.test(userAgent);
-  
   return {
-    isWebView: isWebView || isIOSWebView || isAndroidWebView,
+    isWebView: isWebView,
     userAgent,
     detectedApp: getDetectedApp(userAgent),
     platform: getPlatform(userAgent)
@@ -52,17 +21,7 @@ export function detectWebView() {
 
 function getDetectedApp(userAgent) {
   if (/snapchat/i.test(userAgent)) return 'Snapchat';
-  if (/instagram/i.test(userAgent)) return 'Instagram';
-  if (/facebook/i.test(userAgent)) return 'Facebook';
-  if (/twitter/i.test(userAgent)) return 'Twitter';
-  if (/tiktok/i.test(userAgent)) return 'TikTok';
-  if (/whatsapp/i.test(userAgent)) return 'WhatsApp';
-  if (/telegram/i.test(userAgent)) return 'Telegram';
-  if (/discord/i.test(userAgent)) return 'Discord';
-  if (/youtube/i.test(userAgent)) return 'YouTube';
   if (/linkedin/i.test(userAgent)) return 'LinkedIn';
-  if (/pinterest/i.test(userAgent)) return 'Pinterest';
-  if (/reddit/i.test(userAgent)) return 'Reddit';
   
   return 'Unknown App';
 }
@@ -79,7 +38,7 @@ export function getRecommendedBrowsers(platform) {
     case 'iOS':
       return [
         { name: 'Safari', icon: '', url: 'safari://' },
-        { name: 'Chrome', icon: '', url: 'googlechrome://https://vibegenerator.vercel.app/' },
+        { name: 'Chrome', icon: '', url: 'googlechrome://' },
         { name: 'Firefox', icon: '', url: 'firefox://' }
       ];
     case 'Android':
