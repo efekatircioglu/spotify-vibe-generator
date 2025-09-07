@@ -141,7 +141,7 @@ const WebViewWarning = ({ onDismiss }) => {
               }
             }}
           >
-            {linkCopied ? 'Link Copied!' : 'Copy Link & Open in Browser'}
+            {linkCopied ? 'Link Copied!' : 'Copy Link'}
           </button>
         </div>
 
