@@ -29,55 +29,56 @@ const WebViewWarning = ({ onDismiss }) => {
   const openInBrowser = (browserUrl) => {
     const targetUrl = 'https://vibegenerator.vercel.app/';
     
-    // Try to open in specific browser using custom schemes
+    // Try to open in specific browser using window.open
     if (browserUrl.includes('googlechrome://')) {
-      // Try Chrome first, fallback to copy
+      // Try Chrome
       try {
-        window.location.href = `googlechrome://navigate?url=${encodeURIComponent(targetUrl)}`;
-        // If Chrome doesn't open, copy the link after a short delay
+        window.open(`googlechrome://navigate?url=${encodeURIComponent(targetUrl)}`, '_blank');
+        // Fallback: try to open in new tab
         setTimeout(() => {
-          navigator.clipboard.writeText(targetUrl);
-          alert('Chrome not available. Link copied! Paste it in Chrome.');
-        }, 1000);
+          window.open(targetUrl, '_blank');
+        }, 500);
       } catch (error) {
-        copyCurrentUrl();
+        // Final fallback: copy link
+        navigator.clipboard.writeText(targetUrl);
+        alert('Chrome not available. Link copied! Paste it in Chrome.');
       }
     } else if (browserUrl.includes('x-web-search://')) {
       // Try Safari
       try {
-        window.location.href = `x-web-search://?${encodeURIComponent(targetUrl)}`;
+        window.open(`x-web-search://?${encodeURIComponent(targetUrl)}`, '_blank');
         setTimeout(() => {
-          navigator.clipboard.writeText(targetUrl);
-          alert('Safari not available. Link copied! Paste it in Safari.');
-        }, 1000);
+          window.open(targetUrl, '_blank');
+        }, 500);
       } catch (error) {
-        copyCurrentUrl();
+        navigator.clipboard.writeText(targetUrl);
+        alert('Safari not available. Link copied! Paste it in Safari.');
       }
     } else if (browserUrl.includes('firefox://')) {
       // Try Firefox
       try {
-        window.location.href = `firefox://open-url?url=${encodeURIComponent(targetUrl)}`;
+        window.open(`firefox://open-url?url=${encodeURIComponent(targetUrl)}`, '_blank');
         setTimeout(() => {
-          navigator.clipboard.writeText(targetUrl);
-          alert('Firefox not available. Link copied! Paste it in Firefox.');
-        }, 1000);
+          window.open(targetUrl, '_blank');
+        }, 500);
       } catch (error) {
-        copyCurrentUrl();
+        navigator.clipboard.writeText(targetUrl);
+        alert('Firefox not available. Link copied! Paste it in Firefox.');
       }
     } else if (browserUrl.includes('samsungbrowser://')) {
       // Try Samsung Internet
       try {
-        window.location.href = `samsungbrowser://navigate?url=${encodeURIComponent(targetUrl)}`;
+        window.open(`samsungbrowser://navigate?url=${encodeURIComponent(targetUrl)}`, '_blank');
         setTimeout(() => {
-          navigator.clipboard.writeText(targetUrl);
-          alert('Samsung Internet not available. Link copied! Paste it in Samsung Internet.');
-        }, 1000);
+          window.open(targetUrl, '_blank');
+        }, 500);
       } catch (error) {
-        copyCurrentUrl();
+        navigator.clipboard.writeText(targetUrl);
+        alert('Samsung Internet not available. Link copied! Paste it in Samsung Internet.');
       }
     } else {
-      // For desktop or unknown browsers, just copy
-      copyCurrentUrl();
+      // For desktop or unknown browsers, open in new tab
+      window.open(targetUrl, '_blank');
     }
   };
 
