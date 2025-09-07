@@ -6,35 +6,35 @@ class JWTManager {
     this.tokenKey = 'vibegenerator_jwt_token';
   }
 
-  // Get JWT token from URL parameters or localStorage
+  // Get JWT token from URL parameters or sessionStorage
   getToken() {
     // First, try to get token from URL parameters (after login redirect)
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
     
     if (urlToken) {
-      // Store token in localStorage and clean URL
+      // Store token in sessionStorage and clean URL
       this.setToken(urlToken);
       this.cleanUrl();
       return urlToken;
     }
     
-    // If no URL token, get from localStorage
-    return localStorage.getItem(this.tokenKey);
+    // If no URL token, get from sessionStorage
+    return sessionStorage.getItem(this.tokenKey);
   }
 
-  // Store JWT token in localStorage
+  // Store JWT token in sessionStorage
   setToken(token) {
     if (token) {
-      localStorage.setItem(this.tokenKey, token);
-      console.log('🔐 JWT token stored in localStorage');
+      sessionStorage.setItem(this.tokenKey, token);
+      console.log('🔐 JWT token stored in sessionStorage');
     }
   }
 
-  // Remove JWT token from localStorage
+  // Remove JWT token from sessionStorage
   removeToken() {
-    localStorage.removeItem(this.tokenKey);
-    console.log('🔐 JWT token removed from localStorage');
+    sessionStorage.removeItem(this.tokenKey);
+    console.log('🔐 JWT token removed from sessionStorage');
   }
 
   // Check if token exists and is not expired
@@ -107,7 +107,7 @@ class JWTManager {
       // Check for new JWT token in response headers (when Spotify token is refreshed)
       const newJwtToken = response.headers.get('X-New-JWT-Token');
       if (newJwtToken) {
-        console.log('🔐 Received new JWT token, updating localStorage');
+        console.log('🔐 Received new JWT token, updating sessionStorage');
         this.setToken(newJwtToken);
       }
       
