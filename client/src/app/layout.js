@@ -3,6 +3,7 @@ import { Dancing_Script } from "next/font/google";
 import "./globals.css";
 import "../utils/fetchInterceptor";
 import CacheManager from "../components/CacheManager";
+import WebViewWarning from "../components/WebViewWarning";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable}`} suppressHydrationWarning={true}>
         <CacheManager />
+        <WebViewWarning />
         {children}
       </body>
     </html>
