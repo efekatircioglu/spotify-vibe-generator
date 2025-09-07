@@ -145,8 +145,6 @@ const WebViewWarning = ({ onDismiss }) => {
           </button>
         </div>
 
-        
-
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
@@ -160,7 +158,7 @@ const WebViewWarning = ({ onDismiss }) => {
               fontSize: '14px',
               fontWeight: '600',
               cursor: 'pointer',
-              flex: 1,
+              width: '100%',
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
@@ -171,33 +169,6 @@ const WebViewWarning = ({ onDismiss }) => {
             }}
           >
             Continue Here (not recommended)
-          </button>
-          <button
-            onClick={copyCurrentUrl}
-            style={{
-              backgroundColor: linkCopied ? '#10b981' : '#1db954',
-              color: linkCopied ? '#000' : '#000',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              flex: 1,
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (!linkCopied) {
-                e.target.style.backgroundColor = '#1ed760';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!linkCopied) {
-                e.target.style.backgroundColor = '#1db954';
-              }
-            }}
-          >
-            {linkCopied ? 'Link Copied!' : 'Copy Link'}
           </button>
         </div>
       </div>
