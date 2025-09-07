@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { detectWebView, getRecommendedBrowsers } from '../utils/webViewDetector';
 
