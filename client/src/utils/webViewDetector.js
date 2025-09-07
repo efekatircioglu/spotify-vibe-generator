@@ -78,21 +78,21 @@ export function getRecommendedBrowsers(platform) {
   switch (platform) {
     case 'iOS':
       return [
-        { name: 'Safari', icon: '🦁', url: 'safari://' },
-        { name: 'Chrome', icon: '🌐', url: 'googlechrome://' },
-        { name: 'Firefox', icon: '🦊', url: 'firefox://' }
+        { name: 'Safari', icon: '', url: 'x-web-search://' },
+        { name: 'Chrome', icon: '', url: 'googlechrome://' },
+        { name: 'Firefox', icon: '', url: 'firefox://' }
       ];
     case 'Android':
       return [
-        { name: 'Chrome', icon: '🌐', url: 'googlechrome://' },
-        { name: 'Firefox', icon: '🦊', url: 'firefox://' },
-        { name: 'Samsung Internet', icon: '📱', url: 'samsungbrowser://' }
+        { name: 'Chrome', icon: '', url: 'googlechrome://' },
+        { name: 'Firefox', icon: '', url: 'firefox://' },
+        { name: 'Samsung Internet', icon: '', url: 'samsungbrowser://' }
       ];
     default:
       return [
-        { name: 'Chrome', icon: '🌐', url: 'https://www.google.com/chrome/' },
-        { name: 'Firefox', icon: '🦊', url: 'https://www.mozilla.org/firefox/' },
-        { name: 'Safari', icon: '🦁', url: 'https://www.apple.com/safari/' }
+        { name: 'Chrome', icon: '', url: 'https://www.google.com/chrome/' },
+        { name: 'Firefox', icon: '', url: 'https://www.mozilla.org/firefox/' },
+        { name: 'Safari', icon: '', url: 'https://www.apple.com/safari/' }
       ];
   }
 }

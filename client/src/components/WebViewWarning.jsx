@@ -21,13 +21,14 @@ const WebViewWarning = ({ onDismiss }) => {
   };
 
   const copyCurrentUrl = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const targetUrl = 'https://vibegenerator.vercel.app/';
+    navigator.clipboard.writeText(targetUrl);
     alert('Link copied! Paste it in your preferred browser.');
   };
 
   const openInBrowser = (browserUrl) => {
-    // Try to open in specific browser
-    window.location.href = browserUrl + window.location.href;
+    // Always copy the link - more reliable than custom schemes
+    copyCurrentUrl();
   };
 
   if (!showWarning || !webViewInfo) return null;
@@ -59,7 +60,7 @@ const WebViewWarning = ({ onDismiss }) => {
       }}>
         {/* Header */}
         <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📱</div>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}></div>
           <h2 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '24px' }}>
             Switch to Browser
           </h2>
@@ -68,24 +69,6 @@ const WebViewWarning = ({ onDismiss }) => {
           </p>
         </div>
 
-        {/* Warning Message */}
-        <div style={{
-          backgroundColor: '#2a2a2a',
-          borderRadius: '12px',
-          padding: '20px',
-          marginBottom: '24px',
-          border: '1px solid #333'
-        }}>
-          <p style={{ color: '#fff', margin: '0 0 12px 0', fontSize: '14px' }}>
-            For the best Vibe Generator experience with full features:
-          </p>
-          <ul style={{ color: '#b3b3b3', fontSize: '14px', textAlign: 'left', margin: 0, paddingLeft: '20px' }}>
-            <li>Better performance</li>
-            <li>Full Spotify integration</li>
-            <li>Advanced audio analysis</li>
-            <li>Concert discovery features</li>
-          </ul>
-        </div>
 
         {/* Recommended Browsers */}
         <div style={{ marginBottom: '24px' }}>
@@ -120,58 +103,10 @@ const WebViewWarning = ({ onDismiss }) => {
                   e.target.style.transform = 'translateY(0)';
                 }}
               >
-                <span>{browser.icon}</span>
                 {browser.name}
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Copy Link Option */}
-        <div style={{ marginBottom: '24px' }}>
-          <button
-            onClick={copyCurrentUrl}
-            style={{
-              backgroundColor: 'transparent',
-              color: '#1db954',
-              border: '2px solid #1db954',
-              borderRadius: '8px',
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              width: '100%'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#1db954';
-              e.target.style.color = '#000';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = '#1db954';
-            }}
-          >
-            📋 Copy Link & Open in Browser
-          </button>
-        </div>
-
-        {/* Instructions */}
-        <div style={{
-          backgroundColor: '#0a0a0a',
-          borderRadius: '8px',
-          padding: '16px',
-          marginBottom: '24px',
-          border: '1px solid #333'
-        }}>
-          <h4 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '14px' }}>
-            How to switch:
-          </h4>
-          <ol style={{ color: '#b3b3b3', fontSize: '12px', textAlign: 'left', margin: 0, paddingLeft: '20px' }}>
-            <li>Tap the menu (⋮) or share button</li>
-            <li>Select "Open in Browser" or "Open in Safari/Chrome"</li>
-            <li>Or copy the link and paste in your preferred browser</li>
-          </ol>
         </div>
 
         {/* Action Buttons */}
@@ -197,7 +132,7 @@ const WebViewWarning = ({ onDismiss }) => {
               e.target.style.backgroundColor = '#666';
             }}
           >
-            Continue Here
+            Continue Here (not recommended)
           </button>
           <button
             onClick={copyCurrentUrl}
