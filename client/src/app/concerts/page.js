@@ -71,6 +71,9 @@ export default function ConcertsPage() {
   // State for tracking if concerts have been searched
   const [hasSearchedConcerts, setHasSearchedConcerts] = useState(false);
   
+  // State for tracking if we're in a batch operation (Select All)
+  const [isInBatchOperation, setIsInBatchOperation] = useState(false);
+  
   // Ref for scrolling to concerts section
   const concertsSectionRef = useRef(null);
   
@@ -495,6 +498,7 @@ export default function ConcertsPage() {
     }
     
     setIsBatchSelecting(true);
+    setIsInBatchOperation(true);
     setBatchProgress({ current: 0, total: artistsToAdd.length });
     
     try {
@@ -589,6 +593,7 @@ export default function ConcertsPage() {
       console.error('Error in batch artist selection:', error);
     } finally {
       setIsBatchSelecting(false);
+      setIsInBatchOperation(false);
       setBatchProgress({ current: 0, total: 0 });
       setIsProcessingResults(false);
       setProcessingProgress({ current: 0, total: 0 });
@@ -620,6 +625,7 @@ export default function ConcertsPage() {
     }
     
     setIsBatchSelecting(true);
+    setIsInBatchOperation(true);
     setBatchProgress({ current: 0, total: artistsToAdd.length });
     
     try {
@@ -714,6 +720,7 @@ export default function ConcertsPage() {
       console.error('Error in batch artist selection:', error);
     } finally {
       setIsBatchSelecting(false);
+      setIsInBatchOperation(false);
       setBatchProgress({ current: 0, total: 0 });
       setIsProcessingResults(false);
       setProcessingProgress({ current: 0, total: 0 });
@@ -1792,31 +1799,31 @@ export default function ConcertsPage() {
         <button
           className="search-concerts-button"
           onClick={searchConcerts}
-          disabled={selectedArtists.length === 0 || loadingConcerts}
+          disabled={selectedArtists.length === 0 || loadingConcerts || isInBatchOperation}
           style={{
             padding: isMobile ? '12px 20px' : '16px 32px',
-            background: selectedArtists.length > 0 ? '#10b981' : '#374151',
-            color: selectedArtists.length > 0 ? '#fff' : '#6b7280',
+            background: (selectedArtists.length > 0 && !isInBatchOperation) ? '#10b981' : '#374151',
+            color: (selectedArtists.length > 0 && !isInBatchOperation) ? '#fff' : '#6b7280',
             border: 'none',
             borderRadius: 12,
             fontSize: isMobile ? '0.9rem' : '1.1rem',
             fontWeight: 800,
-            cursor: selectedArtists.length > 0 ? 'pointer' : 'not-allowed',
+            cursor: (selectedArtists.length > 0 && !isInBatchOperation) ? 'pointer' : 'not-allowed',
             transition: 'all 0.3s ease',
-            boxShadow: selectedArtists.length > 0 ? '0 2px 8px rgba(16, 185, 129, 0.2)' : 'none',
-            transform: selectedArtists.length > 0 ? 'translateY(0)' : 'none',
+            boxShadow: (selectedArtists.length > 0 && !isInBatchOperation) ? '0 2px 8px rgba(16, 185, 129, 0.2)' : 'none',
+            transform: (selectedArtists.length > 0 && !isInBatchOperation) ? 'translateY(0)' : 'none',
             position: 'relative',
             overflow: 'hidden',
           }}
           onMouseEnter={(e) => {
-            if (selectedArtists.length > 0) {
+            if (selectedArtists.length > 0 && !isInBatchOperation) {
               e.currentTarget.style.background = '#059669';
               e.currentTarget.style.transform = 'translateY(-2px)';
               e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
             }
           }}
           onMouseLeave={(e) => {
-            if (selectedArtists.length > 0) {
+            if (selectedArtists.length > 0 && !isInBatchOperation) {
               e.currentTarget.style.background = '#10b981';
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.2)';
@@ -1835,6 +1842,18 @@ export default function ConcertsPage() {
               }}></div>
               Searching Worldwide...
             </span>
+          ) : isInBatchOperation ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ 
+                width: 16, 
+                height: 16, 
+                border: '2px solid transparent', 
+                borderTop: '2px solid #6b7280', 
+                borderRadius: '50%', 
+                animation: 'spin 1s linear infinite' 
+              }}></div>
+              Processing Artists...
+            </span>
           ) : (
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1844,7 +1863,7 @@ export default function ConcertsPage() {
               Find All Concerts
             </span>
           )}
-                </button>
+        </button>
         
         <style jsx>{`
           @keyframes spin {
