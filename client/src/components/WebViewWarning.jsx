@@ -27,8 +27,58 @@ const WebViewWarning = ({ onDismiss }) => {
   };
 
   const openInBrowser = (browserUrl) => {
-    // Always copy the link - more reliable than custom schemes
-    copyCurrentUrl();
+    const targetUrl = 'https://vibegenerator.vercel.app/';
+    
+    // Try to open in specific browser using custom schemes
+    if (browserUrl.includes('googlechrome://')) {
+      // Try Chrome first, fallback to copy
+      try {
+        window.location.href = `googlechrome://navigate?url=${encodeURIComponent(targetUrl)}`;
+        // If Chrome doesn't open, copy the link after a short delay
+        setTimeout(() => {
+          navigator.clipboard.writeText(targetUrl);
+          alert('Chrome not available. Link copied! Paste it in Chrome.');
+        }, 1000);
+      } catch (error) {
+        copyCurrentUrl();
+      }
+    } else if (browserUrl.includes('x-web-search://')) {
+      // Try Safari
+      try {
+        window.location.href = `x-web-search://?${encodeURIComponent(targetUrl)}`;
+        setTimeout(() => {
+          navigator.clipboard.writeText(targetUrl);
+          alert('Safari not available. Link copied! Paste it in Safari.');
+        }, 1000);
+      } catch (error) {
+        copyCurrentUrl();
+      }
+    } else if (browserUrl.includes('firefox://')) {
+      // Try Firefox
+      try {
+        window.location.href = `firefox://open-url?url=${encodeURIComponent(targetUrl)}`;
+        setTimeout(() => {
+          navigator.clipboard.writeText(targetUrl);
+          alert('Firefox not available. Link copied! Paste it in Firefox.');
+        }, 1000);
+      } catch (error) {
+        copyCurrentUrl();
+      }
+    } else if (browserUrl.includes('samsungbrowser://')) {
+      // Try Samsung Internet
+      try {
+        window.location.href = `samsungbrowser://navigate?url=${encodeURIComponent(targetUrl)}`;
+        setTimeout(() => {
+          navigator.clipboard.writeText(targetUrl);
+          alert('Samsung Internet not available. Link copied! Paste it in Samsung Internet.');
+        }, 1000);
+      } catch (error) {
+        copyCurrentUrl();
+      }
+    } else {
+      // For desktop or unknown browsers, just copy
+      copyCurrentUrl();
+    }
   };
 
   if (!showWarning || !webViewInfo) return null;
