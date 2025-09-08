@@ -37,20 +37,18 @@ export function getRecommendedBrowsers(platform) {
   switch (platform) {
     case 'iOS':
       return [
-        { name: 'Safari', icon: '', url: 'safari://' },
+        { name: 'Safari', icon: '', url: 'N/A' }, // URL is handled by the component
         { name: 'Chrome', icon: '', url: 'googlechrome://' },
-        { name: 'Firefox', icon: '', url: 'firefox://' }
+        { name: 'Google', icon: '', url: 'google://' },
       ];
     case 'Android':
       return [
         { name: 'Chrome', icon: '', url: 'googlechrome://' },
-        { name: 'Firefox', icon: '', url: 'firefox://' },
         { name: 'Samsung Internet', icon: '', url: 'samsungbrowser://' }
       ];
     default:
       return [
         { name: 'Chrome', icon: '', url: 'https://www.google.com/chrome/' },
-        { name: 'Firefox', icon: '', url: 'https://www.mozilla.org/firefox/' },
         { name: 'Safari', icon: '', url: 'https://www.apple.com/safari/' }
       ];
   }
