@@ -29,42 +29,16 @@ const WebViewWarning = ({ onDismiss }) => {
     }, 3000);
   };
 
-  // --- REFACTORED FUNCTION ---
-  const openInBrowser = (browser) => {
+  const openInBrowser = (browserUrlScheme) => {
     const currentUrl = window.location.href;
-    let finalUrl = '';
-
-    if (browser.needsParam) {
-      // For apps like Google that need the URL as a parameter
-      finalUrl = browser.url + encodeURIComponent(currentUrl);
-    } else {
-      // For apps like Chrome that need the protocol stripped
-      finalUrl = browser.url + currentUrl.replace(/^(https?:\/\/)/, '');
-    }
-    
-    window.location.href = finalUrl;
+    const urlWithoutProtocol = currentUrl.replace(/^(https?:\/\/)/, '');
+    window.location.href = browserUrlScheme + urlWithoutProtocol;
   };
 
   if (!showWarning || !webViewInfo) return null;
 
   const recommendedBrowsers = getRecommendedBrowsers(webViewInfo.platform);
   
-  const buttonStyle = {
-    backgroundColor: '#1db954',
-    color: '#000',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '8px 16px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    transition: 'all 0.2s',
-    textDecoration: 'none'
-  };
-
   return (
     <div style={{
       position: 'fixed',
@@ -86,62 +60,50 @@ const WebViewWarning = ({ onDismiss }) => {
         maxWidth: '400px',
         width: '100%',
         textAlign: 'center',
-        border: '2px solid #1db954'
+        border: '2px solid #4285F4' // Google Blue border
       }}>
         <div style={{ marginBottom: '24px' }}>
           <h2 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '24px' }}>
             Switch to Browser
           </h2>
           <p style={{ color: '#b3b3b3', margin: 0, fontSize: '16px' }}>
-            You're using {webViewInfo.detectedApp}'s built-in browser
+            For a better experience, please open in a dedicated browser.
           </p>
         </div>
 
+        {/* --- MODIFIED BUTTON SECTION --- */}
         <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ color: '#1db954', margin: '0 0 16px 0', fontSize: '18px' }}>
-            Recommended Browsers:
-          </h3>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            {recommendedBrowsers.map((browser, index) => {
-              const isSafariOnIos = browser.name === 'Safari' && webViewInfo.platform === 'iOS';
-
-              if (isSafariOnIos) {
-                return (
-                  <a key={index} href={window.location.href} style={buttonStyle}>
-                    {browser.name}
-                  </a>
-                );
-              } else {
-                return (
-                  <button
-                    key={index}
-                    // --- UPDATED onClick ---
-                    onClick={() => openInBrowser(browser)}
-                    style={buttonStyle}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#1ed760';
-                      e.target.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#1db954';
-                      e.target.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    {browser.name}
-                  </button>
-                );
-              }
-            })}
-          </div>
+          {recommendedBrowsers.map((browser, index) => (
+            <button
+              key={index}
+              onClick={() => openInBrowser(browser.url)}
+              style={{
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                border: '1px solid #dadce0',
+                borderRadius: '8px',
+                padding: '12px 24px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s',
+                width: '100%'
+              }}
+              onMouseEnter={(e) => { e.target.style.backgroundColor = '#f8f9fa'; }}
+              onMouseLeave={(e) => { e.target.style.backgroundColor = '#FFFFFF'; }}
+            >
+              {browser.name}
+            </button>
+          ))}
         </div>
 
         <div style={{ marginBottom: '24px' }}>
           <button
             onClick={copyCurrentUrl}
             style={{
-              backgroundColor: linkCopied ? '#10b981' : 'transparent',
-              color: linkCopied ? '#000' : '#1db954',
-              border: '2px solid #1db954',
+              backgroundColor: linkCopied ? '#34A853' : 'transparent', // Google Green
+              color: linkCopied ? '#fff' : '#4285F4', // Google Blue
+              border: `2px solid ${linkCopied ? '#34A853' : '#4285F4'}`,
               borderRadius: '8px',
               padding: '12px 24px',
               fontSize: '14px',
@@ -150,10 +112,8 @@ const WebViewWarning = ({ onDismiss }) => {
               transition: 'all 0.2s',
               width: '100%'
             }}
-            onMouseEnter={(e) => { if (!linkCopied) { e.target.style.backgroundColor = '#1db954'; e.target.style.color = '#000'; }}}
-            onMouseLeave={(e) => { if (!linkCopied) { e.target.style.backgroundColor = 'transparent'; e.target.style.color = '#1db954'; }}}
           >
-            {linkCopied ? 'Link Copied!' : 'Copy Link'}
+            {linkCopied ? 'Link Copied!' : 'Or Copy Link'}
           </button>
         </div>
 
@@ -161,21 +121,18 @@ const WebViewWarning = ({ onDismiss }) => {
           <button
             onClick={handleDismiss}
             style={{
-              backgroundColor: '#666',
-              color: '#fff',
+              backgroundColor: 'transparent',
+              color: '#999',
               border: 'none',
-              borderRadius: '8px',
               padding: '12px 24px',
               fontSize: '14px',
-              fontWeight: '600',
+              fontWeight: '500',
               cursor: 'pointer',
               width: '100%',
-              transition: 'all 0.2s'
+              textDecoration: 'underline'
             }}
-            onMouseEnter={(e) => { e.target.style.backgroundColor = '#777'; }}
-            onMouseLeave={(e) => { e.target.style.backgroundColor = '#666'; }}
           >
-            Continue Here (not recommended)
+            Continue here (not recommended)
           </button>
         </div>
       </div>
