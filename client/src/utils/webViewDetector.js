@@ -37,19 +37,25 @@ export function getRecommendedBrowsers(platform) {
   switch (platform) {
     case 'iOS':
       return [
-        { name: 'Safari', icon: '', url: 'N/A' }, // URL is handled by the component
-        { name: 'Chrome', icon: '', url: 'googlechrome://' },
-        { name: 'Google', icon: '', url: 'google://' },
+        // Safari doesn't use the function, so its properties don't matter as much
+        { name: 'Safari', url: 'N/A', needsParam: null }, 
+        
+        // Chrome wants the URL appended directly
+        { name: 'Chrome', url: 'googlechrome://', needsParam: false }, 
+        
+        // Google needs the URL as a parameter
+        { name: 'Google', url: 'google://navigate?url=', needsParam: true }, 
       ];
     case 'Android':
       return [
-        { name: 'Chrome', icon: '', url: 'googlechrome://' },
-        { name: 'Samsung Internet', icon: '', url: 'samsungbrowser://' }
+        { name: 'Chrome', url: 'googlechrome://', needsParam: false },
+        { name: 'Samsung Internet', url: 'samsungbrowser://', needsParam: false }
       ];
     default:
+      // Desktop links are standard HTTP links, not deep links
       return [
-        { name: 'Chrome', icon: '', url: 'https://www.google.com/chrome/' },
-        { name: 'Safari', icon: '', url: 'https://www.apple.com/safari/' }
+        { name: 'Chrome', url: 'https://www.google.com/chrome/', needsParam: false },
+        { name: 'Safari', url: 'https://www.apple.com/safari/', needsParam: false }
       ];
   }
 }

@@ -29,10 +29,20 @@ const WebViewWarning = ({ onDismiss }) => {
     }, 3000);
   };
 
-  const openInBrowser = (browserUrlScheme) => {
+  // --- REFACTORED FUNCTION ---
+  const openInBrowser = (browser) => {
     const currentUrl = window.location.href;
-    const urlWithoutProtocol = currentUrl.replace(/^(https?:\/\/)/, '');
-    window.location.href = browserUrlScheme + urlWithoutProtocol;
+    let finalUrl = '';
+
+    if (browser.needsParam) {
+      // For apps like Google that need the URL as a parameter
+      finalUrl = browser.url + encodeURIComponent(currentUrl);
+    } else {
+      // For apps like Chrome that need the protocol stripped
+      finalUrl = browser.url + currentUrl.replace(/^(https?:\/\/)/, '');
+    }
+    
+    window.location.href = finalUrl;
   };
 
   if (!showWarning || !webViewInfo) return null;
@@ -105,7 +115,8 @@ const WebViewWarning = ({ onDismiss }) => {
                 return (
                   <button
                     key={index}
-                    onClick={() => openInBrowser(browser.url)}
+                    // --- UPDATED onClick ---
+                    onClick={() => openInBrowser(browser)}
                     style={buttonStyle}
                     onMouseEnter={(e) => {
                       e.target.style.backgroundColor = '#1ed760';
