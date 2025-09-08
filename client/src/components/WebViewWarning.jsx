@@ -24,16 +24,24 @@ const WebViewWarning = ({ onDismiss }) => {
   const copyCurrentUrl = () => {
     navigator.clipboard.writeText(window.location.href);
     setLinkCopied(true);
-    // Reset after 3 seconds
     setTimeout(() => {
       setLinkCopied(false);
     }, 3000);
   };
 
-  // const openInBrowser = (browserUrl) => {
-  //   // Try to open in specific browser
-  //   window.location.href = browserUrl + window.location.href;
-  // };
+  // --- SOLUTION ---
+  // This function attempts to open the current URL in an external browser app.
+  const openInBrowser = (browserUrlScheme) => {
+    // Get the current URL
+    const currentUrl = window.location.href;
+    
+    // Remove the protocol (http:// or https://) for compatibility with many URL schemes
+    const urlWithoutProtocol = currentUrl.replace(/^(https?:\/\/)/, '');
+    
+    // Attempt to navigate to the new URL
+    window.location.href = browserUrlScheme + urlWithoutProtocol;
+  };
+  // --- END SOLUTION ---
 
   if (!showWarning || !webViewInfo) return null;
 
@@ -82,7 +90,9 @@ const WebViewWarning = ({ onDismiss }) => {
             {recommendedBrowsers.map((browser, index) => (
               <button
                 key={index}
-                onClick={() => browser.url}
+                // --- SOLUTION ---
+                onClick={() => openInBrowser(browser.url)}
+                // --- END SOLUTION ---
                 style={{
                   backgroundColor: '#1db954',
                   color: '#000',
