@@ -301,7 +301,20 @@ app.get('/callback', async (req, res) => {
   } catch (err) {
     console.error('--- ERROR GETTING TOKENS ---');
     console.error('Spotify API Error:', err.body); 
-    res.send('An error occurred while getting the tokens. Check the server console for details.');
+    // Determine redirect URL based on origin
+    const origin = req.headers.origin || req.headers.referer || 'https://vibegenerator.vercel.app';
+    let redirectUrl;
+    
+    if (origin.includes('localhost:3000')) {
+      redirectUrl = 'http://localhost:3000';
+    } else if (origin.includes('localhost:3001')) {
+      redirectUrl = 'http://localhost:3001';
+    } else {
+      redirectUrl = 'https://vibegenerator.vercel.app';
+    }
+    
+    // Redirect to error page
+    res.redirect(`${redirectUrl}/not-permitted`);
   }
 });
 
