@@ -2,6 +2,8 @@
 
 A sophisticated music analytics platform that provides deep insights into your Spotify listening habits and personalized concert discovery. Built with modern web technologies and advanced API integration strategies.
 
+You can watch the video explanation here: https://www.youtube.com/watch?v=3zJy2EmOjoo&t=5s
+
 ## Tech Stack
 
 ### **Frontend**
@@ -18,7 +20,6 @@ A sophisticated music analytics platform that provides deep insights into your S
 - **OAuth 2.0** integration with Spotify
 - **ID mapping roadmaps** for external API platforms
 - **PM2** for production process management
-
 ### **Data Management**
 - **Intelligent Caching System**: Multi-layer caching with memory and browser storage
 - **API Rate Limiting**: Smart request batching and rate limit respect
