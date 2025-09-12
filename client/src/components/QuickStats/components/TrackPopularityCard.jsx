@@ -706,7 +706,7 @@ export default function TrackPopularityCard({ popularity, recentTracks }) {
 
         {/* Time Period Comparisons */}
         {Object.entries(popularity).map(([period, data]) => {
-          if (data.count === 0 || period === 'all_tracks') return null;
+          if (!data || data.count === 0 || period === 'all_tracks') return null;
           
           const averageDescription = getPopularityDescription(data.average);
           const minDescription = getPopularityDescription(data.min);

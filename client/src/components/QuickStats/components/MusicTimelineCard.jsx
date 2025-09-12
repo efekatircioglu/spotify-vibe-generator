@@ -234,7 +234,7 @@ export default function MusicTimelineCard({ yearAnalysis }) {
           
           return sortedEntries.map(([period, data]) => {
             // Always show recent_50 data, even if count is 0
-            if (data.count === 0 && period !== 'recent_50') return null;
+            if (!data || data.count === 0 && period !== 'recent_50') return null;
           
           const currentYear = new Date().getFullYear();
           const yearsDiff = currentYear - data.average;
@@ -423,7 +423,7 @@ export default function MusicTimelineCard({ yearAnalysis }) {
                     fontSize: '0.8rem',
                     margin: '0'
                   }}>
-                    {data.count} songs analyzed
+                    {data?.count || 0} songs analyzed
                   </p>
                 </div>
               </div>

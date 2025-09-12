@@ -230,7 +230,7 @@ export default function TimeOfDayCard({ timeAnalysis }) {
               fontSize: '0.9rem',
               margin: '0'
             }}>
-              {timeAnalysis.timeSlots[timeAnalysis.mostActiveSlot].count} songs played
+              {timeAnalysis.timeSlots[timeAnalysis.mostActiveSlot]?.count || 0} songs played
             </p>
           </div>
         )}
@@ -243,7 +243,7 @@ export default function TimeOfDayCard({ timeAnalysis }) {
         }}>
           {Object.entries(timeAnalysis.timeSlots).map(([slotName, slot]) => {
             const isMostActive = slotName === timeAnalysis.mostActiveSlot;
-            const percentage = Math.round((slot.count / timeAnalysis.analyzedSongs) * 100);
+            const percentage = Math.round(((slot?.count || 0) / timeAnalysis.analyzedSongs) * 100);
             
             return (
               <div key={slotName} style={{
@@ -289,7 +289,7 @@ export default function TimeOfDayCard({ timeAnalysis }) {
                     fontSize: '1.5rem',
                     fontWeight: '700'
                   }}>
-                    {slot.count}
+                    {slot?.count || 0}
                   </span>
                   <span style={{
                     color: '#b3b3b3',
@@ -489,7 +489,7 @@ export default function TimeOfDayCard({ timeAnalysis }) {
           }}>
             {(() => {
               const mostActive = timeAnalysis.mostActiveSlot;
-              const count = timeAnalysis.timeSlots[mostActive].count;
+              const count = timeAnalysis.timeSlots[mostActive]?.count || 0;
               const total = timeAnalysis.analyzedSongs;
               const percentage = Math.round((count / total) * 100);
               
