@@ -101,10 +101,6 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
     };
   }, [dropdownOpen]);
 
-  const handleCollaboratorClick = (collaborator) => {
-    // Navigate to the collaborator's artist page
-    router.push(`/artist?name=${encodeURIComponent(collaborator.name)}&spotifyId=${collaborator.id}`);
-  };
 
   const handleRowClick = (collaborator) => {
     // Toggle the expanded view for this collaborator
@@ -127,13 +123,7 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
           <span
             style={{
               color: '#b3b3b3',
-              cursor: 'pointer',
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleArtistClick(artist);
-            }}
-            title={`Click to view ${artist}'s profile`}
           >
             {artist}
           </span>
@@ -145,10 +135,6 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
     });
   };
 
-  const handleArtistClick = (artistName) => {
-    // Navigate to the artist page
-    router.push(`/artist?name=${encodeURIComponent(artistName)}`);
-  };
 
   // Breakdown button handlers (from NewTrackTable)
   const handleContributionsClick = async (track) => {
@@ -603,28 +589,14 @@ export default function ArtistCollaborators({ artistId, artistName, collaborator
                       marginBottom: '2px'
                     }}>
                       <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCollaboratorClick(collaborator);
-                        }}
                         className="collaborator-name-span"
                         style={{
                           color: '#fff',
                           fontWeight: 'bold',
-                          cursor: 'pointer',
                           fontSize: '18px',
                           textDecoration: 'none',
                           padding: '2px 4px',
-                          borderRadius: '4px',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(29, 185, 84, 0.1)';
-                          e.currentTarget.style.color = '#1ed760';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = '#fff';
+                          borderRadius: '4px'
                         }}
                       >
                         {collaborator.name}
